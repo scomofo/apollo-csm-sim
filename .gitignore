@@ -1,0 +1,6 @@
+.godot/
+*.import.tmp
+export/
+build/
+.gut_editor_config.json
+*.translation

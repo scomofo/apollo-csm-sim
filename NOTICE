@@ -1,0 +1,20 @@
+Apollo CSM Simulator — third-party and source notices
+=====================================================
+
+This repository is original simulation code and original documentation,
+licensed under the MIT License (see LICENSE). The project originated in
+scomofo/gemini-capsule and was split out into its own repository.
+
+NASA / US Government works
+--------------------------
+Numerical values, procedure text, and citations drawn from NASA mission
+reports, SEDR familiarization manuals, NESC reports, and other US
+Government works are used as reference data. Those works are not
+copyrighted in the United States. This project is not affiliated with,
+endorsed by, or sponsored by NASA or the US Government.
+
+Vendored software
+-----------------
+addons/gut/ is GUT (Godot Unit Test) by Tom "Butch" Wesley,
+MIT License. See addons/gut/LICENSE.md. Ignore that tree when reading
+the project; it is a test runner, not spacecraft code.
