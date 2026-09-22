@@ -1,0 +1,15 @@
+{
+  "id": "apollo_11",
+  "title": "Apollo 11 - CSM Columbia",
+  "data_version": 1,
+  "_comment": "Mission profile. Timeline values are Apollo 11 figures rounded [published]; the Moon phase is chosen so the first TLI opportunity falls near the flown 2:44 GET [derived]. Distances in km, times in GET seconds.",
+  "liftoff_jd": 2440419.0638889,
+  "moon": {"inclination_deg": 28.5, "raan_deg": 0.0, "phase0_deg": 3.3, "sun_phase_deg": -20.0},
+  "parking_orbit": {"alt_km": 185.0, "insertion_get_s": 709.0, "arg_lat_deg": -40.0},
+  "tli": {"energy_j_per_kg": -8.0e5, "pericynthion_alt_km": 111.0, "earliest_get_s": 8400.0},
+  "tde_delay_s": 3600.0,
+  "loi": {"apolune_alt_km": 315.0},
+  "tei": {"dv_mps": 1000.0, "entry_perigee_alt_km": 37.0},
+  "failures": {"o2_tank_2_get_s": -1.0},
+  "start_phases": ["parking_orbit", "translunar_coast", "lunar_orbit", "transearth_coast", "entry"]
+}

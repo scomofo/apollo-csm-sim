@@ -1,0 +1,55 @@
+{
+  "_comment": "Apollo CSM/LM/S-IVB mass, propulsion and inertia data. Values are rounded public figures for the Apollo 11 vehicle [published] or engineering estimates [estimated]; see README.md (Fidelity). Masses in kg, forces in N, lengths in m, inertia in kg*m^2.",
+  "mass": {
+    "cm_dry_kg": 5450.0,
+    "sm_dry_kg": 4300.0,
+    "lm_kg": 15103.0,
+    "sivb_dry_kg": 11500.0
+  },
+  "sps": {
+    "_source": "AJ10-137: 20,500 lbf vacuum thrust, Isp 314 s [published]",
+    "thrust_n": 91190.0,
+    "isp_s": 314.5,
+    "propellant_kg": 18413.0,
+    "tau_on_s": 0.3,
+    "tau_off_s": 0.25
+  },
+  "sm_rcs": {
+    "_source": "R-4D, 100 lbf, Isp ~290 s; four quads [published]; usable load per quad [estimated]",
+    "jet_thrust_n": 444.8,
+    "isp_s": 290.0,
+    "quad_propellant_kg": 140.0
+  },
+  "cm_rcs": {
+    "_source": "SE-8, 93 lbf, two independent rings [published]; load [estimated]",
+    "jet_thrust_n": 413.7,
+    "isp_s": 280.0,
+    "ring_propellant_kg": 55.0
+  },
+  "sivb": {
+    "_source": "J-2 vacuum thrust ~1,000 kN, Isp ~421 s [published]; propellant remaining at TLI [estimated]",
+    "thrust_n": 1000000.0,
+    "isp_s": 421.0,
+    "propellant_kg": 75000.0
+  },
+  "configurations": {
+    "stack":  {"inertia": [60000.0, 5000000.0, 5000000.0], "ref_mass_kg": 140000.0, "rcs_pitch_arm_m": 0.0, "rcs_roll_arm_m": 0.0},
+    "csm_lm": {"inertia": [45000.0, 900000.0, 900000.0], "ref_mass_kg": 44000.0, "rcs_pitch_arm_m": 5.0, "rcs_roll_arm_m": 1.95},
+    "csm":    {"inertia": [22000.0, 95000.0, 95000.0], "ref_mass_kg": 28800.0, "rcs_pitch_arm_m": 3.2, "rcs_roll_arm_m": 1.95},
+    "cm":     {"inertia": [6000.0, 5500.0, 5500.0], "ref_mass_kg": 5560.0, "rcs_pitch_arm_m": 1.6, "rcs_roll_arm_m": 1.4}
+  },
+  "cm_aero": {
+    "_source": "Hypersonic trim CD ~1.29, L/D ~0.30 on 3.91 m diameter [published, rounded]",
+    "reference_area_m2": 12.02,
+    "cd": 1.29,
+    "lift_to_drag": 0.30,
+    "max_bank_rate_dps": 15.0
+  },
+  "els": {
+    "_source": "Two 16.5 ft drogues at 24,000 ft, three 83.5 ft mains at 10,000 ft [published]; CdS [estimated]",
+    "drogue_alt_m": 7315.0,
+    "main_alt_m": 3048.0,
+    "drogue_cds_m2": 26.0,
+    "main_cds_m2": 1200.0
+  }
+}

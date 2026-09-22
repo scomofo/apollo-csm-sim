@@ -1,0 +1,45 @@
+{
+  "_comment": "Condensed from the Apollo 11 CSM flight plan and checklists [adapted for this simulator]. Keys: V/N/Enter = VERB/NOUN/ENTR, Space = PRO.",
+  "checklists": [
+    {"title": "Parking orbit and TLI", "steps": [
+      {"text": "Watch the S-IVB/IU: TLI is automatic at the GO-for-TLI TIG"},
+      {"text": "TLI ignition", "check": {"channel": "sivb.state", "op": "eq", "value": "burning"}},
+      {"text": "TLI cutoff: verify apogee beyond the Moon (V82E)", "check": {"channel": "sivb.state", "op": "eq", "value": "done"}},
+      {"text": "CSM/LV SEP: transposition, docking and LM extraction", "check": {"channel": "dyn.config", "op": "eq", "value": "csm_lm"}}
+    ]},
+    {"title": "SPS burn (P30 / P40)", "steps": [
+      {"text": "Mission Control: request the PAD (uplink lights UPLINK ACTY)"},
+      {"text": "V37E 30E - P30 External Delta-V", "check": {"channel": "guid.program", "op": "eq", "value": 30}},
+      {"text": "Verify TIG (N33), PRO; verify N81 DV, PRO; check N42, PRO", "check": {"channel": "guid.maneuver_valid", "op": "eq", "value": true}},
+      {"text": "CMC MODE - AUTO", "check": {"channel": "ctl.cmc.mode", "op": "eq", "value": 2}},
+      {"text": "V37E 40E - P40 SPS Thrusting", "check": {"channel": "guid.program", "op": "eq", "value": 40}},
+      {"text": "V50N18 flashing: PRO to maneuver to burn attitude", "check": {"channel": "guid.step", "op": "ne", "value": "v50n18"}},
+      {"text": "DELTA-V THRUST A - NORMAL", "check": {"channel": "ctl.sps.arm_a", "op": "eq", "value": true}},
+      {"text": "DELTA-V THRUST B - NORMAL", "check": {"channel": "ctl.sps.arm_b", "op": "eq", "value": true}},
+      {"text": "At TIG-5 s V99N40 flashing: PRO for engine on", "check": {"channel": "guid.step", "op": "eq", "value": "burn"}},
+      {"text": "Monitor V16N40 (TFI, VG, DV) - SPS cutoff", "check": {"channel": "guid.step", "op": "eq", "value": "post"}},
+      {"text": "DELTA-V THRUST A and B - OFF", "check": {"channel": "ctl.sps.arm_a", "op": "eq", "value": false}},
+      {"text": "Trim N85 residuals with the THC, then PRO", "check": {"channel": "guid.program", "op": "eq", "value": 0}}
+    ]},
+    {"title": "Lunar orbit and TEI", "steps": [
+      {"text": "Request LOI PAD ~8 h before pericynthion; fly with the SPS burn checklist"},
+      {"text": "Lunar orbit confirmed", "check": {"channel": "mission.phase", "op": "eq", "value": "lunar_orbit"}},
+      {"text": "Request LOI-2 PAD and circularize"},
+      {"text": "LM JETT before TEI (the ascent stage stays behind)", "check": {"channel": "dyn.config", "op": "eq", "value": "csm"}},
+      {"text": "Request TEI PAD; fly it with the SPS burn checklist"},
+      {"text": "Transearth coast", "check": {"channel": "mission.phase", "op": "eq", "value": "transearth_coast"}}
+    ]},
+    {"title": "Entry", "steps": [
+      {"text": "Request MCC PADs to trim the entry corridor (vacuum perigee ~37 km)"},
+      {"text": "CM/SM SEP (15 min before entry interface)", "check": {"channel": "dyn.config", "op": "eq", "value": "cm"}},
+      {"text": "V37E 61E - P61 Entry preparation", "check": {"channel": "guid.program", "op": "ge", "value": 61}},
+      {"text": "SCS ATT SOURCE - CMC (auto bank guidance)", "check": {"channel": "ctl.scs.att_source", "op": "eq", "value": 0}},
+      {"text": "ELS LOGIC - ON", "check": {"channel": "ctl.els.logic", "op": "eq", "value": true}},
+      {"text": "ELS AUTO", "check": {"channel": "ctl.els.auto", "op": "eq", "value": true}},
+      {"text": "0.05 g: P64 entry guidance", "check": {"channel": "guid.program", "op": "ge", "value": 64}},
+      {"text": "Drogues at 24,000 ft", "check": {"channel": "els.drogue", "op": "eq", "value": true}},
+      {"text": "Mains at 10,000 ft", "check": {"channel": "els.mains", "op": "eq", "value": true}},
+      {"text": "Splashdown", "check": {"channel": "mission.phase", "op": "eq", "value": "splashdown"}}
+    ]}
+  ]
+}

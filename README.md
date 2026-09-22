@@ -1,0 +1,179 @@
+# Apollo CSM Simulator
+
+A lunar-mission simulator of the Apollo Command/Service Module, built with
+Godot **4.4.1** on the architecture of the
+[Gemini capsule simulator](../README.md) in this repository. It flies the
+Apollo 11 profile from Earth parking orbit through TLI, midcourse
+corrections, lunar orbit insertion, transearth injection, entry and
+splashdown, with every maneuver planned by a simulated Mission Control and
+executed through the Apollo Guidance Computer's DSKY.
+
+![Chase view in lunar orbit with Eagle docked](docs/images/lunar_orbit_chase.png)
+
+![Parking orbit: the S-IVB/CSM/LM stack before TLI](docs/images/parking_orbit_chase.png)
+
+This is a separate Godot project in `apollo/`. The Gemini project ignores it
+(Godot skips nested projects), and it has its own tests and CI job.
+
+## Running
+
+```
+godot --path apollo                                  # parking orbit, TLI ahead
+godot --path apollo -- --phase=translunar_coast      # after TLI and docking
+godot --path apollo -- --phase=lunar_orbit           # 60 nmi, Eagle docked
+godot --path apollo -- --phase=transearth_coast      # after TEI
+godot --path apollo -- --phase=entry                 # ~15 min before entry interface
+```
+
+Later start phases are made by flying the earlier ones through the RTCC's own
+solutions (TLI, TEI), so every start is consistent with the mission it
+continues. Starting in `transearth_coast` or `entry` takes a few seconds
+while the ground computes the trajectory.
+
+| Input | Action |
+|---|---|
+| W/S, A/D, Q/E | Rotational hand controller: pitch, yaw, roll (hold Shift for 10 %) |
+| Arrows, R/F | Translational hand controller: ±Y/±Z, +X/−X (ullage) |
+| 0–9, `=`/`-` (or keypad) | DSKY digits, + and − |
+| V, N, Enter | VERB, NOUN, ENTR |
+| Space, Backspace | PRO, CLR |
+| Insert, Delete | KEY REL, RSET |
+| T (hold) | SPS THRUST ON, the manual backup |
+| `[` `]`, P | Time rate slower/faster (1× to 10,000×), pause |
+| C, right-drag | Window/chase view, look around |
+| F5 / F9 | Save / load checkpoint |
+| H | Key help |
+
+Every DSKY key and cockpit switch is also clickable on screen. Time
+acceleration drops back to 10× by itself when an engine lights, at each
+scheduled event (TLI, TIG−60 s, V99) and at entry.
+
+## Flying the mission
+
+1. **Parking orbit.** CAPCOM gives you GO for TLI. The S-IVB/IU flies TLI
+   automatically at the planned TIG (GET 2:44). Watch it with `V16N62E` or
+   `V82E`.
+2. **Transposition and docking.** Press **CSM/LV SEP** after cutoff. It
+   happens automatically an hour after cutoff if you don't.
+3. **Midcourse correction.** Press **MCC** under Mission Control. The RTCC
+   solves the burn and uplinks it (UPLINK ACTY). On the DSKY:
+   - `V37E30E` (P30): check TIG in N33 and PRO; check ΔV in N81 and PRO;
+     check the predicted apsides in N42 and PRO.
+   - Set CMC MODE to AUTO. Then `V37E40E` (P40, SPS), or `V37E41E` (P41, RCS)
+     for burns under 10 ft/s.
+   - At V50N18, press PRO to maneuver to burn attitude. Set ΔV THRUST A and B
+     to on.
+   - At TIG−5 s, V99N40 flashes: press PRO to enable the engine. Monitor
+     V16N40.
+   - After cutoff, trim the V16N85 residuals with the THC, then press PRO.
+4. **LOI.** About 8 h before pericynthion, press **LOI-1** and fly it
+   (~850 m/s, 6 min, 60 × 170 nmi). Two revs later, fly **LOI-2** to
+   circularize.
+5. **TEI.** Press **LM JETT**, then **TEI**, and fly it. Then fly one or two
+   transearth **MCC**s until the vacuum perigee is about 37 km (20 nmi).
+6. **Entry.** Press **CM/SM SEP** and select `V37E61E`. Set ELS LOGIC and
+   ELS AUTO on. P64 steers the bank angle at 0.05 g, P67 takes over below
+   3 km/s, and the drogue and main parachutes deploy automatically.
+
+The on-screen checklist follows along. Steps with a check mark complete
+themselves when the Bus shows the action was done.
+
+To reproduce the Apollo 13 failure, set `failures.o2_tank_2_get_s` in
+`data/missions/apollo_11/mission.json` (the flown time was 55:54:53 =
+201293 s). O2 tank 2 vents, fuel cells 1 and 3 fail and the batteries
+start carrying the load.
+
+## What was taken from the Gemini template
+
+| Gemini capsule | Apollo CSM | Notes |
+|---|---|---|
+| `src/core/bus.gd` | same file | Only coupling between controls, systems and displays; SI on the Bus |
+| `src/core/sim_clock.gd` | extended | Same fixed 50 Hz step and stage order; rates up to 10,000×, adaptive coast steps, event landing |
+| `src/core/sim_runtime.gd` | rewritten | Same build + snapshot/restore contract across truth owners |
+| `src/dynamics/vec3d.gd`, `attitude.gd` | reused | Attitude now sub-steps long coast steps |
+| `src/dynamics/orbit.gd` (Earth, J2) | `trajectory.gd` | Earth–Moon three-body RK4, state re-based at the lunar sphere of influence |
+| `systems/electrical.gd` | `eps.gd` | Fuel cells, cryo O2/H2, entry batteries, O2 tank failure |
+| OAMS/RCS in `dynamics.gd` | `rcs.gd`, `sps.gd` | SM quads A–D, CM rings, SPS with arm valves and transients |
+| `systems/guidance.gd` + MDIU | `agc.gd` + `dsky.gd` | CMC programs P00/30/40/41/47/61/64/67, verb/noun DSKY, DAP |
+| `mission/mission_sequencer.gd` | rewritten | Phases, S-IVB/IU TLI automation, separations, failures, CAPCOM |
+| — | `mission/rtcc.gd` | Ground targeting: TLI, MCC, LOI-1/2, TEI by shooting on the flight model |
+| `mission/procedure_runner.gd` | `mission/checklist.gd` | Bus-checked flight-plan checklists |
+| `recovery.gd` | `els.gd` | Drogues, reefed mains |
+| GUT tests, headless | same | Unit tests plus full mission-segment scenarios |
+
+Everything follows the same ownership rules as the Gemini project. The
+dynamics owns trajectory and attitude truth, each system owns its state,
+controls publish `ctl.*`, and presentation only reads the Bus.
+
+## Fidelity
+
+These parts are modelled from published figures (rounded; see
+`data/spacecraft.json`):
+
+- SPS (20,500 lbf, Isp 314 s)
+- SM RCS (100 lbf jets)
+- J-2 TLI (the burn takes about 5 min)
+- CSM, LM and S-IVB masses
+- CM hypersonic L/D 0.3
+- Parachute deployment altitudes
+
+A flown Apollo 11 profile in the simulator reproduces these values:
+
+| Quantity | Simulator | Apollo 11 |
+|---|---|---|
+| TLI | GET 2:44:30, 3,071 m/s | 2:44:16, ~3,180 m/s |
+| Translunar coast | ~73 h | ~73 h |
+| LOI-1 | 856 m/s, 6.0 min, 54 × 170 nmi | 889 m/s, 5.95 min, 61 × 169 nmi |
+| TEI | 1,000 m/s | 1,001 m/s |
+| Entry peak load | 6.9 g | ~6.5 g |
+| Splashdown | 8.6 m/s | — |
+
+Deliberate simplifications are tagged `[simplified]` in the code. The main
+ones:
+
+- **Moon's orbit.** The Moon moves on a circular orbit, and the Sun direction
+  is fixed.
+- **Navigation.** It is ideal: no P52 alignments, and the CMC state vector is
+  truth.
+- **S-IVB guidance.** It uses a prograde energy-cutoff law instead of
+  iterative guidance.
+- **P40 steering.** P40 holds the N81 direction in the rotating LVLH frame,
+  standing in for cross-product steering.
+- **Entry guidance.** It is a constant-drag bank controller without range
+  targeting.
+- **Atmosphere.** Earth rotation and winds are ignored.
+- **Launch and landing.** There is no launch phase and no LM landing: the
+  simulator is CSM-centric.
+
+## Tests
+
+```
+cd apollo
+godot --headless --path . --import
+godot --headless --path . -s addons/gut/gut_cmdln.gd -gexit
+```
+
+The unit tests cover:
+
+- The Bus
+- The propagator: orbit closure, step independence, SOI re-basing, lunar
+  orbit stability
+- DSKY key logic
+- CMC programs
+- Systems: SPS arming, EPS consumption and the Apollo 13 failure, SCS/CMC
+  autopilot, the coast-step policy
+- Checkpoint round-trip
+- The main scene
+
+The scenario tests fly real segments through the crew interface:
+
+- S-IVB TLI to lunar arrival
+- MCC, LOI-1 and LOI-2 into lunar orbit
+- TEI and two transearth MCCs into the entry corridor
+- CM/SM separation, P61/P64 entry and splashdown
+
+`tools/screenshot.tscn` renders the images above:
+
+```
+godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=1 --out=res://docs/images/x.png
+```
