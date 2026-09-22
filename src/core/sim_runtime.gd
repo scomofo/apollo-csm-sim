@@ -1,6 +1,7 @@
 ## Owns the truth owners for one running mission and implements the
-## snapshot/restore contract across them (same shape as the Gemini
-## template's SimRuntime). Used by main.gd and, headless, by the tests.
+## snapshot/restore contract across them (same shape as the SimRuntime of
+## gemini-capsule, https://github.com/scomofo/gemini-capsule, which this
+## project derives from). Used by main.gd and, headless, by the tests.
 class_name SimRuntime
 extends RefCounted
 

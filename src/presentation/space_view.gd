@@ -1,6 +1,7 @@
 ## 3D presentation: Earth, Moon, Sun and stars around the spacecraft, seen
 ## out of the CM window or from a chase camera. Presentation only: it reads
-## the Bus and never feeds truth back (same rule as the Gemini template).
+## the Bus and never feeds truth back (the same rule as in gemini-capsule,
+## https://github.com/scomofo/gemini-capsule).
 ##
 ## The spacecraft is the rendering origin. The world axes are the ECI axes.
 ## Celestial bodies are drawn at a fixed render distance with their radius

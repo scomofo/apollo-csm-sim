@@ -2,19 +2,29 @@ Apollo CSM Simulator — third-party and source notices
 =====================================================
 
 This repository is original simulation code and original documentation,
-licensed under the MIT License (see LICENSE). The project originated in
-scomofo/gemini-capsule and was split out into its own repository.
+licensed under the MIT License (see LICENSE). It was derived from the
+Gemini capsule simulator (https://github.com/scomofo/gemini-capsule),
+which is also MIT-licensed by the same author. The project began as the
+apollo/ directory of that repository and was later split out into this
+one.
 
 NASA / US Government works
 --------------------------
 Numerical values, procedure text, and citations drawn from NASA mission
-reports, SEDR familiarization manuals, NESC reports, and other US
+reports, the Apollo 11 flight plan and checklists, and other US
 Government works are used as reference data. Those works are not
 copyrighted in the United States. This project is not affiliated with,
 endorsed by, or sponsored by NASA or the US Government.
 
 Vendored software
 -----------------
-addons/gut/ is GUT (Godot Unit Test) by Tom "Butch" Wesley,
-MIT License. See addons/gut/LICENSE.md. Ignore that tree when reading
-the project; it is a test runner, not spacecraft code.
+addons/gut/ is GUT (Godot Unit Test) 9.4.0 by Tom "Butch" Wesley,
+MIT License. See addons/gut/LICENSE.md. The fonts bundled with it are
+under the SIL Open Font License 1.1; see addons/gut/fonts/OFL.txt.
+Ignore that tree when reading the project; it is a test runner, not
+spacecraft code.
+
+Godot Engine
+------------
+The project targets Godot 4.4.1, which is separately licensed (MIT).
+This repository does not redistribute the engine.

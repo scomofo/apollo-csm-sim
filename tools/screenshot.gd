@@ -1,4 +1,4 @@
-## Renders the simulator and saves a PNG (docs images, CI smoke test).
+## Renders the simulator and saves a PNG (the README images in docs/images/).
 ##   godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=1 --out=res://docs/images/x.png
 extends Node
 

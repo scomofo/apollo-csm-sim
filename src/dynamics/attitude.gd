@@ -1,5 +1,7 @@
-## Rigid-body attitude dynamics (copied from the Gemini template). q is the rotation taking
-## body-frame vectors to ECI; omega is the body rate vector in rad/s.
+## Rigid-body attitude dynamics, adapted from src/dynamics/attitude.gd of
+## gemini-capsule (https://github.com/scomofo/gemini-capsule) with sub-stepping
+## for long coast steps. q is the rotation taking body-frame vectors to ECI;
+## omega is the body rate vector in rad/s.
 class_name Attitude
 extends RefCounted
 

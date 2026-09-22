@@ -1,0 +1,7 @@
+# This repository does not use Git LFS. Every file, including the PNGs,
+# the fonts and GUT's bitmap font, is an ordinary Git blob, so a clone
+# needs no git-lfs. Mark the binary types so Git never diffs, merges or
+# converts line endings in them.
+*.png binary
+*.ttf binary
+*.fnt binary

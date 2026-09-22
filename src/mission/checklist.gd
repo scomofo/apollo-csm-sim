@@ -1,7 +1,9 @@
 ## Flight-plan checklists (data/missions/<id>/checklists.json), in the same
-## spirit as the Gemini template's procedure runner: each step reads as a
-## crew action, and a step with a "check" completes itself when the Bus
-## shows the action was done. Steps without a check are read-and-continue.
+## spirit as the procedure runner of gemini-capsule
+## (https://github.com/scomofo/gemini-capsule, src/mission/procedure_runner.gd):
+## each step reads as a crew action, and a step with a "check" completes
+## itself when the Bus shows the action was done. Steps without a check are
+## read-and-continue.
 ##
 ## check: {"channel": "...", "op": "eq"|"ne"|"gt"|"lt"|"ge"|"le", "value": v}
 class_name Checklist

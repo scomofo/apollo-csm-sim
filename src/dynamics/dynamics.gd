@@ -1,6 +1,7 @@
 ## Owns the truth state of the vehicle (trajectory + attitude + configuration)
 ## and steps it on the SimClock. Never touches scene nodes; publishes to the
-## Bus and presentation reads it (same contract as the Gemini template).
+## Bus and presentation reads it (same contract as the Dynamics of
+## gemini-capsule, https://github.com/scomofo/gemini-capsule).
 ##
 ## Reads:  sps.thrust_n, rcs.force_body, rcs.torque_body, sivb.thrust_n,
 ##         sivb.dir, sps.prop_kg, rcs.sm_prop_kg, rcs.cm_prop_kg,

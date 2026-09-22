@@ -2,7 +2,7 @@
 
 A lunar-mission simulator of the Apollo Command/Service Module, built with
 Godot **4.4.1** on the architecture of the
-[Gemini capsule simulator](../README.md) in this repository. It flies the
+[Gemini capsule simulator](https://github.com/scomofo/gemini-capsule). It flies the
 Apollo 11 profile from Earth parking orbit through TLI, midcourse
 corrections, lunar orbit insertion, transearth injection, entry and
 splashdown, with every maneuver planned by a simulated Mission Control and
@@ -12,17 +12,22 @@ executed through the Apollo Guidance Computer's DSKY.
 
 ![Parking orbit: the S-IVB/CSM/LM stack before TLI](docs/images/parking_orbit_chase.png)
 
-This is a separate Godot project in `apollo/`. The Gemini project ignores it
-(Godot skips nested projects), and it has its own tests and CI job.
+The project used
+[scomofo/gemini-capsule](https://github.com/scomofo/gemini-capsule) as its
+template and began as the `apollo/` directory of that repository. It now
+lives in its own repository, with its own tests and CI, and needs nothing
+from gemini-capsule to build, run or test.
 
 ## Running
 
+From the repository root:
+
 ```
-godot --path apollo                                  # parking orbit, TLI ahead
-godot --path apollo -- --phase=translunar_coast      # after TLI and docking
-godot --path apollo -- --phase=lunar_orbit           # 60 nmi, Eagle docked
-godot --path apollo -- --phase=transearth_coast      # after TEI
-godot --path apollo -- --phase=entry                 # ~15 min before entry interface
+godot --path .                                  # parking orbit, TLI ahead
+godot --path . -- --phase=translunar_coast      # after TLI and docking
+godot --path . -- --phase=lunar_orbit           # 60 nmi, Eagle docked
+godot --path . -- --phase=transearth_coast      # after TEI
+godot --path . -- --phase=entry                 # ~15 min before entry interface
 ```
 
 Later start phases are made by flying the earlier ones through the RTCC's own
@@ -85,25 +90,47 @@ start carrying the load.
 
 ## What was taken from the Gemini template
 
+The left column links to the
+[gemini-capsule](https://github.com/scomofo/gemini-capsule) files this
+project was derived from, as of commit
+[`4dbdff9`](https://github.com/scomofo/gemini-capsule/tree/4dbdff93b60e1d1e41c74ef8c3ca446b9752649b).
+The right column names the files in this repository.
+
 | Gemini capsule | Apollo CSM | Notes |
 |---|---|---|
-| `src/core/bus.gd` | same file | Only coupling between controls, systems and displays; SI on the Bus |
-| `src/core/sim_clock.gd` | extended | Same fixed 50 Hz step and stage order; rates up to 10,000×, adaptive coast steps, event landing |
-| `src/core/sim_runtime.gd` | rewritten | Same build + snapshot/restore contract across truth owners |
-| `src/dynamics/vec3d.gd`, `attitude.gd` | reused | Attitude now sub-steps long coast steps |
-| `src/dynamics/orbit.gd` (Earth, J2) | `trajectory.gd` | Earth–Moon three-body RK4, state re-based at the lunar sphere of influence |
-| `systems/electrical.gd` | `eps.gd` | Fuel cells, cryo O2/H2, entry batteries, O2 tank failure |
-| OAMS/RCS in `dynamics.gd` | `rcs.gd`, `sps.gd` | SM quads A–D, CM rings, SPS with arm valves and transients |
-| `systems/guidance.gd` + MDIU | `agc.gd` + `dsky.gd` | CMC programs P00/30/40/41/47/61/64/67, verb/noun DSKY, DAP |
-| `mission/mission_sequencer.gd` | rewritten | Phases, S-IVB/IU TLI automation, separations, failures, CAPCOM |
-| — | `mission/rtcc.gd` | Ground targeting: TLI, MCC, LOI-1/2, TEI by shooting on the flight model |
-| `mission/procedure_runner.gd` | `mission/checklist.gd` | Bus-checked flight-plan checklists |
-| `recovery.gd` | `els.gd` | Drogues, reefed mains |
-| GUT tests, headless | same | Unit tests plus full mission-segment scenarios |
+| [`src/core/bus.gd`][g-bus] | `src/core/bus.gd`, unchanged apart from comments | Only coupling between controls, systems and displays; SI on the Bus |
+| [`src/core/sim_clock.gd`][g-clock] | extended | Same fixed 50 Hz step and stage order; rates up to 10,000×, adaptive coast steps, event landing |
+| [`src/core/sim_runtime.gd`][g-runtime] | rewritten | Same build + snapshot/restore contract across truth owners |
+| [`src/dynamics/vec3d.gd`][g-vec3d], [`attitude.gd`][g-attitude] | reused | Attitude now sub-steps long coast steps |
+| [`src/dynamics/orbit.gd`][g-orbit] (Earth, J2) | `src/dynamics/trajectory.gd` | Earth–Moon three-body RK4, state re-based at the lunar sphere of influence |
+| [`src/systems/electrical.gd`][g-electrical] | `src/systems/eps.gd` | Fuel cells, cryo O2/H2, entry batteries, O2 tank failure |
+| OAMS/RCS in [`src/dynamics/dynamics.gd`][g-dynamics] | `src/systems/rcs.gd`, `src/systems/sps.gd` | SM quads A–D, CM rings, SPS with arm valves and transients |
+| [`src/systems/guidance.gd`][g-guidance] + MDIU | `src/systems/agc.gd` + `src/systems/dsky.gd` | CMC programs P00/30/40/41/47/61/64/67, verb/noun DSKY, DAP |
+| [`src/mission/mission_sequencer.gd`][g-sequencer] | rewritten | Phases, S-IVB/IU TLI automation, separations, failures, CAPCOM |
+| — | `src/mission/rtcc.gd` | Ground targeting: TLI, MCC, LOI-1/2, TEI by shooting on the flight model |
+| [`src/mission/procedure_runner.gd`][g-procedure] | `src/mission/checklist.gd` | Bus-checked flight-plan checklists |
+| [`src/systems/recovery.gd`][g-recovery] | `src/systems/els.gd` | Drogues, reefed mains |
+| GUT tests, headless | GUT 9.4.0 (vendored in `addons/gut/`), headless | Unit tests plus full mission-segment scenarios |
 
-Everything follows the same ownership rules as the Gemini project. The
+[g-bus]: https://github.com/scomofo/gemini-capsule/blob/4dbdff93b60e1d1e41c74ef8c3ca446b9752649b/src/core/bus.gd
+[g-clock]: https://github.com/scomofo/gemini-capsule/blob/4dbdff93b60e1d1e41c74ef8c3ca446b9752649b/src/core/sim_clock.gd
+[g-runtime]: https://github.com/scomofo/gemini-capsule/blob/4dbdff93b60e1d1e41c74ef8c3ca446b9752649b/src/core/sim_runtime.gd
+[g-vec3d]: https://github.com/scomofo/gemini-capsule/blob/4dbdff93b60e1d1e41c74ef8c3ca446b9752649b/src/dynamics/vec3d.gd
+[g-attitude]: https://github.com/scomofo/gemini-capsule/blob/4dbdff93b60e1d1e41c74ef8c3ca446b9752649b/src/dynamics/attitude.gd
+[g-orbit]: https://github.com/scomofo/gemini-capsule/blob/4dbdff93b60e1d1e41c74ef8c3ca446b9752649b/src/dynamics/orbit.gd
+[g-electrical]: https://github.com/scomofo/gemini-capsule/blob/4dbdff93b60e1d1e41c74ef8c3ca446b9752649b/src/systems/electrical.gd
+[g-dynamics]: https://github.com/scomofo/gemini-capsule/blob/4dbdff93b60e1d1e41c74ef8c3ca446b9752649b/src/dynamics/dynamics.gd
+[g-guidance]: https://github.com/scomofo/gemini-capsule/blob/4dbdff93b60e1d1e41c74ef8c3ca446b9752649b/src/systems/guidance.gd
+[g-sequencer]: https://github.com/scomofo/gemini-capsule/blob/4dbdff93b60e1d1e41c74ef8c3ca446b9752649b/src/mission/mission_sequencer.gd
+[g-procedure]: https://github.com/scomofo/gemini-capsule/blob/4dbdff93b60e1d1e41c74ef8c3ca446b9752649b/src/mission/procedure_runner.gd
+[g-recovery]: https://github.com/scomofo/gemini-capsule/blob/4dbdff93b60e1d1e41c74ef8c3ca446b9752649b/src/systems/recovery.gd
+
+Everything follows the same ownership rules as the Gemini project
+([docs/ARCHITECTURE.md §3.1][g-ownership] there). The
 dynamics owns trajectory and attitude truth, each system owns its state,
 controls publish `ctl.*`, and presentation only reads the Bus.
+
+[g-ownership]: https://github.com/scomofo/gemini-capsule/blob/4dbdff93b60e1d1e41c74ef8c3ca446b9752649b/docs/ARCHITECTURE.md#31-bus-ownership-rules
 
 ## Fidelity
 
@@ -147,8 +174,9 @@ ones:
 
 ## Tests
 
+From the repository root:
+
 ```
-cd apollo
 godot --headless --path . --import
 godot --headless --path . -s addons/gut/gut_cmdln.gd -gexit
 ```

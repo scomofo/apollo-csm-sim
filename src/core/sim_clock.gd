@@ -1,4 +1,5 @@
-## Master simulation clock (same contract as the Gemini template).
+## Master simulation clock (same contract as the SimClock of gemini-capsule,
+## https://github.com/scomofo/gemini-capsule, which this project derives from).
 ##
 ## Drives every system at a fixed rate independent of the render frame rate
 ## and keeps Ground Elapsed Time (GET). Systems register with add_ticker()
@@ -17,7 +18,7 @@ signal paused_changed(paused: bool)
 ## step uses it.
 const FIXED_DT: float = 0.02
 ## Allowed time-acceleration rates. Translunar coast lasts three days, so
-## the Apollo sim goes one decade beyond the Gemini template.
+## the Apollo sim goes one decade beyond gemini-capsule's 1,000x maximum.
 const RATES: Array[float] = [1.0, 10.0, 100.0, 1000.0, 10000.0]
 ## Coarse coast steps are only used at or above this rate.
 const COAST_MIN_RATE: float = 100.0

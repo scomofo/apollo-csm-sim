@@ -1,6 +1,8 @@
 ## Signal bus: the only coupling between controls, systems, and instruments.
 ##
-## Channels are named "system.component.quantity" (see the Gemini project's docs/ARCHITECTURE.md §3).
+## Channels are named "system.component.quantity", the convention of
+## gemini-capsule's docs/ARCHITECTURE.md §3:
+## https://github.com/scomofo/gemini-capsule/blob/4dbdff93b60e1d1e41c74ef8c3ca446b9752649b/docs/ARCHITECTURE.md#3-core-signal-bus-and-data-model
 ## Writers call set_value; readers call get_value; observers subscribe.
 ## All physical quantities on the bus are SI. Display conversion happens
 ## in the instrument, never here.

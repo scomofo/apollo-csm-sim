@@ -1,5 +1,6 @@
 ## SI <-> Apollo display units. Everything on the Bus is SI; the DSKY and
-## the HUD convert here, never in the systems (Gemini docs/ARCHITECTURE.md §3).
+## the HUD convert here, never in the systems (gemini-capsule's
+## docs/ARCHITECTURE.md §3: https://github.com/scomofo/gemini-capsule/blob/4dbdff93b60e1d1e41c74ef8c3ca446b9752649b/docs/ARCHITECTURE.md#3-core-signal-bus-and-data-model).
 class_name Units
 extends RefCounted
 
