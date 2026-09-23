@@ -66,7 +66,9 @@ doesn't extend `GutTest`, so GUT skips it. Neither fails the run.
 
 When Actions starts jobs again:
 
-1. Re-run the failed run, or push any commit. Expect about three minutes
+1. Push to `main`, for example by merging a pull request. A run that
+   ended in `startup_failure` can't be re-run: the API answers 403,
+   "This workflow run cannot be retried". Expect about three minutes
    (the job's limit is 20).
 2. If the runner fails where the local run passed, fix that before
    anything else merges.
