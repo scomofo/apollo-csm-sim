@@ -467,6 +467,136 @@ static func plan_doi(traj: Trajectory, mass: float, pericynthion_alt: float, sit
 		"burn_s": tb2, "hp": float(res["hp"]) - site_h, "hp_get": res["hp_get"], "land_get": t_l}
 
 
+# --- lunar liftoff -----------------------------------------------------------------
+
+## Fly the LGC's P12 on [param tr] (modified): the ascent stage sitting on
+## the descent stage at ignition, turning with the Moon, and [param mass]
+## its mass. The ascent engine starts; the LM lifts off when its thrust
+## beats its weight (Dynamics' rule); it rises vertically, then flies
+## AscentGuidance to [param tg] in the plane whose normal is
+## [param plane], the steering held for the last seconds, and cuts off at
+## the engine's tail-off lead. [simplified: the thrust axis turns toward
+## the command at the DAP's rate limit.] [param tr] ends where the
+## tail-off does. Returns {"mass" (after), "cutoff" (GET)}.
+static func simulate_ascent(tr: Trajectory, mass: float, plane: Vector3, tg: Dictionary, dt: float = 0.1) -> Dictionary:
+	var aps := SpacecraftData.section("aps")
+	var d := SpacecraftData.section("ascent_guidance")
+	var thrust := float(aps["thrust_n"])
+	var mdot := thrust / (float(aps["isp_s"]) * Units.G0)
+	var max_turn := deg_to_rad(float(d["auto_rate_dps"])) * dt
+	var spot := Bodies.moon_fixed(tr.t).transposed() * tr.pos()
+	var m := mass
+	var level := 0.0
+	var on := true
+	var landed := true
+	var lift_s := 0.0
+	var x := tr.pos().normalized()
+	var step := "vertical"
+	var tgo := 0.0
+	var cutoff := -1.0
+	var u := x
+	# An engine that can't lift the LM, or never reaches insertion, gives up.
+	var t_end := tr.t + 1200.0
+	while (on or level >= 1e-3) and tr.t < t_end:
+		var up := tr.pos().normalized()
+		if not landed:
+			# The LGC: vertical rise, guidance, hold, cutoff.
+			if step == "vertical" and tr.radial_rate() >= float(d["vertical_rise_hdot_mps"]):
+				step = "ascent"
+			u = up
+			if step != "vertical" and on:
+				var g := AscentGuidance.steer(tr.pos(), tr.vel(), tr.radius(), tr.radial_rate(), plane, m, tg, tgo)
+				tgo = g["tgo"]
+				if step == "ascent" and tgo < float(d["hold_s"]):
+					step = "hold"
+				if step == "ascent":
+					u = g["u"]
+				if tgo <= float(aps["tau_off_s"]):
+					on = false
+					cutoff = tr.t
+			if step == "hold" or not on:
+				u = x
+		# The engine, then the LM.
+		var tau := float(aps["tau_on_s"]) if on else float(aps["tau_off_s"])
+		level += ((1.0 if on else 0.0) - level) * (1.0 - exp(-dt / tau))
+		var f := thrust * level
+		if landed:
+			var gr := Bodies.MU_MOON / (tr.radius() * tr.radius())
+			lift_s = lift_s + dt if f * x.dot(up) / m > gr * Dynamics.LIFTOFF_MARGIN else 0.0
+			if lift_s < Dynamics.LIFTOFF_S:
+				var p := Bodies.moon_fixed(tr.t + dt) * spot
+				tr.set_state("moon", tr.t + dt, p, Bodies.moon_omega().cross(p))
+				x = p.normalized()
+				m -= mdot * level * dt
+				continue
+			landed = false
+		var turn := x.angle_to(u)
+		if turn > 1e-9:
+			x = x.slerp(u, minf(max_turn / turn, 1.0)).normalized()
+		var a := x * (f / m)
+		tr.step(dt, PackedFloat64Array([a.x, a.y, a.z]))
+		m -= mdot * level * dt
+	return {"mass": m, "cutoff": cutoff}
+
+
+## The lunar liftoff time: flying P12 (simulate_ascent) from the LM's spot
+## [param site_mf] (Moon-fixed, on the ground) on an ascent stage of
+## [param mass], the time that has the CSM ([param csm]) lead the LM by
+## [param phase_deg] in its orbit at insertion, in the first window at or
+## after GET [param earliest]. Returns a PAD: {"name": "ASCENT", "tig",
+## "insertion_get", "phase_deg", "vh" and "hdot" (P12's targets), "xrng"
+## (the LM's distance from the CSM's plane at liftoff), "ha", "hp" (the
+## insertion orbit's apsides above the site), "burn_s", "dv", "prop_kg"
+## (the APS propellant used)}, or {} without the CSM in lunar orbit.
+static func plan_liftoff(site_mf: Vector3, mass: float, csm: Trajectory, phase_deg: float,
+		earliest: float) -> Dictionary:
+	if csm.primary != "moon":
+		return {}
+	var plane := csm.pos().cross(csm.vel()).normalized()
+	var site_r := site_mf.length()
+	var tg := AscentGuidance.targets(site_r)
+	var cm := site_mf.normalized() * (site_r + Dynamics.lm_cm_height("lm_ascent"))
+	var target := deg_to_rad(phase_deg)
+	# The CSM gains on the spot at its orbital rate, and the Moon's turning.
+	var rate := csm.speed() / csm.radius() - Bodies.moon_mean_motion() * plane.dot(Bodies.moon_normal())
+	var base := csm.clone()
+	if earliest > base.t:
+		base.coast_to(earliest, 60.0, FRAC)
+	var fly := func(tig: float) -> Dictionary:
+		var tr := Trajectory.new()
+		var p := Bodies.moon_fixed(tig) * cm
+		tr.set_state("moon", tig, p, Bodies.moon_omega().cross(p))
+		var res := simulate_ascent(tr, mass, plane, tg)
+		var c := base.clone()
+		c.coast_to(tr.t, 60.0, FRAC)
+		var l := tr.pos().normalized()
+		var k := c.pos().normalized()
+		res["tr"] = tr
+		res["phase"] = atan2(l.cross(k).dot(plane), l.dot(k))
+		return res
+	var tig := earliest
+	var res: Dictionary = fly.call(tig)
+	if float(res["cutoff"]) < 0.0:
+		return {}
+	# The first window: the phase is short of the target by less than a turn.
+	tig += fposmod(target - float(res["phase"]), TAU) / rate
+	res = fly.call(tig)
+	for _i in 6:
+		var err := wrapf(float(res["phase"]) - target, -PI, PI)
+		if absf(err) < 1e-5:
+			break
+		tig -= err / rate
+		res = fly.call(tig)
+	var ins: Trajectory = res["tr"]
+	var c := ins.conic()
+	var ve := float(SpacecraftData.section("aps")["isp_s"]) * Units.G0
+	var p0 := Bodies.moon_fixed(tig) * cm
+	return {"name": "ASCENT", "tig": tig, "insertion_get": ins.t, "phase_deg": rad_to_deg(float(res["phase"])),
+		"vh": tg["vh"], "hdot": tg["rdot"], "xrng": p0.dot(plane), "ha": float(c["ra"]) - site_r,
+		"hp": float(c["rp"]) - site_r, "burn_s": float(res["cutoff"]) - tig, "dv": ve * log(mass / float(res["mass"])),
+		"prop_kg": mass - float(res["mass"])}
+
+
 # --- TEI ------------------------------------------------------------------------
 
 ## Transearth injection from lunar orbit: prograde External ΔV of

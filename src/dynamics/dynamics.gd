@@ -33,6 +33,8 @@ extends Node
 signal docking_contact(contact: Dictionary)
 ## The LM's footpads met the surface: [param touchdown] is Vehicle's.
 signal lm_touchdown(touchdown: Dictionary)
+## The landed LM left the surface at GET [param get_s].
+signal lm_liftoff(get_s: float)
 
 ## Within this range of each other the vehicles take coast steps no longer
 ## than PROXIMITY_DT, so a contact between the ports is caught near where
@@ -269,6 +271,7 @@ func _step_lm(dt: float) -> void:
 			return
 		lm.landed = false
 		lm.lift_s = 0.0
+		lm_liftoff.emit(lm.traj.t)
 	var force := Vector3(thrust, 0.0, 0.0)
 	force += Bus.get_value("lm.rcs.force_body", Vector3.ZERO)
 	lm.step(dt, force, Bus.get_value("lm.rcs.torque_body", Vector3.ZERO))

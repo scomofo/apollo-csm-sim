@@ -100,6 +100,15 @@
     "alt_weight": 0.3,
     "vel_weight": 0.3
   },
+  "ascent_guidance": {
+    "_source": "The LGC's powered ascent (P12). Insertion 60,000 ft above the landing site's radius, climbing at 32 ft/s [published: Apollo 11 shut down at 60,666 ft and 32.8 ft/s], with the horizontal velocity (about 5,535 ft/s) that puts apolune 45 nmi above the site, a 9 x 45 nmi orbit [estimated: Apollo 11 planned about 45 nmi and reached 47.3 by 9.5]. The vertical rise lasts until the LM climbs at 40 ft/s, the steering is held for the last 2 s, and the pitchover's rate is 10 deg/s [estimated]",
+    "insertion_alt_m": 18288.0,
+    "insertion_hdot_mps": 9.7536,
+    "insertion_apolune_alt_m": 83340.0,
+    "vertical_rise_hdot_mps": 12.192,
+    "hold_s": 2.0,
+    "auto_rate_dps": 10.0
+  },
   "configurations": {
     "stack":  {"inertia": [60000.0, 5000000.0, 5000000.0], "ref_mass_kg": 140000.0, "rcs_pitch_arm_m": 0.0, "rcs_roll_arm_m": 0.0},
     "csm_lm": {"inertia": [45000.0, 900000.0, 900000.0], "ref_mass_kg": 44000.0, "rcs_pitch_arm_m": 5.0, "rcs_roll_arm_m": 1.95},
