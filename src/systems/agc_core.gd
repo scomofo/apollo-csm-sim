@@ -308,7 +308,7 @@ func verb_noun(v: int, _n: int) -> bool:
 
 func lamp_test() -> void:
 	_lamp_test_timer = 5.0
-	for l in Dsky.LAMPS:
+	for l in dsky.lamp_names:
 		dsky.lamps[l] = true
 	dsky.changed.emit()
 
@@ -504,7 +504,7 @@ func _timers(dt: float) -> void:
 	if _lamp_test_timer > 0.0:
 		_lamp_test_timer -= dt
 		if _lamp_test_timer <= 0.0:
-			for l in Dsky.LAMPS:
+			for l in dsky.lamp_names:
 				dsky.lamps[l] = false
 			dsky.changed.emit()
 	_display_timer += dt
@@ -685,7 +685,7 @@ func _publish_dsky() -> void:
 		Bus.set_value(_ch("dsky.r%d" % (i + 1)), dsky.r[i] if on else "")
 	Bus.set_value(_ch("dsky.flash"), on and dsky.flashing)
 	Bus.set_value(_ch("dsky.comp_acty"), on and dsky.mode != "")
-	for l in Dsky.LAMPS:
+	for l in dsky.lamp_names:
 		Bus.set_value(_ch("dsky.lamp." + l), bool(dsky.lamps.get(l, false)))
 
 

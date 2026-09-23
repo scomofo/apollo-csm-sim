@@ -120,17 +120,29 @@ autopilot fly the same way as Columbia's. LOI puts the lunar orbit over
 Tranquility Base (0.674° N, 23.473° E) at Apollo 11's landing time.
 Mission Control uplinks the DOI PAD and the landing site to the LGC, and
 the crew flies DOI with P30 and P40 on the descent engine: 10 % throttle
-for 15 s, then 40 %, as Apollo 11 did. Half a revolution later, P63
-ignites powered descent 470 km before the site. It brakes at full
-thrust until the throttle comes back into its range. P64 flies the
-approach from high gate, about 2 km up and 8 km out, and P65 lands
-automatically. At the first click of the ROD switch, P66 hands the
-attitude to the crew while the throttle holds the descent rate, 1 ft/s
-per click. CONTACT LIGHT comes on when a probe touches, and at touchdown
-P68 shuts the engine down. The LGC also has P41 (LM RCS), P42 (the
-ascent engine, after staging) and P47, and ENGINE START lifts a landed
-ascent stage off. The LM has no cockpit yet, so only the tests fly it
-(slice 3f adds one).
+for 15 s, then 40 %, as Apollo 11 did. Before PDI the ground uplinks the
+LM's state vector with the PDI PAD, and it carries the tracking error
+(mission.json "pdi"). The LGC flies on its own state vector from then on,
+not on truth. Half a revolution after DOI, P63 ignites powered descent
+470 km before the site. It brakes at full thrust until the throttle comes
+back into its range.
+
+The landing radar under the descent stage finds the ground, the real
+ground of NASA's elevation maps. As its data come good, the ALT and VEL
+lamps on the LGC's DSKY go out, and N63 shows ΔH, the radar's altitude
+less the LGC's: about −3,100 ft here. The crew keys V57, and the radar
+pulls the LGC's altitude and velocity in. Without V57 the LGC flies
+Eagle into the ground a kilometre short of where it thinks it is. P64
+flies the approach from high gate, about 2 km up and 8 km out. The LPD
+angle in N64 tells the commander where on the window's scale to look for
+the landing point, and each click of the hand controller moves it: 0.5°
+fore or aft, 2° left or right. P65 lands automatically. At the first
+click of the ROD switch, P66 hands the attitude to the crew while the
+throttle holds the descent rate, 1 ft/s per click. CONTACT LIGHT comes
+on when a probe touches, and at touchdown P68 shuts the engine down. The
+LGC also has P41 (LM RCS), P42 (the ascent engine, after staging) and
+P47, and ENGINE START lifts a landed ascent stage off. The LM has no
+cockpit yet, so only the tests fly it (slice 3f adds one).
 
 The on-screen checklist follows along. Steps with a check mark complete
 themselves when the Bus shows the action was done. In the cabin, the same
@@ -166,9 +178,10 @@ The right column names the files in this repository.
 | [`src/systems/electrical.gd`][g-electrical] | `src/systems/eps.gd` | Fuel cells, cryo O2/H2, entry batteries, O2 tank failure |
 | OAMS/RCS in [`src/dynamics/dynamics.gd`][g-dynamics] | `src/systems/rcs.gd`, `src/systems/sps.gd` | SM quads A–D, CM rings, SPS with arm valves and transients |
 | [`src/systems/guidance.gd`][g-guidance] + MDIU | `src/systems/agc_core.gd`, `agc.gd`, `lgc.gd` + `src/systems/dsky.gd` | One AGC core (verb/noun DSKY, P30, thrusting programs, P47, DAP) under two program sets: the CMC's P00/30/40/41/47/61/64/67 and the LGC's P00/30/40/41/42/47/63/64/65/66/68 |
-| — | `src/systems/dps.gd`, `aps.gd`, `lm_rcs.gd` | The LM's descent and ascent engines and its RCS |
+| — | `src/systems/dps.gd`, `aps.gd`, `lm_rcs.gd`, `landing_radar.gd` | The LM's descent and ascent engines, its RCS and its landing radar |
+| — | `src/dynamics/terrain.gd`, `data/terrain/`, `tools/terrain/build_terrain.py` | The surface from NASA's elevation maps: LROC's Apollo 11 site model at 4 m, SLDEM2015 along the approach, LOLA elsewhere (sources in NOTICE) |
 | [`src/mission/mission_sequencer.gd`][g-sequencer] | rewritten | Phases, S-IVB/IU TLI automation, separations, failures, CAPCOM |
-| — | `src/mission/rtcc.gd` | Ground targeting: TLI, MCC, LOI-1/2 over the landing site, TEI and the LM's DOI for the landing pass, by shooting on the flight model |
+| — | `src/mission/rtcc.gd` | Ground targeting: TLI, MCC, LOI-1/2 over the landing site, TEI and the LM's DOI for the landing pass, by shooting on the flight model. The sequencer's PDI PAD uplinks the LM's state vector with its tracking error |
 | [`src/mission/procedure_runner.gd`][g-procedure] | `src/mission/checklist.gd` | Bus-checked flight-plan checklists |
 | [`src/systems/recovery.gd`][g-recovery] | `src/systems/els.gd` | Drogues, reefed mains |
 | GUT tests, headless | GUT 9.4.0 (vendored in `addons/gut/`), headless | Unit tests plus full mission-segment scenarios |
@@ -269,8 +282,8 @@ A flown Apollo 11 profile in the simulator reproduces these values:
 | Translunar coast | ~73 h | ~73 h |
 | LOI-1 | 856 m/s, 6.0 min, 54 × 170 nmi | 889 m/s, 5.95 min, 61 × 169 nmi |
 | TEI | 1,000 m/s | 1,001 m/s |
-| DOI | 71.5 ft/s, 29 s | ~76 ft/s, ~30 s |
-| Powered descent | 12 min 9 s, touchdown 2 m from the target | 12 min 35 s, about 6 km past the target |
+| DOI | 73.0 ft/s, 30 s | ~76 ft/s, ~30 s |
+| Powered descent | 12 min 6 s, touchdown 140 m from the target (the LGC's crossrange error, which the radar can't see) | 12 min 35 s, about 6 km past the target |
 | Entry peak load | 6.9 g | ~6.5 g |
 | Splashdown | 8.6 m/s | — |
 
@@ -279,8 +292,9 @@ ones:
 
 - **Moon's orbit.** The Moon moves on a circular orbit, and the Sun direction
   is fixed.
-- **Navigation.** It is ideal: no P52 alignments, and the CMC state vector is
-  truth.
+- **Navigation.** The CMC's is ideal: no P52 alignments, and its state
+  vector is truth. The LGC keeps its own state vector, with the ground's
+  tracking error, but on an ideal IMU.
 - **S-IVB guidance.** It uses a prograde energy-cutoff law instead of
   iterative guidance.
 - **P40 steering.** P40 holds the N81 direction in the rotating LVLH frame,
@@ -290,13 +304,17 @@ ones:
 - **Atmosphere.** Earth rotation and winds are ignored.
 - **Launch.** There is no launch phase.
 - **The landing.** The Moon turns synchronously, its pole on the normal
-  of its orbit, and its surface is its mean sphere: no terrain and no
-  boulders. The descent's guidance targets are this simulator's own,
-  designed after Klumpp's Apollo guidance, and navigation is ideal (no
-  landing radar). P64 can't redesignate the landing point. The crew's
-  ENGINE STOP after contact light is the LGC's at touchdown. The LM
-  can't tip over or break its gear: a hard landing only draws a call
-  from CAPCOM.
+  of its orbit. The surface is NASA's elevation maps, smooth between their
+  posts: 4 m at the site, so no smaller rocks, and the gear meets the
+  ground level, straight below the centre of mass. The descent's guidance
+  targets are this simulator's own, designed after Klumpp's Apollo
+  guidance. The tracking error is set in the mission data, where it meets
+  PDI, and the landing radar is noise-free. The LGC has no terrain model,
+  as Apollo 11's had none, so the radar's altitude over lower ground reads
+  high. The crew's ENGINE STOP after contact light is the LGC's at
+  touchdown. The LM can't tip over or break its gear: a hard landing only
+  draws a call from CAPCOM. The space view still draws the Moon as a
+  sphere; the LM cockpit (slice 3f) will show the ground.
 - **The LM.** Its systems power up as it undocks. Docked, it is dark,
   and the CSM flies the stack. The crew's throttle-up in DOI is the
   LGC's. The descent engine has no gimbal trim, and staging leaves the
@@ -325,6 +343,11 @@ The unit tests cover:
   orbit stability
 - The Moon-fixed frame: the Moon keeps a face to the Earth and turns once
   a sidereal month, and selenographic coordinates round-trip
+- The terrain: Tranquility Base 1,927 m below the reference sphere, West
+  crater 30 m deep east of the LM, and the maps blending without steps
+- The landing radar: its slant range to the ground in both antenna
+  positions, over West crater too, its data-good ranges and its velocity
+  over the turning surface
 - DSKY key logic
 - CMC programs
 - Systems: SPS arming, EPS consumption and the Apollo 13 failure, SCS/CMC
@@ -390,15 +413,23 @@ The scenario tests fly real segments through the crew interface:
   undocks, Mission Control uplinks a DOI PAD to the LGC, and P40 flies it
   on the descent engine, at 10 % and then 40 % throttle. Half a
   revolution later Eagle passes its pericynthion within 250 m of the
-  PAD's 50,000 ft (15,197 m against 15,240 m), while Columbia's orbit
-  stays as it was
+  PAD's 50,000 ft above the site (15,205 m against 15,239 m), while
+  Columbia's orbit stays as it was
 - The landing at Tranquility Base (`tests/scenarios/test_landing.gd`),
   slice 3c's check. LOI turns the orbit over the site, and the
-  `lunar_orbit` phase starts over it. From a checkpoint before PDI, P63,
-  P64 and P65 land Eagle automatically 2 m from the site at 0.8 m/s down
-  and none across, and a second run takes over in P66 at 150 m, with the
-  hand controller and the ROD switch. A landed LM turns with the Moon, and
-  lifts off on its ascent engine
+  `lunar_orbit` phase starts over it. The PDI PAD's state vector is off
+  by its tracking error at PDI. From a checkpoint before PDI:
+  - The automatic landing. The crew keys V57 when the radar's altitude
+    comes good, with ΔH at −954 m, and ΔH is −22 m by high gate. P63,
+    P64 and P65 land Eagle 140 m from the site at 0.8 m/s down and none
+    across.
+  - Without V57, Eagle hits the ground 4 km short at 24 m/s.
+  - With a 900 m error along the track, the commander redesignates in
+    P64 and lands 2 m from the site.
+  - A run takes over in P66 at 150 m, with the hand controller and the
+    ROD switch.
+  
+  A landed LM turns with the Moon, and lifts off on its ascent engine.
 - The LM's other systems (`tests/scenarios/test_lm_burns.gd`): P41 on its
   RCS, P47 on a translation, staging and P42 on the ascent engine, its
   autopilot turning and holding it, the LGC dark while the LM is docked,

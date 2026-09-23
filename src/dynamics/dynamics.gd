@@ -39,6 +39,13 @@ signal lm_touchdown(touchdown: Dictionary)
 ## it happens.
 const PROXIMITY_M := 200.0
 const PROXIMITY_DT := 1.0
+## Above this height over the reference sphere the LM is clear of any
+## ground (the Moon's highest is 10.8 km).
+const SURFACE_CHECK_M := 11000.0
+## A landed LM lifts off on thrust beyond its weight by this factor, held
+## this long.
+const LIFTOFF_MARGIN := 1.1
+const LIFTOFF_S := 0.5
 
 var traj: Trajectory = Trajectory.new()
 var attitude: Attitude = Attitude.new()
@@ -240,7 +247,9 @@ func undock() -> bool:
 
 
 ## Step the free LM under its engines and RCS. On the surface it sits
-## on its gear until its engine's thrust carries it off.
+## on its gear until its engine's thrust carries it off: thrust that beats
+## its weight by LIFTOFF_MARGIN for LIFTOFF_S, not an engine tailing off
+## after touchdown.
 func _step_lm(dt: float) -> void:
 	if lm == null:
 		return
@@ -250,10 +259,13 @@ func _step_lm(dt: float) -> void:
 	if lm.landed:
 		var up := lm.traj.pos().normalized()
 		var lift := (lm.attitude.eci_from_body() * Vector3(thrust, 0.0, 0.0)).dot(up) / lm.mass
-		if lift <= Bodies.MU_MOON / (lm.traj.radius() * lm.traj.radius()):
+		var g := Bodies.MU_MOON / (lm.traj.radius() * lm.traj.radius())
+		lm.lift_s = lm.lift_s + dt if lift > g * LIFTOFF_MARGIN else 0.0
+		if lm.lift_s < LIFTOFF_S:
 			lm.hold_on_surface(lm.traj.t + dt)
 			return
 		lm.landed = false
+		lm.lift_s = 0.0
 	var force := Vector3(thrust, 0.0, 0.0)
 	force += Bus.get_value("lm.rcs.force_body", Vector3.ZERO)
 	lm.step(dt, force, Bus.get_value("lm.rcs.torque_body", Vector3.ZERO))
@@ -268,26 +280,30 @@ static func lm_cm_height(cfg: String) -> float:
 	return h + (Docking.lm_port_m("lm") - Docking.lm_port_m("lm_ascent") if cfg == "lm_ascent" else 0.0)
 
 
-## The LM's gear meets the surface [simplified: the Moon's mean sphere, no
-## terrain]: CONTACT LIGHT when a probe touches, and touchdown when the
-## footpads do. The touchdown's speeds are relative to the turning
-## surface; beyond the gear's limits it is a hard landing [simplified: the
-## LM doesn't tip over or break].
+## The LM's gear meets the surface (Terrain): CONTACT LIGHT when a probe
+## touches, and touchdown when the footpads do. The touchdown's speeds are
+## relative to the turning surface; beyond the gear's limits it is a hard
+## landing [simplified: the gear meets the ground straight below the
+## centre of mass, level; the LM doesn't tip over or break].
 func _check_surface() -> void:
 	if lm.traj.primary != "moon":
 		return
+	if lm.traj.radius() - Bodies.R_MOON > SURFACE_CHECK_M:
+		Bus.set_value("lm.contact_light", false)
+		return
 	var gear := SpacecraftData.section("lm_gear")
 	var cm := lm_cm_height(lm.config)
-	var alt := lm.traj.radius() - Bodies.R_MOON
+	var r := lm.traj.pos()
+	var ground := Terrain.radius_under(Bodies.moon_fixed(lm.traj.t).transposed() * r)
+	var alt := lm.traj.radius() - ground
 	Bus.set_value("lm.contact_light", lm.config == "lm" and alt <= cm + float(gear["probe_m"]))
 	if alt > cm:
 		return
-	var r := lm.traj.pos()
 	var up := r.normalized()
 	var rel := lm.traj.vel() - Bodies.moon_omega().cross(r)
 	var down := -rel.dot(up)
 	var across := (rel + up * down).length()
-	lm.land(Bodies.R_MOON + cm)
+	lm.land(ground + cm)
 	var at := Bodies.fixed_to_selenographic(lm.landed_pos)
 	lm.touchdown = {"get_s": lm.traj.t, "vertical_mps": down, "horizontal_mps": across,
 		"lat_deg": at.x, "lon_deg": at.y,

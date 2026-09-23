@@ -419,17 +419,49 @@ Slice 3c lands it:
   they went into the LGC. The model landed within 3 m across 455 to 520 km
   of PDI range, 5 km of crossrange, 14.5 to 16 km of PDI altitude and a
   slower autopilot.
-- **The surface.** The Moon's mean sphere. CONTACT LIGHT comes on when a
-  probe touches, and touchdown is when the footpads do. The landed LM
-  sits on its gear and turns with the Moon, and when its engine's thrust
-  exceeds its weight it lifts off. ENGINE START and ENGINE STOP start
-  and stop an armed engine by hand.
+- **The surface.** The real one, from NASA's elevation maps
+  (`src/dynamics/terrain.gd`, `data/terrain/`, built by
+  `tools/terrain/build_terrain.py`). Around the site it is LROC's 2 m
+  terrain model of the Apollo 11 site, resampled to 4 m, with West crater
+  30 m deep 550 m east of the LM. Along the approach it is SLDEM2015 at
+  59 and 118 m, elsewhere LOLA at 1°. Tranquility Base lies 1,927 m
+  below the 1737.4 km reference sphere, and the DOI now targets 50,000 ft
+  above the site, as Apollo's did. CONTACT LIGHT comes on when a probe
+  touches, and touchdown is when the footpads do. The landed LM sits on
+  its gear and turns with the Moon, and when its engine's thrust exceeds
+  its weight for half a second it lifts off. ENGINE START and ENGINE STOP
+  start and stop an armed engine by hand.
+- **The LGC's own navigation** (part of slice 4b, for the LGC). It flies
+  on its own state vector, never truth: the CSM's at undocking, then the
+  ground's. The PDI PAD uplinks it with MSFN's tracking error, set in
+  `mission.json` where it meets PDI (250 m along track, 150 m across and
+  900 m high). The LGC coasts it with its own integration and adds the
+  sensed ΔV.
+- **The landing radar** (part of 4d). Its beams measure the slant range
+  to the real ground and the velocity over it; its antenna tilts for
+  braking and turns straight down from P64. The DSKY's ALT and VEL lamps
+  go out as its data come good, and N63 shows ΔH. With V57 the LGC
+  weights the radar's altitude and velocity into its state vector every
+  2 s. It has no terrain model, as Apollo 11's LGC had none, so the
+  ground's dips and rises along the approach reach its altitude.
+- **Landing point redesignation.** In P64, with the mode switch in AUTO,
+  each click of the ACA moves the landing point 0.5° along the LPD scale
+  on the commander's window, or 2° in azimuth. N64 shows the time left and
+  the LPD angle.
 
 `tests/scenarios/test_landing.gd` is the check. From a checkpoint before
-PDI, the automatic run lands 2.0 m from the site at 0.80 m/s down and no
-drift, 12 min 9 s after PDI, with 683 kg of descent propellant left.
-The P66 run takes over at 150 m with scripted hand-controller and ROD
-inputs and lands 5.7 m from the site at 0.52 m/s down.
+PDI:
+- The automatic run keys V57 when the radar's altitude comes good, 11 km
+  over the ground, with ΔH at −954 m. ΔH is −22 m by high gate.
+- It lands 140 m from the site at 0.80 m/s down and no drift, 12 min 6 s
+  after PDI, with 687 kg of descent propellant left. The miss is the
+  crossrange error, which the radar can't see.
+- Without V57, Eagle hits the ground 4 km short at 24 m/s.
+- With a 900 m error along the track, the commander redesignates 19 times
+  in P64, moving the landing point 804 m, and Eagle lands 2 m from the
+  site.
+- The P66 run takes over at 150 m with scripted hand-controller and ROD
+  inputs and lands at 0.77 m/s down.
 
 ### What changes underneath
 
@@ -449,15 +481,15 @@ inputs and lands 5.7 m from the site at 0.52 m/s down.
 - **Lunar orbit over the site.** Done in 3c: LOI turns the orbit over the
   site at the landing time.
 - **The surface.** Done in 3c at Tranquility Base (0.674° N, 23.473° E),
-  on a sphere, with touchdown, CONTACT LIGHT, and a landed LM that can lift
-  off. A DEM patch comes later.
+  on NASA's elevation maps, with touchdown, CONTACT LIGHT, and a landed LM
+  that can lift off.
 
 ### Guidance
 
 | Phase | LGC programs | Basis |
 |---|---|---|
 | Descent orbit insertion to about 15 km (50,000 ft) | P30, P40 on the DPS | The CMC's P30 and P40 dialogue, with an RTCC DOI PAD |
-| Powered descent | P63 braking, P64 approach with landing-point redesignation, P65 automatic landing, P66 rate of descent, P68 landing confirmation | Klumpp's Apollo lunar descent guidance (MIT Draper Laboratory, 1971). Done in 3c, without redesignation |
+| Powered descent | P63 braking, P64 approach with landing-point redesignation, P65 automatic landing, P66 rate of descent, P68 landing confirmation, with landing radar updates | Klumpp's Apollo lunar descent guidance (MIT Draper Laboratory, 1971). Done in 3c |
 | Ascent to about 9 × 45 nmi | P12 | Luminary GSOP, section 5 |
 | Rendezvous: CSI, CDH, TPI, two midcourse corrections, braking | P20, P32 to P35, burns flown with P41 on the LM RCS | Luminary GSOP, section 5; the Apollo 11 flight plan |
 | Docking | Manual, with the THC | — |
@@ -496,13 +528,15 @@ Mission Report, and "no LM landing" leaves its list of simplifications.
   window camera, which sits 3.6 units out along the nose, and at arm's
   length in stereo. The terrain near the site must be drawn at true
   scale around the vehicle; the scaled sphere stays for the far view.
-- **The landing radar.** It has nothing to correct while navigation is
-  ideal. Model it, but it only matters after slice 4b.
+- **The landing radar.** Done in 3c, with the LGC's own state vector for
+  it to correct.
 
 ## 4. Navigation realism
 
-**Status: not started.** These are the README's first two
-simplifications:
+**Status: begun for the LGC in slice 3c.** The LGC keeps its own state
+vector, uplinked with the ground's tracking error before PDI, and the
+landing radar updates it (parts of 4b and 4d). The rest is not started.
+These are the README's first two simplifications:
 
 - The Moon moves on a circular orbit, and the Sun's direction is fixed
   (`src/dynamics/bodies.gd`).
@@ -520,9 +554,9 @@ quiet between burns.
 | Slice | Work | Check |
 |---|---|---|
 | 4a Ephemeris | Real Moon and Sun positions for the mission dates, in a dated inertial frame. The Moon-fixed frame from 3c gets a real rotation model. Recommended: Chebyshev coefficients fitted to JPL ephemeris vectors, generated by a script in `tools/`, stored under `data/`, with their provenance in NOTICE | Error against held-out reference vectors stays under 1 km for the Moon's position and 0.01° for the Sun's direction. The scenario suite passes, re-tuned only where the flight really changed. Re-measure the Fidelity table |
-| 4b Onboard state | The AGC keeps its own state vectors (the CSM's, and the LM's from 3b): it coasts them with its own integration and updates them from sensed ΔV while thrusting (`AgcCore.sense()` already integrates `dyn.dv_step`, and the LGC's `lm.dyn.dv_step`). Every program and noun uses them, never truth. Truth gains small forces the AGC doesn't model (vents, unbalanced attitude jets), with seeded dispersions whose seed is in the checkpoint. The RTCC plans from a tracked state with tracking error. The crew accepts state-vector uplinks through P27 (V71) | Test: after a long coast, the onboard state has drifted from truth by a bounded amount, and an uplink replaces it with the tracked state. The MCC and LOI scenarios pass with an uplink step |
+| 4b Onboard state | The AGC keeps its own state vectors (the CSM's; the LGC's has done so since 3c, `Lgc.nav`): it coasts them with its own integration and updates them from sensed ΔV while thrusting (`AgcCore.sense()` already integrates `dyn.dv_step`, and the LGC's `lm.dyn.dv_step`). Every program and noun uses them, never truth. Truth gains small forces the AGC doesn't model (vents, unbalanced attitude jets), with seeded dispersions whose seed is in the checkpoint. The RTCC plans from a tracked state with tracking error. The crew accepts state-vector uplinks through P27 (V71) | Test: after a long coast, the onboard state has drifted from truth by a bounded amount, and an uplink replaces it with the tracked state. The MCC and LOI scenarios pass with an uplink step |
 | 4c IMU and P52 | REFSMMATs (launch pad, preferred for each burn, landing site), gyro drift, and ICDU angles and the FDAI relative to REFSMMAT. Gimbal lock costs the alignment instead of only lighting the lamp. An optics view (sextant and scanning telescope) with the 37 Apollo navigation stars; P51, P52, V41 N20 coarse align, N05 star angle difference, N93 torquing angles. Desktop first; in the cabin the optics sit at the lower equipment bay, away from the couch | Test: drift for 12 h, realign with P52 and two star marks, and the residual misalignment is under a set limit. A burn flown on a misaligned platform misses by the amount the misalignment predicts |
-| 4d Onboard navigation (stretch) | P23 cislunar sightings and P22 landmark tracking. In the LM, the landing radar updates the LGC's altitude and velocity during P63 and P64 | Test: P23 marks alone keep the entry corridor within limits without an uplink |
+| 4d Onboard navigation (stretch) | P23 cislunar sightings and P22 landmark tracking. (In the LM, the landing radar has updated the LGC's altitude and velocity since 3c) | Test: P23 marks alone keep the entry corridor within limits without an uplink |
 
 ### What 4a changes elsewhere
 

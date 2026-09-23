@@ -297,8 +297,11 @@ func _on_pad_request(kind: Variant) -> void:
 
 
 ## Solve and uplink a maneuver PAD: "mcc", "loi", "circ", "tei" for the
-## CMC; "doi" for the LGC, while the LM flies free.
+## CMC; "doi" for the LGC, while the LM flies free; "pdi", the LGC's state
+## vector for powered descent (pdi_pad()).
 func request_pad(kind: String) -> Dictionary:
+	if kind == "pdi":
+		return pdi_pad()
 	var tr := dynamics.traj.clone()
 	var mass := dynamics.mass
 	var now := SimClock.get_seconds
@@ -347,12 +350,54 @@ func request_pad(kind: String) -> Dictionary:
 	return pad
 
 
+## The PDI PAD, after DOI: the ground predicts PDI with the LGC's own
+## ignition algorithm and uplinks the LM's state vector (P27) as MSFN
+## tracked it. The tracking error is given where it matters, at PDI
+## (mission.json "pdi", LVLH): the uplinked state is on the orbit that is
+## off by that much there, coasted back to now. Returns {"name": "PDI",
+## "tig"}, or {} without a free LM that has its landing site.
+func pdi_pad() -> Dictionary:
+	var lgc: Lgc = systems.get("lgc")
+	if dynamics.lm == null or dynamics.lm.config != "lm" or lgc == null or lgc.landing_site == Vector3.ZERO:
+		_say("Houston: no PDI solution.")
+		last_pad = {}
+		return {}
+	var now := dynamics.lm.traj.clone()
+	var tig := Lgc.pdi_time(now, lgc.landing_site, float(SpacecraftData.section("descent_guidance")["pdi_range_m"]))
+	var at := now.clone()
+	at.coast_to(tig, 60.0)
+	var e := mission.section("pdi")
+	var lv := Trajectory.lvlh_basis(at.pos(), at.vel())
+	var dp: Vector3 = lv * _v3(e.get("state_error_lvlh_m", [0.0, 0.0, 0.0]))
+	var dv: Vector3 = lv * _v3(e.get("state_error_lvlh_mps", [0.0, 0.0, 0.0]))
+	for i in 3:
+		at.s[i] += dp[i]
+		at.s[3 + i] += dv[i]
+	# Back along that orbit to now, in the steps coasting takes forward.
+	while at.t > now.t + 1e-9:
+		at.step(-minf(clampf(0.005 * at.radius() / maxf(at.speed(), 1.0), 0.02, 60.0), at.t - now.t))
+	lgc.uplink_state(at)
+	var pad := {"name": "PDI", "tig": tig}
+	last_pad = pad
+	var text := "PDI PAD: TIG %s, state vector uplinked" % Units.hms(tig)
+	Bus.set_value("mission.pad_text", text)
+	_say("Houston: Eagle, we've uplinked your state vector. " + text)
+	_fire("pad_pdi")
+	return pad
+
+
 # --- helpers ---------------------------------------------------------------------
 
-## The landing site in the Moon-fixed frame, m.
+static func _v3(a: Array) -> Vector3:
+	return Vector3(a[0], a[1], a[2])
+
+
+## The landing site in the Moon-fixed frame, on the surface there, m.
 func landing_site() -> Vector3:
 	var l := mission.section("landing")
-	return Bodies.selenographic_to_fixed(float(l["lat_deg"]), float(l["lon_deg"]), Bodies.R_MOON)
+	var lat := float(l["lat_deg"])
+	var lon := float(l["lon_deg"])
+	return Bodies.selenographic_to_fixed(lat, lon, Bodies.R_MOON + Terrain.height(lat, lon))
 
 
 func _has(id: String) -> bool:

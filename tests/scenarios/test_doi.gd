@@ -3,10 +3,12 @@
 ## Control uplinks a DOI PAD to the LGC, and the crew flies it with P30 and
 ## P40 on the descent engine: 10 % throttle for 15 s, then 40 %, as Apollo
 ## 11 did. Half a revolution later Eagle passes its pericynthion at the
-## PAD's 50,000 ft, while Columbia flies on in its own orbit.
+## PAD's 50,000 ft above the landing site, while Columbia flies on in its
+## own orbit.
 extends SimTest
 
-## The PAD's pericynthion target, m (mission.json "doi").
+## The PAD's pericynthion target above the landing site, m (mission.json
+## "doi").
 const TARGET_M := 15240.0
 
 
@@ -62,8 +64,9 @@ func test_a_doi_pad_flown_on_the_lgc_reaches_its_pericynthion() -> void:
 		box["prev"] = rr
 		return passed, 7200.0, 10.0)
 	assert_true(found, "passed the pericynthion")
-	var hp: float = box["min"]
-	gut.p("Eagle's pericynthion: %.0f m (%.0f ft) at %s; the PAD's: %.0f m at %s" % [hp, hp / Units.FT,
+	# lm.dyn.alt_m is above the reference sphere; the site lies below it.
+	var hp: float = box["min"] - (rt.sequencer.landing_site().length() - Bodies.R_MOON)
+	gut.p("Eagle's pericynthion: %.0f m (%.0f ft) above the site at %s; the PAD's: %.0f m at %s" % [hp, hp / Units.FT,
 		Units.hms(box["t"]), float(pad["hp"]), Units.hms(float(pad["hp_get"]))])
 	assert_almost_eq(hp, TARGET_M, 250.0, "at its pericynthion target")
 	assert_almost_eq(float(box["t"]), float(pad["hp_get"]), 30.0, "when the PAD had it")

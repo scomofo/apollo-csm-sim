@@ -23,6 +23,7 @@ const LM_SYSTEMS := [
 	["lm_rcs", "res://src/systems/lm_rcs.gd"],
 	["dps", "res://src/systems/dps.gd"],
 	["aps", "res://src/systems/aps.gd"],
+	["lr", "res://src/systems/landing_radar.gd"],
 ]
 ## Crew control defaults: CMC attitude source, HOLD, SPS disarmed; the LM's
 ## DAP in HOLD, its engines disarmed and both RCS systems open.

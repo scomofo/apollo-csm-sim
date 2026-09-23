@@ -53,6 +53,8 @@ var noun: String = ""
 var r: Array[String] = ["", "", ""]
 var flashing: bool = false
 var lamps: Dictionary = {}
+## The lamps this DSKY has: LAMPS, and the LM's ALT and VEL.
+var lamp_names: Array = LAMPS
 ## "" | "verb" | "noun" | "data" | "program"
 var mode: String = ""
 var _buffer: String = ""
@@ -69,7 +71,7 @@ var _program_display: Dictionary = {}
 
 func _init(p_agc: Object = null) -> void:
 	agc = p_agc
-	for l in LAMPS:
+	for l in lamp_names:
 		lamps[l] = false
 
 
@@ -379,7 +381,7 @@ func _opr_err() -> void:
 ## Text rendering of the whole DSKY (debug, tests, HUD fallback).
 func text() -> String:
 	var lit := []
-	for l in LAMPS:
+	for l in lamp_names:
 		if lamps[l]:
 			lit.append(l.to_upper())
 	return "PROG %s  VERB %s%s  NOUN %s\nR1 %s\nR2 %s\nR3 %s\n%s" % [
