@@ -79,10 +79,13 @@ When Actions starts jobs again:
 
 ## 2. VR cockpit
 
-**Status: slice 2a done.** The rigs, interaction layer, prefabs and
-action map are ported with their tests (README.md lists every file and
-change), and `HandControllerInput` now writes `ctl.rhc` and `ctl.thc`
-from the keys and the thumbsticks. Nothing draws a cabin yet; 2b is next.
+**Status: slices 2a and 2b done.** The rigs, interaction layer, prefabs
+and action map are ported with their tests (README.md lists every file
+and change), and `HandControllerInput` now writes `ctl.rhc` and `ctl.thc`
+from the keys and the thumbsticks. `space_view.gd` keeps the cabin fixed
+and turns the world around it; the window and chase views render as
+before (four screenshots within 7 pixels of the old ones, all star-lookup
+rounding). Nothing draws a cabin yet; 2c is next.
 
 Today the cockpit is a 2D overlay. `src/presentation/hud.gd` draws the
 DSKY, a grid of switches, the FDAI, Mission Control, CAPCOM and the
@@ -164,7 +167,7 @@ gemini-capsule's `HEADSET_RUN.md`, then Apollo's.
 | Slice | Work | Check |
 |---|---|---|
 | 2a (done) | Port the rigs, the interaction layer, the prefabs and the action map, with adapters for `ctl.rhc`, `ctl.thc`, `Units`, materials and frames | The ported `test_xr_rig.gd`, `test_openxr_action_map.gd` and `test_control_library.gd` (minus its Gemini electrical cases) pass headless |
-| 2b | Fixed cabin in `space_view.gd` | New test: turning `dyn.att_q` moves the Earth, Moon, Sun and sky but not the camera or the cabin (gemini-capsule's `tests/unit/test_world_presenter.gd` is the model). `tools/screenshot.tscn` still renders the same window view |
+| 2b (done) | Fixed cabin in `space_view.gd` | New test: turning `dyn.att_q` moves the Earth, Moon, Sun and sky but not the camera or the cabin (gemini-capsule's `tests/unit/test_world_presenter.gd` is the model). `tools/screenshot.tscn` still renders the same window view |
 | 2c | CM cabin, `controls.csv`, cabin DSKY and FDAI | Every row round-trips from CSV to node to Bus. A scenario test flies an MCC PAD with P30 and P41 using only cabin controls, through the desktop rig |
 | 2d | Checklist and CAPCOM card, wrist menu | Desktop-rig test: request a PAD from the wrist menu, then see UPLINK ACTY on the cabin DSKY and the PAD on the card |
 | 2e | Headset run | One recorded pass of an Apollo `VR_ACCEPTANCE.md` in a headset, including a verb/noun typed on the cabin DSKY with a fingertip |

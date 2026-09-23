@@ -3,10 +3,14 @@
 ## the Bus and never feeds truth back (the same rule as in gemini-capsule,
 ## https://github.com/scomofo/gemini-capsule).
 ##
-## The spacecraft is the rendering origin. The world axes are the ECI axes.
-## Celestial bodies are drawn at a fixed render distance with their radius
-## scaled to preserve apparent size, which keeps float32 rendering exact from
-## low orbit to translunar distances.
+## The spacecraft is the rendering origin and the render axes are the
+## cabin's (Frames.BODY_TO_GODOT: the nose is -Z, the crew's up is +Y). The
+## cabin, the spacecraft model and the cameras never move with attitude;
+## Earth, Moon, Sun and stars turn around them by the inverse of dyn.att_q
+## (eci_to_cabin), so a headset camera can be left to the headset
+## (docs/ROADMAP.md, slice 2b). Celestial bodies are drawn at a fixed render
+## distance with their radius scaled to preserve apparent size, which keeps
+## float32 rendering exact from low orbit to translunar distances.
 extends Node3D
 
 const RENDER_DIST := 2000.0
@@ -23,6 +27,10 @@ var look_yaw: float = 0.0
 var look_pitch: float = 0.0
 var chase_yaw: float = 0.6
 var chase_pitch: float = 0.25
+## ECI to cabin (render) axes for the current attitude.
+var eci_to_cabin: Basis = Frames.BODY_TO_GODOT
+## The star sky; its cabin_to_eci uniform keeps the stars fixed in ECI.
+var sky_material: ShaderMaterial
 
 var _parts: Dictionary = {}
 
@@ -54,9 +62,9 @@ func _build_environment() -> void:
 	var env := Environment.new()
 	env.background_mode = Environment.BG_SKY
 	var sky := Sky.new()
-	var sm := ShaderMaterial.new()
-	sm.shader = preload("res://src/presentation/shaders/stars.gdshader")
-	sky.sky_material = sm
+	sky_material = ShaderMaterial.new()
+	sky_material.shader = preload("res://src/presentation/shaders/stars.gdshader")
+	sky.sky_material = sky_material
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.16, 0.16, 0.18)
@@ -225,22 +233,30 @@ func _process(_delta: float) -> void:
 	else:
 		to_earth = -rel
 		to_moon = moon_pos - rel
-	_place(earth, to_earth, Bodies.R_EARTH)
-	_place(earth_glow, to_earth, Bodies.R_EARTH * 1.025)
-	_place(moon, to_moon, Bodies.R_MOON)
+	# The world turns around the fixed cabin: body axes are the cabin axes,
+	# so an ECI vector is taken into the body frame and then to Godot axes.
+	var q: Quaternion = Bus.get_value("dyn.att_q", Quaternion.IDENTITY)
+	eci_to_cabin = Frames.BODY_TO_GODOT * Basis(q).inverse()
+	_place(earth, eci_to_cabin * to_earth, Bodies.R_EARTH)
+	_place(earth_glow, eci_to_cabin * to_earth, Bodies.R_EARTH * 1.025)
+	_place(moon, eci_to_cabin * to_moon, Bodies.R_MOON)
+	# The glow is a sphere, but a faceted one seen from close by: it keeps
+	# its ECI orientation, as the Earth and Moon do, so its silhouette turns
+	# with the world instead of staying fixed to the cabin.
+	earth_glow.basis = eci_to_cabin.scaled(Vector3.ONE * earth_glow.scale.x)
 	# Earth spins (Greenwich sidereal time); the Moon keeps a face to Earth.
 	var jd := SimClock.julian_date()
 	var gmst := deg_to_rad(fposmod(280.46061837 + 360.98564736629 * (jd - 2451545.0), 360.0))
-	earth.basis = Basis(Vector3(0, 0, 1), gmst).scaled(Vector3.ONE * earth.scale.x)
+	earth.basis = (eci_to_cabin * Basis(Vector3(0, 0, 1), gmst)).scaled(Vector3.ONE * earth.scale.x)
 	var to_e := (to_earth - to_moon).normalized()
-	moon.basis = Basis.looking_at(-to_e, Bodies.moon_normal()).scaled(Vector3.ONE * moon.scale.x)
+	moon.basis = (eci_to_cabin * Basis.looking_at(-to_e, Bodies.moon_normal())).scaled(Vector3.ONE * moon.scale.x)
 	var sd := Bodies.sun_direction()
-	sun.basis = Basis.looking_at(-sd, Vector3(0, 0, 1) if absf(sd.z) < 0.99 else Vector3(1, 0, 0))
-	(earth_glow.material_override as ShaderMaterial).set_shader_parameter("sun_dir", sd)
-	# Spacecraft.
-	var q: Quaternion = Bus.get_value("dyn.att_q", Quaternion.IDENTITY)
-	var att := Basis(q)
-	csm.basis = att
+	sun.basis = eci_to_cabin * Basis.looking_at(-sd, Vector3(0, 0, 1) if absf(sd.z) < 0.99 else Vector3(1, 0, 0))
+	(earth_glow.material_override as ShaderMaterial).set_shader_parameter("sun_dir", eci_to_cabin * sd)
+	sky_material.set_shader_parameter("cabin_to_eci", eci_to_cabin.inverse())
+	# Spacecraft: fixed, in body axes.
+	var body := Frames.BODY_TO_GODOT
+	csm.basis = body
 	var cfg := str(Bus.get_value("dyn.config", "stack"))
 	_parts["sm"].visible = cfg != "cm"
 	_parts["lm"].visible = cfg == "csm_lm"
@@ -250,21 +266,21 @@ func _process(_delta: float) -> void:
 	_parts["drogues"].visible = bool(Bus.get_value("els.drogue", false))
 	_parts["main_chutes"].visible = bool(Bus.get_value("els.mains", false))
 	_parts["main_chutes"].scale = Vector3.ONE * lerpf(0.3, 1.0, float(Bus.get_value("els.main_fraction", 1.0)))
-	# Camera.
+	# Camera, in body axes too, so only the crew's own look turns it.
 	if view_mode == 0:
 		csm.visible = false
 		# Looking out along +X (the rendezvous window line of sight),
 		# crew "up" = body -Z, with free head turn.
-		var fwd := att * Vector3(1, 0, 0)
-		var up := att * Vector3(0, 0, -1)
+		var fwd := body * Vector3(1, 0, 0)
+		var up := body * Vector3(0, 0, -1)
 		var right := fwd.cross(up).normalized()
 		var b := Basis(right, up, -fwd)
 		b = b * Basis(Vector3.UP, look_yaw) * Basis(Vector3.RIGHT, look_pitch)
 		camera.transform = Transform3D(b, fwd * 3.6)
 	else:
 		csm.visible = true
-		var up := att * Vector3(0, 0, -1)
-		var off := att * (Basis(Vector3(0, 0, 1), chase_yaw) * Basis(Vector3(0, 1, 0), -chase_pitch) * Vector3(-1, 0, 0))
+		var up := body * Vector3(0, 0, -1)
+		var off := body * (Basis(Vector3(0, 0, 1), chase_yaw) * Basis(Vector3(0, 1, 0), -chase_pitch) * Vector3(-1, 0, 0))
 		var dist := CHASE_DIST * (2.2 if cfg == "stack" else 1.0)
 		camera.transform = Transform3D(Basis.IDENTITY, off * dist).looking_at(Vector3.ZERO, up)
 

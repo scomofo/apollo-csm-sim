@@ -1,13 +1,18 @@
-// Star field fixed in the inertial frame (the world axes are ECI), plus the
-// Sun's disc in the direction of the scene's directional light.
+// Star field fixed in the inertial frame, plus the Sun's disc in the
+// direction of the scene's directional light. The render axes are the
+// cabin's (space_view.gd), so cabin_to_eci turns a view direction into ECI
+// for the star lookup; the Sun disc stays in render axes, like the light.
 shader_type sky;
+
+uniform mat3 cabin_to_eci = mat3(1.0);
 
 float h(vec3 p) {
 	return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453);
 }
 
 void sky() {
-	vec3 d = normalize(EYEDIR);
+	vec3 w = normalize(EYEDIR);
+	vec3 d = normalize(cabin_to_eci * w);
 	vec3 col = vec3(0.0);
 	for (int layer = 0; layer < 2; layer++) {
 		float scale = layer == 0 ? 180.0 : 420.0;
@@ -22,7 +27,7 @@ void sky() {
 		}
 	}
 	if (LIGHT0_ENABLED) {
-		float s = dot(d, LIGHT0_DIRECTION);
+		float s = dot(w, LIGHT0_DIRECTION);
 		col += vec3(1.0, 0.97, 0.9) * (smoothstep(0.99996, 0.99999, s) * 40.0 + pow(max(s, 0.0), 800.0) * 0.6);
 	}
 	COLOR = col;

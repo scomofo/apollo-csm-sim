@@ -227,6 +227,8 @@ The unit tests cover:
 - Checkpoint round-trip
 - The main scene
 - The hand controllers, from the keys and from the XR thumbsticks
+- The space view: the cabin and the cameras stay fixed while Earth, Moon,
+  Sun and stars turn around them with the attitude
 - The cabin controls and instruments, the XR and desktop rigs and the
   OpenXR action map taken from gemini-capsule
 

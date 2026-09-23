@@ -2,6 +2,7 @@
 shader_type spatial;
 render_mode blend_add, unshaded, cull_front, depth_draw_never;
 
+// Toward the Sun, in render (cabin) axes; space_view.gd sets it every frame.
 uniform vec3 sun_dir = vec3(1.0, 0.0, 0.0);
 
 void fragment() {
