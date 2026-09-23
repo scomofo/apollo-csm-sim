@@ -145,7 +145,7 @@ already in use is `HandControllerInput`, which now turns the keys into
 | Gemini capsule | Apollo CSM | Changes |
 |---|---|---|
 | [`src/interaction/control_base.gd`][v-control-base], [`interactor.gd`][v-interactor] | same paths | None |
-| [`scenes/controls/`][v-controls]: toggle, rotary, pushbutton | same paths | None |
+| [`scenes/controls/`][v-controls]: toggle, rotary, pushbutton | same paths | They start from the value the Bus already holds (the simulation's state, a checkpoint, the HUD) instead of publishing their initial position over it, and the toggle and rotary follow later changes. A two-position toggle can publish a bool, as the HUD does |
 | [`scenes/controls/circuit_breaker.gd`][v-breaker] | same path | Gemini's overhead face style, drawn for its SC-4 overhead panel, is left out |
 | [`scenes/instruments/`][v-instruments]: lamp, numeric display, clock, flag, round gauge | same paths | None. `Units.convert()` and a minimal `src/presentation/cabin_materials.gd` exist for them, and `src/core/frames.gd` for the FDAI |
 | [`scenes/instruments/fdai.gd`][v-fdai] | same path | Shows the view from inside the ball, like the flown instrument: Gemini's ball reads pitch and yaw reversed. The ball also turns relative to its case, so a tilted panel doesn't tilt the horizon |

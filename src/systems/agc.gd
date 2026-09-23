@@ -33,7 +33,10 @@
 ## Writes: guid.rcs_rot_cmd, guid.sps_on, guid.program, guid.next_event_get_s,
 ##         guid.bank_auto, guid.bank_cmd_deg, guid.vg_mps, guid.maneuver_valid,
 ##         guid.maneuver_tig, guid.step, guid.dap_busy, guid.att_error_deg,
-##         guid.rcs_trans_cmd
+##         guid.rcs_trans_cmd, guid.indicator.attitude (the FDAI's attitude:
+##         body relative to LVLH), and the DSKY's display for the cabin
+##         DSKY: dsky.prog, dsky.verb, dsky.noun, dsky.r1-dsky.r3 (blank
+##         while unpowered), dsky.flash, dsky.comp_acty, dsky.lamp.<lamp>
 class_name Agc
 extends Node
 
@@ -85,6 +88,7 @@ var _powered: bool = true
 
 func _init() -> void:
 	dsky = Dsky.new(self)
+	dsky.changed.connect(_publish_dsky)
 
 
 func _ready() -> void:
@@ -359,7 +363,10 @@ func _alarm(code: int) -> void:
 # --- per-step --------------------------------------------------------------
 
 func tick(dt: float) -> void:
+	var was_powered := _powered
 	_powered = bool(Bus.get_value("sys.powered", true))
+	if _powered != was_powered:
+		_publish_dsky()
 	if not _powered:
 		Bus.set_value("guid.rcs_rot_cmd", Vector3.ZERO)
 		Bus.set_value("guid.sps_on", false)
@@ -371,6 +378,7 @@ func tick(dt: float) -> void:
 	_entry_step()
 	_dap(dt)
 	_publish()
+	_publish_indicator()
 
 
 ## Stage DEPENDENT: integrate the accelerometers after Dynamics stepped.
@@ -595,6 +603,31 @@ func _publish() -> void:
 	Bus.set_value("guid.maneuver_valid", maneuver_valid)
 	Bus.set_value("guid.maneuver_tig", maneuver_tig)
 	Bus.set_value("guid.step", step_name)
+
+
+## The attitude the FDAI shows: body relative to the local vertical frame
+## (orbit-rate display), as the 2D FDAI in hud.gd draws it.
+func _publish_indicator() -> void:
+	var tr := current_traj()
+	if tr.radius() < 1.0 or tr.pos().cross(tr.vel()).length() < 1e-6:
+		return   # no trajectory yet (before a start phase is set up)
+	var lvlh := Trajectory.lvlh_basis(tr.pos(), tr.vel())
+	Bus.set_value("guid.indicator.attitude", (lvlh.inverse() * Basis(_att())).get_rotation_quaternion())
+
+
+## The DSKY's display on the Bus, for the cabin DSKY. The EL display is
+## blank while the CMC is unpowered; the lamps keep their own logic.
+func _publish_dsky() -> void:
+	var on := _powered
+	Bus.set_value("dsky.prog", dsky.prog if on else "")
+	Bus.set_value("dsky.verb", dsky.verb if on else "")
+	Bus.set_value("dsky.noun", dsky.noun if on else "")
+	for i in 3:
+		Bus.set_value("dsky.r%d" % (i + 1), dsky.r[i] if on else "")
+	Bus.set_value("dsky.flash", on and dsky.flashing)
+	Bus.set_value("dsky.comp_acty", on and dsky.mode != "")
+	for l in Dsky.LAMPS:
+		Bus.set_value("dsky.lamp." + l, bool(dsky.lamps.get(l, false)))
 
 
 func snapshot() -> Dictionary:
