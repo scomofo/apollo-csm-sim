@@ -597,6 +597,53 @@ static func plan_liftoff(site_mf: Vector3, mass: float, csm: Trajectory, phase_d
 		"prop_kg": mass - float(res["mass"])}
 
 
+# --- rendezvous --------------------------------------------------------------------
+
+## The rendezvous plan from [param lm] and [param csm] (both now, the LM in
+## orbit after insertion, of [param mass]): CSI at the LM's next apolune,
+## and the coelliptic sequence (Rendezvous) that brings TPI at GET
+## [param t_tpi], with the CSM [param e_tpi] above the LM and a transfer of
+## [param wt] (radians), flown impulsively. Returns a PAD for CSI: {"name":
+## "CSI", "tig", "dv_lvlh", "dv", "burn_s" (on the LM RCS's +X jets),
+## "cdh_get", "cdh_dv", "dh", "tpi_get", "tpi_dv", "intercept_get",
+## "braking_dv" (the speed the LM arrives at relative to the CSM),
+## "total_dv"}, or {} without a solution.
+static func plan_rendezvous(lm: Trajectory, csm: Trajectory, mass: float, t_tpi: float, e_tpi: float,
+		wt: float) -> Dictionary:
+	if lm.primary != "moon" or csm.primary != "moon":
+		return {}
+	var l := lm.clone()
+	Rendezvous.next_apsis(l, 60.0, "apo")
+	var t_csi := l.t
+	var csi := Rendezvous.plan_csi(lm, csm, t_csi, t_tpi, e_tpi)
+	if not csi["ok"]:
+		return {}
+	var dv_csi := float(csi["dv"])
+	# Fly the plan: CSI, CDH half a revolution on, and TPI.
+	var c := csm.clone()
+	c.coast_to(t_csi)
+	var fwd := l.pos().cross(l.vel()).normalized().cross(l.pos().normalized())
+	for i in 3:
+		l.s[3 + i] += fwd[i] * dv_csi
+	var t_cdh := float(csi["cdh_get"])
+	l.coast_to(t_cdh)
+	c.coast_to(t_cdh)
+	var cdh: Vector3 = Rendezvous.cdh(l, c)["dv"]
+	for i in 3:
+		l.s[3 + i] += cdh[i]
+	l.coast_to(t_tpi)
+	c.coast_to(t_tpi)
+	var t_arrive := Rendezvous.arrival(c, wt)
+	var tpi := Rendezvous.transfer(l, c, t_arrive)
+	var tpi_dv := (tpi["dv"] as Vector3).length()
+	var d := SpacecraftData.section("lm_rcs")
+	var accel := 2.0 * float(d["x_jets"]) * float(d["jet_thrust_n"]) / mass
+	return {"name": "CSI", "tig": t_csi, "dv_lvlh": Vector3(dv_csi, 0.0, 0.0), "dv": absf(dv_csi),
+		"burn_s": absf(dv_csi) / accel, "cdh_get": t_cdh, "cdh_dv": cdh.length(), "dh": csi["dh"],
+		"tpi_get": t_tpi, "tpi_dv": tpi_dv, "intercept_get": t_arrive, "braking_dv": tpi["rel_v"],
+		"total_dv": absf(dv_csi) + cdh.length() + tpi_dv + float(tpi["rel_v"])}
+
+
 # --- TEI ------------------------------------------------------------------------
 
 ## Transearth injection from lunar orbit: prograde External ΔV of

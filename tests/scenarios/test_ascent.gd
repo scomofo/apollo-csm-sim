@@ -23,25 +23,9 @@ func before_all() -> void:
 	Bus.set_value("ctl.seq.undock", true)
 	run(1.0, false)
 	Bus.set_value("ctl.seq.undock", false)
-	_set_down()
+	set_lm_down(YAW)
 	run(60.0)
 	_surface = JSON.stringify(rt.snapshot())
-
-
-## Set Eagle down at the landing site, upright, its +Z axis YAW degrees to
-## the left of the CSM's direction of motion.
-func _set_down() -> void:
-	var lm := rt.dynamics.lm
-	var cm := Dynamics.lm_cm_height("lm")
-	var site := rt.sequencer.landing_site()
-	var up := Rtcc.site_at(site, lm.traj.t).normalized()
-	var pos := up * (site.length() + cm)
-	lm.traj.set_state("moon", lm.traj.t, pos, Bodies.moon_omega().cross(pos))
-	var tr := rt.dynamics.traj
-	var fwd := tr.pos().cross(tr.vel()).normalized().cross(up).normalized().rotated(up, deg_to_rad(YAW))
-	lm.attitude.q = Basis(up, fwd.cross(up), fwd).get_rotation_quaternion()
-	lm.attitude.omega = Vector3.ZERO
-	lm.land(site.length() + cm)
 
 
 ## Restore the LM on the surface and request the ascent PAD.

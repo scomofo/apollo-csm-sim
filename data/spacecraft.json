@@ -109,6 +109,20 @@
     "hold_s": 2.0,
     "auto_rate_dps": 10.0
   },
+  "rendezvous_radar": {
+    "_source": "The LM's rendezvous radar, tracking the CSM's transponder out to 400 nmi [published]",
+    "range_max_m": 740800.0
+  },
+  "rendezvous_guidance": {
+    "_source": "The LGC's rendezvous programs. TPI when the CSM stands 26.6 deg above the LM's horizontal, and a transfer that meets it after it has flown 130 deg [published]. P20's radar marks come every 60 s. The first after the CSM's state vector arrives takes the radar's relative position outright; later marks weight it by 0.5, move the velocity by 0.15 of the position's residual per mark interval, and weight the range rate along the line of sight by 0.5. P35 aims its correction 5 min ahead [estimated]",
+    "tpi_elevation_deg": 26.6,
+    "tpi_transfer_deg": 130.0,
+    "mark_interval_s": 60.0,
+    "mark_position_weight": 0.5,
+    "mark_velocity_weight": 0.15,
+    "mark_range_rate_weight": 0.5,
+    "tpm_lead_s": 300.0
+  },
   "configurations": {
     "stack":  {"inertia": [60000.0, 5000000.0, 5000000.0], "ref_mass_kg": 140000.0, "rcs_pitch_arm_m": 0.0, "rcs_roll_arm_m": 0.0},
     "csm_lm": {"inertia": [45000.0, 900000.0, 900000.0], "ref_mass_kg": 44000.0, "rcs_pitch_arm_m": 5.0, "rcs_roll_arm_m": 1.95},

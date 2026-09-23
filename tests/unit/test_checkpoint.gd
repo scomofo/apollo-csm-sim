@@ -99,13 +99,13 @@ func test_the_lms_systems_come_back_with_it() -> void:
 func test_the_lms_systems_ride_with_the_vehicle_that_carries_them() -> void:
 	build("lunar_orbit")
 	var systems: Dictionary = rt.snapshot()["vehicles"]["csm"]["systems"]
-	for k in ["agc", "lgc", "lm_rcs", "dps", "aps", "lr"]:
+	for k in ["agc", "lgc", "lm_rcs", "dps", "aps", "lr", "rr"]:
 		assert_has(systems, k, "docked, the CSM's entry carries the LM's systems")
 	Bus.set_value("ctl.cmc.mode", 0)
 	Bus.set_value("ctl.seq.undock", true)
 	run(1.0, false)
 	var snap := rt.snapshot()
-	assert_eq(snap["vehicles"]["lm"]["systems"].keys(), ["lgc", "lm_rcs", "dps", "aps", "lr"], "free, the LM's own entry")
+	assert_eq(snap["vehicles"]["lm"]["systems"].keys(), ["lgc", "lm_rcs", "dps", "aps", "lr", "rr"], "free, the LM's own entry")
 	assert_does_not_have(snap["vehicles"]["csm"]["systems"], "lgc")
 	build("lunar_orbit")
 	Bus.set_value("ctl.seq.lm_jett", true)

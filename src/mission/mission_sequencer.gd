@@ -327,12 +327,14 @@ func _on_pad_request(kind: Variant) -> void:
 ## Solve and uplink a maneuver PAD: "mcc", "loi", "circ", "tei" for the
 ## CMC; "doi" for the LGC, while the LM flies free; "pdi", the LGC's state
 ## vector for powered descent (pdi_pad()); "ascent", the liftoff time for
-## the LGC's P12 (ascent_pad()).
+## the LGC's P12 (ascent_pad()); "csi", the rendezvous plan (csi_pad()).
 func request_pad(kind: String) -> Dictionary:
 	if kind == "pdi":
 		return pdi_pad()
 	if kind == "ascent":
 		return ascent_pad()
+	if kind == "csi":
+		return csi_pad()
 	var tr := dynamics.traj.clone()
 	var mass := dynamics.mass
 	var now := SimClock.get_seconds
@@ -454,6 +456,47 @@ func ascent_pad() -> Dictionary:
 	return pad
 
 
+## The CSI PAD, with the LM in orbit after insertion: the RTCC's plan for
+## the coelliptic sequence (Rtcc.plan_rendezvous()), with TPI as long after
+## insertion as Apollo 11 had it (mission.json "rendezvous"). The ground
+## uplinks CSI's and TPI's TIGs, and the CSM's state vector as MSFN tracked
+## it, off by its tracking error. Returns the PAD, or {} without an LM in
+## orbit.
+func csi_pad() -> Dictionary:
+	var lgc: Lgc = systems.get("lgc")
+	var lm := dynamics.lm
+	var pad := {}
+	var r := mission.section("rendezvous")
+	if lm != null and not lm.landed and lgc != null:
+		var g := SpacecraftData.section("rendezvous_guidance")
+		var ins := event_get("lm_insertion")
+		if ins < 0.0:
+			ins = SimClock.get_seconds
+		pad = Rtcc.plan_rendezvous(lm.traj, dynamics.traj, lm.mass, ins + float(r["tpi_after_insertion_s"]),
+			deg_to_rad(float(g["tpi_elevation_deg"])), deg_to_rad(float(g["tpi_transfer_deg"])))
+	last_pad = pad
+	if pad.is_empty():
+		_say("Houston: no CSI solution.")
+		return {}
+	lgc.uplink_rendezvous(float(pad["tig"]), float(pad["tpi_get"]))
+	var csm := dynamics.traj.clone()
+	var lv := Trajectory.lvlh_basis(csm.pos(), csm.vel())
+	var dp: Vector3 = lv * _v3(r["csm_state_error_lvlh_m"])
+	var dv: Vector3 = lv * _v3(r["csm_state_error_lvlh_mps"])
+	for i in 3:
+		csm.s[i] += dp[i]
+		csm.s[3 + i] += dv[i]
+	lgc.uplink_csm_state(csm)
+	var text := "CSI PAD: TIG %s  N81 DVX %+.1f ft/s  BURN %.0f s  CDH %s %.1f ft/s  TPI %s %.1f ft/s  BRAKING %.1f ft/s" % [
+		Units.hms(float(pad["tig"])), float(pad["dv"]) / Units.FT, float(pad["burn_s"]), Units.hms(float(pad["cdh_get"])),
+		float(pad["cdh_dv"]) / Units.FT, Units.hms(float(pad["tpi_get"])), float(pad["tpi_dv"]) / Units.FT,
+		float(pad["braking_dv"]) / Units.FT]
+	Bus.set_value("mission.pad_text", text)
+	_say("Houston: Eagle, your CSI PAD. " + text)
+	_fire("pad_csi")
+	return pad
+
+
 # --- helpers ---------------------------------------------------------------------
 
 static func _v3(a: Array) -> Vector3:
@@ -466,6 +509,14 @@ func landing_site() -> Vector3:
 	var lat := float(l["lat_deg"])
 	var lon := float(l["lon_deg"])
 	return Bodies.selenographic_to_fixed(lat, lon, Bodies.R_MOON + Terrain.height(lat, lon))
+
+
+## The GET event [param id] fired at, or -1 if it hasn't.
+func event_get(id: String) -> float:
+	for e in events:
+		if e["id"] == id:
+			return float(e["get_s"])
+	return -1.0
 
 
 func _has(id: String) -> bool:
@@ -498,3 +549,5 @@ func restore(d: Dictionary) -> void:
 	tli_cutoff_get = float(d["tli_cutoff_get"])
 	_o2_failed = bool(d.get("o2_failed", false))
 	Bus.set_value("mission.phase", phase)
+	for e in events:
+		Bus.set_value("mission.event." + str(e["id"]), float(e["get_s"]))
