@@ -25,12 +25,15 @@ func list() -> Checklist:
 	return lists[current] if current < lists.size() else null
 
 
-## Open checklist [param i] from its first step.
+## Open checklist [param i] where it stands, so the crew can turn to the
+## SPS burn checklist and come back to the phase's. A finished checklist
+## opens at its first step again, as the SPS burn one does for each burn.
 func select(i: int) -> void:
 	if lists.is_empty():
 		return
 	current = posmod(i, lists.size())
-	lists[current].index = 0
+	if lists[current].done():
+		lists[current].index = 0
 
 
 ## Open the checklist for [param phase] where it stands.
@@ -40,7 +43,7 @@ func select_for_phase(phase: String) -> void:
 		current = i
 
 
-## The next checklist, from its first step.
+## The next checklist, where it stands.
 func cycle() -> void:
 	select(current + 1)
 

@@ -53,9 +53,15 @@ func test_the_book_opens_by_phase_cycles_and_acknowledges() -> void:
 	assert_eq(book.window()[0]["state"], "done")
 	book.cycle()
 	assert_eq(book.list().title, "Lunar orbit and TEI")
-	assert_eq(book.list().index, 0, "a checklist opens at its first step")
+	assert_eq(book.list().index, 0, "a checklist opens where it stands, at first its first step")
 	book.select(-1)
 	assert_eq(book.list().title, "Entry", "select wraps")
+	book.select(1)
+	assert_eq(book.list().index, 2, "back to the SPS burn checklist where it was left")
+	book.list().index = book.list().steps.size()
+	book.cycle()
+	book.select(1)
+	assert_eq(book.list().index, 0, "a finished checklist starts again, for the next burn")
 
 
 func test_the_hud_and_the_card_share_the_book() -> void:

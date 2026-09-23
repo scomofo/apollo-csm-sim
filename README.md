@@ -104,7 +104,9 @@ themselves when the Bus shows the action was done. In the cabin, the same
 checklist is on the card by the commander's left shoulder, with the last
 PAD and CAPCOM's calls, and a green frame marks the control for the
 current step. The wrist menu's NEXT STEP goes past a step without a
-check, and CHECKLIST opens the next checklist. SEAT moves you to the
+check. CHECKLIST turns to the next checklist where it was left, so you
+can fly a burn down the SPS burn checklist and come back to the phase's;
+a finished checklist starts again. SEAT moves you to the
 centre couch, where the DSKY is straight ahead and, in a headset, within
 reach.
 

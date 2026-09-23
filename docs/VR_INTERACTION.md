@@ -134,8 +134,9 @@ still. The aids are in `src/presentation/comfort.gd`, on the camera.
   - RECENTRE, EYE +1cm and EYE -1cm set the eye point (§1).
   - SEAT moves between the commander's couch and the centre couch.
   - HIDE closes the menu.
-  - CHECKLIST opens the next checklist, NEXT STEP goes past a step
-    without its check, and HILITE switches the highlight.
+  - CHECKLIST turns to the next checklist where it was left (a finished
+    one starts again), NEXT STEP goes past a step without its check, and
+    HILITE switches the highlight.
   - VIGNETTE, HORIZON and AUTHENTIC switch the comfort aids (§4).
 
   Its top line shows GET, the time rate, the worst recent frame time and
