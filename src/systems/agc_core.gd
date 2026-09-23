@@ -308,7 +308,7 @@ func verb_noun(v: int, _n: int) -> bool:
 
 func lamp_test() -> void:
 	_lamp_test_timer = 5.0
-	for l in Dsky.LAMPS:
+	for l in dsky.lamp_names:
 		dsky.lamps[l] = true
 	dsky.changed.emit()
 
@@ -504,7 +504,7 @@ func _timers(dt: float) -> void:
 	if _lamp_test_timer > 0.0:
 		_lamp_test_timer -= dt
 		if _lamp_test_timer <= 0.0:
-			for l in Dsky.LAMPS:
+			for l in dsky.lamp_names:
 				dsky.lamps[l] = false
 			dsky.changed.emit()
 	_display_timer += dt
@@ -685,7 +685,7 @@ func _publish_dsky() -> void:
 		Bus.set_value(_ch("dsky.r%d" % (i + 1)), dsky.r[i] if on else "")
 	Bus.set_value(_ch("dsky.flash"), on and dsky.flashing)
 	Bus.set_value(_ch("dsky.comp_acty"), on and dsky.mode != "")
-	for l in Dsky.LAMPS:
+	for l in dsky.lamp_names:
 		Bus.set_value(_ch("dsky.lamp." + l), bool(dsky.lamps.get(l, false)))
 
 
@@ -699,6 +699,8 @@ func snapshot() -> Dictionary:
 		"vg": Array(vg), "dv_accum": dv_accum, "engine_enabled": engine_enabled, "engine_on": engine_on,
 		"ignition_get": ignition_get,
 		"auto_active": auto_active, "hold_q": [hold_q.x, hold_q.y, hold_q.z, hold_q.w],
+		"auto_target": [auto_target.x, auto_target.y, auto_target.z, auto_target.w],
+		"desired_q": [desired_q.x, desired_q.y, desired_q.z, desired_q.w],
 	}
 
 
@@ -724,4 +726,12 @@ func restore(d: Dictionary) -> void:
 	auto_active = bool(d["auto_active"])
 	var h: Array = d["hold_q"]
 	hold_q = Quaternion(h[0], h[1], h[2], h[3])
+	# The attitude the program was flying to, which a restarted program
+	# doesn't always work out again (P63 sets it once, before ignition).
+	var at: Array = d.get("auto_target", [])
+	if at.size() == 4:
+		auto_target = Quaternion(at[0], at[1], at[2], at[3])
+	var dq: Array = d.get("desired_q", [])
+	if dq.size() == 4:
+		desired_q = Quaternion(dq[0], dq[1], dq[2], dq[3])
 	_publish()

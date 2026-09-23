@@ -423,14 +423,17 @@ static func size_doi(at: Trajectory, mass: float, pericynthion_alt: float) -> Di
 ## the pass that lands nearest GET [param t_land], and no earlier than
 ## [param earliest]. The burn is centred on the point opposite the
 ## pericynthion, which falls [param pdi_range] (ground range) before the
-## site, where powered descent begins, and is sized for a pericynthion at
-## [param pericynthion_alt] (Apollo 11: 50,000 ft). Powered descent lasts
-## [param t_descent]. Returns a PAD with the pericynthion's time
-## ("hp_get") and the landing time it plans for ("land_get").
+## site, where powered descent begins, and is sized for a pericynthion
+## [param pericynthion_alt] above the site (Apollo 11: 50,000 ft). Powered
+## descent lasts [param t_descent]. Returns a PAD with the pericynthion's
+## height above the site ("hp") and time ("hp_get"), and the landing time
+## it plans for ("land_get").
 static func plan_doi(traj: Trajectory, mass: float, pericynthion_alt: float, site_mf: Vector3, t_land: float,
 		pdi_range: float, t_descent: float, earliest: float) -> Dictionary:
 	if traj.primary != "moon":
 		return {}
+	# size_doi works above the reference sphere.
+	var site_h := site_mf.length() - Bodies.R_MOON
 	var period := float(traj.conic()["period"])
 	var t_l := maxf(t_land, earliest + period + t_descent)
 	var base := traj.clone()
@@ -450,7 +453,7 @@ static func plan_doi(traj: Trajectory, mass: float, pericynthion_alt: float, sit
 		var tb := dps_burn_time(mass, float(res["dv"]))
 		var at := base.clone()
 		at.coast_to(t_doi - tb / 2.0, 60.0, FRAC)
-		res = size_doi(at, mass, pericynthion_alt)
+		res = size_doi(at, mass, pericynthion_alt + site_h)
 		if res.is_empty():
 			return {}
 		var t_next := float(res["hp_get"]) + t_descent
@@ -461,7 +464,7 @@ static func plan_doi(traj: Trajectory, mass: float, pericynthion_alt: float, sit
 	var dv := float(res["dv"])
 	var tb2 := dps_burn_time(mass, dv)
 	return {"name": "DOI", "tig": t_doi - tb2 / 2.0, "dv_lvlh": Vector3(-dv, 0, 0), "dv": dv,
-		"burn_s": tb2, "hp": res["hp"], "hp_get": res["hp_get"], "land_get": t_l}
+		"burn_s": tb2, "hp": float(res["hp"]) - site_h, "hp_get": res["hp_get"], "land_get": t_l}
 
 
 # --- TEI ------------------------------------------------------------------------

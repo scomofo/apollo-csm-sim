@@ -27,6 +27,8 @@ var landed_q: Quaternion = Quaternion.IDENTITY
 ## Its touchdown: {"get_s", "vertical_mps" (down), "horizontal_mps",
 ## "lat_deg", "lon_deg", "hard"}; empty until it lands.
 var touchdown: Dictionary = {}
+## Landed, how long its engine has pushed it up harder than its weight, s.
+var lift_s: float = 0.0
 
 
 func _init(p_id: String = "lm", p_config: String = "lm", p_mass: float = 0.0) -> void:
@@ -107,7 +109,7 @@ func snapshot() -> Dictionary:
 		"q": [attitude.q.x, attitude.q.y, attitude.q.z, attitude.q.w],
 		"omega": [attitude.omega.x, attitude.omega.y, attitude.omega.z],
 		"landed": landed, "landed_pos": [landed_pos.x, landed_pos.y, landed_pos.z],
-		"landed_q": [landed_q.x, landed_q.y, landed_q.z, landed_q.w], "touchdown": touchdown,
+		"landed_q": [landed_q.x, landed_q.y, landed_q.z, landed_q.w], "touchdown": touchdown, "lift_s": lift_s,
 	}
 
 
@@ -124,4 +126,5 @@ static func from_snapshot(d: Dictionary) -> Vehicle:
 	var lq: Array = d.get("landed_q", [0.0, 0.0, 0.0, 1.0])
 	v.landed_q = Quaternion(lq[0], lq[1], lq[2], lq[3])
 	v.touchdown = d.get("touchdown", {})
+	v.lift_s = float(d.get("lift_s", 0.0))
 	return v

@@ -4,3 +4,4 @@ export/
 build/
 .gut_editor_config.json
 *.translation
+tools/terrain/.cache/

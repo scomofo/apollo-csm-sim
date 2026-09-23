@@ -11,7 +11,8 @@
   "loi": {"apolune_alt_km": 315.0},
   "tei": {"dv_mps": 1000.0, "entry_perigee_alt_km": 37.0},
   "doi": {"pericynthion_alt_km": 15.24, "_comment": "Descent orbit insertion: the LM's pericynthion at 50,000 ft [published], where powered descent begins, on the pass that lands at the landing time"},
-  "landing": {"site": "Tranquility Base", "lat_deg": 0.674, "lon_deg": 23.473, "get_s": 369940.0, "_comment": "Apollo 11's landing site and landing time, 102:45:40 GET [published]. The site is on the Moon's mean sphere [simplified: no terrain]"},
+  "landing": {"site": "Tranquility Base", "lat_deg": 0.674, "lon_deg": 23.473, "get_s": 369940.0, "_comment": "Apollo 11's landing site and landing time, 102:45:40 GET [published]. The site's height is the terrain's there (data/terrain/)"},
+  "pdi": {"state_error_lvlh_m": [250.0, 150.0, -900.0], "state_error_lvlh_mps": [0.0, 0.0, 0.0], "_comment": "The LM state vector the ground uplinks with the PDI PAD is off by this much at PDI, in LVLH (X along track, Y right, Z down): the LGC thinks Eagle is 250 m farther along, 150 m to the right and 900 m higher [estimated]"},
   "failures": {"o2_tank_2_get_s": -1.0},
   "start_phases": ["parking_orbit", "translunar_coast", "lunar_orbit", "transearth_coast", "entry"]
 }

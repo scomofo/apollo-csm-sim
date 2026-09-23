@@ -79,7 +79,9 @@
     "horizontal_tau_s": 4.0,
     "vertical_tau_s": 1.5,
     "rod_click_mps": 0.3048,
-    "auto_rate_dps": 3.0
+    "auto_rate_dps": 3.0,
+    "lpd_elevation_deg": 0.5,
+    "lpd_azimuth_deg": 2.0
   },
   "lm_gear": {
     "_source": "The LM on its landing gear: its centre of mass above the footpads, and the contact probes 5.6 ft below them [published]; the landing's speed limits for the gear [estimated]",
@@ -87,6 +89,16 @@
     "probe_m": 1.7,
     "vertical_max_mps": 3.0,
     "horizontal_max_mps": 1.2
+  },
+  "landing_radar": {
+    "_source": "The LM's landing radar and the LGC's use of it. Antenna position 1 tilts the beam from the LM's -X axis toward -Z [estimated]; position 2 is along -X. The altitude beam's range, about 41,000 ft, and the velocity beams', about 33,000 ft [estimated from Apollo 11's acquisition near 37,000 ft]. The LGC reads the radar every 2 s [published] and weights its altitude and velocity into the state vector [estimated weights]",
+    "position1_tilt_deg": 45.0,
+    "alt_range_m": 12500.0,
+    "vel_range_m": 10000.0,
+    "max_incidence_deg": 70.0,
+    "update_s": 2.0,
+    "alt_weight": 0.3,
+    "vel_weight": 0.3
   },
   "configurations": {
     "stack":  {"inertia": [60000.0, 5000000.0, 5000000.0], "ref_mass_kg": 140000.0, "rcs_pitch_arm_m": 0.0, "rcs_roll_arm_m": 0.0},

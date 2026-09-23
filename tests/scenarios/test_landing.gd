@@ -1,10 +1,20 @@
 ## Slice 3c's check (docs/ROADMAP.md, milestone 3): Eagle lands at
-## Tranquility Base. In lunar orbit over the site, the LM undocks and flies
-## the DOI PAD for the landing pass, and powered descent begins 470 km
-## (ground range) before the site. The automatic run flies P63 braking,
-## P64 approach and P65 to touchdown within 500 m of the site, at under
-## 1 m/s down and 0.5 m/s across. A second run takes over in P66 at 150 m
-## with the hand controller and the ROD switch. Both start from one
+## Tranquility Base, on the real terrain (data/terrain/), navigating on the
+## LGC's own state vector. In lunar orbit over the site, the LM undocks and
+## flies the DOI PAD for the landing pass. Fifteen minutes before PDI the
+## ground uplinks its state vector with the PDI PAD, off by MSFN's
+## tracking error: 250 m along track, 150 m to the side and 900 m high at
+## PDI (mission.json "pdi"). Powered descent begins 470 km (ground range)
+## before the site.
+##
+## The automatic run flies P63 braking, P64 approach and P65: when the
+## landing radar's altitude comes good, the crew checks ΔH and keys V57,
+## as Aldrin did, and the radar pulls the LGC's altitude and velocity in.
+## It lands within 500 m of the site at under 1 m/s down and 0.5 m/s
+## across. Without V57 the LGC flies into the ground. With the
+## commander redesignating the landing point in P64 (LPD), Eagle lands on
+## the site despite a 900 m error along the track. A run in P66 takes over
+## at 150 m with the hand controller and the ROD switch. All start from one
 ## checkpoint taken before PDI.
 extends SimTest
 
@@ -13,6 +23,7 @@ const SITE_LON := 23.473
 
 var _before_pdi := ""
 var _pad := {}
+var _pdi := {}
 
 
 func before_all() -> void:
@@ -25,14 +36,21 @@ func before_all() -> void:
 	gut.p(Rtcc.pad_text(_pad) + "  landing at " + Units.hms(float(_pad["land_get"])))
 	fly_lm_pad(40, 2)
 	run(float(_pad["hp_get"]) - 900.0 - SimClock.get_seconds)
+	_pdi = rt.sequencer.request_pad("pdi")
+	gut.p(str(Bus.get_value("mission.pad_text")))
 	_before_pdi = JSON.stringify(rt.snapshot())
 
 
-## Restore the checkpoint, select P63 and fly it to ignition: PRO at
-## V06N33, LGC MODE AUTO and PRO at V50N18, ENGINE ARM DES, PRO at V99.
-func _to_ignition() -> Lgc:
+## Restore the checkpoint (with [param error], the PDI PAD's state vector
+## is uplinked again off by that much at PDI, LVLH m), select P63 and fly it
+## to ignition: PRO at V06N33, LGC MODE AUTO and PRO at V50N18, ENGINE ARM
+## DES, PRO at V99.
+func _to_ignition(error: Array = []) -> Lgc:
 	build("")
 	assert_eq(rt.restore(JSON.parse_string(_before_pdi)), "")
+	if not error.is_empty():
+		rt.mission.section("pdi")["state_error_lvlh_m"] = error
+		rt.sequencer.request_pad("pdi")
 	var lgc := rt.lgc()
 	keys("V37E63E", lgc)
 	assert_eq(lgc.program, 63, "P63")
@@ -51,31 +69,70 @@ func _miss() -> float:
 	return rt.dynamics.lm.landed_pos.angle_to(rt.sequencer.landing_site()) * Bodies.R_MOON
 
 
-func test_the_lunar_orbit_and_doi_are_planned_for_the_site() -> void:
+## The LGC's state vector less truth, LVLH m (X along track, Y right, Z
+## down).
+func _nav_error(lgc: Lgc) -> Vector3:
+	var t := rt.dynamics.lm.traj
+	return Trajectory.lvlh_basis(t.pos(), t.vel()).inverse() * (lgc.nav.pos() - t.pos())
+
+
+## Aldrin's part: once the radar's altitude is good (the ALT lamp out) and
+## N63 shows ΔH, key V57 to permit radar updates. [param seen] gets ΔH
+## then ("dh0") and the height over the ground ("dh0_agl").
+func _permit_updates(lgc: Lgc, seen: Dictionary) -> void:
+	if lgc.lr_update or bool(Bus.get_value("lm.dsky.lamp.alt", true)) or lgc.delta_h == 0.0:
+		return
+	seen["dh0"] = lgc.delta_h
+	seen["dh0_agl"] = _agl()
+	keys("V57EK", lgc)
+
+
+## The LM's centre of mass over the ground below it, m.
+func _agl() -> float:
+	var tr := rt.dynamics.lm.traj
+	return tr.radius() - Terrain.radius_under(Bodies.moon_fixed(tr.t).transposed() * tr.pos())
+
+
+func test_the_lunar_orbit_doi_and_pdi_are_planned_for_the_site() -> void:
 	build("lunar_orbit")
 	var t_land := float(rt.mission.section("landing")["get_s"])
 	var site := rt.sequencer.landing_site()
+	assert_almost_eq(site.length() - Bodies.R_MOON, -1927.5, 1.0, "the site on the terrain, 1,927 m below the reference sphere")
 	var h := rt.dynamics.traj.pos().cross(rt.dynamics.traj.vel()).normalized()
 	assert_almost_eq(h.dot(Rtcc.site_at(site, t_land).normalized()), 0.0, 1e-6, "the orbit passes over the site at the landing time")
 	assert_lt(h.dot(Bodies.moon_normal()), 0.0, "retrograde")
 	assert_almost_eq(rad_to_deg(acos(-h.dot(Bodies.moon_normal()))), SITE_LAT, 0.01, "the site at the ground track's northernmost point")
 	# The DOI PAD: the pass that lands nearest the landing time, with the
-	# pericynthion 470 km before the site.
+	# pericynthion 470 km before the site, 50,000 ft above it.
 	assert_eq(str(_pad.get("name", "")), "DOI")
 	assert_almost_eq(float(_pad["land_get"]), t_land, 3600.0, "within half a revolution of 102:45:40")
-	assert_almost_eq(float(_pad["hp"]), 15240.0, 50.0, "pericynthion at 50,000 ft")
+	assert_almost_eq(float(_pad["hp"]), 15240.0, 50.0, "pericynthion at 50,000 ft above the site")
+	# The PDI PAD's state vector is off by the tracking error at PDI.
+	assert_eq(str(_pdi.get("name", "")), "PDI")
+	assert_almost_eq(float(_pdi["tig"]), float(_pad["hp_get"]), 30.0, "PDI at the pericynthion")
+	build("")
+	assert_eq(rt.restore(JSON.parse_string(_before_pdi)), "")
+	var lgc := rt.lgc()
+	run(float(_pdi["tig"]) - SimClock.get_seconds)
+	assert_almost_eq(_nav_error(lgc), Vector3(250.0, 150.0, -900.0), Vector3.ONE * 5.0, "the LGC's error at PDI")
 
 
 func test_automatic_guidance_lands_at_tranquility_base() -> void:
 	var lgc := _to_ignition()
 	assert_almost_eq(lgc.pdi_tig, float(_pad["hp_get"]), 10.0, "P63 ignites where the DOI put the pericynthion")
-	var seen := {"programs": [], "ftp": false, "recovered": false, "hg": 0.0}
+	assert_true(Bus.get_value("lm.dsky.lamp.alt"), "ALT: no radar altitude yet")
+	var seen := {"programs": [], "ftp": false, "recovered": false, "hg": 0.0, "dh_hg": 0.0, "lamps_out": false}
 	var t_ig := lgc.pdi_tig
 	var landed := run_until(func() -> bool:
+		_permit_updates(lgc, seen)
+		if lgc.lr_update and not Bus.get_value("lm.dsky.lamp.alt") and not Bus.get_value("lm.dsky.lamp.vel"):
+			seen["lamps_out"] = true
 		if not lgc.program in seen["programs"]:
 			seen["programs"].append(lgc.program)
 			if lgc.program == 64:
 				seen["hg"] = lgc._h
+				seen["dh_hg"] = lgc.delta_h
+				seen["err_hg"] = _nav_error(lgc)
 		if lgc.program == 63 and lgc.step_name == "braking":
 			if lgc.descent_throttle >= 1.0:
 				seen["ftp"] = true
@@ -84,11 +141,19 @@ func test_automatic_guidance_lands_at_tranquility_base() -> void:
 		return rt.dynamics.lm.landed, 1000.0, 1.0, false)
 	assert_true(landed, "touchdown")
 	var td: Dictionary = rt.dynamics.lm.touchdown
-	gut.p("Eagle landed %.1f m from the site, %.2f m/s down and %.2f m/s across, %.0f s after PDI, %.0f kg of DPS propellant left" % [
+	gut.p("Radar altitude good at %.0f m over the ground, ΔH %.0f m; at high gate ΔH %.0f m, LGC error %s" % [
+		seen.get("dh0_agl", 0.0), seen.get("dh0", 0.0), seen["dh_hg"], seen.get("err_hg", Vector3.ZERO)])
+	gut.p("Eagle landed %.0f m from the site, %.2f m/s down and %.2f m/s across, %.0f s after PDI, %.0f kg of DPS propellant left" % [
 		_miss(), td["vertical_mps"], td["horizontal_mps"], float(td["get_s"]) - t_ig, float(Bus.get_value("lm.dps.prop_kg"))])
 	assert_eq(seen["programs"], [63, 64, 65, 68], "braking, approach, automatic landing, touchdown")
 	assert_true(seen["ftp"], "braking at full thrust")
 	assert_true(seen["recovered"], "and throttling down before high gate")
+	# The radar found the LGC about 900 m high (the tracking error, and the
+	# ground along the approach lower than the site), and pulled it in.
+	assert_between(float(seen.get("dh0", 0.0)), -1300.0, -700.0, "ΔH when the radar's altitude came good")
+	assert_between(float(seen.get("dh0_agl", 0.0)), 7000.0, 12500.0, "within the radar's range")
+	assert_true(seen["lamps_out"], "ALT and VEL out")
+	assert_lt(absf(float(seen["dh_hg"])), 50.0, "ΔH at high gate")
 	assert_between(float(seen["hg"]), 1500.0, 3000.0, "high gate")
 	assert_lt(_miss(), 500.0, "within 500 m of the site")
 	assert_lt(float(td["vertical_mps"]), 1.0, "under 1 m/s down")
@@ -101,14 +166,140 @@ func test_automatic_guidance_lands_at_tranquility_base() -> void:
 	assert_gt(float(Bus.get_value("lm.dps.prop_kg")), 0.0, "propellant to spare")
 	run(2.0, false)
 	assert_eq(float(Bus.get_value("lm.dps.thrust_n")), 0.0, "P68: engine off")
+	assert_true(rt.dynamics.lm.landed, "and still down")
+	# A checkpoint on the surface brings back the touchdown and the light.
+	var text := JSON.stringify(rt.snapshot())
+	build("")
+	assert_eq(rt.restore(JSON.parse_string(text)), "")
+	lgc = rt.lgc()
+	assert_eq(Bus.get_value("lm.touchdown", {}), JSON.parse_string(JSON.stringify(td)), "lm.touchdown restored")
+	assert_true(Bus.get_value("lm.contact_light", false), "CONTACT LIGHT restored")
+	# V06N43 shows where the LGC has Eagle: its own state vector, off by
+	# what the radar couldn't see.
 	var n43: Array = lgc.noun_values(43)
 	assert_almost_eq(float(n43[0]), SITE_LAT, 0.02, "V06N43 latitude")
 	assert_almost_eq(float(n43[1]), SITE_LON, 0.02, "and longitude")
 
 
+func test_a_checkpoint_in_p63_before_ignition_keeps_the_burn_attitude() -> void:
+	build("")
+	assert_eq(rt.restore(JSON.parse_string(_before_pdi)), "")
+	var lgc := rt.lgc()
+	keys("V37E63E", lgc)
+	keys("P", lgc)
+	Bus.set_value("ctl.lm.mode", 2)
+	keys("P", lgc)
+	assert_true(run_until(func() -> bool: return lgc.step_name == "wait", 600.0, 1.0, false), "in the burn attitude")
+	var target := lgc.auto_target
+	var text := JSON.stringify(rt.snapshot())
+	build("")
+	assert_eq(rt.restore(JSON.parse_string(text)), "")
+	lgc = rt.lgc()
+	assert_eq(lgc.step_name, "wait")
+	assert_lt(lgc.auto_target.angle_to(target), 1e-4, "the burn attitude comes back with it")
+	# And PDI fires against the velocity over the surface.
+	Bus.set_value("ctl.lm.engine_arm", 2)
+	run(maxf(lgc.pdi_tig - 12.0 - SimClock.get_seconds, 0.0))
+	assert_true(run_until(func() -> bool: return lgc.step_name == "v99", 20.0, 1.0, false), "V99 at TIG-5 s")
+	keys("P", lgc)
+	run(30.0, false)
+	var tr := rt.dynamics.lm.traj
+	var rel := tr.vel() - Bodies.moon_omega().cross(tr.pos())
+	var thrust_axis := Basis(rt.dynamics.lm.attitude.q) * Vector3.RIGHT
+	assert_gt(float(Bus.get_value("lm.dps.thrust_n")), 0.0, "the descent engine burning")
+	assert_gt(rad_to_deg(thrust_axis.angle_to(rel)), 150.0, "retrograde")
+
+
+func test_without_radar_updates_the_lgc_flies_into_the_ground() -> void:
+	var lgc := _to_ignition()
+	var seen := {"dh_hg": 0.0}
+	var landed := run_until(func() -> bool:
+		if lgc.program == 64 and seen["dh_hg"] == 0.0:
+			seen["dh_hg"] = lgc.delta_h
+			seen["h_hg"] = lgc._h
+			seen["agl_hg"] = _agl()
+		return rt.dynamics.lm.landed, 1000.0, 1.0, false)
+	assert_true(landed, "it meets the ground")
+	var td: Dictionary = rt.dynamics.lm.touchdown
+	gut.p("Without V57: at high gate the LGC had %.0f m, the ground was %.0f m below (ΔH %.0f m); it hit %.0f m from the site at %.1f m/s down" % [
+		seen.get("h_hg", 0.0), seen.get("agl_hg", 0.0), seen["dh_hg"], _miss(), td["vertical_mps"]])
+	assert_lt(float(seen["dh_hg"]), -900.0, "the LGC still a kilometre high at high gate")
+	assert_true(td["hard"], "a hard landing")
+	assert_gt(float(td["vertical_mps"]), 10.0, "at speed")
+	assert_gt(_miss(), 2000.0, "well short of the site")
+	assert_string_contains(str(Bus.get_value("mission.capcom")), "hard landing")
+
+
+func test_p64_redesignation_puts_eagle_on_the_site() -> void:
+	# The LGC thinks Eagle is 900 m farther along than it is: left to
+	# itself it would land about that far short.
+	var lgc := _to_ignition([900.0, 0.0, 0.0])
+	var seen := {}
+	assert_true(run_until(func() -> bool:
+		_permit_updates(lgc, seen)
+		return lgc.program == 64, 900.0, 1.0, false), "P64")
+	var n64: Array = lgc.noun_values(64)
+	assert_almost_eq(float(n64[0]), 99000.0 + roundf(lgc._lpd), 1.0, "N64: 99+ s to redesignate, and the LPD angle")
+	assert_between(lgc._lpd, 25.0, 70.0, "the LPD angle on the window's scale")
+	var site := rt.sequencer.landing_site()
+	var target0 := lgc.landing_site
+	var short := target0.angle_to(site) * Bodies.R_MOON
+	var clicks := _lpd_pilot(lgc, site)
+	var moved := lgc.landing_site.angle_to(target0) * Bodies.R_MOON
+	assert_true(run_until(func() -> bool: return rt.dynamics.lm.landed, 400.0, 1.0, false), "touchdown")
+	var td: Dictionary = rt.dynamics.lm.touchdown
+	gut.p("The LPD moved the landing point %.0f m in %d clicks; Eagle landed %.0f m from the site, %.2f m/s down" % [
+		moved, clicks, _miss(), td["vertical_mps"]])
+	assert_gt(clicks, 1, "the commander redesignated")
+	assert_gt(moved, 500.0, "the landing point moved downrange")
+	assert_lt(short, 50.0, "the LGC aimed at the site it had")
+	assert_lt(_miss(), 60.0, "and Eagle landed on the one out of the window")
+	assert_lt(float(td["vertical_mps"]), 1.0)
+	assert_false(td["hard"])
+
+
+## The commander in P64: each second, compare where the LPD points (the
+## LGC's landing point, along the window's reticle) with where
+## [param target_mf] (Moon-fixed) is out of the window, and click the ACA
+## once to bring the one toward the other: fore or aft for the LPD angle,
+## right or left for azimuth. Returns the clicks.
+func _lpd_pilot(lgc: Lgc, target_mf: Vector3) -> int:
+	var clicks := 0
+	while lgc.program == 64 and lgc.lpd_time() > 1.0:
+		var att := Basis(Bus.get_value("lm.dyn.att_q") as Quaternion)
+		var mf := Bodies.moon_fixed(SimClock.get_seconds)
+		var seen := _look(att.inverse() * (mf * target_mf - rt.dynamics.lm.traj.pos()))
+		var lpd := _look(att.inverse() * (mf * lgc.landing_site - lgc.nav.pos()))
+		var aca := Vector3.ZERO
+		if lpd.x - seen.x > 0.3:
+			aca.y = -1.0   # fore: farther
+		elif seen.x - lpd.x > 0.3:
+			aca.y = 1.0    # aft: nearer
+		elif seen.y - lpd.y > 1.2:
+			aca.z = 1.0    # right
+		elif lpd.y - seen.y > 1.2:
+			aca.z = -1.0   # left
+		if aca != Vector3.ZERO:
+			Bus.set_value("ctl.lm.rhc", aca)
+			run(SimClock.FIXED_DT, false)
+			Bus.set_value("ctl.lm.rhc", Vector3.ZERO)
+			clicks += 1
+		run(1.0, false)
+	return clicks
+
+
+## A line of sight in the LM's axes as the window shows it: its angle below
+## the +Z axis and to the right, degrees.
+static func _look(los: Vector3) -> Vector2:
+	return Vector2(rad_to_deg(atan2(-los.x, los.z)), rad_to_deg(atan2(los.y, los.z)))
+
+
 func test_p66_lands_on_the_hand_controller_and_the_rod_switch() -> void:
 	var lgc := _to_ignition()
-	assert_true(run_until(func() -> bool: return lgc.program == 64 and lgc._h < 150.0, 900.0, 1.0, false), "P64 below 150 m")
+	var seen := {}
+	assert_true(run_until(func() -> bool:
+		_permit_updates(lgc, seen)
+		return lgc.program == 64 and lgc._h < 150.0, 900.0, 1.0, false), "P64 below 150 m")
 	Bus.set_value("ctl.lm.mode", 1)
 	var hdot := lgc._hdot
 	_rod(-1)
@@ -120,7 +311,7 @@ func test_p66_lands_on_the_hand_controller_and_the_rod_switch() -> void:
 	Bus.set_value("ctl.lm.rhc", Vector3.ZERO)
 	assert_true(rt.dynamics.lm.landed, "touchdown")
 	var td: Dictionary = rt.dynamics.lm.touchdown
-	gut.p("In P66, Eagle landed %.1f m from the site, %.2f m/s down and %.2f m/s across" % [
+	gut.p("In P66, Eagle landed %.0f m from the site, %.2f m/s down and %.2f m/s across" % [
 		_miss(), td["vertical_mps"], td["horizontal_mps"]])
 	assert_lt(float(td["vertical_mps"]), 1.0, "under 1 m/s down")
 	assert_lt(float(td["horizontal_mps"]), 0.5, "under 0.5 m/s across")
@@ -140,15 +331,15 @@ func _rod(dir: int) -> void:
 ## A fifth of a second of the pilot: the hand controller tilts the LM
 ## against its horizontal velocity, as the cross-pointers show it, to stop
 ## it in about 4 s and no more than 15° from upright; ROD clicks keep the
-## descent at a metre a second for every 20 m of height, between 0.6 and
-## 3 m/s.
+## descent at a metre a second for every 20 m of height over the ground,
+## between 0.6 and 3 m/s.
 func _fly_by_hand(lgc: Lgc) -> void:
 	var r: Array = Bus.get_value("lm.dyn.r_m")
 	var v: Array = Bus.get_value("lm.dyn.v_mps")
 	var pos := Vector3(r[0], r[1], r[2])
 	var rel := Vector3(v[0], v[1], v[2]) - Bodies.moon_omega().cross(pos)
 	var up := pos.normalized()
-	var h := pos.length() - Bodies.R_MOON - Dynamics.lm_cm_height("lm")
+	var h := _agl() - Dynamics.lm_cm_height("lm")
 	var g := Bodies.MU_MOON / pos.length_squared()
 	var ah := -(rel - up * rel.dot(up)) / 4.0
 	var ah_max := g * tan(deg_to_rad(15.0))
@@ -176,13 +367,14 @@ func test_a_landed_lm_turns_with_the_moon_and_can_lift_off() -> void:
 	# Set Eagle down at the site, upright.
 	var lm := rt.dynamics.lm
 	var cm := Dynamics.lm_cm_height("lm")
+	var site_r := rt.sequencer.landing_site().length()
 	var up := Rtcc.site_at(rt.sequencer.landing_site(), lm.traj.t).normalized()
-	var pos := up * (Bodies.R_MOON + cm)
+	var pos := up * (site_r + cm)
 	lm.traj.set_state("moon", lm.traj.t, pos, Bodies.moon_omega().cross(pos))
 	var side := up.cross(Vector3.UP if absf(up.dot(Vector3.UP)) < 0.9 else Vector3.RIGHT).normalized()
 	lm.attitude.q = Basis(up, side, up.cross(side)).get_rotation_quaternion()
 	lm.attitude.omega = Vector3.ZERO
-	lm.land(Bodies.R_MOON + cm)
+	lm.land(site_r + cm)
 	var spot := lm.landed_pos
 	var steps := SimClock.step_count
 	run(3600.0)
@@ -207,9 +399,13 @@ func test_a_landed_lm_turns_with_the_moon_and_can_lift_off() -> void:
 	Bus.set_value("ctl.lm.eng_start", true)
 	run(SimClock.FIXED_DT, false)
 	Bus.set_value("ctl.lm.eng_start", false)
-	run(10.0, false)
+	# At full time acceleration: the engine running keeps the steps fine,
+	# while its thrust builds on the surface and after.
+	steps = SimClock.step_count
+	run(10.0)
+	assert_gt(SimClock.step_count - steps, 495, "fine steps from engine start")
 	assert_false(lm.landed, "lift-off")
-	var h := lm.traj.radius() - Bodies.R_MOON
+	var h := lm.traj.radius() - site_r
 	assert_gt(h, 50.0, "climbing on the ascent engine")
 	assert_gt(lm.traj.radial_rate(), 10.0)
 	Bus.set_value("ctl.lm.eng_stop", true)
