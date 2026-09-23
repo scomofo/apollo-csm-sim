@@ -3,14 +3,19 @@
 ## CabinMaterials
 ## (https://github.com/scomofo/gemini-capsule/blob/40e449cfb8c35111de47a33bd351b2d945e6fa52/src/presentation/cabin_materials.gd),
 ## so the control and instrument prefabs taken from it work unchanged.
-## Only the roles those prefabs use exist yet; the CM cabin adds its own
-## (docs/ROADMAP.md, slice 2c). Every look here is [estimated].
+## The prefabs use "bezel"; the CM cabin (src/cabin/cm_cabin.gd) and its
+## DSKY use the rest. Every look here is [estimated].
 class_name CabinMaterials
 extends RefCounted
 
 ## Role -> {basis, confidence}.
 const PROVENANCE := {
 	"bezel": {"basis": "Satin dark-grey lamp and gauge bezels, kept from gemini-capsule until the CM panels are sourced", "confidence": "estimated"},
+	"wall": {"basis": "Off-white cabin walls: a general impression of the CM interior, not yet matched to photographs", "confidence": "estimated"},
+	"bulkhead": {"basis": "Light grey aft and forward bulkheads and tunnel: a general impression, not yet matched to photographs", "confidence": "estimated"},
+	"panel_face": {"basis": "Medium-grey main display console faces with light legends: a general impression, not yet matched to photographs", "confidence": "estimated"},
+	"couch": {"basis": "Pale couch pads: a general impression, not yet matched to photographs", "confidence": "estimated"},
+	"dsky_case": {"basis": "Dark grey DSKY case and keys: a general impression, not yet matched to photographs", "confidence": "estimated"},
 }
 
 static var _cache: Dictionary = {}
@@ -34,10 +39,31 @@ static func _built(role: String) -> Material:
 			m.roughness = 0.45
 			m.metallic = 0.4
 			return m
+		"wall":
+			return _plain(Color(0.78, 0.77, 0.72), 0.85, true)
+		"bulkhead":
+			return _plain(Color(0.62, 0.63, 0.62), 0.7, true)
+		"panel_face":
+			return _plain(Color(0.36, 0.37, 0.38), 0.55)
+		"couch":
+			return _plain(Color(0.86, 0.84, 0.78), 0.9)
+		"dsky_case":
+			return _plain(Color(0.2, 0.21, 0.22), 0.5)
 	# Unknown role: magenta, obvious in any capture.
 	var unknown := StandardMaterial3D.new()
 	unknown.albedo_color = Color(1, 0, 1)
 	return unknown
+
+
+## Surfaces of revolution are seen from inside the cabin, so the vessel's
+## roles draw both sides (Godot lights a back face with its normal flipped).
+static func _plain(c: Color, roughness: float, both_sides: bool = false) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = c
+	m.roughness = roughness
+	if both_sides:
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return m
 
 
 ## Lettering colour for panel labels and instrument scales [estimated].

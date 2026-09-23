@@ -25,6 +25,56 @@ func test_main_scene_builds_and_keyboard_drives_the_dsky() -> void:
 	main.rt.free_nodes()
 
 
+func test_c_cycles_the_window_chase_and_cabin_views() -> void:
+	var main: Node = load("res://scenes/main.tscn").instantiate()
+	main.start_phase = "lunar_orbit"
+	add_child_autofree(main)
+	await wait_process_frames(2)
+	var cabin: CmCabin = main.cabin
+	assert_not_null(cabin, "the CM cabin is built")
+	assert_true(cabin.items.has("P2_DSKY"), "with its panels")
+	assert_eq(main.rig.get_parent(), cabin.anchor, "the desktop rig sits at the commander's eye")
+	assert_false(main.xr, "no headset here")
+	var rig_camera: Camera3D = main.rig.get_node("Camera3D")
+	var expect := [[0, false], [1, false], [2, true], [0, false]]
+	for step in expect.size():
+		if step > 0:
+			var ev := InputEventKey.new()
+			ev.keycode = KEY_C
+			ev.pressed = true
+			main._unhandled_input(ev)
+		var mode: int = expect[step][0]
+		var in_cabin: bool = expect[step][1]
+		assert_eq(main.view.view_mode, mode, "view %d" % mode)
+		assert_eq(cabin.visible, in_cabin, "the cabin shows only in the cabin view")
+		assert_eq(rig_camera.current, in_cabin, "the rig's camera")
+		assert_eq(main.view.camera.current, not in_cabin, "the space view's camera")
+		assert_eq(main.rig.is_processing_unhandled_input(), in_cabin, "the rig takes the mouse in the cabin")
+		assert_eq(main.menu.is_processing_unhandled_input(), in_cabin, "and M opens the wrist menu there")
+		assert_eq(main.hud.dsky_panel.visible, not in_cabin, "the 2D DSKY steps aside for the cabin's")
+		await wait_process_frames(1)
+		assert_eq(main.view._parts["cm"].visible, not in_cabin, "the CM model gives way to the cabin")
+	main.rt.free_nodes()
+
+
+func test_the_cabin_has_the_checklist_card_highlight_and_wrist_menu() -> void:
+	var main: Node = load("res://scenes/main.tscn").instantiate()
+	main.start_phase = "lunar_orbit"
+	add_child_autofree(main)
+	await wait_process_frames(2)
+	assert_eq(main.card.get_parent(), main.cabin.card_mount, "the card by the commander's shoulder")
+	assert_eq(main.highlight.get_parent(), main.cabin)
+	assert_eq(main.menu.get_parent(), main.rig.get_node("Camera3D"), "the desktop menu rides on the camera")
+	assert_eq(main.hud.book, main.book, "the HUD and the cabin share one checklist book")
+	assert_eq(main.book.list().title, "Lunar orbit and TEI", "opened for the phase")
+	assert_eq(main.card.title_label.text, "CHECKLIST  LUNAR ORBIT AND TEI")
+	var eye: Vector3 = main.cabin.anchor.global_position
+	var to_eye: Vector3 = (eye - main.card.global_position).normalized()
+	assert_gt(main.card.global_basis.z.dot(to_eye), 0.999, "the card faces the commander's eye")
+	assert_almost_eq(eye.distance_to(main.card.global_position), 0.49, 0.01, "at reading distance")
+	main.rt.free_nodes()
+
+
 func test_checklists_load_and_auto_advance() -> void:
 	var lists := Checklist.load_all("res://data/missions/apollo_11/checklists.json")
 	assert_eq(lists.size(), 4)

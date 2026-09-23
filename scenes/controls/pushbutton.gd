@@ -1,6 +1,7 @@
 ## Pushbutton, momentary (true while held) or latching (toggles on each
 ## press). Publishes bool. Optional integral lamp lit from lamp_channel.
-## Taken from gemini-capsule at 40e449c (README.md lists the port).
+## Adapted from gemini-capsule at 40e449c (README.md lists the port): it
+## starts from the value the Bus already holds instead of publishing its own.
 extends ControlBase
 
 ## Emitted on every press (after the value and bus update).
@@ -29,7 +30,9 @@ func _ready() -> void:
 	$Cap/Mesh.material_override = _lamp_mat
 	if lamp_channel != "":
 		Bus.subscribe(lamp_channel, _on_lamp)
-	if channel != "":
+	if channel != "" and Bus.has_channel(channel):
+		value = bool(Bus.get_value(channel))
+	elif channel != "":
 		Bus.set_value(channel, value)
 
 

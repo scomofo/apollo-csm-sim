@@ -34,6 +34,15 @@ func test_sticks_fly_rotation_and_the_left_grip_switches_them_to_translation() -
 	assert_eq(c[1], Vector3(-1.0, 0.5, -1.0), "right Y = X, left X = Y, left forward = up (-Z)")
 
 
+func test_a_stick_off_centre_commands_nothing_until_past_the_deadzone() -> void:
+	assert_eq(HandControllerInput.deadzone(Vector2(0.08, -0.12)), Vector2.ZERO, "a resting or drifting stick")
+	assert_eq(HandControllerInput.deadzone(Vector2(0.1, 1.0)), Vector2(0.0, 1.0),
+		"full forward with a little sideways error is pure pitch")
+	var half := HandControllerInput.STICK_DEADZONE + 0.5 * (1.0 - HandControllerInput.STICK_DEADZONE)
+	assert_almost_eq(HandControllerInput.deadzone(Vector2(-half, 0.0)).x, -0.5, 1e-6, "rescaled beyond it")
+	assert_eq(HandControllerInput.deadzone(Vector2(1.0, -1.0)), Vector2(1.0, -1.0), "full scale kept")
+
+
 func test_node_centres_without_input_and_zeroes_above_the_rate_limit() -> void:
 	var hci := HandControllerInput.new()
 	add_child_autofree(hci)
@@ -47,3 +56,11 @@ func test_node_centres_without_input_and_zeroes_above_the_rate_limit() -> void:
 	assert_true(SimClock.controls_locked())
 	hci._process(0.0)
 	assert_eq(Bus.get_value("ctl.rhc"), Vector3.ZERO, "locked above the interactive rate")
+
+
+func test_in_a_headset_it_reads_the_xr_rigs_hands() -> void:
+	var rig: Node3D = add_child_autofree(preload("res://scenes/player/xr_rig.tscn").instantiate())
+	var hci := HandControllerInput.for_xr_rig(rig)
+	add_child_autofree(hci)
+	assert_eq(hci._left, rig.get_node("LeftHand"), "the left thumbstick: roll, and the grip for translation")
+	assert_eq(hci._right, rig.get_node("RightHand"), "the right thumbstick: pitch and yaw")

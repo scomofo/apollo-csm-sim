@@ -1,7 +1,9 @@
 ## Rotary selector with detents. Publishes the integer position. Position 0
 ## is the counter-clockwise stop; each detent turns the knob clockwise by
 ## [member detent_deg]. A fingertip crossing left-to-right steps clockwise.
-## Taken from gemini-capsule at 40e449c (README.md lists the port).
+## Adapted from gemini-capsule at 40e449c (README.md lists the port): it
+## starts from the position the Bus already holds instead of publishing
+## initial_position over it, and follows later changes.
 extends ControlBase
 
 @export var positions: int = 3
@@ -19,7 +21,17 @@ var position_index: int = 0:
 
 func _ready() -> void:
 	super()
-	set_position_index(initial_position)
+	if channel != "" and Bus.has_channel(channel):
+		set_position_index(int(Bus.get_value(channel)))
+	else:
+		set_position_index(initial_position)
+	if channel != "":
+		Bus.subscribe(channel, _on_channel)
+
+
+func _on_channel(v: Variant) -> void:
+	if int(v) != position_index:
+		set_position_index(int(v))
 
 
 func set_position_index(i: int) -> void:

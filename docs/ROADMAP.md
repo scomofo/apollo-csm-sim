@@ -79,13 +79,133 @@ When Actions starts jobs again:
 
 ## 2. VR cockpit
 
-**Status: slices 2a and 2b done.** The rigs, interaction layer, prefabs
-and action map are ported with their tests (README.md lists every file
-and change), and `HandControllerInput` now writes `ctl.rhc` and `ctl.thc`
-from the keys and the thumbsticks. `space_view.gd` keeps the cabin fixed
-and turns the world around it; the window and chase views render as
-before (four screenshots within 7 pixels of the old ones, all star-lookup
-rounding). Nothing draws a cabin yet; 2c is next.
+**Status: slices 2a to 2d done, and every checklist is flown from the
+cabin; 2e, the headset run, is prepared and needs a person in a
+headset.** The rigs, interaction layer, prefabs,
+panel layout, wrist menu, checklist highlight, comfort aids, headset
+recorder and action map are ported with their tests (README.md lists
+every file and change), and
+`HandControllerInput` writes `ctl.rhc` and `ctl.thc` from the keys and
+the thumbsticks. `space_view.gd` keeps the cabin fixed and turns the
+world around it.
+
+The CM cabin is in (`src/cabin/cm_cabin.gd`): a blockout of the pressure
+vessel with its five windows, the three couches, the hand controllers and
+the three panels of the main display console. Its 26 controls and
+displays come from `data/cockpit/controls.csv`, checked against
+`channels.csv`: every HUD switch, the FDAI, the mission timer, the main
+bus voltmeters, the master alarm and a 19-key DSKY. The CMC publishes the
+DSKY display and the FDAI attitude on the Bus, and cabin switches follow
+the channels the HUD and checkpoints write. On the desktop, C cycles the
+window, chase and cabin views, and the desktop rig sits at the
+commander's eye. OpenXR stays off until `--xr-mode on`, which puts the XR
+rig there instead; no headset has run it yet. A scenario test flies an MCC
+PAD with P30 and P41, clicking every control through the desktop rig. The
+window and chase views render exactly as before.
+
+Two things learned: the vessel must cast shadows from both faces, or the
+Sun lights its whole interior; and a pointer from the commander's couch
+meets the DSKY at 45 degrees, so its keys need shallow touch volumes or a
+click lands on the neighbouring key.
+
+Slice 2d puts the rest of the HUD within reach of the couch:
+
+- **A checklist card** by the commander's left shoulder, 0.5 m from the
+  eye. It shows the open checklist around its current step, the last PAD
+  Mission Control uplinked and the last four CAPCOM calls.
+- **One checklist book** (`src/mission/checklist_book.gd`) that the HUD,
+  the card, the highlight and the wrist menu all share, so a step
+  acknowledged on one shows on all.
+- **A checklist highlight**: a pulsing frame around the control the
+  current step is done on. A step names its control in `checklists.json`
+  (the DSKY, the separation buttons), or the highlight finds the control
+  that writes the step's check channel. Nineteen steps have one.
+- **A wrist menu** with the PAD requests (MCC, LOI-1, LOI-2, TEI), time
+  rate, pause, recentre, eye height, CHECKLIST, NEXT STEP and HILITE. It
+  rides on the left hand in a headset and on the camera on the desktop,
+  where M shows it. Its buttons keep working while time acceleration
+  locks the panels.
+
+The desktop-rig test requests an MCC from the wrist menu, sees UPLINK
+ACTY on the cabin DSKY and the PAD on the card, and goes on down the
+checklist from the menu and the DSKY. It showed that the open menu,
+turning with the camera, reaches the physics server one physics step
+late: a click has to come a frame after the look, as a hand on a mouse
+always does.
+
+Slice 2e is prepared up to the sitting itself:
+
+- **The run and its checklist.** `docs/HEADSET_RUN.md` takes a tester
+  through one sitting of about thirty minutes, and
+  `docs/VR_ACCEPTANCE.md` lists what to check: session, reach,
+  actuation, comfort and frame pacing. `docs/VR_INTERACTION.md` sets out
+  how the cabin works in a headset.
+- **A recorder** (`src/presentation/vr_acceptance_recorder.gd`) watches
+  the Bus through the run and writes the acceptance tables with the
+  objective evidence filled in: which switch, DSKY sequence and menu
+  button a fingertip worked, the thumbsticks' response, the recentre
+  residual, the lock above 100× and the frame pacing.
+- **Comfort.** The vignette (from 3 deg/s of body rate, and in entry
+  from 2 g), an optional horizon ring and an authentic mode that turns
+  every aid off, with a gaze tooltip and a frame-time monitor.
+- **A second seat.** From the commander's eye the DSKY is almost 0.9 m
+  away, beyond a seated reach. SEAT on the wrist menu moves the player
+  to the centre couch, 0.6 m from it, where the command module pilot
+  worked it.
+- **PC VR exports** for Windows and Linux in `export_presets.cfg`. An
+  exported pack runs the simulator, and falls back to the desktop rig
+  when no OpenXR runtime is active.
+
+Preparing it found five faults the desktop couldn't show. The XR
+thumbsticks weren't wired to the hands. The fingertips were invisible.
+V-Sync stayed on in a headset, which would have held it to the desktop
+monitor's refresh. A thumbstick resting off centre would have turned the
+spacecraft in CMC MODE FREE. And a runtime that stops the session when
+the headset comes off would have cut the record short. All five are
+fixed, and a test now runs the main scene's headset branch against a
+stand-in for the OpenXR interface.
+
+What needs a person: the sitting itself, and the rows only a tester can
+judge (reach from each couch, legibility, comfort over ten minutes, no
+flip on hover).
+
+Every checklist is now worked from the cabin.
+`tests/scenarios/test_cabin_checklists.gd` flies each one from the
+commander's couch through the desktop rig, until the card shows it
+complete:
+
+- **Parking orbit and TLI**: V82 on the DSKY after cutoff, then CSM/LV
+  SEP.
+- **LOI-1, LOI-2 and TEI**, each flown down the SPS burn checklist on P40,
+  with LM JETT between them.
+- **Entry**: an MCC request (none is needed), CM/SM SEP, P61, ELS LOGIC
+  and AUTO, and on to splashdown.
+
+Mission Control's PADs, NEXT STEP and CHECKLIST come from the wrist menu.
+The simulator's SPS cutoffs leave under 0.2 ft/s to trim, so LOI-1 is
+cut off 0.5 ft/s short, and the crew trims it with the translation
+controller on the keys.
+
+Writing the test found two things:
+
+- **The checklist book lost its place.** It did when the crew turned to
+  the SPS burn checklist and back. Now CHECKLIST turns to each checklist
+  where it was left, and a finished one starts again, as the SPS burn
+  checklist does for each burn.
+- **P40 belongs near TIG.** Selected when the PAD arrives, its steering
+  holds the burn attitude for hours, and the clock can only take fine
+  steps meanwhile. The crew selects it about a quarter of an hour before
+  TIG, time enough for the maneuver to the burn attitude. Between burns
+  it drifts in CMC MODE FREE, because an attitude hold in lunar orbit
+  limit-cycles and slows the clock the same way. `SimTest.fly_pad()`,
+  which the other mission scenarios use, now flies a PAD the same way.
+  It also steps into V99 a second at a time, so PRO comes at TIG−5 s and
+  the engine lights on time, where it had lit up to 10 s late.
+  `test_lunar_mission.gd` went from 130 s to 23 s. TEI now leaves a
+  vacuum perigee of 79 km, not −174 km, and one transearth MCC puts it in
+  the corridor.
+
+What remains for the milestone is the recorded headset pass.
 
 Today the cockpit is a 2D overlay. `src/presentation/hud.gd` draws the
 DSKY, a grid of switches, the FDAI, Mission Control, CAPCOM and the
@@ -110,11 +230,11 @@ landing in both repositories.
 | `src/interaction/control_base.gd`, `interactor.gd` | Touch volume, crossing direction and far-field click. Nothing changes on hover. Controls lock while `SimClock.controls_locked()` | As is. Apollo's SimClock has the same method; it locks above 100×, Gemini's above 10× |
 | `scenes/controls/` | Toggle (two- or three-position, guarded, lever-lock, momentary), rotary, pushbutton (momentary or latching, with a lamp), circuit breaker, pull handle, telelight switch | Toggle, rotary and pushbutton as is. The breaker without the overhead face drawn for Gemini's SC-4 panel. The pull handle (Gemini's O2 recock grip) and the telelight switch (Gemini's sequence lights) stay behind |
 | `scenes/instruments/` | Lamp, numeric display, clock, flag, round gauge, telelight, FDAI | The telelight stays behind with the telelight switch. Three need adapting. `lamp.gd` uses Gemini's `CabinMaterials`. `numeric_display.gd` calls `Units.convert()`, which Apollo's `Units` lacks. `fdai.gd` uses `Frames.BODY_TO_GODOT` and reads `guid.indicator.attitude`, which Apollo doesn't publish. Its ball also shows the outside view, so pitch and yaw read reversed, and it ignores how its case is mounted; Apollo's copy fixes both |
-| `src/cabin/cockpit_layout.gd`, `assets/data/cockpit/controls.csv`, `channels.csv` | Data-driven panels: one validated CSV row per control, with its source and confidence | Needs an Apollo cabin datum and a cockpit spec to check each `spec_id` against |
+| `src/cabin/cockpit_layout.gd`, `assets/data/cockpit/controls.csv`, `channels.csv` | Data-driven panels: one validated CSV row per control, with its source and confidence | Done in 2c. Rows are checked against `CmCabin`'s panels and the channel types instead of a cabin datum and a cockpit spec; `spec_id` waits for a CM cockpit spec |
 | `src/interaction/hand_controller_input.gd` | Thumbsticks to the hand-controller channels | Gemini writes `ctl.hand_controller.pitch`, `.yaw` and `.roll`. Apollo reads `ctl.rhc` (roll, pitch, yaw) and `ctl.thc` (X, Y, Z) as `Vector3`s |
-| `openxr_action_map.tres`, the `[xr]` block of `project.godot`, `export_presets.cfg` | Action map with the Touch, Index, Vive, Vive Focus 3, WMR and Pico profiles among others; OpenXR settings; PC VR and Quest 3 presets | Settle the reference space first. gemini-capsule's docs describe a seated `LOCAL` space, but its `project.godot` sets `xr/openxr/reference_space=1`, which Godot 4.4.1 reads as Stage (the options are Local, Stage, Local Floor) |
-| `src/presentation/wrist_menu.gd`, `comfort.gd`, `gaze_tooltip.gd`, `checklist_highlight.gd`, `vr_acceptance_recorder.gd`, `perf_monitor.gd` | Wrist menu, vignette, tooltips, next-control highlight, headset acceptance recorder, frame-time budget | `comfort.gd` reads Gemini channels (`guid.rate.*`, `aero.q_dyn_pa`, `guid.att.lvlh`); Apollo has `dyn.omega`, `dyn.g_load` and `dyn.att_q`. The recorder checks Gemini controls such as `ctl.ace.power`. Apollo's checklist steps name Bus channels, not controls, so the highlight looks up the control for a channel in `controls.csv` |
-| `docs/VR_INTERACTION.md`, `HEADSET_RUN.md`, `VR_ACCEPTANCE.md` | Interaction rules and the headset acceptance run | Rewrite for the CM |
+| `openxr_action_map.tres`, the `[xr]` block of `project.godot`, `export_presets.cfg` | Action map with the Touch, Index, Vive, Vive Focus 3, WMR and Pico profiles among others; OpenXR settings; PC VR and Quest 3 presets | All in. gemini-capsule's docs describe a seated `LOCAL` space, but its `project.godot` sets `xr/openxr/reference_space=1`, which Godot 4.4.1 reads as Stage (the options are Local, Stage, Local Floor). Apollo uses 0, Local, and leaves OpenXR off until `--xr-mode on`. The PC VR presets came with the 2e preparation; the Quest preset stays behind |
+| `src/presentation/wrist_menu.gd`, `comfort.gd`, `gaze_tooltip.gd`, `checklist_highlight.gd`, `vr_acceptance_recorder.gd`, `perf_monitor.gd` | Wrist menu, vignette, tooltips, next-control highlight, headset acceptance recorder, frame-time budget | All in: the wrist menu and the highlight in 2d, the rest with the 2e preparation. The highlight takes a step's `control` or looks up the control for its check channel in `controls.csv`. `comfort.gd` reads `dyn.omega`, `dyn.g_load` and `guid.indicator.attitude` in place of Gemini's `guid.rate.*`, `aero.q_dyn_pa` and `guid.att.lvlh`, and the recorder checks Apollo's controls in place of Gemini's `ctl.ace.power` |
+| `docs/VR_INTERACTION.md`, `HEADSET_RUN.md`, `VR_ACCEPTANCE.md` | Interaction rules and the headset acceptance run | Rewritten for the CM |
 
 None of this has a recorded headset pass yet. gemini-capsule's
 `docs/CURRENT_GATES.md` (2026-09-22) still lists headset acceptance as
@@ -136,6 +256,8 @@ gemini-capsule's `HEADSET_RUN.md`, then Apollo's.
   translation controller on the left. Take panel identity from the CSM
   Apollo Operations Handbook. Mark dimensions `[estimated]` until
   drawings are transcribed, as gemini-capsule's `controls.csv` does.
+  Built in 2c as a blockout; the panel assignment follows the CM in
+  outline only, and the handbook pass is still to do.
 - **Every HUD control in the cabin.** Give every control `hud.gd` offers
   a `controls.csv` row: ΔV THRUST A and B, THRUST ON, ATT SOURCE, CMC
   MODE, RCS QUAD A to D, FC 1 to 3, BATT TO BUS, ELS LOGIC, ELS AUTO,
@@ -146,21 +268,24 @@ gemini-capsule's `HEADSET_RUN.md`, then Apollo's.
   key calls `Dsky.press()` from the prefab's `activated` signal, the
   same call the 2D panel and the tests make. For the displays, publish
   the DSKY's state on the Bus: PROG, VERB, NOUN, R1 to R3, the flash and
-  the lamps. The numeric-display and lamp prefabs can then show it
-  (registers need a text mode in the numeric display). Today `DskyPanel`
-  reads the `Dsky` object directly.
+  the lamps. Done in 2c: the lamps are the lamp prefab, and the
+  electroluminescent fields are labels bound to the `dsky.*` strings, so
+  the numeric display needed no text mode. `DskyPanel` still reads the
+  `Dsky` object directly.
 - **The FDAI.** Publish the attitude the ball shows, so the 3D FDAI
   prefab can read it. That's LVLH-relative today, as Apollo's
   `src/presentation/fdai.gd` computes it, and relative to REFSMMAT after
-  slice 4c.
+  slice 4c. The CMC publishes it as `guid.indicator.attitude` since 2c.
 - **Hand controllers.** Thumbsticks write `ctl.rhc` and `ctl.thc` first,
   as in gemini-capsule. A grabbed RHC and THC come later; gemini-capsule
   hasn't built grab interaction either.
 - **Mission Control, CAPCOM and the checklist.** Put the checklist and
   the CAPCOM log on a readable card. The PAD requests (MCC, LOI-1, LOI-2,
   TEI), time rate, pause, recentre and eye height go on the wrist menu.
+  Done in 2d; the eye height isn't saved between sessions yet.
 - **Comfort.** The cabin is the fixed frame and only the windows move.
-  The vignette follows body rate and entry g.
+  The vignette follows body rate and entry g. Done with the 2e
+  preparation, with the horizon ring and authentic mode.
 
 ### Slices
 
@@ -168,9 +293,9 @@ gemini-capsule's `HEADSET_RUN.md`, then Apollo's.
 |---|---|---|
 | 2a (done) | Port the rigs, the interaction layer, the prefabs and the action map, with adapters for `ctl.rhc`, `ctl.thc`, `Units`, materials and frames | The ported `test_xr_rig.gd`, `test_openxr_action_map.gd` and `test_control_library.gd` (minus its Gemini electrical cases) pass headless |
 | 2b (done) | Fixed cabin in `space_view.gd` | New test: turning `dyn.att_q` moves the Earth, Moon, Sun and sky but not the camera or the cabin (gemini-capsule's `tests/unit/test_world_presenter.gd` is the model). `tools/screenshot.tscn` still renders the same window view |
-| 2c | CM cabin, `controls.csv`, cabin DSKY and FDAI | Every row round-trips from CSV to node to Bus. A scenario test flies an MCC PAD with P30 and P41 using only cabin controls, through the desktop rig |
-| 2d | Checklist and CAPCOM card, wrist menu | Desktop-rig test: request a PAD from the wrist menu, then see UPLINK ACTY on the cabin DSKY and the PAD on the card |
-| 2e | Headset run | One recorded pass of an Apollo `VR_ACCEPTANCE.md` in a headset, including a verb/noun typed on the cabin DSKY with a fingertip |
+| 2c (done) | CM cabin, `controls.csv`, cabin DSKY and FDAI | Every row round-trips from CSV to node to Bus. A scenario test flies an MCC PAD with P30 and P41 using only cabin controls, through the desktop rig |
+| 2d (done) | Checklist and CAPCOM card, wrist menu | Desktop-rig test: request a PAD from the wrist menu, then see UPLINK ACTY on the cabin DSKY and the PAD on the card |
+| 2e (prepared) | Headset run | One recorded pass of an Apollo `VR_ACCEPTANCE.md` in a headset, including a verb/noun typed on the cabin DSKY with a fingertip |
 
 **Done when** a crew member can do every action in
 `data/missions/apollo_11/checklists.json` from the couch, a scenario
@@ -180,9 +305,12 @@ The 2D HUD stays as the desktop fallback.
 ### Risks
 
 - **The DSKY.** Its keypad is small and dense, and the crew types on it
-  constantly. Fingertip typing is the first thing to try in the headset.
+  constantly. Fingertip typing is the first thing to try in the headset,
+  from the centre couch: it is out of reach from the commander's.
 - **Frame time.** The procedural Earth, Moon and star shaders have never
-  been measured at 90 Hz in stereo. Port `perf_monitor.gd` with the rest.
+  been measured at 90 Hz in stereo. `perf_monitor.gd` is ported: the
+  wrist menu shows the worst frame of the last 90, and the recorder
+  counts the frames over 1.5 times the headset's budget.
 
 ## 3. The LM and a lunar landing
 

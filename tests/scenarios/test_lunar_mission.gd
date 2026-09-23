@@ -60,7 +60,8 @@ func test_transearth_injection_targets_the_entry_corridor() -> void:
 	gut.p("vacuum perigee after TEI: %.1f km" % hp)
 	assert_between(hp, -300.0, 400.0, "TEI lands near the corridor")
 	# Two transearth midcourse corrections, as the flights planned (MCC-5
-	# and MCC-7): the second trims what the first's execution errors left.
+	# and MCC-7): the second trims what the first's execution errors left,
+	# if Mission Control finds anything left to trim.
 	for wait_h in [10.0, 30.0]:
 		run(wait_h * 3600.0)
 		var mcc := rt.sequencer.request_pad("mcc")

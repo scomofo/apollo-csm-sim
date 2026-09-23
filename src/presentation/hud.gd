@@ -4,7 +4,6 @@
 class_name Hud
 extends CanvasLayer
 
-const CHECKLISTS_PATH := "res://data/missions/apollo_11/checklists.json"
 const HELP := """KEYS
 W/S A/D Q/E   RHC pitch / yaw / roll (Shift = fine)
 Arrows, R/F   THC  Y/Z, and +X/-X (ullage)
@@ -14,7 +13,9 @@ Space  Bksp   PRO   CLR
 Insert  Del   KEY REL  RSET
 T             SPS THRUST ON (hold, manual backup)
 [  ]  P       time rate slower / faster, pause
-C             window / chase view   (right-drag: look)
+C             window / chase / cabin view   (right-drag: look)
+Cabin view    click a control, scroll to move it; right-click: mouse look,
+              Z: inspect, Home: recentre, M: wrist menu
 F5 / F9       save / load checkpoint
 H             this help"""
 
@@ -29,15 +30,20 @@ var _check_title: OptionButton
 var _check_text: RichTextLabel
 var _help: Label
 var _fdai: Control
-var _checklists: Array[Checklist] = []
-var _check_index: int = 0
+## The checklists and which one is open, shared with the cabin's card and
+## the wrist menu.
+var book: ChecklistBook
+var _switches: PanelContainer
+var _flight_panel: PanelContainer
+var _systems_panel: PanelContainer
 var _toggles: Dictionary = {}
 var _options: Dictionary = {}
 var _capcom_lines: PackedStringArray = []
 
 
-func setup(p_rt: SimRuntime) -> void:
+func setup(p_rt: SimRuntime, p_book: ChecklistBook = null) -> void:
 	rt = p_rt
+	book = p_book if p_book != null else ChecklistBook.load_default()
 	var sf := SystemFont.new()
 	sf.font_names = PackedStringArray(["DejaVu Sans Mono", "Consolas", "Menlo", "Courier New", "monospace"])
 	mono = sf
@@ -68,6 +74,7 @@ func setup(p_rt: SimRuntime) -> void:
 	var fp := PanelContainer.new()
 	_style(fp)
 	right.add_child(fp)
+	_flight_panel = fp
 	var fh := HBoxContainer.new()
 	fp.add_child(fh)
 	_flight = _label(fh, 13)
@@ -78,8 +85,10 @@ func setup(p_rt: SimRuntime) -> void:
 	var sp := PanelContainer.new()
 	_style(sp)
 	right.add_child(sp)
+	_systems_panel = sp
 	_systems = _label(sp, 12)
-	right.add_child(_switch_panel())
+	_switches = _switch_panel()
+	right.add_child(_switches)
 	right.add_child(_mcc_panel())
 	# CAPCOM strip along the bottom.
 	var cp := PanelContainer.new()
@@ -115,15 +124,20 @@ func setup(p_rt: SimRuntime) -> void:
 
 ## Open the checklist that fits the flight phase.
 func select_checklist_for(phase: String) -> void:
-	var idx := {"parking_orbit": 0, "tli": 0, "translunar_coast": 1, "lunar_orbit": 2,
-		"transearth_coast": 3, "entry": 3}.get(phase, 0) as int
-	if idx < _checklists.size():
-		_check_index = idx
-		_check_title.selected = idx
+	book.select_for_phase(phase)
+	_check_title.selected = book.current
 
 
 func toggle_help() -> void:
 	_help.visible = not _help.visible
+
+
+## The cabin view has its own DSKY, FDAI, switches and readouts: the 2D
+## panels step aside, and the checklist, Mission Control and CAPCOM stay
+## until they move to the wrist menu (docs/ROADMAP.md, slice 2d).
+func set_cabin_view(on: bool) -> void:
+	for p in [dsky_panel, _flight_panel, _systems_panel, _switches]:
+		p.visible = not on
 
 
 func _style(p: PanelContainer) -> void:
@@ -248,7 +262,6 @@ func _mcc_panel() -> PanelContainer:
 # --- checklist ------------------------------------------------------------------
 
 func _checklist_panel() -> PanelContainer:
-	_checklists = Checklist.load_all(CHECKLISTS_PATH)
 	var p := PanelContainer.new()
 	_style(p)
 	p.custom_minimum_size = Vector2(440, 0)
@@ -258,18 +271,14 @@ func _checklist_panel() -> PanelContainer:
 	v.add_child(h)
 	_check_title = OptionButton.new()
 	_check_title.focus_mode = Control.FOCUS_NONE
-	for c in _checklists:
+	for c in book.lists:
 		_check_title.add_item(c.title)
-	_check_title.item_selected.connect(func(i: int) -> void:
-		_check_index = i
-		_checklists[i].index = 0)
+	_check_title.item_selected.connect(book.select)
 	h.add_child(_check_title)
 	var nb := Button.new()
 	nb.text = "Next"
 	nb.focus_mode = Control.FOCUS_NONE
-	nb.pressed.connect(func() -> void:
-		if not _checklists.is_empty():
-			_checklists[_check_index].next())
+	nb.pressed.connect(book.next)
 	h.add_child(nb)
 	_check_text = RichTextLabel.new()
 	_check_text.fit_content = true
@@ -281,18 +290,15 @@ func _checklist_panel() -> PanelContainer:
 
 
 func _checklist_text() -> String:
-	if _checklists.is_empty():
+	if book.list() == null:
 		return ""
-	var c := _checklists[_check_index]
-	c.update()
+	book.update()
 	var lines := PackedStringArray()
-	var first := maxi(0, c.index - 2)
-	for i in range(first, mini(c.steps.size(), first + 8)):
-		var s: Dictionary = c.steps[i]
-		var mark := "[color=#6c6]✓[/color] " if i < c.index else ("[color=#fd4]▶[/color] " if i == c.index else "   ")
-		var auto := "" if s.has("check") else " [color=#888](Next)[/color]" if i == c.index else ""
+	for s in book.window():
+		var mark := "[color=#6c6]✓[/color] " if s["state"] == "done" else ("[color=#fd4]▶[/color] " if s["state"] == "current" else "   ")
+		var auto := " [color=#888](Next)[/color]" if s["state"] == "current" and s["manual"] else ""
 		lines.append(mark + str(s["text"]) + auto)
-	if c.done():
+	if book.list().done():
 		lines.append("[color=#6c6]Checklist complete.[/color]")
 	return "\n".join(lines)
 
@@ -364,6 +370,8 @@ CMC  P%02d %s  VG %.1f ft/s  %s""" % [
 		"MNVR LOADED TIG " + Units.hms(float(Bus.get_value("guid.maneuver_tig", 0.0))) if bool(Bus.get_value("guid.maneuver_valid", false)) else ""]
 	if o2 <= 0.0:
 		_systems.text += "\nO2 DEPLETED"
+	if _check_title.selected != book.current:
+		_check_title.selected = book.current
 	_check_text.text = _checklist_text()
 	# Keep toggles in step with the Bus (checkpoint loads, tests).
 	for ch in _toggles:

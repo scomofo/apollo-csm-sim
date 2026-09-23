@@ -50,24 +50,31 @@ func keys(seq: String) -> void:
 			_: rt.agc().dsky.press(ch)
 
 
-## Fly an uplinked PAD the way the crew does: P30 accept, P40 (SPS) or,
-## below 10 ft/s, P41 (RCS) with auto maneuver, SPS armed, PRO at V99, PRO
-## after residuals. Returns the maneuver's sensed ΔV (m/s).
+## Fly an uplinked PAD the way the crew does: P30 accept; a quarter of an
+## hour before TIG, CMC MODE AUTO and P40 (SPS) or, below 10 ft/s, P41
+## (RCS) with auto maneuver; SPS armed, PRO at V99, PRO after residuals.
+## The spacecraft drifts in CMC MODE FREE until P40 and after the burn:
+## P40's steering, or an attitude hold, keeps the clock to fixed steps.
+## Returns the maneuver's sensed ΔV (m/s).
 func fly_pad() -> float:
 	var agc := rt.agc()
-	Bus.set_value("ctl.cmc.mode", 2)
 	keys("V37E30E")
 	assert_eq(agc.program, 30, "P30 selected")
 	keys("PPP")
 	assert_true(agc.maneuver_valid, "maneuver stored")
+	var tig := agc.maneuver_tig
+	Bus.set_value("ctl.cmc.mode", 0)
+	run(maxf(tig - 900.0 - SimClock.get_seconds, 0.0))
+	Bus.set_value("ctl.cmc.mode", 2)
 	var prog := 41 if agc.dv_lvlh_load.length() < 10.0 * Units.FT else 40
 	keys("V37E%dE" % prog)
 	assert_eq(agc.program, prog, "P40/P41 selected")
 	keys("P")   # V50N18: perform auto maneuver
 	Bus.set_value("ctl.sps.arm_a", true)
 	Bus.set_value("ctl.sps.arm_b", true)
-	var tig := agc.maneuver_tig
-	var ok := run_until(func() -> bool: return agc.step_name == "v99", tig - SimClock.get_seconds + 10.0, 30.0)
+	# Second by second from TIG-12 s, so PRO at V99 comes at TIG-5 s.
+	run(maxf(tig - 12.0 - SimClock.get_seconds, 0.0))
+	var ok := run_until(func() -> bool: return agc.step_name == "v99", 20.0, 1.0, false)
 	assert_true(ok, "reached V99 before TIG")
 	keys("P")
 	ok = run_until(func() -> bool: return agc.step_name == "post", 2000.0, 1.0, false)
@@ -76,5 +83,5 @@ func fly_pad() -> float:
 	keys("P")
 	Bus.set_value("ctl.sps.arm_a", false)
 	Bus.set_value("ctl.sps.arm_b", false)
-	Bus.set_value("ctl.cmc.mode", 1)
+	Bus.set_value("ctl.cmc.mode", 0)
 	return dv

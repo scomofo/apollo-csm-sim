@@ -12,6 +12,10 @@ executed through the Apollo Guidance Computer's DSKY.
 
 ![Parking orbit: the S-IVB/CSM/LM stack before TLI](docs/images/parking_orbit_chase.png)
 
+![The CM cabin in lunar orbit: FDAI, DSKY and the main display console](docs/images/cabin_lunar_orbit.png)
+
+![The checklist card with the TEI PAD and CAPCOM, and the wrist menu](docs/images/cabin_checklist.png)
+
 The project used
 [scomofo/gemini-capsule](https://github.com/scomofo/gemini-capsule) as its
 template and began as the `apollo/` directory of that repository. It now
@@ -35,6 +39,15 @@ solutions (TLI, TEI), so every start is consistent with the mission it
 continues. Starting in `transearth_coast` or `entry` takes a few seconds
 while the ground computes the trajectory.
 
+`godot --path . --xr-mode on` starts OpenXR, which is off by default, and
+puts you in the commander's couch in a headset. No headset run has been
+recorded yet ([docs/ROADMAP.md](docs/ROADMAP.md), slice 2e).
+[docs/HEADSET_RUN.md](docs/HEADSET_RUN.md) walks through one, including
+the PC VR exports in `export_presets.cfg`;
+[docs/VR_ACCEPTANCE.md](docs/VR_ACCEPTANCE.md) is its checklist, and
+[docs/VR_INTERACTION.md](docs/VR_INTERACTION.md) describes how the cabin
+works in a headset.
+
 | Input | Action |
 |---|---|
 | W/S, A/D, Q/E | Rotational hand controller: pitch, yaw, roll (hold Shift for 10 %) |
@@ -45,13 +58,19 @@ while the ground computes the trajectory.
 | Insert, Delete | KEY REL, RSET |
 | T (hold) | SPS THRUST ON, the manual backup |
 | `[` `]`, P | Time rate slower/faster (1× to 10,000×), pause |
-| C, right-drag | Window/chase view, look around |
+| C | Window, chase or cabin view |
+| Right-drag | Look around (window and chase views) |
+| In the cabin view: click, scroll | Work the control under the cursor: a click cycles a switch or presses a key, scrolling moves a switch up or down |
+| In the cabin view: right-click, Z, Home | Mouse look on and off; inspect the control under the cursor; recentre |
+| In the cabin view: M | Wrist menu: PAD requests, time rate, pause, recentre, eye height, seat, checklist, comfort aids |
 | F5 / F9 | Save / load checkpoint |
 | H | Key help |
 
-Every DSKY key and cockpit switch is also clickable on screen. Time
-acceleration drops back to 10× by itself when an engine lights, at each
-scheduled event (TLI, TIG−60 s, V99) and at entry.
+Every DSKY key and cockpit switch is also clickable on screen, in the HUD
+or on the CM's main display console in the cabin view. Above 100× the
+cabin's switches lock, and its DSKY keys still work. Time acceleration
+drops back to 10× by itself when an engine lights, at each scheduled
+event (TLI, TIG−60 s, V99) and at entry.
 
 ## Flying the mission
 
@@ -81,7 +100,15 @@ scheduled event (TLI, TIG−60 s, V99) and at entry.
    3 km/s, and the drogue and main parachutes deploy automatically.
 
 The on-screen checklist follows along. Steps with a check mark complete
-themselves when the Bus shows the action was done.
+themselves when the Bus shows the action was done. In the cabin, the same
+checklist is on the card by the commander's left shoulder, with the last
+PAD and CAPCOM's calls, and a green frame marks the control for the
+current step. The wrist menu's NEXT STEP goes past a step without a
+check. CHECKLIST turns to the next checklist where it was left, so you
+can fly a burn down the SPS burn checklist and come back to the phase's;
+a finished checklist starts again. SEAT moves you to the
+centre couch, where the DSKY is straight ahead and, in a headset, within
+reach.
 
 To reproduce the Apollo 13 failure, set `failures.o2_tank_2_get_s` in
 `data/missions/apollo_11/mission.json` (the flown time was 55:54:53 =
@@ -135,23 +162,32 @@ controls publish `ctl.*`, and presentation only reads the Bus.
 ### Parts for the VR cockpit
 
 The VR cockpit ([docs/ROADMAP.md](docs/ROADMAP.md), milestone 2) reuses
-gemini-capsule's interaction layer, rigs and panel prefabs. They were
-taken later than the rest, at commit
-[`40e449c`](https://github.com/scomofo/gemini-capsule/tree/40e449cfb8c35111de47a33bd351b2d945e6fa52),
-and the CM cabin that will use them is not built yet. The one part
-already in use is `HandControllerInput`, which now turns the keys into
-`ctl.rhc` and `ctl.thc`.
+gemini-capsule's interaction layer, rigs, panel prefabs and data-driven
+panel layout. They were taken later than the rest, at commit
+[`40e449c`](https://github.com/scomofo/gemini-capsule/tree/40e449cfb8c35111de47a33bd351b2d945e6fa52).
+The CM cabin (`src/cabin/cm_cabin.gd`) and the cabin DSKY
+(`scenes/instruments/cabin_dsky.gd`) are new. Every row of
+`data/cockpit/controls.csv` places one control or display on the main
+display console, at estimated positions (confidence D) until the panel
+drawings are transcribed.
 
 | Gemini capsule | Apollo CSM | Changes |
 |---|---|---|
-| [`src/interaction/control_base.gd`][v-control-base], [`interactor.gd`][v-interactor] | same paths | None |
-| [`scenes/controls/`][v-controls]: toggle, rotary, pushbutton | same paths | None |
+| [`src/interaction/control_base.gd`][v-control-base], [`interactor.gd`][v-interactor] | same paths | One addition to `control_base.gd`: a fingertip crossing names the control on `player.last_touch_label` before it counts, so the headset recorder can tell DSKY keys and menu buttons apart |
+| [`scenes/controls/`][v-controls]: toggle, rotary, pushbutton | same paths | They start from the value the Bus already holds (the simulation's state, a checkpoint, the HUD) instead of publishing their initial position over it, and the toggle and rotary follow later changes. A two-position toggle can publish a bool, as the HUD does |
 | [`scenes/controls/circuit_breaker.gd`][v-breaker] | same path | Gemini's overhead face style, drawn for its SC-4 overhead panel, is left out |
 | [`scenes/instruments/`][v-instruments]: lamp, numeric display, clock, flag, round gauge | same paths | None. `Units.convert()` and a minimal `src/presentation/cabin_materials.gd` exist for them, and `src/core/frames.gd` for the FDAI |
 | [`scenes/instruments/fdai.gd`][v-fdai] | same path | Shows the view from inside the ball, like the flown instrument: Gemini's ball reads pitch and yaw reversed. The ball also turns relative to its case, so a tilted panel doesn't tilt the horizon |
-| [`scenes/player/xr_rig.tscn`][v-xr-rig], [`openxr_action_map.tres`][v-action-map] | same paths | None. OpenXR is not enabled in `project.godot` yet |
+| [`scenes/player/xr_rig.tscn`][v-xr-rig], [`openxr_action_map.tres`][v-action-map] | same paths | Each fingertip has its own collision shape and a small green marker, so the player can see it. OpenXR is off in `project.godot` until `--xr-mode on`, with the seated Local reference space (Gemini's `project.godot` sets Stage) |
 | [`scenes/player/desktop_rig.gd`][v-desktop-rig] | same path | No keyboard head movement, because W/A/S/D/Q/E fly the RHC here. Recentre is the `recenter` action on Home, because R is the THC's +X |
-| [`src/interaction/hand_controller_input.gd`][v-hci] | same path | Writes `ctl.rhc` and `ctl.thc` from the keys and the thumbsticks; holding the left grip switches the sticks to the THC |
+| [`src/interaction/hand_controller_input.gd`][v-hci] | same path | Writes `ctl.rhc` and `ctl.thc` from the keys and the thumbsticks; holding the left grip switches the sticks to the THC. `for_xr_rig()` reads a headset's hands, and each stick axis has a 15 % deadzone, for the RHC's breakout detents |
+| [`src/presentation/wrist_menu.gd`][v-wrist-menu] | same path | Apollo's buttons: the PAD requests (writing `ctl.ground.pad_request`, as the HUD does), time rate, pause, recentre, eye height, SEAT, CHECKLIST, NEXT STEP, HILITE, VIGNETTE, HORIZON and AUTHENTIC. Gemini's guide and new-flight buttons stay behind, and settings aren't saved yet |
+| [`src/presentation/comfort.gd`][v-comfort] | same path | Reads `dyn.omega`, `dyn.g_load` and `guid.indicator.attitude` in place of Gemini's `guid.rate.*`, dynamic pressure and `guid.att.lvlh`: the vignette starts at 3 deg/s of body rate and 2 g in entry |
+| [`src/presentation/gaze_tooltip.gd`][v-tooltip], [`perf_monitor.gd`][v-perf] | same paths | None. The frame budget follows the headset's refresh at session start |
+| [`src/presentation/vr_acceptance_recorder.gd`][v-recorder] | same path | Apollo's rows: a panel switch, a DSKY verb and noun and a wrist-menu button worked by fingertip, the thumbsticks on the rotation controller, the vignette, the horizon aid's default and the lock above 100×, in place of Gemini's ACE POWER and RATE CMD. A later session stop rewrites the record, so a headset taken off mid-run doesn't cut it short |
+| [`docs/VR_INTERACTION.md`, `HEADSET_RUN.md`, `VR_ACCEPTANCE.md`][v-vr-docs], [`export_presets.cfg`][v-export] | same paths | Rewritten for the CM. The PC VR presets (Windows, Linux) leave out `tests/`, `tools/` and GUT; Gemini's Quest preset stays behind |
+| [`src/presentation/checklist_highlight.gd`][v-highlight] | same path | Finds the control from the step's `control` or its check channel, and the frame fits the control's footprint, DSKY included. Off with HILITE or in authentic mode |
+| [`src/cabin/cockpit_layout.gd`][v-layout], [`controls.csv`, `channels.csv`][v-cockpit-data] | `src/cabin/cockpit_layout.gd`, `data/cockpit/` | Rows are checked against `CmCabin`'s panels and the channel types in `channels.csv`, and for overlaps. No `spec_id` column until a CM cockpit spec exists. A switch on a bool channel publishes a bool; switch positions are lettered beside the lever and around the knob |
 | [`tests/unit/`][v-tests]: `test_control_library`, `test_xr_rig`, `test_openxr_action_map`, `test_desktop_inspection`, `test_gauge_linear_face` | same paths | Gemini-only cases dropped or replaced |
 
 [v-control-base]: https://github.com/scomofo/gemini-capsule/blob/40e449cfb8c35111de47a33bd351b2d945e6fa52/src/interaction/control_base.gd
@@ -165,6 +201,16 @@ already in use is `HandControllerInput`, which now turns the keys into
 [v-desktop-rig]: https://github.com/scomofo/gemini-capsule/blob/40e449cfb8c35111de47a33bd351b2d945e6fa52/scenes/player/desktop_rig.gd
 [v-hci]: https://github.com/scomofo/gemini-capsule/blob/40e449cfb8c35111de47a33bd351b2d945e6fa52/src/interaction/hand_controller_input.gd
 [v-tests]: https://github.com/scomofo/gemini-capsule/tree/40e449cfb8c35111de47a33bd351b2d945e6fa52/tests/unit
+[v-layout]: https://github.com/scomofo/gemini-capsule/blob/40e449cfb8c35111de47a33bd351b2d945e6fa52/src/cabin/cockpit_layout.gd
+[v-wrist-menu]: https://github.com/scomofo/gemini-capsule/blob/40e449cfb8c35111de47a33bd351b2d945e6fa52/src/presentation/wrist_menu.gd
+[v-highlight]: https://github.com/scomofo/gemini-capsule/blob/40e449cfb8c35111de47a33bd351b2d945e6fa52/src/presentation/checklist_highlight.gd
+[v-cockpit-data]: https://github.com/scomofo/gemini-capsule/tree/40e449cfb8c35111de47a33bd351b2d945e6fa52/assets/data/cockpit
+[v-comfort]: https://github.com/scomofo/gemini-capsule/blob/40e449cfb8c35111de47a33bd351b2d945e6fa52/src/presentation/comfort.gd
+[v-tooltip]: https://github.com/scomofo/gemini-capsule/blob/40e449cfb8c35111de47a33bd351b2d945e6fa52/src/presentation/gaze_tooltip.gd
+[v-perf]: https://github.com/scomofo/gemini-capsule/blob/40e449cfb8c35111de47a33bd351b2d945e6fa52/src/presentation/perf_monitor.gd
+[v-recorder]: https://github.com/scomofo/gemini-capsule/blob/40e449cfb8c35111de47a33bd351b2d945e6fa52/src/presentation/vr_acceptance_recorder.gd
+[v-vr-docs]: https://github.com/scomofo/gemini-capsule/tree/40e449cfb8c35111de47a33bd351b2d945e6fa52/docs
+[v-export]: https://github.com/scomofo/gemini-capsule/blob/40e449cfb8c35111de47a33bd351b2d945e6fa52/export_presets.cfg
 
 ## Fidelity
 
@@ -205,6 +251,8 @@ ones:
 - **Atmosphere.** Earth rotation and winds are ignored.
 - **Launch and landing.** There is no launch phase and no LM landing: the
   simulator is CSM-centric.
+- **The cabin.** It is a blockout: the vessel, couches and console follow
+  the CM in outline, and every panel position is estimated.
 
 ## Tests
 
@@ -226,23 +274,62 @@ The unit tests cover:
   autopilot, the coast-step policy
 - Checkpoint round-trip
 - The main scene
-- The hand controllers, from the keys and from the XR thumbsticks
+- The hand controllers, from the keys and from the XR thumbsticks, with
+  the thumbstick deadzone
 - The space view: the cabin and the cameras stay fixed while Earth, Moon,
   Sun and stars turn around them with the attitude
 - The cabin controls and instruments, the XR and desktop rigs and the
   OpenXR action map taken from gemini-capsule
+- The cockpit layout: `controls.csv` validates, malformed rows are
+  reported, and every row round-trips between its node and the Bus. Every
+  HUD switch has a cabin control, the cabin DSKY types into the CMC, and
+  the desktop rig can click every control from the commander's couch
+- What the cabin shows and sets on the Bus: the DSKY display, the FDAI
+  attitude, and switches that follow the HUD and checkpoints
+- The checklists in the cabin: one book shared by the HUD and the card,
+  the card's checklist, PAD and CAPCOM, and the highlight on the control
+  each step names or whose channel it checks
+- The wrist menu: its PAD, clock, recentre, eye-height and checklist
+  buttons, M and the controller button, the palm gesture, and buttons
+  that work while the panels are locked
+- The headset aids: the vignette and horizon ring, authentic mode, the
+  gaze tooltip, the frame-time monitor, and the seat switch that brings
+  the DSKY within reach
+- The main scene's headset branch, run against a stand-in for the OpenXR
+  interface: the XR rig and its camera, hands and menu, frame pacing to
+  the headset's refresh, and one record across a restarted session
 
 The scenario tests fly real segments through the crew interface:
 
 - S-IVB TLI to lunar arrival
 - MCC, LOI-1 and LOI-2 into lunar orbit
-- TEI and two transearth MCCs into the entry corridor
+- TEI and the transearth MCCs into the entry corridor
 - CM/SM separation, P61/P64 entry and splashdown
+- An MCC PAD flown with P30 and P41 using only the cabin's controls,
+  each one clicked through the desktop rig
+- A PAD requested from the wrist menu through the desktop rig: UPLINK
+  ACTY on the cabin DSKY, the PAD on the checklist card, and the
+  checklist worked on from the menu and the DSKY
+- The headset acceptance recorder on the desktop rig: fingertip crossings
+  on a switch, the DSKY and the menu (a click doesn't count), the
+  thumbsticks' pitch and roll response, the lock above 100× and the
+  record it writes
+- Every checklist worked from the commander's couch through the desktop
+  rig until the card shows it complete: parking orbit and TLI, LOI-1,
+  LOI-2 and TEI each down the SPS burn checklist on P40 with a residual
+  trimmed on the translation controller, LM JETT, and entry to
+  splashdown. The cabin scenarios share `tests/cabin_test.gd`
 
-`tools/screenshot.tscn` renders the images above:
+`tools/screenshot.tscn` renders the images above (`--view=0` window,
+`1` chase, `2` cabin; `--hud=0` leaves the HUD out, `--menu=1` shows the
+wrist menu, and `--pad=<kind>` asks Mission Control for a PAD first).
+They were rendered in software, so the frame time on the wrist menu's top
+line is the software renderer's:
 
 ```
 godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=1 --out=res://docs/images/x.png
+godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=2 --yaw=-0.3 --pitch=-0.12 --hud=0 --out=res://docs/images/cabin_lunar_orbit.png
+godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=2 --yaw=0.55 --pitch=-0.08 --hud=0 --menu=1 --pad=tei --out=res://docs/images/cabin_checklist.png
 ```
 
 ## Roadmap

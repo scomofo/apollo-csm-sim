@@ -7,7 +7,10 @@
 ##  - lever_lock: the lever must be pulled out first; the first actuation
 ##    unlocks for [member unlock_window_s], the second moves it.
 ##  - momentary positions spring back to [member rest_position] on release.
-## Taken from gemini-capsule at 40e449c (README.md lists the port).
+## Adapted from gemini-capsule at 40e449c (README.md lists the port): it
+## starts from the position the Bus already holds (the simulation's state, a
+## checkpoint, the HUD) instead of publishing initial_position over it, and
+## follows later changes; publish_bool suits on/off channels.
 extends ControlBase
 
 @export var positions: int = 2
@@ -20,6 +23,9 @@ extends ControlBase
 ## Positions that spring back to rest_position when released.
 @export var momentary_positions: PackedInt32Array = []
 @export var rest_position: int = 0
+## Publish a bool (position 1 = true) instead of the position, for on/off
+## channels that the HUD also writes as bool. Two-position switches only.
+@export var publish_bool: bool = false
 
 var position_index: int = 0:
 	set = set_position_index
@@ -35,7 +41,21 @@ func _ready() -> void:
 	super()
 	if _guard:
 		_guard.visible = guarded
-	set_position_index(initial_position)
+	if channel != "" and Bus.has_channel(channel):
+		set_position_index(_index_of(Bus.get_value(channel)))
+	else:
+		set_position_index(initial_position)
+	if channel != "":
+		Bus.subscribe(channel, _on_channel)
+
+
+func _index_of(v: Variant) -> int:
+	return (1 if v else 0) if v is bool else int(v)
+
+
+func _on_channel(v: Variant) -> void:
+	if _index_of(v) != position_index:
+		set_position_index(_index_of(v))
 
 
 func set_position_index(i: int) -> void:
@@ -44,7 +64,7 @@ func set_position_index(i: int) -> void:
 		var t := 0.0 if positions == 1 else float(position_index) / float(positions - 1)
 		_lever.rotation.x = deg_to_rad(lerpf(throw_deg, -throw_deg, t))
 	if channel != "":
-		Bus.set_value(channel, position_index)
+		Bus.set_value(channel, position_index == 1 if publish_bool else position_index)
 
 
 func set_guard_open(open: bool) -> void:
