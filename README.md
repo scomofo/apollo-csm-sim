@@ -205,3 +205,9 @@ The scenario tests fly real segments through the crew interface:
 ```
 godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=1 --out=res://docs/images/x.png
 ```
+
+## Roadmap
+
+[docs/ROADMAP.md](docs/ROADMAP.md) plans what comes next, in order of
+value: CI, a VR cockpit, the LM and a lunar landing, and navigation
+realism.
