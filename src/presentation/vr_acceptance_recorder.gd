@@ -94,6 +94,9 @@ func _ready() -> void:
 		if record["comfort"]["horizon_at_start"] == null:
 			record["comfort"]["horizon_at_start"] = bool(v))
 	if xr_interface:
+		# The recorder lives for the whole app run (created once in main.gd),
+		# so this relies on Godot 4's automatic signal disconnect when the
+		# node is freed at exit; no _exit_tree disconnect needed.
 		xr_interface.session_stopping.connect(_on_session_stopping)
 
 
