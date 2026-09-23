@@ -1,0 +1,40 @@
+# Bus channels the cabin's controls publish and its displays read
+# (src/cabin/cockpit_layout.gd checks every controls.csv row against this
+# file). type: bool, int, float, string, quat or group (a prefix whose own
+# channels follow). A * matches one path segment.
+channel,type,units,writer,description
+ctl.sps.arm_a,bool,,crew,DELTA-V THRUST A: SPS pilot valve bank A armed
+ctl.sps.arm_b,bool,,crew,DELTA-V THRUST B: SPS pilot valve bank B armed
+ctl.sps.thrust_on,bool,,crew,SPS THRUST ON pushbutton (manual backup)
+ctl.scs.att_source,int,,crew,Attitude control source: 0 CMC 1 SCS 2 DIRECT
+ctl.cmc.mode,int,,crew,CMC MODE: 0 FREE 1 HOLD 2 AUTO
+ctl.rcs.quad_a,bool,,crew,SM RCS quad A enabled
+ctl.rcs.quad_b,bool,,crew,SM RCS quad B enabled
+ctl.rcs.quad_c,bool,,crew,SM RCS quad C enabled
+ctl.rcs.quad_d,bool,,crew,SM RCS quad D enabled
+ctl.eps.fc1,bool,,crew,Fuel cell 1 on the main buses
+ctl.eps.fc2,bool,,crew,Fuel cell 2 on the main buses
+ctl.eps.fc3,bool,,crew,Fuel cell 3 on the main buses
+ctl.eps.batt_bus,bool,,crew,Entry batteries tied to the main buses
+ctl.els.logic,bool,,crew,ELS LOGIC
+ctl.els.auto,bool,,crew,ELS AUTO
+ctl.els.drogue,bool,,crew,Drogue deploy command (momentary)
+ctl.els.main,bool,,crew,Main parachute deploy command (momentary)
+ctl.seq.csm_sep,bool,,crew,CSM/LV separation command (momentary)
+ctl.seq.lm_jett,bool,,crew,LM jettison command (momentary)
+ctl.seq.cm_sm_sep,bool,,crew,CM/SM separation command (momentary)
+guid.indicator.attitude,quat,,agc,FDAI attitude: body relative to LVLH
+time.get_s,float,s,simclock,Ground elapsed time
+eps.bus_a_v,float,V,eps,Main bus A voltage
+eps.bus_b_v,float,V,eps,Main bus B voltage
+sys.master_alarm.eps,bool,,eps,EPS master alarm
+dsky,group,,agc,The DSKY display channels below
+dsky.prog,string,,agc,DSKY PROG digits
+dsky.verb,string,,agc,DSKY VERB digits
+dsky.noun,string,,agc,DSKY NOUN digits
+dsky.r1,string,,agc,DSKY register 1
+dsky.r2,string,,agc,DSKY register 2
+dsky.r3,string,,agc,DSKY register 3
+dsky.flash,bool,,agc,VERB and NOUN flash: the computer is asking
+dsky.comp_acty,bool,,agc,COMP ACTY light
+dsky.lamp.*,bool,,agc,DSKY status and caution lamps

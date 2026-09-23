@@ -1,0 +1,23 @@
+# Malformed rows for tests/unit/test_cockpit_layout.gd: each row below
+# breaks one rule, named in its label.
+id,panel,type,label,x_mm,y_mm,rot_deg,channel,params,source,confidence,status,role
+GOOD_A,MDC1,toggle,good,0,0,0,ctl.eps.fc1,,estimated,D,implemented,proxy
+GOOD_A,MDC2,toggle,duplicate id,0,0,0,ctl.eps.fc2,,estimated,D,implemented,proxy
+BAD_PANEL,MDC9,toggle,unknown panel,0,0,0,ctl.eps.fc1,,estimated,D,implemented,proxy
+BAD_TYPE,MDC3,lever,unknown type,0,0,0,ctl.eps.fc1,,estimated,D,implemented,proxy
+BAD_CHANNEL,MDC3,toggle,unknown channel,-250,-200,0,ctl.eps.fc9,,estimated,D,implemented,proxy
+BAD_WRITER,MDC3,pushbutton,not a crew channel,-180,-200,0,dsky.flash,,estimated,D,implemented,proxy
+BAD_BIND,MDC3,fdai,wrong channel type,150,50,0,ctl.eps.fc1,,estimated,D,implemented,proxy
+BAD_PLACE,MDC3,toggle,off the face,400,0,0,ctl.eps.fc1,,estimated,D,implemented,proxy
+BAD_OVERLAP,MDC1,toggle,overlaps GOOD_A,10,10,0,ctl.eps.fc3,,estimated,D,implemented,proxy
+BAD_INT,MDC2,toggle,not an integer,-250,-200,0,ctl.cmc.mode,positions=abc,estimated,D,implemented,proxy
+BAD_PROP,MDC2,toggle,no such property,-180,-200,0,ctl.eps.fc2,wobble=1,estimated,D,implemented,proxy
+BAD_LABELS,MDC2,toggle,labels short,-110,-200,0,ctl.cmc.mode,positions=3;labels=A|B,estimated,D,implemented,proxy
+BAD_BOOL3,MDC2,toggle,three positions on a bool,-40,-200,0,ctl.eps.fc3,positions=3;labels=A|B|C,estimated,D,implemented,proxy
+BAD_ROTARY,MDC2,rotary,no labels,30,-200,0,ctl.scs.att_source,,estimated,D,implemented,proxy
+BAD_VALID,MDC2,toggle,validated at D,100,-200,0,ctl.els.logic,,estimated,D,validated,proxy
+BAD_ROLE,MDC2,toggle,unknown role,170,-200,0,ctl.els.auto,,estimated,D,implemented,guess
+BAD_COLUMNS,MDC2,toggle,stray comma,240,-200,0,ctl.rcs.quad_a,,estimated,D,implemented,proxy,extra
+BAD_SCALE,MDC1,toggle,scaled control,-250,-150,0,ctl.rcs.quad_b,scale=2,estimated,D,implemented,proxy
+BAD_X,MDC1,toggle,not a number,-180,abc,0,ctl.rcs.quad_c,,estimated,D,implemented,proxy
+BAD_SOURCE,MDC1,toggle,no source,-110,-200,0,ctl.rcs.quad_d,,,D,implemented,proxy
