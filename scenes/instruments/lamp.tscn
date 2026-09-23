@@ -1,0 +1,20 @@
+[gd_scene load_steps=4 format=3 uid="uid://cgemini0lamp0000"]
+
+[ext_resource type="Script" path="res://scenes/instruments/lamp.gd" id="1_lamp"]
+
+[sub_resource type="BoxMesh" id="bezel"]
+size = Vector3(0.03, 0.02, 0.006)
+
+[sub_resource type="BoxMesh" id="lens"]
+size = Vector3(0.026, 0.016, 0.004)
+
+[node name="Lamp" type="Node3D"]
+script = ExtResource("1_lamp")
+
+[node name="Bezel" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.003)
+mesh = SubResource("bezel")
+
+[node name="Lens" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.007)
+mesh = SubResource("lens")

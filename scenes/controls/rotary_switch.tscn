@@ -1,0 +1,33 @@
+[gd_scene load_steps=6 format=3 uid="uid://cgemini0rotary00"]
+
+[ext_resource type="Script" path="res://scenes/controls/rotary_switch.gd" id="1_rot"]
+
+[sub_resource type="CylinderMesh" id="knob_mesh"]
+top_radius = 0.012
+bottom_radius = 0.014
+height = 0.016
+
+[sub_resource type="BoxMesh" id="pointer_mesh"]
+size = Vector3(0.004, 0.014, 0.004)
+
+[sub_resource type="StandardMaterial3D" id="knob_mat"]
+albedo_color = Color(0.12, 0.12, 0.13, 1)
+roughness = 0.5
+
+[sub_resource type="StandardMaterial3D" id="pointer_mat"]
+albedo_color = Color(0.95, 0.95, 0.95, 1)
+
+[node name="RotarySwitch" type="Node3D"]
+script = ExtResource("1_rot")
+
+[node name="Knob" type="Node3D" parent="."]
+
+[node name="Mesh" type="MeshInstance3D" parent="Knob"]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0.008)
+mesh = SubResource("knob_mesh")
+material_override = SubResource("knob_mat")
+
+[node name="Pointer" type="MeshInstance3D" parent="Knob"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.008, 0.017)
+mesh = SubResource("pointer_mesh")
+material_override = SubResource("pointer_mat")

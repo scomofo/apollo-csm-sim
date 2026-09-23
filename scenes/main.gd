@@ -1,7 +1,7 @@
 ## Entry point of the Apollo CSM simulator (desktop). Builds the headless
 ## simulation runtime exactly as the tests do, then attaches presentation:
-## the 3D space view and the cockpit HUD. Keyboard hand controllers write
-## ctl.rhc / ctl.thc; everything else goes through the HUD or the DSKY.
+## the 3D space view and the cockpit HUD. HandControllerInput turns the keys
+## into ctl.rhc / ctl.thc; everything else goes through the HUD or the DSKY.
 ##
 ## Start phase: the exported start_phase, or "--phase=<name>" after "--" on
 ## the command line (parking_orbit, translunar_coast, lunar_orbit,
@@ -34,29 +34,18 @@ func _ready() -> void:
 	add_child(hud)
 	hud.setup(rt)
 	hud.select_checklist_for(start_phase)
+	var hci := HandControllerInput.new()
+	hci.name = "HandControllerInput"
+	add_child(hci)
 
 
 func _process(_delta: float) -> void:
 	if SimClock.controls_locked():
-		Bus.set_value("ctl.rhc", Vector3.ZERO)
-		Bus.set_value("ctl.thc", Vector3.ZERO)
 		return
-	var k := 0.1 if Input.is_key_pressed(KEY_SHIFT) else 1.0
-	var rhc := Vector3(
-		_axis(KEY_E, KEY_Q),     # roll right / left
-		_axis(KEY_S, KEY_W),     # pitch up (stick back) / down
-		_axis(KEY_D, KEY_A)) * k # yaw right / left
-	var thc := Vector3(_axis(KEY_R, KEY_F), _axis(KEY_RIGHT, KEY_LEFT), _axis(KEY_DOWN, KEY_UP))
-	Bus.set_value("ctl.rhc", rhc)
-	Bus.set_value("ctl.thc", thc)
 	var t := Input.is_key_pressed(KEY_T)
 	if t != _t_held:
 		_t_held = t
 		Bus.set_value("ctl.sps.thrust_on", t)
-
-
-static func _axis(pos: Key, neg: Key) -> float:
-	return (1.0 if Input.is_key_pressed(pos) else 0.0) - (1.0 if Input.is_key_pressed(neg) else 0.0)
 
 
 const DSKY_KEYS := {

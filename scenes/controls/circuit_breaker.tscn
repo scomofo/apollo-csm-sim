@@ -1,0 +1,44 @@
+[gd_scene load_steps=7 format=3 uid="uid://cgemini0breaker0"]
+
+[ext_resource type="Script" path="res://scenes/controls/circuit_breaker.gd" id="1_cb"]
+
+[sub_resource type="CylinderMesh" id="collar"]
+top_radius = 0.007
+bottom_radius = 0.007
+height = 0.004
+
+[sub_resource type="CylinderMesh" id="stem"]
+top_radius = 0.005
+bottom_radius = 0.005
+height = 0.012
+
+[sub_resource type="StandardMaterial3D" id="collar_mat"]
+albedo_color = Color(0.2, 0.2, 0.22, 1)
+
+[sub_resource type="StandardMaterial3D" id="stem_mat"]
+albedo_color = Color(0.95, 0.95, 0.95, 1)
+
+[sub_resource type="BoxShape3D" id="touch_shape"]
+size = Vector3(0.02, 0.02, 0.03)
+
+[node name="CircuitBreaker" type="Node3D"]
+script = ExtResource("1_cb")
+
+[node name="Collar" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0.002)
+mesh = SubResource("collar")
+material_override = SubResource("collar_mat")
+
+[node name="Stem" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.004)
+
+[node name="Mesh" type="MeshInstance3D" parent="Stem"]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0)
+mesh = SubResource("stem")
+material_override = SubResource("stem_mat")
+
+[node name="Touch" type="Area3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.012)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Touch"]
+shape = SubResource("touch_shape")

@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3 uid="uid://cgemini0desktop0"]
+
+[ext_resource type="Script" path="res://scenes/player/desktop_rig.gd" id="1_rig"]
+
+[node name="DesktopRig" type="Node3D"]
+script = ExtResource("1_rig")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+fov = 90.0
+near = 0.01

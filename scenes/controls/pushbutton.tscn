@@ -1,0 +1,26 @@
+[gd_scene load_steps=5 format=3 uid="uid://cgemini0pushbtn0"]
+
+[ext_resource type="Script" path="res://scenes/controls/pushbutton.gd" id="1_pb"]
+
+[sub_resource type="BoxMesh" id="bezel_mesh"]
+size = Vector3(0.026, 0.02, 0.006)
+
+[sub_resource type="BoxMesh" id="cap_mesh"]
+size = Vector3(0.022, 0.016, 0.008)
+
+[sub_resource type="StandardMaterial3D" id="bezel_mat"]
+albedo_color = Color(0.2, 0.2, 0.22, 1)
+
+[node name="Pushbutton" type="Node3D"]
+script = ExtResource("1_pb")
+
+[node name="Bezel" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.003)
+mesh = SubResource("bezel_mesh")
+material_override = SubResource("bezel_mat")
+
+[node name="Cap" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.009)
+
+[node name="Mesh" type="MeshInstance3D" parent="Cap"]
+mesh = SubResource("cap_mesh")

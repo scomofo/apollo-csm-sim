@@ -1,0 +1,18 @@
+[gd_scene load_steps=4 format=3 uid="uid://cgemini0flag0000"]
+
+[ext_resource type="Script" path="res://scenes/instruments/flag_indicator.gd" id="1_f"]
+
+[sub_resource type="BoxMesh" id="flag_mesh"]
+size = Vector3(0.012, 0.008, 0.002)
+
+[sub_resource type="StandardMaterial3D" id="flag_mat"]
+albedo_color = Color(0.95, 0.5, 0.1, 1)
+
+[node name="FlagIndicator" type="Node3D"]
+script = ExtResource("1_f")
+
+[node name="Flag" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.001)
+mesh = SubResource("flag_mesh")
+material_override = SubResource("flag_mat")
+visible = false
