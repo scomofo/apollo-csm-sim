@@ -291,6 +291,30 @@ func test_equiperiod_separation_a_revolution_and_docking_again() -> void:
 	assert_string_contains(str(Bus.get_value("mission.capcom")), "hard dock")
 
 
+func test_undocking_is_not_the_lm_jettison_on_the_checklist() -> void:
+	build("lunar_orbit")
+	Bus.set_value("ctl.cmc.mode", 0)
+	var book := ChecklistBook.load_default()
+	book.select_for_phase("lunar_orbit")
+	var list := book.list()
+	while not list.done() and not str(list.current().get("text", "")).begins_with("LM JETT"):
+		list.update()
+		list.next()
+	assert_string_starts_with(str(list.current().get("text", "")), "LM JETT", "on the LM JETT step")
+	_undock()
+	list.update()
+	assert_string_starts_with(str(list.current().get("text", "")), "LM JETT", "undocked, the LM hasn't gone")
+	_move_to(Vector3(10.0, 0.0, 0.0), 60.0)
+	assert_true(_approach(0.1), "the probe met the drogue")
+	assert_eq(str(Bus.get_value("dock.state")), "docked", "docked again")
+	list.update()
+	assert_string_starts_with(str(list.current().get("text", "")), "LM JETT", "still to jettison")
+	Bus.set_value("ctl.seq.lm_jett", true)
+	run(SimClock.FIXED_DT, false)
+	list.update()
+	assert_string_starts_with(str(list.current().get("text", "")), "Request TEI PAD", "LM JETT done")
+
+
 func test_capture_joins_the_vehicles_momentum_conserved() -> void:
 	build("lunar_orbit")
 	var d := rt.dynamics
