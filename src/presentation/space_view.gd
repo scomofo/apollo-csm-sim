@@ -22,7 +22,9 @@ var moon: MeshInstance3D
 var earth_glow: MeshInstance3D
 var sun: DirectionalLight3D
 var csm: Node3D
-var view_mode: int = 0   # 0 window, 1 chase
+## 0 window, 1 chase, 2 cabin: the CM cabin (src/cabin/cm_cabin.gd) is
+## drawn in place of the CM, and the player's rig has the camera.
+var view_mode: int = 0
 var look_yaw: float = 0.0
 var look_pitch: float = 0.0
 var chase_yaw: float = 0.6
@@ -266,8 +268,11 @@ func _process(_delta: float) -> void:
 	_parts["drogues"].visible = bool(Bus.get_value("els.drogue", false))
 	_parts["main_chutes"].visible = bool(Bus.get_value("els.mains", false))
 	_parts["main_chutes"].scale = Vector3.ONE * lerpf(0.3, 1.0, float(Bus.get_value("els.main_fraction", 1.0)))
+	_parts["cm"].visible = view_mode != 2
 	# Camera, in body axes too, so only the crew's own look turns it.
-	if view_mode == 0:
+	if view_mode == 2:
+		csm.visible = true
+	elif view_mode == 0:
 		csm.visible = false
 		# Looking out along +X (the rendezvous window line of sight),
 		# crew "up" = body -Z, with free head turn.
@@ -296,11 +301,9 @@ func _place(mi: MeshInstance3D, offset: Vector3, radius: float) -> void:
 	mi.scale = Vector3.ONE * radius * s
 
 
-func toggle_view() -> void:
-	view_mode = 1 - view_mode
-
-
 func look(dx: float, dy: float) -> void:
+	if view_mode == 2:
+		return
 	if view_mode == 0:
 		look_yaw = clampf(look_yaw - dx, -PI * 0.6, PI * 0.6)
 		look_pitch = clampf(look_pitch - dy, -1.2, 1.2)

@@ -79,13 +79,31 @@ When Actions starts jobs again:
 
 ## 2. VR cockpit
 
-**Status: slices 2a and 2b done.** The rigs, interaction layer, prefabs
-and action map are ported with their tests (README.md lists every file
-and change), and `HandControllerInput` now writes `ctl.rhc` and `ctl.thc`
-from the keys and the thumbsticks. `space_view.gd` keeps the cabin fixed
-and turns the world around it; the window and chase views render as
-before (four screenshots within 7 pixels of the old ones, all star-lookup
-rounding). Nothing draws a cabin yet; 2c is next.
+**Status: slices 2a, 2b and 2c done; 2d is next.** The rigs,
+interaction layer, prefabs, panel layout and action map are ported with
+their tests (README.md lists every file and change), and
+`HandControllerInput` writes `ctl.rhc` and `ctl.thc` from the keys and
+the thumbsticks. `space_view.gd` keeps the cabin fixed and turns the
+world around it.
+
+The CM cabin is in (`src/cabin/cm_cabin.gd`): a blockout of the pressure
+vessel with its five windows, the three couches, the hand controllers and
+the three panels of the main display console. Its 26 controls and
+displays come from `data/cockpit/controls.csv`, checked against
+`channels.csv`: every HUD switch, the FDAI, the mission timer, the main
+bus voltmeters, the master alarm and a 19-key DSKY. The CMC publishes the
+DSKY display and the FDAI attitude on the Bus, and cabin switches follow
+the channels the HUD and checkpoints write. On the desktop, C cycles the
+window, chase and cabin views, and the desktop rig sits at the
+commander's eye. OpenXR stays off until `--xr-mode on`, which puts the XR
+rig there instead; no headset has run it yet. A scenario test flies an MCC
+PAD with P30 and P41, clicking every control through the desktop rig. The
+window and chase views render exactly as before.
+
+Two things learned: the vessel must cast shadows from both faces, or the
+Sun lights its whole interior; and a pointer from the commander's couch
+meets the DSKY at 45 degrees, so its keys need shallow touch volumes or a
+click lands on the neighbouring key.
 
 Today the cockpit is a 2D overlay. `src/presentation/hud.gd` draws the
 DSKY, a grid of switches, the FDAI, Mission Control, CAPCOM and the
@@ -110,9 +128,9 @@ landing in both repositories.
 | `src/interaction/control_base.gd`, `interactor.gd` | Touch volume, crossing direction and far-field click. Nothing changes on hover. Controls lock while `SimClock.controls_locked()` | As is. Apollo's SimClock has the same method; it locks above 100×, Gemini's above 10× |
 | `scenes/controls/` | Toggle (two- or three-position, guarded, lever-lock, momentary), rotary, pushbutton (momentary or latching, with a lamp), circuit breaker, pull handle, telelight switch | Toggle, rotary and pushbutton as is. The breaker without the overhead face drawn for Gemini's SC-4 panel. The pull handle (Gemini's O2 recock grip) and the telelight switch (Gemini's sequence lights) stay behind |
 | `scenes/instruments/` | Lamp, numeric display, clock, flag, round gauge, telelight, FDAI | The telelight stays behind with the telelight switch. Three need adapting. `lamp.gd` uses Gemini's `CabinMaterials`. `numeric_display.gd` calls `Units.convert()`, which Apollo's `Units` lacks. `fdai.gd` uses `Frames.BODY_TO_GODOT` and reads `guid.indicator.attitude`, which Apollo doesn't publish. Its ball also shows the outside view, so pitch and yaw read reversed, and it ignores how its case is mounted; Apollo's copy fixes both |
-| `src/cabin/cockpit_layout.gd`, `assets/data/cockpit/controls.csv`, `channels.csv` | Data-driven panels: one validated CSV row per control, with its source and confidence | Needs an Apollo cabin datum and a cockpit spec to check each `spec_id` against |
+| `src/cabin/cockpit_layout.gd`, `assets/data/cockpit/controls.csv`, `channels.csv` | Data-driven panels: one validated CSV row per control, with its source and confidence | Done in 2c. Rows are checked against `CmCabin`'s panels and the channel types instead of a cabin datum and a cockpit spec; `spec_id` waits for a CM cockpit spec |
 | `src/interaction/hand_controller_input.gd` | Thumbsticks to the hand-controller channels | Gemini writes `ctl.hand_controller.pitch`, `.yaw` and `.roll`. Apollo reads `ctl.rhc` (roll, pitch, yaw) and `ctl.thc` (X, Y, Z) as `Vector3`s |
-| `openxr_action_map.tres`, the `[xr]` block of `project.godot`, `export_presets.cfg` | Action map with the Touch, Index, Vive, Vive Focus 3, WMR and Pico profiles among others; OpenXR settings; PC VR and Quest 3 presets | Settle the reference space first. gemini-capsule's docs describe a seated `LOCAL` space, but its `project.godot` sets `xr/openxr/reference_space=1`, which Godot 4.4.1 reads as Stage (the options are Local, Stage, Local Floor) |
+| `openxr_action_map.tres`, the `[xr]` block of `project.godot`, `export_presets.cfg` | Action map with the Touch, Index, Vive, Vive Focus 3, WMR and Pico profiles among others; OpenXR settings; PC VR and Quest 3 presets | The action map and `[xr]` block are in. gemini-capsule's docs describe a seated `LOCAL` space, but its `project.godot` sets `xr/openxr/reference_space=1`, which Godot 4.4.1 reads as Stage (the options are Local, Stage, Local Floor). Apollo uses 0, Local, and leaves OpenXR off until `--xr-mode on`. The export presets wait for the headset run |
 | `src/presentation/wrist_menu.gd`, `comfort.gd`, `gaze_tooltip.gd`, `checklist_highlight.gd`, `vr_acceptance_recorder.gd`, `perf_monitor.gd` | Wrist menu, vignette, tooltips, next-control highlight, headset acceptance recorder, frame-time budget | `comfort.gd` reads Gemini channels (`guid.rate.*`, `aero.q_dyn_pa`, `guid.att.lvlh`); Apollo has `dyn.omega`, `dyn.g_load` and `dyn.att_q`. The recorder checks Gemini controls such as `ctl.ace.power`. Apollo's checklist steps name Bus channels, not controls, so the highlight looks up the control for a channel in `controls.csv` |
 | `docs/VR_INTERACTION.md`, `HEADSET_RUN.md`, `VR_ACCEPTANCE.md` | Interaction rules and the headset acceptance run | Rewrite for the CM |
 
@@ -136,6 +154,8 @@ gemini-capsule's `HEADSET_RUN.md`, then Apollo's.
   translation controller on the left. Take panel identity from the CSM
   Apollo Operations Handbook. Mark dimensions `[estimated]` until
   drawings are transcribed, as gemini-capsule's `controls.csv` does.
+  Built in 2c as a blockout; the panel assignment follows the CM in
+  outline only, and the handbook pass is still to do.
 - **Every HUD control in the cabin.** Give every control `hud.gd` offers
   a `controls.csv` row: ΔV THRUST A and B, THRUST ON, ATT SOURCE, CMC
   MODE, RCS QUAD A to D, FC 1 to 3, BATT TO BUS, ELS LOGIC, ELS AUTO,
@@ -146,13 +166,14 @@ gemini-capsule's `HEADSET_RUN.md`, then Apollo's.
   key calls `Dsky.press()` from the prefab's `activated` signal, the
   same call the 2D panel and the tests make. For the displays, publish
   the DSKY's state on the Bus: PROG, VERB, NOUN, R1 to R3, the flash and
-  the lamps. The numeric-display and lamp prefabs can then show it
-  (registers need a text mode in the numeric display). Today `DskyPanel`
-  reads the `Dsky` object directly.
+  the lamps. Done in 2c: the lamps are the lamp prefab, and the
+  electroluminescent fields are labels bound to the `dsky.*` strings, so
+  the numeric display needed no text mode. `DskyPanel` still reads the
+  `Dsky` object directly.
 - **The FDAI.** Publish the attitude the ball shows, so the 3D FDAI
   prefab can read it. That's LVLH-relative today, as Apollo's
   `src/presentation/fdai.gd` computes it, and relative to REFSMMAT after
-  slice 4c.
+  slice 4c. The CMC publishes it as `guid.indicator.attitude` since 2c.
 - **Hand controllers.** Thumbsticks write `ctl.rhc` and `ctl.thc` first,
   as in gemini-capsule. A grabbed RHC and THC come later; gemini-capsule
   hasn't built grab interaction either.
@@ -168,7 +189,7 @@ gemini-capsule's `HEADSET_RUN.md`, then Apollo's.
 |---|---|---|
 | 2a (done) | Port the rigs, the interaction layer, the prefabs and the action map, with adapters for `ctl.rhc`, `ctl.thc`, `Units`, materials and frames | The ported `test_xr_rig.gd`, `test_openxr_action_map.gd` and `test_control_library.gd` (minus its Gemini electrical cases) pass headless |
 | 2b (done) | Fixed cabin in `space_view.gd` | New test: turning `dyn.att_q` moves the Earth, Moon, Sun and sky but not the camera or the cabin (gemini-capsule's `tests/unit/test_world_presenter.gd` is the model). `tools/screenshot.tscn` still renders the same window view |
-| 2c | CM cabin, `controls.csv`, cabin DSKY and FDAI | Every row round-trips from CSV to node to Bus. A scenario test flies an MCC PAD with P30 and P41 using only cabin controls, through the desktop rig |
+| 2c (done) | CM cabin, `controls.csv`, cabin DSKY and FDAI | Every row round-trips from CSV to node to Bus. A scenario test flies an MCC PAD with P30 and P41 using only cabin controls, through the desktop rig |
 | 2d | Checklist and CAPCOM card, wrist menu | Desktop-rig test: request a PAD from the wrist menu, then see UPLINK ACTY on the cabin DSKY and the PAD on the card |
 | 2e | Headset run | One recorded pass of an Apollo `VR_ACCEPTANCE.md` in a headset, including a verb/noun typed on the cabin DSKY with a fingertip |
 

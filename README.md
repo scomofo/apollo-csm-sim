@@ -12,6 +12,8 @@ executed through the Apollo Guidance Computer's DSKY.
 
 ![Parking orbit: the S-IVB/CSM/LM stack before TLI](docs/images/parking_orbit_chase.png)
 
+![The CM cabin in lunar orbit: FDAI, DSKY and the main display console](docs/images/cabin_lunar_orbit.png)
+
 The project used
 [scomofo/gemini-capsule](https://github.com/scomofo/gemini-capsule) as its
 template and began as the `apollo/` directory of that repository. It now
@@ -35,6 +37,10 @@ solutions (TLI, TEI), so every start is consistent with the mission it
 continues. Starting in `transearth_coast` or `entry` takes a few seconds
 while the ground computes the trajectory.
 
+`godot --path . --xr-mode on` starts OpenXR, which is off by default, and
+puts you in the commander's couch in a headset. No headset run has been
+recorded yet ([docs/ROADMAP.md](docs/ROADMAP.md), slice 2e).
+
 | Input | Action |
 |---|---|
 | W/S, A/D, Q/E | Rotational hand controller: pitch, yaw, roll (hold Shift for 10 %) |
@@ -45,13 +51,18 @@ while the ground computes the trajectory.
 | Insert, Delete | KEY REL, RSET |
 | T (hold) | SPS THRUST ON, the manual backup |
 | `[` `]`, P | Time rate slower/faster (1× to 10,000×), pause |
-| C, right-drag | Window/chase view, look around |
+| C | Window, chase or cabin view |
+| Right-drag | Look around (window and chase views) |
+| In the cabin view: click, scroll | Work the control under the cursor: a click cycles a switch or presses a key, scrolling moves a switch up or down |
+| In the cabin view: right-click, Z, Home | Mouse look on and off; inspect the control under the cursor; recentre |
 | F5 / F9 | Save / load checkpoint |
 | H | Key help |
 
-Every DSKY key and cockpit switch is also clickable on screen. Time
-acceleration drops back to 10× by itself when an engine lights, at each
-scheduled event (TLI, TIG−60 s, V99) and at entry.
+Every DSKY key and cockpit switch is also clickable on screen, in the HUD
+or on the CM's main display console in the cabin view. Above 100× the
+cabin's switches lock, and its DSKY keys still work. Time acceleration
+drops back to 10× by itself when an engine lights, at each scheduled
+event (TLI, TIG−60 s, V99) and at entry.
 
 ## Flying the mission
 
@@ -135,12 +146,14 @@ controls publish `ctl.*`, and presentation only reads the Bus.
 ### Parts for the VR cockpit
 
 The VR cockpit ([docs/ROADMAP.md](docs/ROADMAP.md), milestone 2) reuses
-gemini-capsule's interaction layer, rigs and panel prefabs. They were
-taken later than the rest, at commit
-[`40e449c`](https://github.com/scomofo/gemini-capsule/tree/40e449cfb8c35111de47a33bd351b2d945e6fa52),
-and the CM cabin that will use them is not built yet. The one part
-already in use is `HandControllerInput`, which now turns the keys into
-`ctl.rhc` and `ctl.thc`.
+gemini-capsule's interaction layer, rigs, panel prefabs and data-driven
+panel layout. They were taken later than the rest, at commit
+[`40e449c`](https://github.com/scomofo/gemini-capsule/tree/40e449cfb8c35111de47a33bd351b2d945e6fa52).
+The CM cabin (`src/cabin/cm_cabin.gd`) and the cabin DSKY
+(`scenes/instruments/cabin_dsky.gd`) are new. Every row of
+`data/cockpit/controls.csv` places one control or display on the main
+display console, at estimated positions (confidence D) until the panel
+drawings are transcribed.
 
 | Gemini capsule | Apollo CSM | Changes |
 |---|---|---|
@@ -149,9 +162,10 @@ already in use is `HandControllerInput`, which now turns the keys into
 | [`scenes/controls/circuit_breaker.gd`][v-breaker] | same path | Gemini's overhead face style, drawn for its SC-4 overhead panel, is left out |
 | [`scenes/instruments/`][v-instruments]: lamp, numeric display, clock, flag, round gauge | same paths | None. `Units.convert()` and a minimal `src/presentation/cabin_materials.gd` exist for them, and `src/core/frames.gd` for the FDAI |
 | [`scenes/instruments/fdai.gd`][v-fdai] | same path | Shows the view from inside the ball, like the flown instrument: Gemini's ball reads pitch and yaw reversed. The ball also turns relative to its case, so a tilted panel doesn't tilt the horizon |
-| [`scenes/player/xr_rig.tscn`][v-xr-rig], [`openxr_action_map.tres`][v-action-map] | same paths | None. OpenXR is not enabled in `project.godot` yet |
+| [`scenes/player/xr_rig.tscn`][v-xr-rig], [`openxr_action_map.tres`][v-action-map] | same paths | None. OpenXR is off in `project.godot` until `--xr-mode on`, with the seated Local reference space (Gemini's `project.godot` sets Stage) |
 | [`scenes/player/desktop_rig.gd`][v-desktop-rig] | same path | No keyboard head movement, because W/A/S/D/Q/E fly the RHC here. Recentre is the `recenter` action on Home, because R is the THC's +X |
 | [`src/interaction/hand_controller_input.gd`][v-hci] | same path | Writes `ctl.rhc` and `ctl.thc` from the keys and the thumbsticks; holding the left grip switches the sticks to the THC |
+| [`src/cabin/cockpit_layout.gd`][v-layout], [`controls.csv`, `channels.csv`][v-cockpit-data] | `src/cabin/cockpit_layout.gd`, `data/cockpit/` | Rows are checked against `CmCabin`'s panels and the channel types in `channels.csv`, and for overlaps. No `spec_id` column until a CM cockpit spec exists. A switch on a bool channel publishes a bool; switch positions are lettered beside the lever and around the knob |
 | [`tests/unit/`][v-tests]: `test_control_library`, `test_xr_rig`, `test_openxr_action_map`, `test_desktop_inspection`, `test_gauge_linear_face` | same paths | Gemini-only cases dropped or replaced |
 
 [v-control-base]: https://github.com/scomofo/gemini-capsule/blob/40e449cfb8c35111de47a33bd351b2d945e6fa52/src/interaction/control_base.gd
@@ -165,6 +179,8 @@ already in use is `HandControllerInput`, which now turns the keys into
 [v-desktop-rig]: https://github.com/scomofo/gemini-capsule/blob/40e449cfb8c35111de47a33bd351b2d945e6fa52/scenes/player/desktop_rig.gd
 [v-hci]: https://github.com/scomofo/gemini-capsule/blob/40e449cfb8c35111de47a33bd351b2d945e6fa52/src/interaction/hand_controller_input.gd
 [v-tests]: https://github.com/scomofo/gemini-capsule/tree/40e449cfb8c35111de47a33bd351b2d945e6fa52/tests/unit
+[v-layout]: https://github.com/scomofo/gemini-capsule/blob/40e449cfb8c35111de47a33bd351b2d945e6fa52/src/cabin/cockpit_layout.gd
+[v-cockpit-data]: https://github.com/scomofo/gemini-capsule/tree/40e449cfb8c35111de47a33bd351b2d945e6fa52/assets/data/cockpit
 
 ## Fidelity
 
@@ -205,6 +221,8 @@ ones:
 - **Atmosphere.** Earth rotation and winds are ignored.
 - **Launch and landing.** There is no launch phase and no LM landing: the
   simulator is CSM-centric.
+- **The cabin.** It is a blockout: the vessel, couches and console follow
+  the CM in outline, and every panel position is estimated.
 
 ## Tests
 
@@ -231,6 +249,12 @@ The unit tests cover:
   Sun and stars turn around them with the attitude
 - The cabin controls and instruments, the XR and desktop rigs and the
   OpenXR action map taken from gemini-capsule
+- The cockpit layout: `controls.csv` validates, malformed rows are
+  reported, and every row round-trips between its node and the Bus. Every
+  HUD switch has a cabin control, the cabin DSKY types into the CMC, and
+  the desktop rig can click every control from the commander's couch
+- What the cabin shows and sets on the Bus: the DSKY display, the FDAI
+  attitude, and switches that follow the HUD and checkpoints
 
 The scenario tests fly real segments through the crew interface:
 
@@ -238,11 +262,15 @@ The scenario tests fly real segments through the crew interface:
 - MCC, LOI-1 and LOI-2 into lunar orbit
 - TEI and two transearth MCCs into the entry corridor
 - CM/SM separation, P61/P64 entry and splashdown
+- An MCC PAD flown with P30 and P41 using only the cabin's controls,
+  each one clicked through the desktop rig
 
-`tools/screenshot.tscn` renders the images above:
+`tools/screenshot.tscn` renders the images above (`--view=0` window,
+`1` chase, `2` cabin; `--hud=0` leaves the HUD out):
 
 ```
 godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=1 --out=res://docs/images/x.png
+godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=2 --yaw=-0.3 --pitch=-0.12 --hud=0 --out=res://docs/images/cabin_lunar_orbit.png
 ```
 
 ## Roadmap

@@ -14,7 +14,9 @@ Space  Bksp   PRO   CLR
 Insert  Del   KEY REL  RSET
 T             SPS THRUST ON (hold, manual backup)
 [  ]  P       time rate slower / faster, pause
-C             window / chase view   (right-drag: look)
+C             window / chase / cabin view   (right-drag: look)
+Cabin view    click a control, scroll to move it; right-click: mouse look,
+              Z: inspect, Home: recentre
 F5 / F9       save / load checkpoint
 H             this help"""
 
@@ -31,6 +33,9 @@ var _help: Label
 var _fdai: Control
 var _checklists: Array[Checklist] = []
 var _check_index: int = 0
+var _switches: PanelContainer
+var _flight_panel: PanelContainer
+var _systems_panel: PanelContainer
 var _toggles: Dictionary = {}
 var _options: Dictionary = {}
 var _capcom_lines: PackedStringArray = []
@@ -68,6 +73,7 @@ func setup(p_rt: SimRuntime) -> void:
 	var fp := PanelContainer.new()
 	_style(fp)
 	right.add_child(fp)
+	_flight_panel = fp
 	var fh := HBoxContainer.new()
 	fp.add_child(fh)
 	_flight = _label(fh, 13)
@@ -78,8 +84,10 @@ func setup(p_rt: SimRuntime) -> void:
 	var sp := PanelContainer.new()
 	_style(sp)
 	right.add_child(sp)
+	_systems_panel = sp
 	_systems = _label(sp, 12)
-	right.add_child(_switch_panel())
+	_switches = _switch_panel()
+	right.add_child(_switches)
 	right.add_child(_mcc_panel())
 	# CAPCOM strip along the bottom.
 	var cp := PanelContainer.new()
@@ -124,6 +132,14 @@ func select_checklist_for(phase: String) -> void:
 
 func toggle_help() -> void:
 	_help.visible = not _help.visible
+
+
+## The cabin view has its own DSKY, FDAI, switches and readouts: the 2D
+## panels step aside, and the checklist, Mission Control and CAPCOM stay
+## until they move to the wrist menu (docs/ROADMAP.md, slice 2d).
+func set_cabin_view(on: bool) -> void:
+	for p in [dsky_panel, _flight_panel, _systems_panel, _switches]:
+		p.visible = not on
 
 
 func _style(p: PanelContainer) -> void:
