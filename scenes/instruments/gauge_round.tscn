@@ -1,0 +1,55 @@
+[gd_scene load_steps=8 format=3 uid="uid://cgemini0gauge000"]
+
+[ext_resource type="Script" path="res://scenes/instruments/gauge_round.gd" id="1_g"]
+
+[sub_resource type="CylinderMesh" id="bezel"]
+top_radius = 0.03
+bottom_radius = 0.03
+height = 0.006
+
+[sub_resource type="CylinderMesh" id="dial"]
+top_radius = 0.027
+bottom_radius = 0.027
+height = 0.002
+
+[sub_resource type="BoxMesh" id="needle_mesh"]
+size = Vector3(0.002, 0.024, 0.001)
+
+[sub_resource type="StandardMaterial3D" id="bezel_mat"]
+albedo_color = Color(0.15, 0.15, 0.16, 1)
+
+[sub_resource type="StandardMaterial3D" id="dial_mat"]
+albedo_color = Color(0.03, 0.03, 0.03, 1)
+
+[sub_resource type="StandardMaterial3D" id="needle_mat"]
+albedo_color = Color(1, 1, 1, 1)
+
+[node name="GaugeRound" type="Node3D"]
+script = ExtResource("1_g")
+
+[node name="Bezel" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0.003)
+mesh = SubResource("bezel")
+material_override = SubResource("bezel_mat")
+
+[node name="Dial" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0.0065)
+mesh = SubResource("dial")
+material_override = SubResource("dial_mat")
+
+[node name="Needle" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.008)
+
+[node name="Mesh" type="MeshInstance3D" parent="Needle"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.011, 0)
+mesh = SubResource("needle_mesh")
+material_override = SubResource("needle_mat")
+
+[node name="Needle2" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.0095)
+visible = false
+
+[node name="Mesh" type="MeshInstance3D" parent="Needle2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.009, 0)
+mesh = SubResource("needle_mesh")
+material_override = SubResource("needle_mat")

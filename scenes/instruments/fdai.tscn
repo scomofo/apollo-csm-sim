@@ -1,0 +1,27 @@
+[gd_scene load_steps=5 format=3 uid="uid://cgemini0fdai0000"]
+
+[ext_resource type="Script" path="res://scenes/instruments/fdai.gd" id="1_fdai"]
+
+[sub_resource type="SphereMesh" id="ball"]
+radius = 0.045
+height = 0.09
+
+[sub_resource type="CylinderMesh" id="bezel"]
+top_radius = 0.055
+bottom_radius = 0.055
+height = 0.012
+
+[sub_resource type="StandardMaterial3D" id="bezel_mat"]
+albedo_color = Color(0.15, 0.15, 0.16, 1)
+
+[node name="FDAI" type="Node3D"]
+script = ExtResource("1_fdai")
+
+[node name="Bezel" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0.006)
+mesh = SubResource("bezel")
+material_override = SubResource("bezel_mat")
+
+[node name="Ball" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.02)
+mesh = SubResource("ball")

@@ -13,6 +13,7 @@ func test_main_scene_builds_and_keyboard_drives_the_dsky() -> void:
 	await wait_process_frames(3)
 	assert_not_null(main.hud)
 	assert_not_null(main.view)
+	assert_not_null(main.get_node_or_null("HandControllerInput"), "the keys reach ctl.rhc and ctl.thc through it")
 	assert_eq(Bus.get_value("mission.phase"), "lunar_orbit")
 	for kc in [KEY_V, KEY_1, KEY_6, KEY_N, KEY_6, KEY_2, KEY_ENTER]:
 		var ev := InputEventKey.new()

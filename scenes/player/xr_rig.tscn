@@ -1,0 +1,38 @@
+[gd_scene load_steps=5 format=3 uid="uid://cgemini0xrrig000"]
+
+[ext_resource type="Script" path="res://scenes/player/xr_rig.gd" id="1_rig"]
+[ext_resource type="Script" path="res://src/interaction/interactor.gd" id="2_interactor"]
+
+[sub_resource type="BoxMesh" id="hand_mesh"]
+size = Vector3(0.03, 0.03, 0.1)
+
+[sub_resource type="StandardMaterial3D" id="hand_mat"]
+transparency = 1
+albedo_color = Color(0.8, 0.85, 0.9, 0.6)
+
+[node name="XRRig" type="XROrigin3D"]
+script = ExtResource("1_rig")
+
+[node name="XRCamera3D" type="XRCamera3D" parent="."]
+
+[node name="LeftHand" type="XRController3D" parent="."]
+tracker = &"left_hand"
+
+[node name="Mesh" type="MeshInstance3D" parent="LeftHand"]
+mesh = SubResource("hand_mesh")
+surface_material_override/0 = SubResource("hand_mat")
+
+[node name="Fingertip" type="Area3D" parent="LeftHand"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.02, -0.08)
+script = ExtResource("2_interactor")
+
+[node name="RightHand" type="XRController3D" parent="."]
+tracker = &"right_hand"
+
+[node name="Mesh" type="MeshInstance3D" parent="RightHand"]
+mesh = SubResource("hand_mesh")
+surface_material_override/0 = SubResource("hand_mat")
+
+[node name="Fingertip" type="Area3D" parent="RightHand"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.02, -0.08)
+script = ExtResource("2_interactor")

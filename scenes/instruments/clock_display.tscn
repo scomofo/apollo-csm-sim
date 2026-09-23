@@ -1,0 +1,27 @@
+[gd_scene load_steps=4 format=3 uid="uid://cgemini0clockdisp"]
+
+[ext_resource type="Script" path="res://scenes/instruments/clock_display.gd" id="1_cd"]
+
+[sub_resource type="BoxMesh" id="window"]
+size = Vector3(0.07, 0.016, 0.004)
+
+[sub_resource type="StandardMaterial3D" id="window_mat"]
+albedo_color = Color(0.02, 0.02, 0.02, 1)
+
+[node name="ClockDisplay" type="Node3D"]
+script = ExtResource("1_cd")
+
+[node name="Window" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.002)
+mesh = SubResource("window")
+material_override = SubResource("window_mat")
+
+[node name="Label" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.0045)
+pixel_size = 0.00015
+text = "000:00:00"
+font_size = 64
+outline_size = 0
+shaded = true
+double_sided = false
+modulate = Color(1, 1, 1, 1)
