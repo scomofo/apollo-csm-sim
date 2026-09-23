@@ -71,6 +71,40 @@ static func moon_normal() -> Vector3:
 	return Vector3(pl[6], pl[7], pl[8])
 
 
+## The Moon-fixed (selenographic) frame at GET [param t]: the basis whose
+## columns are its axes in ECI. X points at the Earth (0° N, 0° E), Z is
+## the north pole and Y is 90° E. [simplified: the Moon turns
+## synchronously, with its pole on the normal of its orbit; the real Moon
+## librates, and its pole is 1.5° from the ecliptic's (slice 4a).]
+static func moon_fixed(t: float) -> Basis:
+	var th := moon_phase0 + moon_mean_motion() * t
+	var pl := moon_plane()
+	var w := Vector3(pl[6], pl[7], pl[8])
+	var x := -(Vector3(pl[0], pl[1], pl[2]) * cos(th) + Vector3(pl[3], pl[4], pl[5]) * sin(th))
+	return Basis(x, w.cross(x), w)
+
+
+## The Moon's rotation in ECI, rad/s.
+static func moon_omega() -> Vector3:
+	return moon_normal() * moon_mean_motion()
+
+
+## A point at [param radius] m from the Moon's centre at latitude
+## [param lat_deg] and east longitude [param lon_deg], in the Moon-fixed
+## frame.
+static func selenographic_to_fixed(lat_deg: float, lon_deg: float, radius: float) -> Vector3:
+	var la := deg_to_rad(lat_deg)
+	var lo := deg_to_rad(lon_deg)
+	return Vector3(cos(la) * cos(lo), cos(la) * sin(lo), sin(la)) * radius
+
+
+## Latitude and east longitude (degrees) and radius (m) of a Moon-fixed
+## position, as Vector3(lat, lon, radius).
+static func fixed_to_selenographic(p: Vector3) -> Vector3:
+	var r := p.length()
+	return Vector3(rad_to_deg(asin(clampf(p.z / maxf(r, 1e-9), -1.0, 1.0))), rad_to_deg(atan2(p.y, p.x)), r)
+
+
 ## Unit vector toward the Sun in ECI [simplified: fixed for the mission and
 ## placed in the lunar orbit plane at sun_phase, chosen so the Moon shows
 ## the waxing crescent Apollo 11 met: ~65° east of the Sun at LOI].

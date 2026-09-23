@@ -1,13 +1,16 @@
 ## Ascent Propulsion System: the LM ascent stage's fixed-thrust engine.
 ##
 ## The engine fires only while the ascent stage flies free (after
-## staging), the ENGINE ARM switch is at ASC, propellant remains, and the
-## LGC commands it (lm.guid.aps_on). Thrust follows first-order start and
-## shutdown transients. [simplified: no fire-in-the-hole abort stage, no
-## manual start; the thrust acts through the centre of mass.]
+## staging, on the surface too), the ENGINE ARM switch is at ASC,
+## propellant remains, ENGINE STOP isn't pressed, and the LGC commands it
+## (lm.guid.aps_on) or the crew started it (ENGINE START, which holds
+## until ENGINE STOP or disarming). Thrust follows first-order start and
+## shutdown transients. [simplified: no fire-in-the-hole abort stage; the
+## thrust acts through the centre of mass.]
 ##
-## Reads:  ctl.lm.engine_arm (0 OFF, 1 ASC, 2 DES), lm.guid.aps_on,
-##         lm.sys.powered, lm.dyn.config, dock.state
+## Reads:  ctl.lm.engine_arm (0 OFF, 1 ASC, 2 DES), ctl.lm.eng_start,
+##         ctl.lm.eng_stop, lm.guid.aps_on, lm.sys.powered, lm.dyn.config,
+##         dock.state
 ## Writes: lm.aps.thrust_n, lm.aps.prop_kg, lm.aps.chamber_pct,
 ##         lm.aps.ignitions, lm.aps.burn_time_s, lm.aps.on
 extends Node
@@ -20,6 +23,9 @@ var level: float = 0.0
 var ignitions: int = 0
 var burn_time: float = 0.0
 var _was_on: bool = false
+## Started by hand (ENGINE START), until ENGINE STOP or disarmed.
+var manual: bool = false
+var _start_was: bool = false
 
 
 func _ready() -> void:
@@ -34,7 +40,14 @@ func _exit_tree() -> void:
 
 
 func commanded() -> bool:
-	return int(Bus.get_value("ctl.lm.engine_arm", 0)) == ARM_ASC and bool(Bus.get_value("lm.guid.aps_on", false)) \
+	var armed := int(Bus.get_value("ctl.lm.engine_arm", 0)) == ARM_ASC
+	var start := bool(Bus.get_value("ctl.lm.eng_start", false))
+	if not armed or bool(Bus.get_value("ctl.lm.eng_stop", false)):
+		manual = false
+	elif start and not _start_was:
+		manual = true
+	_start_was = start
+	return armed and (bool(Bus.get_value("lm.guid.aps_on", false)) or manual) and not bool(Bus.get_value("ctl.lm.eng_stop", false)) \
 		and prop_kg > 0.0 and bool(Bus.get_value("lm.sys.powered", true)) \
 		and str(Bus.get_value("dock.state", "")) == "free" and str(Bus.get_value("lm.dyn.config", "")) == "lm_ascent"
 
@@ -74,7 +87,8 @@ func _publish() -> void:
 
 
 func snapshot() -> Dictionary:
-	return {"prop_kg": prop_kg, "level": level, "ignitions": ignitions, "burn_time": burn_time, "was_on": _was_on}
+	return {"prop_kg": prop_kg, "level": level, "ignitions": ignitions, "burn_time": burn_time, "was_on": _was_on,
+		"manual": manual}
 
 
 func restore(d: Dictionary) -> void:
@@ -83,4 +97,5 @@ func restore(d: Dictionary) -> void:
 	ignitions = int(d["ignitions"])
 	burn_time = float(d["burn_time"])
 	_was_on = bool(d.get("was_on", false))
+	manual = bool(d.get("manual", false))
 	_publish()

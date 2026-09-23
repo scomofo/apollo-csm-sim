@@ -39,6 +39,7 @@ func _ready() -> void:
 	Bus.subscribe("ctl.ground.pad_request", _on_pad_request)
 	if dynamics != null:
 		dynamics.docking_contact.connect(_on_docking_contact)
+		dynamics.lm_touchdown.connect(_on_lm_touchdown)
 
 
 func _exit_tree() -> void:
@@ -46,6 +47,8 @@ func _exit_tree() -> void:
 	Bus.unsubscribe("ctl.ground.pad_request", _on_pad_request)
 	if dynamics != null and dynamics.docking_contact.is_connected(_on_docking_contact):
 		dynamics.docking_contact.disconnect(_on_docking_contact)
+	if dynamics != null and dynamics.lm_touchdown.is_connected(_on_lm_touchdown):
+		dynamics.lm_touchdown.disconnect(_on_lm_touchdown)
 
 
 # --- start states ------------------------------------------------------------
@@ -101,8 +104,13 @@ func start(p_phase: String) -> void:
 		var r := Bodies.R_MOON + 111000.0
 		var v := sqrt(Bodies.MU_MOON / r)
 		var pl := Bodies.moon_plane()
-		# Retrograde, in the lunar orbit plane.
-		tr.set_state("moon", 75.0 * 3600.0 + 50.0 * 60.0, Vector3(pl[0], pl[1], pl[2]) * r, -Vector3(pl[3], pl[4], pl[5]) * v)
+		# Retrograde, in the plane LOI puts it in: over the landing site at
+		# the landing time, the site at the ground track's northernmost
+		# point, the vehicle nearest where it was in the lunar orbit plane.
+		var h := Rtcc.site_orbit_normal(landing_site(), float(mission.section("landing")["get_s"]))
+		var p0 := Vector3(pl[0], pl[1], pl[2])
+		var at := (p0 - h * p0.dot(h)).normalized()
+		tr.set_state("moon", 75.0 * 3600.0 + 50.0 * 60.0, at * r, h.cross(at) * v)
 		var mass := SpacecraftData.total_mass("csm_lm", sps_prop, 560.0, 110.0, 0.0)
 		sps_prop -= mass * (1.0 - exp(-900.0 / (float(SpacecraftData.section("sps")["isp_s"]) * Units.G0)))
 	if p_phase in ["transearth_coast", "entry"]:
@@ -199,6 +207,16 @@ func _on_docking_contact(contact: Dictionary) -> void:
 		_say("Houston: contact, %s. Back off and try again." % Docking.describe(contact))
 
 
+## Eagle's footpads met the surface.
+func _on_lm_touchdown(touchdown: Dictionary) -> void:
+	_fire("lm_landing")
+	if touchdown["hard"]:
+		_say("Houston: we saw a hard landing, %.1f ft/s down and %.1f ft/s across. Check your gear." % [
+			float(touchdown["vertical_mps"]) / Units.FT, float(touchdown["horizontal_mps"]) / Units.FT])
+	else:
+		_say("Houston: Roger, Tranquility. We copy you on the ground.")
+
+
 func _transposition_and_docking() -> void:
 	dynamics.set_configuration("csm_lm")
 	Bus.set_value("sivb.prop_kg", 0.0)
@@ -282,11 +300,13 @@ func request_pad(kind: String) -> Dictionary:
 	match kind:
 		"doi":
 			if dynamics.lm != null and dynamics.lm.config == "lm":
-				var doi := mission.section("doi")
-				pad = Rtcc.plan_doi(dynamics.lm.traj.clone(), dynamics.lm.mass, now + float(doi["lead_s"]),
-					float(doi["pericynthion_alt_km"]) * 1000.0)
+				var g := SpacecraftData.section("descent_guidance")
+				pad = Rtcc.plan_doi(dynamics.lm.traj.clone(), dynamics.lm.mass,
+					float(mission.section("doi")["pericynthion_alt_km"]) * 1000.0, landing_site(),
+					float(mission.section("landing")["get_s"]), float(g["pdi_range_m"]), float(g["descent_s"]), now + 600.0)
 		"loi":
-			pad = Rtcc.plan_loi(tr, mass, float(mission.section("loi")["apolune_alt_km"]) * 1000.0)
+			pad = Rtcc.plan_loi(tr, mass, float(mission.section("loi")["apolune_alt_km"]) * 1000.0,
+				landing_site(), float(mission.section("landing")["get_s"]))
 		"circ":
 			pad = Rtcc.plan_circularize(tr, mass, "periapsis")
 			pad["name"] = "LOI-2"
@@ -312,6 +332,8 @@ func request_pad(kind: String) -> Dictionary:
 	var computer := "lgc" if kind == "doi" else "agc"
 	if systems.has(computer):
 		systems[computer].uplink_maneuver(float(pad["tig"]), pad["dv_lvlh"])
+	if kind == "doi" and systems.has("lgc"):
+		systems["lgc"].uplink_landing_site(landing_site())
 	var text := Rtcc.pad_text(pad)
 	Bus.set_value("mission.pad_text", text)
 	_say("Houston, uplinking " + text)
@@ -320,6 +342,12 @@ func request_pad(kind: String) -> Dictionary:
 
 
 # --- helpers ---------------------------------------------------------------------
+
+## The landing site in the Moon-fixed frame, m.
+func landing_site() -> Vector3:
+	var l := mission.section("landing")
+	return Bodies.selenographic_to_fixed(float(l["lat_deg"]), float(l["lon_deg"]), Bodies.R_MOON)
+
 
 func _has(id: String) -> bool:
 	for e in events:

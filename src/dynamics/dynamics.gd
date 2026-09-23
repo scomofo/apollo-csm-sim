@@ -9,7 +9,10 @@
 ## give the ports' relative state (src/dynamics/docking.gd). A contact
 ## between the ports within the capture limits docks the vehicles again;
 ## any other contact rebounds. The LM's mass, docked or free, follows its
-## own propellant (its DPS, APS and RCS).
+## own propellant (its DPS, APS and RCS). The LM can land: CONTACT LIGHT
+## when a probe touches the surface, touchdown when the footpads do, and
+## then it sits on its gear, turning with the Moon, until its engine lifts
+## it off.
 ##
 ## Reads:  sps.thrust_n, rcs.force_body, rcs.torque_body, sivb.thrust_n,
 ##         sivb.dir, sps.prop_kg, rcs.sm_prop_kg, rcs.cm_prop_kg,
@@ -21,12 +24,15 @@
 ##         lm.dyn.config alone: "lm", or "lm_ascent"), dock.state, dock.range_m,
 ##         dock.range_rate_mps, dock.rel_pos, dock.rel_vel (the LM's port
 ##         relative to the CSM's, CSM body axes), dock.misalign_deg,
-##         dock.contact (the last contact, Docking.contact()), sys.coast_ok
+##         dock.contact (the last contact, Docking.contact()),
+##         lm.contact_light, lm.touchdown (Vehicle's), sys.coast_ok
 class_name Dynamics
 extends Node
 
 ## The probe met the drogue: [param contact] is Docking.contact()'s.
 signal docking_contact(contact: Dictionary)
+## The LM's footpads met the surface: [param touchdown] is Vehicle's.
+signal lm_touchdown(touchdown: Dictionary)
 
 ## Within this range of each other the vehicles take coast steps no longer
 ## than PROXIMITY_DT, so a contact between the ports is caught near where
@@ -233,16 +239,61 @@ func undock() -> bool:
 	return true
 
 
-## Step the free LM under its engines and RCS.
+## Step the free LM under its engines and RCS. On the surface it sits
+## on its gear until its engine's thrust carries it off.
 func _step_lm(dt: float) -> void:
 	if lm == null:
 		return
 	lm.mass = _lm_mass(lm.config)
 	lm.attitude.inertia = SpacecraftData.inertia(lm.config, lm.mass)
-	var force := Vector3(float(Bus.get_value("lm.dps.thrust_n", 0.0)) + float(Bus.get_value("lm.aps.thrust_n", 0.0)), 0.0, 0.0)
+	var thrust := float(Bus.get_value("lm.dps.thrust_n", 0.0)) + float(Bus.get_value("lm.aps.thrust_n", 0.0))
+	if lm.landed:
+		var up := lm.traj.pos().normalized()
+		var lift := (lm.attitude.eci_from_body() * Vector3(thrust, 0.0, 0.0)).dot(up) / lm.mass
+		if lift <= Bodies.MU_MOON / (lm.traj.radius() * lm.traj.radius()):
+			lm.hold_on_surface(lm.traj.t + dt)
+			return
+		lm.landed = false
+	var force := Vector3(thrust, 0.0, 0.0)
 	force += Bus.get_value("lm.rcs.force_body", Vector3.ZERO)
 	lm.step(dt, force, Bus.get_value("lm.rcs.torque_body", Vector3.ZERO))
+	_check_surface()
 	_check_contact()
+
+
+## The LM's centre of mass above its footpads on the surface, m (the
+## ascent stage's sits on the descent stage).
+static func lm_cm_height(cfg: String) -> float:
+	var h := float(SpacecraftData.section("lm_gear")["cm_height_m"])
+	return h + (Docking.lm_port_m("lm") - Docking.lm_port_m("lm_ascent") if cfg == "lm_ascent" else 0.0)
+
+
+## The LM's gear meets the surface [simplified: the Moon's mean sphere, no
+## terrain]: CONTACT LIGHT when a probe touches, and touchdown when the
+## footpads do. The touchdown's speeds are relative to the turning
+## surface; beyond the gear's limits it is a hard landing [simplified: the
+## LM doesn't tip over or break].
+func _check_surface() -> void:
+	if lm.traj.primary != "moon":
+		return
+	var gear := SpacecraftData.section("lm_gear")
+	var cm := lm_cm_height(lm.config)
+	var alt := lm.traj.radius() - Bodies.R_MOON
+	Bus.set_value("lm.contact_light", lm.config == "lm" and alt <= cm + float(gear["probe_m"]))
+	if alt > cm:
+		return
+	var r := lm.traj.pos()
+	var up := r.normalized()
+	var rel := lm.traj.vel() - Bodies.moon_omega().cross(r)
+	var down := -rel.dot(up)
+	var across := (rel + up * down).length()
+	lm.land(Bodies.R_MOON + cm)
+	var at := Bodies.fixed_to_selenographic(lm.landed_pos)
+	lm.touchdown = {"get_s": lm.traj.t, "vertical_mps": down, "horizontal_mps": across,
+		"lat_deg": at.x, "lon_deg": at.y,
+		"hard": down > float(gear["vertical_max_mps"]) or across > float(gear["horizontal_max_mps"])}
+	Bus.set_value("lm.touchdown", lm.touchdown)
+	lm_touchdown.emit(lm.touchdown)
 
 
 ## Stage the free LM: the ascent stage flies on from where its centre of
@@ -259,6 +310,9 @@ func stage_lm() -> bool:
 	for i in 3:
 		lm.traj.s[i] += off[i]
 		lm.traj.s[3 + i] += dv[i]
+	if lm.landed:
+		# On the surface the ascent stage sits on the descent stage.
+		lm.landed_pos += Bodies.moon_fixed(lm.traj.t).transposed() * off
 	lm.config = "lm_ascent"
 	lm.mass = _lm_mass(lm.config)
 	lm.attitude.inertia = SpacecraftData.inertia(lm.config, lm.mass)

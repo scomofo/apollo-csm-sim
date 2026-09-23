@@ -314,8 +314,8 @@ The 2D HUD stays as the desktop fallback.
 
 ## 3. The LM and a lunar landing
 
-**Status: slices 3a and 3b done: the LM undocks, flies free and docks
-again, and flies DOI on its own computer.**
+**Status: slices 3a to 3c done: the LM undocks, flies free and docks
+again, flies DOI on its own computer, and lands at Tranquility Base.**
 Before 3a the LM was only mass: 15,103 kg added in the `csm_lm`
 configuration (`data/spacecraft.json`) and dropped at LM JETT before TEI.
 
@@ -393,6 +393,44 @@ later Eagle passes its pericynthion at 15,197 m, 43 m under the PAD's
 `tests/scenarios/test_lm_burns.gd` flies P41, P47, staging and P42, and
 the LM's autopilot.
 
+Slice 3c lands it:
+
+- **A Moon-fixed frame.** `Bodies.moon_fixed()` turns the Moon
+  synchronously, its pole on the normal of its orbit, and the space view
+  draws the Moon with it.
+- **The orbit over the site.** LOI adds an out-of-plane component that
+  turns the orbit about the burn point to pass over Tranquility Base at
+  Apollo 11's landing time, 102:45:40. The `lunar_orbit` phase starts in
+  such an orbit, with the site at the ground track's northernmost point,
+  so it stays over the site for revolutions either side. The DOI PAD
+  flies the landing pass nearest that time. It centres the burn half a
+  revolution before a pericynthion 470 km (ground range) short of the
+  site, and uplinks the site to the LGC.
+- **Powered descent.** P63's ignition algorithm finds TIG 470 km out.
+  After 26 s at 10 % throttle, Klumpp's quadratic guidance brakes at full
+  thrust until the throttle comes back into its range, about 2 min before
+  high gate. P64 flies the approach from high gate, 2 km up and 8 km out.
+  P65 (not in Apollo's flown sequence, which went to P66 by hand) lands
+  automatically, stopping the drift and slowing the descent to 0.8 m/s.
+  The first ROD click hands over to P66: the crew flies the attitude,
+  and the throttle holds the descent rate, 1 ft/s per click. At
+  touchdown, P68 shuts the engine down. The guidance's targets are this
+  simulator's own, designed with a Python model of the descent before
+  they went into the LGC. The model landed within 3 m across 455 to 520 km
+  of PDI range, 5 km of crossrange, 14.5 to 16 km of PDI altitude and a
+  slower autopilot.
+- **The surface.** The Moon's mean sphere. CONTACT LIGHT comes on when a
+  probe touches, and touchdown is when the footpads do. The landed LM
+  sits on its gear and turns with the Moon, and when its engine's thrust
+  exceeds its weight it lifts off. ENGINE START and ENGINE STOP start
+  and stop an armed engine by hand.
+
+`tests/scenarios/test_landing.gd` is the check. From a checkpoint before
+PDI, the automatic run lands 2.0 m from the site at 0.80 m/s down and no
+drift, 12 min 9 s after PDI, with 683 kg of descent propellant left.
+The P66 run takes over at 150 m with scripted hand-controller and ROD
+inputs and lands 5.7 m from the site at 0.52 m/s down.
+
 ### What changes underneath
 
 - **Two vehicles at once.** Done in 3a. Today's channels stay the CSM's,
@@ -405,26 +443,21 @@ the LM's autopilot.
   `src/systems/agc_core.gd` under the CMC's Colossus programs (`agc.gd`)
   and the LGC's Luminary programs (`lgc.gd`). Milestone 4 changes the
   core once for both computers.
-- **A Moon-fixed frame.** The Moon doesn't rotate in the simulation's
-  truth; only `space_view.gd` turns it to face the Earth. A landing site
-  needs a Moon-fixed frame. Put it behind one function in
-  `src/dynamics/bodies.gd`. For now, use synchronous rotation with the
-  pole on the lunar orbit normal, tagged `[simplified]`. Slice 4a swaps
-  in a real rotation model.
-- **Lunar orbit over the site.** LOI, or a plane change, must put the
-  orbit over the landing site at the planned landing time. Today
-  `Rtcc.plan_loi()` burns straight retrograde.
-- **The surface.** Land at Tranquility Base (0.674° N, 23.473° E).
-  Model the terrain height there (a sphere first, a DEM patch later) and
-  touchdown, lighting CONTACT LIGHT when a probe touches. A landed LM
-  must be able to lift off.
+- **A Moon-fixed frame.** Done in 3c: `Bodies.moon_fixed()`, synchronous
+  rotation with the pole on the lunar orbit normal, tagged
+  `[simplified]`. Slice 4a swaps in a real rotation model.
+- **Lunar orbit over the site.** Done in 3c: LOI turns the orbit over the
+  site at the landing time.
+- **The surface.** Done in 3c at Tranquility Base (0.674° N, 23.473° E),
+  on a sphere, with touchdown, CONTACT LIGHT, and a landed LM that can lift
+  off. A DEM patch comes later.
 
 ### Guidance
 
 | Phase | LGC programs | Basis |
 |---|---|---|
 | Descent orbit insertion to about 15 km (50,000 ft) | P30, P40 on the DPS | The CMC's P30 and P40 dialogue, with an RTCC DOI PAD |
-| Powered descent | P63 braking, P64 approach with landing-point redesignation, P66 rate of descent, P68 landing confirmation | Klumpp's Apollo lunar descent guidance (MIT Draper Laboratory, 1971) |
+| Powered descent | P63 braking, P64 approach with landing-point redesignation, P65 automatic landing, P66 rate of descent, P68 landing confirmation | Klumpp's Apollo lunar descent guidance (MIT Draper Laboratory, 1971). Done in 3c, without redesignation |
 | Ascent to about 9 × 45 nmi | P12 | Luminary GSOP, section 5 |
 | Rendezvous: CSI, CDH, TPI, two midcourse corrections, braking | P20, P32 to P35, burns flown with P41 on the LM RCS | Luminary GSOP, section 5; the Apollo 11 flight plan |
 | Docking | Manual, with the THC | — |
@@ -442,7 +475,7 @@ the CSM. Switching vehicles at will is a later choice.
 |---|---|---|
 | 3a (done) | Two vehicles: undocking, independent flight, docking capture, snapshot schema 2 | Test: undock in lunar orbit, separate and coast one revolution; a checkpoint restored mid-revolution matches the uninterrupted run; re-dock within the capture limits |
 | 3b (done) | AGC core split. LM data, DPS, APS, LM RCS and LM DAP. LGC P00, P30, P40, P41, P42, P47 | The existing tests pass unchanged. New test: fly a DOI PAD on the LGC to its pericynthion target |
-| 3c | Moon-fixed frame, landing site, LOI over the site, P63, P64, P66, P68, touchdown | Test: automatic guidance from PDI to touchdown lands within 500 m of the site at under 1 m/s vertical and 0.5 m/s horizontal speed. A second run flies P66 with scripted hand-controller inputs |
+| 3c (done) | Moon-fixed frame, landing site, LOI over the site, P63, P64, P66, P68, touchdown | Test: automatic guidance from PDI to touchdown lands within 500 m of the site at under 1 m/s vertical and 0.5 m/s horizontal speed. A second run flies P66 with scripted hand-controller inputs |
 | 3d | Lunar liftoff time from the RTCC, P12 | Test: liftoff to insertion, within set limits of the target orbit |
 | 3e | P20, P32 to P35, braking, docking | Test: insertion to docking capture, with total ΔV within a set margin of the RTCC plan |
 | 3f | Undocking-to-TEI timeline in `mission.json`; start phases `lunar_descent`, `lunar_surface` and `lunar_ascent`; checklists; CAPCOM; an LM cockpit (desktop overlay first, then cabin prefabs from milestone 2) | The new start phases are built from the earlier ones, and the full suite passes |

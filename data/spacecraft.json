@@ -65,6 +65,29 @@
     "yz_jets": 1,
     "arm_m": 1.7
   },
+  "descent_guidance": {
+    "_source": "The LGC's powered-descent targets, in a frame at the landing site: x up, y crossrange, z downrange (m, m/s, m/s², m/s³). Designed for this simulator [estimated] after Klumpp's Apollo lunar descent guidance (MIT Draper Laboratory, 1971): a quadratic acceleration to each target, the time to go set by its downrange jerk. The approach phase's reference starts at high gate, 2,100 m up and 7 km out at 35 m/s down and 100 m/s downrange, and hands over to P65 10 s before its target at 40 m. Powered descent starts 470 km (ground range) before the site, with 26 s at 10 % throttle, and lasts about 730 s",
+    "braking": {"r": [2100.0, 0.0, -7000.0], "v": [-35.0, 0.0, 100.0], "a": [0.408, 0.0, -0.473], "jz": 0.018, "tend_s": 10.0, "tgo0_s": 650.0},
+    "approach": {"r": [20.9, 0.0, 4.4], "v": [-1.87, 0.0, 0.16], "a": [0.0, 0.0, 0.0], "jz": 0.0175, "tend_s": 10.0, "tgo0_s": 160.0},
+    "pdi_range_m": 470000.0,
+    "descent_s": 730.0,
+    "trim_s": 26.0,
+    "trim_throttle": 0.1,
+    "p65_rate_final_mps": 0.8,
+    "p65_rate_max_mps": 3.0,
+    "p65_rate_gain": 0.08,
+    "horizontal_tau_s": 4.0,
+    "vertical_tau_s": 1.5,
+    "rod_click_mps": 0.3048,
+    "auto_rate_dps": 3.0
+  },
+  "lm_gear": {
+    "_source": "The LM on its landing gear: its centre of mass above the footpads, and the contact probes 5.6 ft below them [published]; the landing's speed limits for the gear [estimated]",
+    "cm_height_m": 3.6,
+    "probe_m": 1.7,
+    "vertical_max_mps": 3.0,
+    "horizontal_max_mps": 1.2
+  },
   "configurations": {
     "stack":  {"inertia": [60000.0, 5000000.0, 5000000.0], "ref_mass_kg": 140000.0, "rcs_pitch_arm_m": 0.0, "rcs_roll_arm_m": 0.0},
     "csm_lm": {"inertia": [45000.0, 900000.0, 900000.0], "ref_mass_kg": 44000.0, "rcs_pitch_arm_m": 5.0, "rcs_roll_arm_m": 1.95},

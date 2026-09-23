@@ -43,6 +43,9 @@ const LAMPS := ["uplink_acty", "no_att", "stby", "key_rel", "opr_err", "temp",
 	"gimbal_lock", "prog", "restart", "tracker", "comp_acty"]
 
 var agc: Object
+## This computer's noun formats: NOUNS, with its own added or replaced
+## (the LGC's N64 is not the CMC's).
+var nouns: Dictionary = NOUNS
 
 var prog: String = "00"
 var verb: String = ""
@@ -154,12 +157,12 @@ func blank() -> void:
 
 func _fill_registers(n: int) -> void:
 	r = ["", "", ""]
-	if n < 0 or not NOUNS.has(n) or agc == null:
+	if n < 0 or not nouns.has(n) or agc == null:
 		return
 	var vals = agc.noun_values(n)
 	if vals == null:
 		return
-	var comps: Array = NOUNS[n]["c"]
+	var comps: Array = nouns[n]["c"]
 	for i in 3:
 		if i < comps.size() and i < vals.size():
 			r[i] = format_value(float(vals[i]), comps[i][1], comps[i][2])
@@ -290,7 +293,7 @@ func _enter() -> void:
 			if _buffer.length() < 2:
 				_opr_err()
 				return
-			var comp: Array = NOUNS[_load_noun]["c"][_load_regs[0]]
+			var comp: Array = nouns[_load_noun]["c"][_load_regs[0]]
 			var padded := _buffer[0] + _buffer.substr(1).lpad(5, "0")
 			_load_values.append(parse_value(padded, comp[1], comp[2]))
 			r[_load_regs[0]] = padded
@@ -336,12 +339,12 @@ static func _load_indices(v: int) -> Array[int]:
 func _execute(v: int, n: int) -> void:
 	match v:
 		6, 16:
-			if n < 0 or not NOUNS.has(n) or agc.noun_values(n) == null:
+			if n < 0 or not nouns.has(n) or agc.noun_values(n) == null:
 				_opr_err()
 				return
 			show(v, n, false, false)
 		21, 22, 23, 24, 25:
-			if n < 0 or not NOUNS.has(n):
+			if n < 0 or not nouns.has(n):
 				_opr_err()
 				return
 			_load_noun = n
