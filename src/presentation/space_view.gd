@@ -15,6 +15,12 @@ extends Node3D
 
 const RENDER_DIST := 2000.0
 const CHASE_DIST := 38.0
+## Where the CSM's docking port is in the model (body axes, origin at the
+## CM/SM interface): the end of the probe's base.
+const CSM_PORT_X := 3.5
+## A free LM farther than this is drawn at this distance, scaled to keep
+## its apparent size, so it stays in front of the Earth and Moon.
+const LM_RENDER_MAX := 1000.0
 
 var camera: Camera3D
 var earth: MeshInstance3D
@@ -22,6 +28,8 @@ var moon: MeshInstance3D
 var earth_glow: MeshInstance3D
 var sun: DirectionalLight3D
 var csm: Node3D
+## The LM while it flies free (the docked LM is part of csm).
+var lm_free: Node3D
 ## 0 window, 1 chase, 2 cabin: the CM cabin (src/cabin/cm_cabin.gd) is
 ## drawn in place of the CM, and the player's rig has the camera.
 var view_mode: int = 0
@@ -52,6 +60,9 @@ func _ready() -> void:
 	add_child(earth_glow)
 	csm = _build_csm()
 	add_child(csm)
+	lm_free = _build_lm()
+	lm_free.visible = false
+	add_child(lm_free)
 	camera = Camera3D.new()
 	camera.near = 0.05
 	camera.far = RENDER_DIST * 3.0
@@ -136,7 +147,6 @@ func _build_csm() -> Node3D:
 	var silver := _mat(Color(0.85, 0.86, 0.88), 0.35, 0.35)
 	var white := _mat(Color(0.92, 0.92, 0.9), 0.1, 0.6)
 	var dark := _mat(Color(0.15, 0.15, 0.16), 0.5, 0.5)
-	var gold := _mat(Color(0.85, 0.65, 0.25), 0.9, 0.35)
 	var cm := Node3D.new()
 	root.add_child(cm)
 	_along_x(cm, 1.956, 0.4, 0.0, 3.2, silver)          # CM cone
@@ -170,9 +180,24 @@ func _build_csm() -> Node3D:
 	var plume := _along_x(sm, 1.2, 4.0, -10.3, -22.0, _mat(Color(1.0, 0.75, 0.45, 0.45), 0.0, 1.0, 3.0))
 	plume.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_parts["plume"] = plume
-	# Docked LM (ahead of the CM apex), simplified.
-	var lm := Node3D.new()
+	var lm := _build_lm()
 	root.add_child(lm)
+	_parts["lm"] = lm
+	# S-IVB and adapter behind the SM, for the launch stack.
+	var sivb := Node3D.new()
+	root.add_child(sivb)
+	_along_x(sivb, 3.3, 1.956, -16.0, -7.5, white)
+	_along_x(sivb, 3.3, 3.3, -33.8, -16.0, white)
+	_parts["sivb"] = sivb
+	_parts["main_chutes"] = _chutes(root, 3, 8.0, 18.0, Color(1.0, 0.45, 0.2))
+	_parts["drogues"] = _chutes(root, 2, 2.5, 30.0, Color(1.0, 1.0, 1.0))
+	return root
+
+
+## The LM, simplified, as it sits docked ahead of the CM apex: in the CSM
+## model's axes.
+func _build_lm() -> Node3D:
+	var lm := Node3D.new()
 	var asc := MeshInstance3D.new()
 	var ab := BoxMesh.new()
 	ab.size = Vector3(2.8, 4.0, 4.0)
@@ -184,19 +209,38 @@ func _build_csm() -> Node3D:
 	var db := BoxMesh.new()
 	db.size = Vector3(1.7, 4.2, 4.2)
 	desc.mesh = db
-	desc.material_override = gold
+	desc.material_override = _mat(Color(0.85, 0.65, 0.25), 0.9, 0.35)
 	desc.position = Vector3(7.3, 0, 0)
 	lm.add_child(desc)
-	_parts["lm"] = lm
-	# S-IVB and adapter behind the SM, for the launch stack.
-	var sivb := Node3D.new()
-	root.add_child(sivb)
-	_along_x(sivb, 3.3, 1.956, -16.0, -7.5, white)
-	_along_x(sivb, 3.3, 3.3, -33.8, -16.0, white)
-	_parts["sivb"] = sivb
-	_parts["main_chutes"] = _chutes(root, 3, 8.0, 18.0, Color(1.0, 0.45, 0.2))
-	_parts["drogues"] = _chutes(root, 2, 2.5, 30.0, Color(1.0, 1.0, 1.0))
-	return root
+	return lm
+
+
+## The docked LM's body axes and centre of mass in the CSM model's axes.
+func _lm_docked() -> Transform3D:
+	var p := Docking.params()
+	return Transform3D(Basis(Docking.LM_IN_CSM), Vector3(CSM_PORT_X + float(p["lm_port_m"]), 0, 0))
+
+
+## Place the free LM where it flies relative to the CSM, and turned as it
+## is, in the cabin's axes.
+func _place_lm_free(q: Quaternion) -> void:
+	var r: Array = Bus.get_value("dyn.r_m", [0.0, 0.0, 0.0])
+	var rl: Array = Bus.get_value("lm.dyn.r_m", r)
+	var rel := Vector3(rl[0] - r[0], rl[1] - r[1], rl[2] - r[2])
+	var primary := str(Bus.get_value("dyn.primary", "earth"))
+	if str(Bus.get_value("lm.dyn.primary", primary)) != primary:
+		# One is relative to the Earth, the other to the Moon.
+		var m := Bodies.moon_state(float(Bus.get_value("time.get_s", 0.0)))
+		rel += Vector3(m[0], m[1], m[2]) * (1.0 if primary == "earth" else -1.0)
+	var cg := Frames.BODY_TO_GODOT * Vector3(CSM_PORT_X - float(Docking.params()["csm_port_m"]), 0, 0)
+	var at := cg + eci_to_cabin * rel
+	var ql: Quaternion = Bus.get_value("lm.dyn.att_q", q)
+	var turn := eci_to_cabin * Basis(ql)
+	var d := at.length()
+	if d > LM_RENDER_MAX:
+		turn = turn.scaled(Vector3.ONE * (LM_RENDER_MAX / d))
+		at *= LM_RENDER_MAX / d
+	lm_free.transform = Transform3D(turn, at) * _lm_docked().affine_inverse()
 
 
 func _chutes(parent: Node3D, n: int, r: float, dist: float, c: Color) -> Node3D:
@@ -262,6 +306,9 @@ func _process(_delta: float) -> void:
 	var cfg := str(Bus.get_value("dyn.config", "stack"))
 	_parts["sm"].visible = cfg != "cm"
 	_parts["lm"].visible = cfg == "csm_lm"
+	lm_free.visible = str(Bus.get_value("dock.state", "")) == "free"
+	if lm_free.visible:
+		_place_lm_free(q)
 	_parts["sivb"].visible = cfg == "stack"
 	_parts["plume"].visible = float(Bus.get_value("sps.thrust_n", 0.0)) > 1000.0 or float(Bus.get_value("sivb.thrust_n", 0.0)) > 0.0
 	_parts["plume"].scale = Vector3.ONE * clampf(float(Bus.get_value("sps.chamber_pct", 100.0)) / 100.0, 0.2, 1.0)

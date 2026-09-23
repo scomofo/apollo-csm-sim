@@ -75,6 +75,31 @@ func test_the_cabin_has_the_checklist_card_highlight_and_wrist_menu() -> void:
 	main.rt.free_nodes()
 
 
+func test_undock_on_the_hud_frees_the_lm_for_the_view_and_the_hud_readout() -> void:
+	var main: Node = load("res://scenes/main.tscn").instantiate()
+	main.start_phase = "lunar_orbit"
+	add_child_autofree(main)
+	await wait_process_frames(2)
+	assert_false(main.view.lm_free.visible, "docked")
+	var undock: Button
+	for b in main.hud.find_children("*", "Button", true, false):
+		if b.text == "UNDOCK":
+			undock = b
+	assert_not_null(undock, "the switch panel has UNDOCK")
+	undock.button_down.emit()
+	SimClock.advance(0.1)
+	undock.button_up.emit()
+	SimClock.advance(60.0)
+	await wait_process_frames(2)
+	assert_eq(str(Bus.get_value("dock.state")), "free")
+	assert_true(main.view.lm_free.visible, "the view draws the free LM")
+	assert_false(main.view._parts["lm"].visible, "not docked to the CSM")
+	var text: String = main.hud._flight.text
+	assert_string_contains(text, "LM RNG", "the HUD reads out the range to the LM")
+	assert_string_contains(text, "%.1f ft" % (float(Bus.get_value("dock.range_m")) / Units.FT))
+	main.rt.free_nodes()
+
+
 func test_checklists_load_and_auto_advance() -> void:
 	var lists := Checklist.load_all("res://data/missions/apollo_11/checklists.json")
 	assert_eq(lists.size(), 4)

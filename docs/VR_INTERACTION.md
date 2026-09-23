@@ -69,7 +69,7 @@ the control's own axes decides what happens.
 | Toggle switch, two or three positions | CMC MODE, ELS LOGIC, ELS AUTO, RCS QUAD A to D, FC 1 to 3, BATT TO BUS | One position per crossing: up through the lever moves it up, down moves it down | A click cycles the positions; the scroll wheel moves it up or down |
 | Guarded toggle switch | DELTA-V THRUST A and B | The first upward crossing lifts the guard and the next flips the lever. A downward crossing at OFF closes the guard | A click lifts the guard, then cycles the lever; scrolling down at OFF closes the guard |
 | Rotary switch | ATT SOURCE | One detent per crossing: left to right steps clockwise, right to left anticlockwise | A click steps clockwise and wraps round; the scroll wheel steps either way |
-| Pushbutton | SPS THRUST ON, CSM/LV SEP, LM JETT, CM/SM SEP, DROGUE DEPLOY, MAIN DEPLOY | Pressed by a fingertip pushed into its face; pulling back out doesn't press it | A click |
+| Pushbutton | SPS THRUST ON, UNDOCK, CSM/LV SEP, LM JETT, CM/SM SEP, DROGUE DEPLOY, MAIN DEPLOY | Pressed by a fingertip pushed into its face; pulling back out doesn't press it | A click |
 | DSKY key | The 19 keys of the cabin DSKY | Like a pushbutton. The touch volumes are shallow, so a finger coming in at an angle presses the key it is on, not the next one | A click |
 | Wrist-menu button | §5 | Like a pushbutton | A click |
 

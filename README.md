@@ -12,6 +12,8 @@ executed through the Apollo Guidance Computer's DSKY.
 
 ![Parking orbit: the S-IVB/CSM/LM stack before TLI](docs/images/parking_orbit_chase.png)
 
+![Eagle flying free of Columbia in lunar orbit, with the range to its docking port on the HUD](docs/images/lm_undocked_chase.png)
+
 ![The CM cabin in lunar orbit: FDAI, DSKY and the main display console](docs/images/cabin_lunar_orbit.png)
 
 ![The checklist card with the TEI PAD and CAPCOM, and the wrist menu](docs/images/cabin_checklist.png)
@@ -95,9 +97,22 @@ event (TLI, TIG−60 s, V99) and at entry.
    circularize.
 5. **TEI.** Press **LM JETT**, then **TEI**, and fly it. Then fly one or two
    transearth **MCC**s until the vacuum perigee is about 37 km (20 nmi).
+   Before LM JETT you can undock and dock again (below).
 6. **Entry.** Press **CM/SM SEP** and select `V37E61E`. Set ELS LOGIC and
    ELS AUTO on. P64 steers the bank angle at 0.05 g, P67 takes over below
    3 km/s, and the drogue and main parachutes deploy automatically.
+
+**Undocking and docking.** In lunar orbit, **UNDOCK** releases Eagle. The
+probe pushes the two apart at 0.1 ft/s, and the LM flies free on its own
+orbit, holding the attitude it undocked in: it has no systems of its own
+yet. While it flies free, the flight panel shows the range to its
+docking port, the range rate, where the port is along the CSM's axes (X
+along the probe) and how it moves, and how far the two docking axes are
+out of line. Fly the CSM back to it on the translation controller. The
+probe captures, and the vehicles are docked again, when it meets the
+drogue at under 1 ft/s, moving across at under 0.5 ft/s, within 1 ft of
+its centre, within 10° of alignment and under 1°/s of relative rate. Any
+other contact rebounds, and CAPCOM says why.
 
 The on-screen checklist follows along. Steps with a check mark complete
 themselves when the Bus shows the action was done. In the cabin, the same
@@ -249,8 +264,13 @@ ones:
 - **Entry guidance.** It is a constant-drag bank controller without range
   targeting.
 - **Atmosphere.** Earth rotation and winds are ignored.
-- **Launch and landing.** There is no launch phase and no LM landing: the
-  simulator is CSM-centric.
+- **Launch and landing.** There is no launch phase and no LM landing. The
+  LM undocks and flies free, but it has no systems yet: it coasts,
+  holding the attitude it undocked in, and its mass is the docked LM's.
+- **Docking.** Capture docks the vehicles hard at once, without a soft
+  dock and probe retraction. Only the probe can touch the LM: the
+  vehicles' bodies pass through each other. The docking geometry, the
+  push apart at undocking and the capture limits are estimates.
 - **The cabin.** It is a blockout: the vessel, couches and console follow
   the CM in outline, and every panel position is estimated.
 
@@ -272,12 +292,14 @@ The unit tests cover:
 - CMC programs
 - Systems: SPS arming, EPS consumption and the Apollo 13 failure, SCS/CMC
   autopilot, the coast-step policy
-- Checkpoint round-trip
+- Checkpoint round-trip, with a map of vehicles (schema 2), and older
+  checkpoints rejected
 - The main scene
 - The hand controllers, from the keys and from the XR thumbsticks, with
   the thumbstick deadzone
 - The space view: the cabin and the cameras stay fixed while Earth, Moon,
-  Sun and stars turn around them with the attitude
+  Sun and stars turn around them with the attitude, and the LM, once it
+  undocks, is drawn where it flies and turned as it is
 - The cabin controls and instruments, the XR and desktop rigs and the
   OpenXR action map taken from gemini-capsule
 - The cockpit layout: `controls.csv` validates, malformed rows are
@@ -319,15 +341,25 @@ The scenario tests fly real segments through the crew interface:
   LOI-2 and TEI each down the SPS burn checklist on P40 with a residual
   trimmed on the translation controller, LM JETT, and entry to
   splashdown. The cabin scenarios share `tests/cabin_test.gd`
+- Undocking and docking in lunar orbit (`tests/scenarios/test_docking.gd`).
+  The stack splits with its momentum conserved. An equiperiod separation
+  (0.6 m/s radially down) carries the CSM 4ΔV/n ahead of the LM half a
+  revolution later, as the linear (Clohessy-Wiltshire) solution has it,
+  and brings it back within 5 m a revolution later. A checkpoint taken
+  mid-revolution flies on as the uninterrupted run does. The CSM docks
+  again on the translation controller, and contacts that close too fast
+  or misaligned rebound
 
 `tools/screenshot.tscn` renders the images above (`--view=0` window,
 `1` chase, `2` cabin; `--hud=0` leaves the HUD out, `--menu=1` shows the
-wrist menu, and `--pad=<kind>` asks Mission Control for a PAD first).
+wrist menu, `--pad=<kind>` asks Mission Control for a PAD first, and
+`--undock=<s>` undocks the LM and lets it drift for that many seconds).
 They were rendered in software, so the frame time on the wrist menu's top
 line is the software renderer's:
 
 ```
 godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=1 --out=res://docs/images/x.png
+godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=1 --undock=400 --yaw=3.6 --out=res://docs/images/lm_undocked_chase.png
 godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=2 --yaw=-0.3 --pitch=-0.12 --hud=0 --out=res://docs/images/cabin_lunar_orbit.png
 godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=2 --yaw=0.55 --pitch=-0.08 --hud=0 --menu=1 --pad=tei --out=res://docs/images/cabin_checklist.png
 ```
@@ -336,4 +368,5 @@ godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=2 --yaw=0.55 
 
 [docs/ROADMAP.md](docs/ROADMAP.md) plans what comes next, in order of
 value: CI, a VR cockpit, the LM and a lunar landing, and navigation
-realism.
+realism. The VR cockpit waits on a headset run, and the LM has begun:
+it undocks, flies free and docks again (slice 3a).

@@ -3,8 +3,9 @@
 ## crew separation commands, injects scripted failures, and plays Mission
 ## Control: PAD requests are solved by the RTCC and uplinked to the CMC.
 ##
-## Reads:  ctl.seq.csm_sep, ctl.seq.lm_jett, ctl.seq.cm_sm_sep (crew
-##         pushbuttons, edge-triggered), ctl.ground.pad_request (String)
+## Reads:  ctl.seq.csm_sep, ctl.seq.undock, ctl.seq.lm_jett,
+##         ctl.seq.cm_sm_sep (crew pushbuttons, edge-triggered),
+##         ctl.ground.pad_request (String)
 ## Writes: mission.phase, mission.capcom, mission.pad_text, mission.event.<id>,
 ##         mission.result, mission.tli_tig
 class_name MissionSequencer
@@ -32,14 +33,18 @@ var _o2_failed: bool = false
 
 func _ready() -> void:
 	SimClock.add_ticker(tick, SimClock.Stage.MISSION)
-	for ch in ["ctl.seq.csm_sep", "ctl.seq.lm_jett", "ctl.seq.cm_sm_sep"]:
+	for ch in ["ctl.seq.csm_sep", "ctl.seq.undock", "ctl.seq.lm_jett", "ctl.seq.cm_sm_sep"]:
 		_edges[ch] = bool(Bus.get_value(ch, false))
 	Bus.subscribe("ctl.ground.pad_request", _on_pad_request)
+	if dynamics != null:
+		dynamics.docking_contact.connect(_on_docking_contact)
 
 
 func _exit_tree() -> void:
 	SimClock.remove_ticker(tick)
 	Bus.unsubscribe("ctl.ground.pad_request", _on_pad_request)
+	if dynamics != null and dynamics.docking_contact.is_connected(_on_docking_contact):
+		dynamics.docking_contact.disconnect(_on_docking_contact)
 
 
 # --- start states ------------------------------------------------------------
@@ -162,6 +167,10 @@ func _crew_commands() -> void:
 				"ctl.seq.csm_sep":
 					if dynamics.config == "stack" and str(Bus.get_value("sivb.state", "")) == "done":
 						_transposition_and_docking()
+				"ctl.seq.undock":
+					if dynamics.undock():
+						_fire("undocking")
+						_say("Houston copies undocking. Eagle is flying free.")
 				"ctl.seq.lm_jett":
 					if dynamics.config == "csm_lm":
 						dynamics.set_configuration("csm")
@@ -173,6 +182,16 @@ func _crew_commands() -> void:
 						_fire("cm_sm_sep")
 						_say("CM/SM separation confirmed.")
 		_edges[ch] = now
+
+
+## The probe met the drogue: capture docks the LM again.
+func _on_docking_contact(contact: Dictionary) -> void:
+	if contact["captured"]:
+		_fire("docking")
+		_say("Houston copies hard dock. Columbia and Eagle are docked.")
+	else:
+		_fire("docking_contact")
+		_say("Houston: contact, %s. Back off and try again." % Docking.describe(contact))
 
 
 func _transposition_and_docking() -> void:

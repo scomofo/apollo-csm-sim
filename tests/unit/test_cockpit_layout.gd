@@ -162,7 +162,7 @@ func test_every_hud_switch_has_a_cabin_control() -> void:
 	for r in layout.rows:
 		if CockpitLayout.TYPES[r["type"]]["control"]:
 			cabin[r["channel"]] = r["id"]
-	assert_eq(written.size(), 20, "the HUD's switch panel writes 20 channels")
+	assert_eq(written.size(), 21, "the HUD's switch panel writes 21 channels")
 	for ch in written:
 		assert_true(cabin.has(ch), "the cabin has a control for %s" % ch)
 
@@ -223,7 +223,7 @@ func test_the_desktop_rig_can_click_every_control_from_the_commanders_couch() ->
 		elif cabin.items[id] is CabinDsky:
 			for k in cabin.items[id].keys:
 				controls.append(cabin.items[id].keys[k])
-	assert_eq(controls.size(), 20 + 19, "the switches, buttons and DSKY keys")
+	assert_eq(controls.size(), 21 + 19, "the switches, buttons and DSKY keys")
 	for c in controls:
 		assert_true(rig.focus_control(c), "looks at %s" % c.get_path())
 		assert_eq(rig.call("_control_at", Vector2(400, 300)), c, "%s is under the pointer" % c.get_path())

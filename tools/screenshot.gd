@@ -4,6 +4,7 @@
 ## view's look, the chase camera or, in the cabin, the desktop rig's head.
 ## --hud=0 leaves the HUD out. --menu=1 shows the wrist menu, and
 ## --pad=<kind> (mcc, loi, circ, tei) asks Mission Control for a PAD first.
+## --undock=<s> undocks the LM and lets it drift for that many seconds.
 extends Node
 
 var _frames := 0
@@ -19,6 +20,7 @@ func _ready() -> void:
 	var hud := true
 	var show_menu := false
 	var pad := ""
+	var undock := 0.0
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--phase="):
 			phase = a.trim_prefix("--phase=")
@@ -36,6 +38,8 @@ func _ready() -> void:
 			show_menu = true
 		elif a.begins_with("--pad="):
 			pad = a.trim_prefix("--pad=")
+		elif a.begins_with("--undock="):
+			undock = float(a.trim_prefix("--undock="))
 	SimClock.manual = true
 	_main = load("res://scenes/main.tscn").instantiate()
 	_main.start_phase = phase
@@ -55,6 +59,11 @@ func _ready() -> void:
 		_main.menu.call("_set_shown", true)
 	if pad != "":
 		Bus.set_value("ctl.ground.pad_request", pad)
+	if undock > 0.0:
+		Bus.set_value("ctl.seq.undock", true)
+		SimClock.advance(SimClock.FIXED_DT)
+		Bus.set_value("ctl.seq.undock", false)
+		SimClock.advance(undock)
 	for k in ["VERB", "1", "6", "NOUN", "6", "2", "ENTR"]:
 		_main.rt.agc().dsky.press(k)
 	SimClock.advance(1.0)

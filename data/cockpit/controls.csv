@@ -13,6 +13,7 @@ P1_DV_THRUST_B,MDC1,toggle,DELTA-V THRUST B,110,170,0,ctl.sps.arm_b,guarded=true
 P1_THRUST_ON,MDC1,pushbutton,SPS THRUST ON,200,170,0,ctl.sps.thrust_on,,estimated,D,implemented,historical
 P1_ATT_SOURCE,MDC1,rotary,ATT SOURCE,60,50,0,ctl.scs.att_source,positions=3;labels=CMC|SCS|DIRECT;start_angle_deg=-45;detent_deg=45,estimated,D,implemented,proxy
 P1_CMC_MODE,MDC1,toggle,CMC MODE,160,50,0,ctl.cmc.mode,positions=3;labels=FREE|HOLD|AUTO,estimated,D,implemented,historical
+P1_UNDOCK,MDC1,pushbutton,UNDOCK,-50,-70,0,ctl.seq.undock,,estimated,D,implemented,proxy
 P1_CSM_LV_SEP,MDC1,pushbutton,CSM/LV SEP,40,-70,0,ctl.seq.csm_sep,,estimated,D,implemented,proxy
 P1_LM_JETT,MDC1,pushbutton,LM JETT,130,-70,0,ctl.seq.lm_jett,,estimated,D,implemented,proxy
 P1_CM_SM_SEP,MDC1,pushbutton,CM/SM SEP,220,-70,0,ctl.seq.cm_sm_sep,,estimated,D,implemented,proxy
