@@ -30,5 +30,30 @@ func test_restore_rejects_foreign_checkpoints() -> void:
 	snap["mission_id"] = "apollo_13"
 	assert_string_contains(rt.restore(snap), "apollo_13")
 	snap = rt.snapshot()
-	snap.erase("dynamics")
-	assert_string_contains(rt.restore(snap), "dynamics")
+	snap["vehicles"]["csm"].erase("dynamics")
+	assert_string_contains(rt.restore(snap), "vehicles.csm.dynamics")
+
+
+func test_a_checkpoint_keeps_each_vehicle_under_its_name() -> void:
+	build("lunar_orbit")
+	var snap := rt.snapshot()
+	assert_eq(snap["schema_version"], 2)
+	assert_eq(snap["vehicles"].keys(), ["csm"], "docked, the LM is part of the CSM's csm_lm")
+	assert_eq(snap["vehicles"]["csm"]["dynamics"]["config"], "csm_lm")
+	assert_has(snap["vehicles"]["csm"]["systems"], "agc")
+	Bus.set_value("ctl.seq.undock", true)
+	run(1.0, false)
+	snap = rt.snapshot()
+	assert_eq(snap["vehicles"].keys(), ["csm", "lm"], "the LM flies free")
+	assert_eq(snap["vehicles"]["lm"]["dynamics"]["config"], "lm")
+
+
+func test_a_checkpoint_from_before_the_vehicles_map_is_rejected() -> void:
+	build("lunar_orbit")
+	var snap := rt.snapshot()
+	# Schema 1 kept one vehicle's dynamics and systems at the top level.
+	snap["schema_version"] = 1
+	snap["dynamics"] = snap["vehicles"]["csm"]["dynamics"]
+	snap["systems"] = snap["vehicles"]["csm"]["systems"]
+	snap.erase("vehicles")
+	assert_eq(rt.restore(snap), "checkpoint schema 1, expected 2")

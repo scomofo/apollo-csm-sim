@@ -195,6 +195,7 @@ func _switch_panel() -> PanelContainer:
 	_momentary(g, "DROGUE", "ctl.els.drogue")
 	_momentary(g, "MAIN CHUTES", "ctl.els.main")
 	_momentary(g, "CSM/LV SEP", "ctl.seq.csm_sep")
+	_momentary(g, "UNDOCK", "ctl.seq.undock")
 	_momentary(g, "LM JETT", "ctl.seq.lm_jett")
 	_momentary(g, "CM/SM SEP", "ctl.seq.cm_sm_sep")
 	return p
@@ -305,6 +306,30 @@ func _checklist_text() -> String:
 
 # --- per frame --------------------------------------------------------------------
 
+## While the LM flies free: where its docking port is from the CSM's, in
+## the CSM's body axes (X along the probe), and the last contact.
+func _docking_text() -> String:
+	if str(Bus.get_value("dock.state", "")) != "free":
+		return ""
+	var p: Vector3 = Bus.get_value("dock.rel_pos", Vector3.ZERO)
+	var v: Vector3 = Bus.get_value("dock.rel_vel", Vector3.ZERO)
+	var text := """
+LM RNG  %9.1f ft
+RDOT    %+9.2f ft/s
+X %+7.1f Y %+6.1f Z %+6.1f
+VX %+5.2f VY %+5.2f VZ %+5.2f
+MISALIGN %4.1f°""" % [
+		float(Bus.get_value("dock.range_m", 0.0)) / Units.FT,
+		float(Bus.get_value("dock.range_rate_mps", 0.0)) / Units.FT,
+		p.x / Units.FT, p.y / Units.FT, p.z / Units.FT,
+		v.x / Units.FT, v.y / Units.FT, v.z / Units.FT,
+		float(Bus.get_value("dock.misalign_deg", 0.0))]
+	var contact: Dictionary = Bus.get_value("dock.contact", {})
+	if not contact.is_empty() and not contact["captured"]:
+		text += "\n" + Docking.describe(contact)
+	return text
+
+
 func _process(_delta: float) -> void:
 	if rt == null:
 		return
@@ -342,6 +367,7 @@ RATE  %+.2f %+.2f %+.2f °/s""" % [
 		Units.kg_to_lb(float(Bus.get_value("dyn.mass_kg", 0.0))),
 		float(Bus.get_value("dyn.g_load", 0.0)),
 		gim.x, gim.y, gim.z, rad_to_deg(w.x), rad_to_deg(w.y), rad_to_deg(w.z)]
+	_flight.text += _docking_text()
 	var o2 := float(Bus.get_value("eps.o2_tank1_kg", 0.0)) + float(Bus.get_value("eps.o2_tank2_kg", 0.0))
 	var fc := PackedStringArray()
 	for n in 3:

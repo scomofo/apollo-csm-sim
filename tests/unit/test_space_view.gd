@@ -96,3 +96,49 @@ func test_window_camera_looks_out_along_the_nose_with_the_crew_up() -> void:
 	view.look(0.3, 0.1)
 	view._process(0.0)
 	assert_false(view.camera.global_transform.is_equal_approx(cam), "the crew's own look still turns it")
+
+
+func test_the_free_lm_is_drawn_where_it_flies_and_turned_as_it_is() -> void:
+	var q := _turned()
+	var lm: Node3D = view.get("_parts")["lm"]
+	Bus.set_value("dyn.config", "csm_lm")
+	Bus.set_value("dock.state", "docked")
+	_render(q)
+	assert_true(lm.visible, "docked, the LM is part of the stack")
+	assert_false(view.lm_free.visible)
+	var docked := lm.global_transform
+	# Undocked in place: the LM's centre of mass a port-to-port span ahead
+	# of the CSM's along its +X, turned as it was docked.
+	var p := Docking.params()
+	var span := float(p["csm_port_m"]) + float(p["lm_port_m"])
+	var x := Basis(q) * Vector3.RIGHT
+	Bus.set_value("dyn.config", "csm")
+	Bus.set_value("dock.state", "free")
+	Bus.set_value("lm.dyn.primary", "earth")
+	Bus.set_value("lm.dyn.r_m", [R + x.x * span, x.y * span, x.z * span])
+	Bus.set_value("lm.dyn.att_q", q * Docking.LM_IN_CSM)
+	_render(q)
+	assert_false(lm.visible)
+	assert_true(view.lm_free.visible, "the free LM is drawn")
+	assert_true(view.lm_free.global_transform.is_equal_approx(docked), "undocked in place, it is drawn where it was docked")
+	# 30 m off in ECI +Z and turned a quarter turn about its own +X.
+	Bus.set_value("lm.dyn.r_m", [R + x.x * span, x.y * span, x.z * span + 30.0])
+	var ql := q * Docking.LM_IN_CSM * Quaternion(Vector3(1, 0, 0), PI / 2.0)
+	Bus.set_value("lm.dyn.att_q", ql)
+	_render(q)
+	var eci_to_cabin: Basis = view.eci_to_cabin
+	var free: Node3D = view.lm_free
+	var cg := Frames.BODY_TO_GODOT * Vector3(SpaceView.CSM_PORT_X - float(p["csm_port_m"]), 0, 0)
+	var lm_at := Vector3(SpaceView.CSM_PORT_X + float(p["lm_port_m"]), 0, 0)
+	var where := cg + eci_to_cabin * (x * span + Vector3(0, 0, 30))
+	assert_almost_eq(free.global_transform * lm_at, where, Vector3.ONE * 1e-3, "its centre of mass where it flies")
+	var up_axis := free.global_transform.basis * (Basis(Docking.LM_IN_CSM) * Vector3.RIGHT)
+	assert_almost_eq(up_axis, eci_to_cabin * (Basis(ql) * Vector3.RIGHT), Vector3.ONE * 1e-5, "its +X turned with it")
+	# 5 km away it is drawn nearer, at its apparent size, in front of the Moon.
+	Bus.set_value("lm.dyn.r_m", [R, 5000.0, 0.0])
+	_render(q)
+	var far := eci_to_cabin * Vector3(0, 5000, 0) + cg
+	var drawn := free.global_transform * lm_at
+	assert_almost_eq(drawn.length(), SpaceView.LM_RENDER_MAX, 1e-2)
+	assert_almost_eq(drawn.normalized(), far.normalized(), Vector3.ONE * 1e-5, "in its direction")
+	assert_almost_eq(free.global_transform.basis.get_scale().x, SpaceView.LM_RENDER_MAX / far.length(), 1e-5, "scaled to its apparent size")

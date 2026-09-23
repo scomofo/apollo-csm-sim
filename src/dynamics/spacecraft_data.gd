@@ -1,9 +1,12 @@
 ## Loads data/spacecraft.json once and answers mass and inertia questions
-## per vehicle configuration. Configurations, in flight order:
+## per vehicle configuration. The CSM's configurations, in flight order:
 ##   stack   S-IVB + CSM + LM (parking orbit and TLI; the IU flies it)
 ##   csm_lm  CSM docked to the LM (after transposition and docking)
-##   csm     CSM alone (after LM jettison)
+##   csm     CSM alone (after undocking or LM jettison)
 ##   cm      Command Module alone (after CM/SM separation)
+## and the LM's, while it flies free of the CSM:
+##   lm      the whole LM, as it undocks [simplified: its mass stays the
+##           docked LM's until slice 3b gives it propellant]
 class_name SpacecraftData
 extends RefCounted
 
@@ -42,6 +45,11 @@ static func total_mass(cfg: String, sps_kg: float, sm_rcs_kg: float, cm_rcs_kg: 
 	if cfg == "csm_lm":
 		return csm_lm
 	return csm_lm + float(m["sivb_dry_kg"]) + sivb_kg
+
+
+## The LM's mass, docked or free, kg.
+static func lm_mass() -> float:
+	return float(data()["mass"]["lm_kg"])
 
 
 ## Principal inertia scaled linearly with mass from the configuration's

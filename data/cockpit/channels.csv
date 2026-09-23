@@ -21,6 +21,7 @@ ctl.els.auto,bool,,crew,ELS AUTO
 ctl.els.drogue,bool,,crew,Drogue deploy command (momentary)
 ctl.els.main,bool,,crew,Main parachute deploy command (momentary)
 ctl.seq.csm_sep,bool,,crew,CSM/LV separation command (momentary)
+ctl.seq.undock,bool,,crew,Undocking command: the docking probe's EXTD/REL (momentary)
 ctl.seq.lm_jett,bool,,crew,LM jettison command (momentary)
 ctl.seq.cm_sm_sep,bool,,crew,CM/SM separation command (momentary)
 guid.indicator.attitude,quat,,agc,FDAI attitude: body relative to LVLH

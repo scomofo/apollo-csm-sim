@@ -5,7 +5,8 @@
 class_name SimRuntime
 extends RefCounted
 
-const SCHEMA_VERSION := 1
+## 2: the vehicles' dynamics and systems under "vehicles" (slice 3a).
+const SCHEMA_VERSION := 2
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],
 	["agc", "res://src/systems/agc.gd"],
@@ -21,7 +22,7 @@ const CONTROL_DEFAULTS := {
 	"ctl.rhc": Vector3.ZERO, "ctl.thc": Vector3.ZERO,
 	"ctl.els.logic": false, "ctl.els.auto": false,
 	"ctl.eps.fc1": true, "ctl.eps.fc2": true, "ctl.eps.fc3": true,
-	"ctl.seq.csm_sep": false, "ctl.seq.lm_jett": false, "ctl.seq.cm_sm_sep": false,
+	"ctl.seq.csm_sep": false, "ctl.seq.undock": false, "ctl.seq.lm_jett": false, "ctl.seq.cm_sm_sep": false,
 	"ctl.ground.pad_request": "",
 }
 
@@ -70,10 +71,17 @@ func free_nodes() -> void:
 	nodes.clear()
 
 
+## The checkpoint: the clock, the mission, the crew's controls, and a map
+## of vehicles, each with its dynamics and systems. The CSM is always
+## there; the LM only while it flies free (docked, it is part of the CSM's
+## csm_lm configuration) and has no systems until slice 3b.
 func snapshot() -> Dictionary:
 	var sys := {}
 	for k in systems:
 		sys[k] = systems[k].snapshot()
+	var vehicles := {"csm": {"dynamics": dynamics.snapshot(), "systems": sys}}
+	if dynamics.lm != null:
+		vehicles["lm"] = {"dynamics": dynamics.lm.snapshot(), "systems": {}}
 	var ctl := {}
 	for c in Bus.channels():
 		if c.begins_with("ctl."):
@@ -84,8 +92,7 @@ func snapshot() -> Dictionary:
 		"mission_id": mission.id(),
 		"clock": SimClock.snapshot(),
 		"mission": sequencer.snapshot(),
-		"dynamics": dynamics.snapshot(),
-		"systems": sys,
+		"vehicles": vehicles,
 		"controls": ctl,
 	}
 
@@ -93,21 +100,28 @@ func snapshot() -> Dictionary:
 ## Restore a snapshot (possibly round-tripped through JSON). Returns an
 ## error string, empty on success.
 func restore(d: Dictionary) -> String:
-	for key in ["schema_version", "clock", "mission", "dynamics", "systems"]:
-		if not d.has(key):
-			return "checkpoint missing '%s'" % key
+	if not d.has("schema_version"):
+		return "checkpoint missing 'schema_version'"
 	if int(d["schema_version"]) != SCHEMA_VERSION:
 		return "checkpoint schema %s, expected %d" % [d["schema_version"], SCHEMA_VERSION]
+	for key in ["clock", "mission", "vehicles"]:
+		if not d.has(key):
+			return "checkpoint missing '%s'" % key
+	var csm: Dictionary = d["vehicles"].get("csm", {})
+	for key in ["dynamics", "systems"]:
+		if not csm.has(key):
+			return "checkpoint missing 'vehicles.csm.%s'" % key
 	if str(d.get("mission_id", "")) != mission.id():
 		return "checkpoint is for mission '%s'" % d.get("mission_id", "")
 	for c in d.get("controls", {}):
 		var v = d["controls"][c]
 		Bus.set_value(c, Vector3(v[0], v[1], v[2]) if v is Array and v.size() == 3 else v)
 	SimClock.restore(d["clock"])
-	dynamics.restore(d["dynamics"])
+	var lm: Dictionary = d["vehicles"].get("lm", {})
+	dynamics.restore(csm["dynamics"], lm.get("dynamics", {}))
 	for k in systems:
-		if d["systems"].has(k):
-			systems[k].restore(d["systems"][k])
+		if csm["systems"].has(k):
+			systems[k].restore(csm["systems"][k])
 	sequencer.restore(d["mission"])
 	return ""
 

@@ -1,15 +1,33 @@
-## Owns the truth state of the vehicle (trajectory + attitude + configuration)
-## and steps it on the SimClock. Never touches scene nodes; publishes to the
-## Bus and presentation reads it (same contract as the Dynamics of
-## gemini-capsule, https://github.com/scomofo/gemini-capsule).
+## Owns the truth state of the vehicles (trajectory + attitude +
+## configuration) and steps it on the SimClock. Never touches scene nodes;
+## publishes to the Bus and presentation reads it (same contract as the
+## Dynamics of gemini-capsule, https://github.com/scomofo/gemini-capsule).
+##
+## The CSM (in any configuration, the docked LM included) publishes dyn.*.
+## After undocking the LM flies free as a second vehicle and publishes
+## lm.dyn.*, and the docking channels (dock.*) give the ports' relative
+## state (src/dynamics/docking.gd). A contact between the ports within the
+## capture limits docks the vehicles again; any other contact rebounds.
 ##
 ## Reads:  sps.thrust_n, rcs.force_body, rcs.torque_body, sivb.thrust_n,
 ##         sivb.dir, sps.prop_kg, rcs.sm_prop_kg, rcs.cm_prop_kg,
 ##         sivb.prop_kg, els.drogue, els.mains, guid.bank_cmd_deg,
 ##         guid.bank_auto, ctl.rhc
-## Writes: dyn.* (see publish_state), sys.coast_ok
+## Writes: dyn.* (see publish_state), lm.dyn.*, dock.state, dock.range_m,
+##         dock.range_rate_mps, dock.rel_pos, dock.rel_vel (the LM's port
+##         relative to the CSM's, CSM body axes), dock.misalign_deg,
+##         dock.contact (the last contact, Docking.contact()), sys.coast_ok
 class_name Dynamics
 extends Node
+
+## The probe met the drogue: [param contact] is Docking.contact()'s.
+signal docking_contact(contact: Dictionary)
+
+## Within this range of each other the vehicles take coast steps no longer
+## than PROXIMITY_DT, so a contact between the ports is caught near where
+## it happens.
+const PROXIMITY_M := 200.0
+const PROXIMITY_DT := 1.0
 
 var traj: Trajectory = Trajectory.new()
 var attitude: Attitude = Attitude.new()
@@ -26,6 +44,13 @@ var max_g: float = 0.0
 var sensed_dv: PackedFloat64Array = PackedFloat64Array([0, 0, 0])
 var last_force_body: Vector3 = Vector3.ZERO
 var last_torque: Vector3 = Vector3.ZERO
+## The LM while it flies free of the CSM; null while it is docked (part of
+## the csm_lm configuration), before transposition and after LM JETT.
+var lm: Vehicle = null
+## The probe tip's height above the drogue, and its offset across it, at
+## the last step: a contact is where the height crosses zero.
+var _last_axial: float = 0.0
+var _last_lateral: Vector3 = Vector3.ZERO
 
 
 func _ready() -> void:
@@ -41,6 +66,7 @@ func _exit_tree() -> void:
 func initialize(primary: String, get_s: float, pos: Vector3, vel: Vector3, cfg: String) -> void:
 	traj.set_state(primary, get_s, pos, vel)
 	config = cfg
+	lm = null
 	landed = false
 	bank = 0.0
 	max_g = 0.0
@@ -74,6 +100,8 @@ func in_atmosphere() -> bool:
 
 func tick(dt: float) -> void:
 	if landed:
+		_step_lm(dt)
+		_publish_docking()
 		_publish_coast(false)
 		return
 	update_mass()
@@ -121,13 +149,164 @@ func tick(dt: float) -> void:
 	var coasting := force_eci == Vector3.ZERO and torque == Vector3.ZERO and not aero and not landed \
 		and not bool(Bus.get_value("guid.dap_busy", false))
 	Bus.set_value("dyn.dv_step", [ext[0] * dt, ext[1] * dt, ext[2] * dt] if ext.size() == 3 else [0.0, 0.0, 0.0])
+	_step_lm(dt)
 	publish_state()
 	_publish_coast(coasting)
 
 
+## The coast-step policy holds for both vehicles: a coast step is taken
+## only while both coast (the free LM always does until slice 3b), and it
+## is no longer than either trajectory allows, or than PROXIMITY_DT while
+## they are close.
 func _publish_coast(coasting: bool) -> void:
 	Bus.set_value("sys.coast_ok", coasting)
-	Bus.set_value("dyn.coast_dt_s", traj.coast_dt())
+	var dt := traj.coast_dt()
+	if lm != null:
+		dt = minf(dt, lm.traj.coast_dt())
+		if float(Docking.relative(traj, attitude, lm)["range"]) < PROXIMITY_M:
+			dt = minf(dt, PROXIMITY_DT)
+	Bus.set_value("dyn.coast_dt_s", dt)
+
+
+# --- the LM and docking -----------------------------------------------------------
+
+## Undock the LM: the stack splits into the CSM and the LM, each moving as
+## its part of the stack did, and the probe pushes them apart along the
+## docking axis, momentum conserved. Returns false unless the LM is docked.
+func undock() -> bool:
+	if config != "csm_lm":
+		return false
+	var p := Docking.params()
+	var m_lm := SpacecraftData.lm_mass()
+	update_mass()
+	var m := mass
+	var m_csm := m - m_lm
+	var ecl := attitude.eci_from_body()
+	var x := ecl * Vector3.RIGHT
+	var w := ecl * attitude.omega
+	var span := float(p["csm_port_m"]) + float(p["lm_port_m"])
+	var push := float(p["undock_speed_mps"])
+	# Each centre of mass from the stack's, and its velocity.
+	var off_csm := -x * (span * m_lm / m)
+	var off_lm := x * (span * m_csm / m)
+	var dv_csm := w.cross(off_csm) - x * (push * m_lm / m)
+	var dv_lm := w.cross(off_lm) + x * (push * m_csm / m)
+	var s := traj.s.duplicate()
+	for i in 3:
+		s[i] += off_lm[i]
+		s[3 + i] += dv_lm[i]
+		traj.s[i] += off_csm[i]
+		traj.s[3 + i] += dv_csm[i]
+	lm = Vehicle.new("lm", "lm", m_lm)
+	lm.traj.set_state_d(traj.primary, traj.t, s)
+	lm.attitude.q = (attitude.q * Docking.LM_IN_CSM).normalized()
+	# [simplified] The LM holds the attitude it undocked in, as its DAP
+	# would (slice 3b): it keeps none of the stack's rates.
+	lm.attitude.omega = Vector3.ZERO
+	config = "csm"
+	update_mass()
+	_arm_contact()
+	publish_state()
+	return true
+
+
+func _step_lm(dt: float) -> void:
+	if lm == null:
+		return
+	lm.step(dt)
+	_check_contact()
+
+
+## Take the probe tip's place over the drogue as the start of the next
+## step's contact check.
+func _arm_contact() -> void:
+	var g := Docking.relative(traj, attitude, lm)
+	_last_axial = g["axial"]
+	_last_lateral = g["lateral"]
+
+
+## A contact is the probe tip reaching the drogue's face during the step,
+## within the strike radius of its centre: within the capture limits it
+## docks the vehicles, otherwise they rebound. The probe passing beside the
+## LM touches nothing.
+func _check_contact() -> void:
+	var g := Docking.relative(traj, attitude, lm)
+	var axial: float = g["axial"]
+	var lateral: Vector3 = g["lateral"]
+	if _last_axial > 0.0 and axial <= 0.0 and float(g["closing"]) > 1e-6:
+		var f := _last_axial / (_last_axial - axial)
+		var miss := _last_lateral.lerp(lateral, f).length()
+		if miss <= float(Docking.params()["strike_radius_m"]):
+			var c := Docking.contact(g, miss)
+			if c["captured"]:
+				_capture()
+			else:
+				_rebound(g)
+			Bus.set_value("dock.contact", c)
+			docking_contact.emit(c)
+			return
+	_last_axial = axial
+	_last_lateral = lateral
+
+
+## Capture: the vehicles are one again, the stack moving with their joint
+## momentum and turning with their joint angular momentum about its centre
+## of mass, in the CSM's attitude [simplified: the latches pull the LM
+## straight].
+func _capture() -> void:
+	var m_csm := mass
+	var m_lm := lm.mass
+	var m := m_csm + m_lm
+	var rel := Docking.relative_state(traj, lm.traj)
+	var to_body := attitude.body_from_eci()
+	var ic := attitude.inertia
+	var il := lm.attitude.inertia
+	var wl := lm.attitude.omega
+	var h := Vector3(ic.x * attitude.omega.x, ic.y * attitude.omega.y, ic.z * attitude.omega.z)
+	h += to_body * lm.attitude.eci_from_body() * Vector3(il.x * wl.x, il.y * wl.y, il.z * wl.z)
+	h += to_body * Vector3(rel[0], rel[1], rel[2]).cross(Vector3(rel[3], rel[4], rel[5])) * (m_csm * m_lm / m)
+	for i in 6:
+		traj.s[i] += rel[i] * m_lm / m
+	lm = null
+	config = "csm_lm"
+	update_mass()
+	var i_s := attitude.inertia
+	attitude.omega = Vector3(h.x / i_s.x, h.y / i_s.y, h.z / i_s.z)
+	publish_state()
+
+
+## A contact without capture: the probe rebounds from the drogue, taking
+## back the restitution's share of the closing speed, momentum conserved
+## [simplified: the vehicles' rates don't change].
+func _rebound(g: Dictionary) -> void:
+	var m_csm := mass
+	var m_lm := lm.mass
+	var m := m_csm + m_lm
+	var n: Vector3 = g["n"]
+	var dv := n * ((1.0 + float(Docking.params()["restitution"])) * float(g["closing"]))
+	var back := n * -float(g["axial"])
+	for i in 3:
+		traj.s[i] += back[i] * m_lm / m
+		traj.s[3 + i] += dv[i] * m_lm / m
+		lm.traj.s[i] -= back[i] * m_csm / m
+		lm.traj.s[3 + i] -= dv[i] * m_csm / m
+	_arm_contact()
+
+
+func _publish_docking() -> void:
+	Bus.set_value("dock.state", "free" if lm != null else ("docked" if config == "csm_lm" else "none"))
+	if lm == null:
+		return
+	lm.publish()
+	var g := Docking.relative(traj, attitude, lm)
+	var d: Vector3 = g["d"]
+	var u: Vector3 = g["u"]
+	var to_body := attitude.body_from_eci()
+	Bus.set_value("dock.range_m", g["range"])
+	Bus.set_value("dock.range_rate_mps", d.dot(u) / maxf(d.length(), 1e-6))
+	Bus.set_value("dock.rel_pos", to_body * d)
+	Bus.set_value("dock.rel_vel", to_body * u)
+	Bus.set_value("dock.misalign_deg", g["misalign_deg"])
 
 
 ## Aerodynamic + parachute force on the CM, inertial N.
@@ -208,20 +387,7 @@ func _align_prograde() -> void:
 
 
 func publish_state() -> void:
-	var c := traj.conic()
-	var rb := Bodies.radius_of(traj.primary)
-	Bus.set_value("dyn.primary", traj.primary)
-	Bus.set_value("dyn.config", config)
-	Bus.set_value("dyn.r_m", [traj.s[0], traj.s[1], traj.s[2]])
-	Bus.set_value("dyn.v_mps", [traj.s[3], traj.s[4], traj.s[5]])
-	Bus.set_value("dyn.alt_m", traj.altitude())
-	Bus.set_value("dyn.speed_mps", traj.speed())
-	Bus.set_value("dyn.alt_rate_mps", traj.radial_rate())
-	Bus.set_value("dyn.peri_alt_m", float(c["rp"]) - rb)
-	Bus.set_value("dyn.apo_alt_m", float(c["ra"]) - rb if c["ra"] != INF else INF)
-	Bus.set_value("dyn.mass_kg", mass)
-	Bus.set_value("dyn.att_q", attitude.q)
-	Bus.set_value("dyn.omega", attitude.omega)
+	Vehicle.publish_motion("", traj, attitude, mass, config)
 	Bus.set_value("dyn.g_load", g_load)
 	Bus.set_value("dyn.max_g", max_g)
 	Bus.set_value("dyn.bank_deg", rad_to_deg(bank))
@@ -232,6 +398,7 @@ func publish_state() -> void:
 	var m := traj.moon_state_rel()
 	Bus.set_value("dyn.earth_dist_m", Vector3(e[0], e[1], e[2]).length())
 	Bus.set_value("dyn.moon_dist_m", Vector3(m[0], m[1], m[2]).length())
+	_publish_docking()
 
 
 func snapshot() -> Dictionary:
@@ -244,7 +411,9 @@ func snapshot() -> Dictionary:
 	}
 
 
-func restore(d: Dictionary) -> void:
+## Restore the CSM from [param d], and the free LM from [param lm_d] (empty
+## while the LM is docked or gone).
+func restore(d: Dictionary, lm_d: Dictionary = {}) -> void:
 	traj.set_state_d(str(d["primary"]), float(d["t"]), PackedFloat64Array(d["s"]))
 	var q: Array = d["q"]
 	attitude.q = Quaternion(q[0], q[1], q[2], q[3])
@@ -257,4 +426,7 @@ func restore(d: Dictionary) -> void:
 	max_g = float(d.get("max_g", 0.0))
 	sensed_dv = PackedFloat64Array(d.get("sensed_dv", [0, 0, 0]))
 	update_mass()
+	lm = Vehicle.from_snapshot(lm_d) if not lm_d.is_empty() else null
+	if lm != null:
+		_arm_contact()
 	publish_state()

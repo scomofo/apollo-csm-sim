@@ -314,22 +314,58 @@ The 2D HUD stays as the desktop fallback.
 
 ## 3. The LM and a lunar landing
 
-**Status: not started.** The simulator is CSM-centric. The LM is only
-mass: 15,103 kg added in the `csm_lm` configuration
-(`data/spacecraft.json`) and dropped at LM JETT before TEI.
+**Status: slice 3a done: the LM undocks, flies free and docks again.**
+Before 3a the LM was only mass: 15,103 kg added in the `csm_lm`
+configuration (`data/spacecraft.json`) and dropped at LM JETT before TEI.
+
+Slice 3a makes it a second vehicle:
+
+- **Two vehicles.** Dynamics owns both. The CSM keeps its channels
+  (`dyn.*`), and the free LM (`src/dynamics/vehicle.gd`) publishes the same
+  ones as `lm.dyn.*`. It has no systems yet: it coasts, holding the
+  attitude it undocked in.
+- **Undocking.** UNDOCK, on the HUD and on the main display console,
+  splits the stack with its momentum conserved, and the probe pushes the
+  vehicles apart at 0.03 m/s.
+- **Docking.** `src/dynamics/docking.gd` places each docking port on its
+  vehicle and publishes where the LM's port is from the CSM's (`dock.*`),
+  which the flight panel reads out. A contact within the capture limits
+  (closing under 0.3 m/s and across under 0.15 m/s, within 0.3 m of the
+  drogue's centre, 10° of alignment and 1°/s of relative rate) docks the
+  vehicles again. Any other contact rebounds, and CAPCOM says why. The
+  geometry and the limits are estimates.
+- **The coast-step policy holds for both vehicles.** A coast step is taken
+  only while both coast, and it is no longer than either trajectory
+  allows, or than a second while they are within 200 m of each other.
+- **Checkpoints are schema 2**: a map of vehicles, each with its dynamics
+  and systems. Schema 1 checkpoints are rejected.
+- **The space view** draws the free LM where it flies and turned as it
+  is.
+
+The scenario test (`tests/scenarios/test_docking.gd`) undocks in lunar
+orbit, flies an equiperiod separation (0.6 m/s radially down) and coasts
+a revolution. Half a revolution on, the CSM is 2,721 m farther ahead of
+the LM, where the linear (Clohessy-Wiltshire) solution puts it
+(2,723 m), and a revolution on it is back within 5 m. A checkpoint taken
+mid-revolution flies on as the uninterrupted run did, and the CSM docks
+again on the translation controller.
+
+Writing it showed how to hold station in orbit. Held still inertially 21 m
+behind the LM, the CSM is not on the LM's orbit. In the LM's turning
+local frame it moves at 0.02 m/s, which added 3 % to the separation, and
+the two orbits' periods differed by about 10 ms, which is 16 m of drift
+a revolution. The test's pilot holds station in the local frame, as a crew
+would, flying against the horizon.
 
 ### What changes underneath
 
-- **Two vehicles at once.** `Dynamics` owns one trajectory, one attitude
-  and one configuration. The systems read and write unscoped channels
-  (`dyn.*`, `guid.*`, `sps.*`, `rcs.*`), and `SimRuntime` has one AGC.
-  After undocking, the CSM and the LM fly at the same time. Decide the
-  channel scheme first. Recommendation: today's channels stay the
-  CSM's, and the LM gets an `lm.` prefix (`lm.dyn.r_m`,
-  `lm.guid.program`). That leaves the existing tests and checklists
+- **Two vehicles at once.** Done in 3a. Today's channels stay the CSM's,
+  and the LM's carry an `lm.` prefix (`lm.dyn.r_m`, and `lm.guid.program`
+  once it has a computer), which left the existing tests and checklists
   untouched. The coast-step policy (`sys.coast_ok`, `dyn.coast_dt_s`)
-  must hold for both vehicles, and the snapshot gains a map of vehicles
-  (schema 2).
+  holds for both vehicles, and the snapshot has a map of vehicles
+  (schema 2). `SimRuntime` still has one AGC, and the LM's systems will
+  go into its entry in the map.
 - **An AGC core with two program sets.** `src/systems/agc.gd` mixes the
   verb/noun dialogue and the DAP with Colossus programs. Split it into a
   core (dialogue, program table, alarms, DAP) and two program sets: the
@@ -370,7 +406,7 @@ the CSM. Switching vehicles at will is a later choice.
 
 | Slice | Work | Check |
 |---|---|---|
-| 3a | Two vehicles: undocking, independent flight, docking capture, snapshot schema 2 | Test: undock in lunar orbit, separate and coast one revolution; a checkpoint restored mid-revolution matches the uninterrupted run; re-dock within the capture limits |
+| 3a (done) | Two vehicles: undocking, independent flight, docking capture, snapshot schema 2 | Test: undock in lunar orbit, separate and coast one revolution; a checkpoint restored mid-revolution matches the uninterrupted run; re-dock within the capture limits |
 | 3b | AGC core split. LM data, DPS, APS, LM RCS and LM DAP. LGC P00, P30, P40, P41, P42, P47 | The existing tests pass unchanged. New test: fly a DOI PAD on the LGC to its pericynthion target |
 | 3c | Moon-fixed frame, landing site, LOI over the site, P63, P64, P66, P68, touchdown | Test: automatic guidance from PDI to touchdown lands within 500 m of the site at under 1 m/s vertical and 0.5 m/s horizontal speed. A second run flies P66 with scripted hand-controller inputs |
 | 3d | Lunar liftoff time from the RTCC, P12 | Test: liftoff to insertion, within set limits of the target orbit |

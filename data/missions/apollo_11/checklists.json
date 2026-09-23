@@ -25,7 +25,7 @@
       {"text": "Request LOI PAD ~8 h before pericynthion; fly with the SPS burn checklist"},
       {"text": "Lunar orbit confirmed", "check": {"channel": "mission.phase", "op": "eq", "value": "lunar_orbit"}},
       {"text": "Request LOI-2 PAD and circularize"},
-      {"text": "LM JETT before TEI (the ascent stage stays behind)", "control": "P1_LM_JETT", "check": {"channel": "dyn.config", "op": "eq", "value": "csm"}},
+      {"text": "LM JETT before TEI (the ascent stage stays behind)", "control": "P1_LM_JETT", "check": {"channel": "dock.state", "op": "eq", "value": "none"}},
       {"text": "Request TEI PAD; fly it with the SPS burn checklist"},
       {"text": "Transearth coast", "check": {"channel": "mission.phase", "op": "eq", "value": "transearth_coast"}}
     ]},
