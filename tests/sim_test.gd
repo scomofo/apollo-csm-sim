@@ -89,9 +89,10 @@ func fly_pad() -> float:
 	return dv
 
 
-## Fly a PAD uplinked to the LGC the way the LM crew does: P30 accept; LGC
-## MODE AUTO and the thrusting program [param prog] (P40 on the DPS, P41 on
-## the RCS, P42 on the APS) with auto maneuver; ENGINE ARM at
+## Fly a PAD uplinked to the LGC the way the LM crew does: P30 accept; a
+## quarter of an hour before TIG, LGC MODE AUTO and the thrusting program
+## [param prog] (P40 on the DPS, P41 on the RCS, P42 on the APS) with auto
+## maneuver; ENGINE ARM at
 ## [param arm] (2 DES, 1 ASC, 0 for the RCS), PRO at V99, PRO after
 ## residuals; then ENGINE ARM OFF and MODE FREE. [param monitor], if
 ## given, is called at each second of the countdown and the burn. Returns
@@ -103,6 +104,7 @@ func fly_lm_pad(prog: int, arm: int, monitor: Callable = Callable()) -> float:
 	keys("PPP", lgc)
 	assert_true(lgc.maneuver_valid, "maneuver stored in the LGC")
 	var tig := lgc.maneuver_tig
+	run(maxf(tig - 900.0 - SimClock.get_seconds, 0.0))
 	Bus.set_value("ctl.lm.mode", 2)
 	keys("V37E%dE" % prog, lgc)
 	assert_eq(lgc.program, prog, "P%d selected" % prog)

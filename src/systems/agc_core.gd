@@ -173,6 +173,11 @@ func dap_enabled() -> bool:
 	return true
 
 
+## The DAP's rate limit for program-commanded maneuvers, rad/s.
+func auto_rate() -> float:
+	return RATE_AUTO
+
+
 ## Angular acceleration full jet authority gives about each body axis,
 ## rad/s².
 func authority() -> Vector3:
@@ -617,7 +622,7 @@ func _dap(_dt: float) -> void:
 		var max_rate := RATE_HOLD
 		if m == 2 and auto_active:
 			target = auto_target
-			max_rate = RATE_AUTO
+			max_rate = auto_rate()
 		if _rhc_was_active:
 			hold_q = _att()
 			target = hold_q if not (m == 2 and auto_active) else target

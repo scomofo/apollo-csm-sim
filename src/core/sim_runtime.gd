@@ -36,6 +36,7 @@ const CONTROL_DEFAULTS := {
 	"ctl.ground.pad_request": "",
 	"ctl.lm.mode": 1, "ctl.lm.rhc": Vector3.ZERO, "ctl.lm.thc": Vector3.ZERO,
 	"ctl.lm.engine_arm": 0, "ctl.lm.stage": false, "ctl.lm.rcs.sys_a": true, "ctl.lm.rcs.sys_b": true,
+	"ctl.lm.eng_start": false, "ctl.lm.eng_stop": false, "ctl.lm.rod": 0,
 }
 
 var mission: Mission

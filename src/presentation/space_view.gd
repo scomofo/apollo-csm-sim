@@ -291,12 +291,14 @@ func _process(_delta: float) -> void:
 	# its ECI orientation, as the Earth and Moon do, so its silhouette turns
 	# with the world instead of staying fixed to the cabin.
 	earth_glow.basis = eci_to_cabin.scaled(Vector3.ONE * earth_glow.scale.x)
-	# Earth spins (Greenwich sidereal time); the Moon keeps a face to Earth.
+	# Earth spins (Greenwich sidereal time); the Moon turns with its
+	# Moon-fixed frame, a face to Earth. The mesh's +Z is the Moon's 0° N,
+	# 0° E, its +Y the north pole and its +X 90° E.
 	var jd := SimClock.julian_date()
 	var gmst := deg_to_rad(fposmod(280.46061837 + 360.98564736629 * (jd - 2451545.0), 360.0))
 	earth.basis = (eci_to_cabin * Basis(Vector3(0, 0, 1), gmst)).scaled(Vector3.ONE * earth.scale.x)
-	var to_e := (to_earth - to_moon).normalized()
-	moon.basis = (eci_to_cabin * Basis.looking_at(-to_e, Bodies.moon_normal())).scaled(Vector3.ONE * moon.scale.x)
+	var mf := Bodies.moon_fixed(t)
+	moon.basis = (eci_to_cabin * Basis(mf.y, mf.z, mf.x)).scaled(Vector3.ONE * moon.scale.x)
 	var sd := Bodies.sun_direction()
 	sun.basis = eci_to_cabin * Basis.looking_at(-sd, Vector3(0, 0, 1) if absf(sd.z) < 0.99 else Vector3(1, 0, 0))
 	(earth_glow.material_override as ShaderMaterial).set_shader_parameter("sun_dir", eci_to_cabin * sd)
