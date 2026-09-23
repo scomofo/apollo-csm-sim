@@ -417,8 +417,9 @@ The unit tests cover:
 - CMC programs
 - Systems: SPS arming, EPS consumption and the Apollo 13 failure, SCS/CMC
   autopilot, the coast-step policy
-- Checkpoint round-trip, with a map of vehicles (schema 2), each with its
-  own systems, and older checkpoints rejected
+- Checkpoint round-trip, with a map of vehicles, each with its own
+  systems, and the LGC's rendezvous state (schema 3). Older checkpoints
+  are rejected
 - The main scene
 - The hand controllers, from the keys and from the XR thumbsticks, with
   the thumbstick deadzone

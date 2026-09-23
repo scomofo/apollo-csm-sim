@@ -6,7 +6,8 @@ class_name SimRuntime
 extends RefCounted
 
 ## 2: the vehicles' dynamics and systems under "vehicles" (slice 3a).
-const SCHEMA_VERSION := 2
+## 3: the LGC's rendezvous state (slice 3e).
+const SCHEMA_VERSION := 3
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],

@@ -80,5 +80,8 @@ func snapshot() -> Dictionary:
 	return {}
 
 
+## Measure again, from the vehicles as restored (Dynamics restores them
+## first): what the radar measured at the end of the step the checkpoint
+## was taken after, which the LGC's next mark reads.
 func restore(_d: Dictionary) -> void:
-	_publish()
+	tick(0.0)

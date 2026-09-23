@@ -55,6 +55,23 @@ func test_the_moon_in_the_way_or_out_of_range_it_has_no_data() -> void:
 	assert_false(Bus.get_value("lm.rr.data_good"), "beyond 400 nmi")
 
 
+func test_restored_it_measures_the_restored_vehicles() -> void:
+	var r := Bodies.R_MOON + 100000.0
+	_place(Vector3(r, 0, 0), Vector3.ZERO, Vector3(r, 1000.0, 0), Vector3.ZERO)
+	rr.tick(0.02)
+	assert_almost_eq(float(Bus.get_value("lm.rr.range_m")), 1000.0, 1e-3)
+	# A checkpoint from when the CSM was 5 km off: Dynamics puts the
+	# vehicles back first, then the radar is restored.
+	var snap := rr.snapshot()
+	_place(Vector3(r, 0, 0), Vector3.ZERO, Vector3(r, 5000.0, 0), Vector3(0, -2.0, 0))
+	rr.restore(snap)
+	assert_almost_eq(float(Bus.get_value("lm.rr.range_m")), 5000.0, 1e-3, "not the range from before the restore")
+	assert_almost_eq(float(Bus.get_value("lm.rr.range_rate_mps")), -2.0, 1e-4)
+	_place(Vector3(r, 0, 0), Vector3.ZERO, Vector3(-r, 0, 0), Vector3.ZERO)
+	rr.restore(snap)
+	assert_false(Bus.get_value("lm.rr.data_good"), "the Moon between them then")
+
+
 func test_docked_or_unpowered_it_has_no_data() -> void:
 	var r := Bodies.R_MOON + 100000.0
 	_place(Vector3(r, 0, 0), Vector3.ZERO, Vector3(r, 1000.0, 0), Vector3.ZERO)

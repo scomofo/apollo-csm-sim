@@ -527,6 +527,9 @@ Slice 3e flies the rendezvous:
   V06N49 the last mark.
 - **P32 to P35** target each burn with Luminary's displays (N11, N13,
   N37, N55, N58, N75 and N81), and P41 flies it on the RCS.
+- **Checkpoints are schema 3.** They carry the LGC's rendezvous state,
+  and schema 2 checkpoints are rejected. Restored, the rendezvous radar
+  measures again from the restored vehicles.
 - **Braking and docking.** From a mile out, the test's commander brakes
   on the TTCA by the gates (30 ft/s from a mile, 20 from 3,000 ft, 10
   from 1,500 ft, 5 from 500 ft), nulling the line of sight's drift, and
@@ -569,7 +572,8 @@ from its own state vectors. With the ΔV in doubles, CSI converges to
   once it has a computer), which left the existing tests and checklists
   untouched. The coast-step policy (`sys.coast_ok`, `dyn.coast_dt_s`)
   holds for both vehicles, and the snapshot has a map of vehicles
-  (schema 2). The LM's systems went into it in 3b.
+  (schema 2). The LM's systems went into it in 3b, and the LGC's
+  rendezvous state in 3e (schema 3).
 - **An AGC core with two program sets.** Done in 3b:
   `src/systems/agc_core.gd` under the CMC's Colossus programs (`agc.gd`)
   and the LGC's Luminary programs (`lgc.gd`). Milestone 4 changes the
