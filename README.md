@@ -349,7 +349,11 @@ ones:
   vehicles' bodies pass through each other. The docking geometry, the
   push apart at undocking and the capture limits are estimates.
 - **The cabin.** It is a blockout: the vessel, couches and console follow
-  the CM in outline, and every panel position is estimated.
+  the CM in outline, and every panel position is estimated. The Block II
+  main display console layout is on file in
+  `reference/nasa-history-diagrams/` (the Operations Handbook's
+  Figure 3-1, sheets 1-6, with its position grid). It gives control
+  identity and placement, not physical dimensions.
 
 ## Tests
 
