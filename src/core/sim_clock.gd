@@ -6,9 +6,10 @@
 ## and receive tick(dt) in deterministic stage order. Time acceleration runs
 ## more steps per frame rather than enlarging dt, except while the vehicle
 ## coasts (sys.coast_ok): then the step grows to the propagator's
-## recommended coast step (dyn.coast_dt_s), landing exactly on the next
-## scheduled event (seq.next_event_get_s, and each computer's
-## guid.next_event_get_s: the CMC's and the LGC's).
+## recommended coast step (dyn.coast_dt_s), landing on the next scheduled
+## event (seq.next_event_get_s; each computer's guid.next_event_get_s, the
+## CMC's and the LGC's; and Mission Control's timeline,
+## mission.next_event_get_s).
 extends Node
 
 signal ticked(dt: float)
@@ -35,8 +36,10 @@ const MAX_STEPS_PER_FRAME: int = 2000
 ## Julian Date (UTC) of Apollo 11 liftoff, 1969-07-16 13:32:00 UTC: the
 ## default liftoff_jd, restored by reset().
 const DEFAULT_LIFTOFF_JD: float = 2440419.0638889
-## The channels that schedule events: GETs to land a coast step on.
-const EVENT_CHANNELS: Array[String] = ["seq.next_event_get_s", "guid.next_event_get_s", "lm.guid.next_event_get_s"]
+## The channels that schedule events: GETs to land a coast step on, and
+## for interactive time acceleration to drop back at.
+const EVENT_CHANNELS: Array[String] = ["seq.next_event_get_s", "guid.next_event_get_s",
+	"lm.guid.next_event_get_s", "mission.next_event_get_s"]
 
 ## Ground Elapsed Time, seconds since liftoff.
 var get_seconds: float = 0.0
@@ -89,8 +92,10 @@ func frame(delta: float) -> void:
 ## Advance simulation time by [param sim_seconds], running fixed or coast
 ## steps. Public so tests and scripted scenarios step deterministically.
 ## With [param interactive], time acceleration above POWERED_MAX_RATE drops
-## back when a burn or entry starts, or a scheduled event is reached, and
-## the rest of the frame's time is discarded.
+## back when a burn or entry starts, or a step reaches a scheduled event,
+## and the rest of the frame's time is discarded. A coast step lands on the
+## fixed-step grid at or just short of an event, so the event is the one
+## scheduled before the step: its owner may schedule its next as it passes.
 func advance(sim_seconds: float, max_steps: int = -1, interactive: bool = false) -> void:
 	_accumulator += sim_seconds
 	var steps := 0
@@ -98,10 +103,12 @@ func advance(sim_seconds: float, max_steps: int = -1, interactive: bool = false)
 		var dt := step_dt()
 		if _accumulator < dt - 1e-9:
 			dt = maxf(floorf(_accumulator / FIXED_DT + 1e-9) * FIXED_DT, FIXED_DT)
+		var due := next_event()
 		_step(dt)
 		_accumulator -= dt
 		steps += 1
-		if interactive and rate > POWERED_MAX_RATE and (not _coasting() or _at_event()):
+		var reached := due >= 0.0 and get_seconds >= due - 1e-6
+		if interactive and rate > POWERED_MAX_RATE and (not _coasting() or reached):
 			_set_rate_index(RATES.find(POWERED_MAX_RATE))
 			_accumulator = 0.0
 			break
@@ -109,11 +116,14 @@ func advance(sim_seconds: float, max_steps: int = -1, interactive: bool = false)
 		_accumulator = 0.0
 
 
-func _at_event() -> bool:
+## The earliest scheduled event still to come, GET s, or -1.
+func next_event() -> float:
+	var next := -1.0
 	for ch in EVENT_CHANNELS:
-		if absf(float(Bus.get_value(ch, -1.0)) - get_seconds) < 1e-6:
-			return true
-	return false
+		var t := float(Bus.get_value(ch, -1.0))
+		if t > get_seconds + 1e-6 and (next < 0.0 or t < next):
+			next = t
+	return next
 
 
 func _coasting() -> bool:

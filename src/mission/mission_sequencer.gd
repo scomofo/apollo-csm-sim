@@ -15,7 +15,8 @@
 ##         ctl.seq.cm_sm_sep, ctl.lm.stage (crew pushbuttons,
 ##         edge-triggered), ctl.ground.pad_request (String)
 ## Writes: mission.phase, mission.capcom, mission.pad_text, mission.event.<id>,
-##         mission.result, mission.tli_tig
+##         mission.result, mission.tli_tig, mission.next_event_get_s (the
+##         timeline's next entry, which SimClock drops time acceleration at)
 class_name MissionSequencer
 extends Node
 
@@ -637,6 +638,22 @@ func _timeline() -> void:
 				earliest = _get_s(e["near"]) - 0.5 * float(dynamics.traj.conic()["period"])
 			request_pad(str(e["pad"]), earliest)
 		_fire("timeline_" + id)
+	Bus.set_value("mission.next_event_get_s", _timeline_next(now))
+
+
+## The GET of the timeline's next entry after [param now] that would
+## happen as things stand, or -1: time acceleration drops back there, and
+## not at an entry that would be passed by.
+func _timeline_next(now: float) -> float:
+	var next := -1.0
+	for e in _timeline_entries():
+		var t := _entry_time(e)
+		if timeline_done.has(str(e["id"])) or t <= now + 1e-6 or (next >= 0.0 and t >= next):
+			continue
+		var pending: bool = e.has("pad") and float(plan.get(PAD_PENDING.get(str(e["pad"]), ""), -1.0)) > t
+		if not pending and _condition(str(e.get("when", ""))):
+			next = t
+	return next
 
 
 ## Pass by every entry due before GET [param t] that hasn't happened.

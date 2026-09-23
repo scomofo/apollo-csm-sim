@@ -109,6 +109,31 @@ func test_coast_steps_are_long_only_while_nothing_acts() -> void:
 	assert_eq(SimClock.step_count - n0, 500, "firing jets forces 20 ms steps")
 
 
+func test_interactive_fast_forward_stops_at_an_event_off_the_step_grid() -> void:
+	# Coast steps land on the 20 ms grid short of the event, and the step
+	# that passes it drops time acceleration back, though the event's owner
+	# has scheduled its next by then.
+	Bus.reset()
+	SimClock.reset()
+	Bus.set_value("sys.coast_ok", true)
+	Bus.set_value("dyn.coast_dt_s", 60.0)
+	var event := 1234.567
+	Bus.set_value("guid.next_event_get_s", event)
+	var reschedule := func(_dt: float) -> void:
+		if SimClock.get_seconds >= event:
+			Bus.set_value("guid.next_event_get_s", event + 600.0)
+	SimClock.add_ticker(reschedule)
+	SimClock.rate = 10000.0
+	var frames := 0
+	while SimClock.rate > 10.0 and frames < 100:
+		SimClock.frame(1.0 / 60.0)
+		frames += 1
+	assert_eq(SimClock.rate, 10.0, "time acceleration dropped back")
+	assert_between(SimClock.get_seconds, event, event + SimClock.FIXED_DT + 1e-6,
+		"on the step that passed the event")
+	SimClock.reset()
+
+
 func test_interactive_fast_forward_stops_at_tli() -> void:
 	build("parking_orbit")
 	var tig := float(rt.sequencer.tli_pad["tig"])

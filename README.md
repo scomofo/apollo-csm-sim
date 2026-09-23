@@ -78,7 +78,8 @@ Every DSKY key and cockpit switch is also clickable on screen, in the HUD
 or on the CM's main display console in the cabin view. Above 100× the
 cabin's switches lock, and its DSKY keys still work. Time acceleration
 drops back to 10× by itself when an engine lights, at each scheduled
-event (TLI, TIG−60 s, V99) and at entry.
+event (TLI, TIG−60 s, V99, and Mission Control's calls and PADs from
+undocking to TEI) and at entry.
 
 ## Flying the mission
 

@@ -35,6 +35,23 @@ func test_mission_control_calls_the_undocking_and_uplinks_doi() -> void:
 	assert_eq(sq.phase, "lunar_orbit", "not descending before DOI")
 
 
+func test_fast_forward_stops_for_mission_controls_calls() -> void:
+	# At 10,000x the clock drops back to 10x at a timeline entry, as it does
+	# at a TIG, so the crew hears each call and can fly each PAD.
+	build("lunar_orbit")
+	Bus.set_value("ctl.cmc.mode", 0)
+	SimClock.rate = 10000.0
+	var frames := 0
+	while SimClock.rate > 10.0 and frames < 5000:
+		SimClock.frame(1.0 / 60.0)
+		frames += 1
+	assert_eq(SimClock.rate, 10.0, "time acceleration dropped back")
+	assert_almost_eq(SimClock.get_seconds, 100.0 * 3600.0, 0.05, "at 100:00:00")
+	assert_string_contains(str(Bus.get_value("mission.capcom")), "GO for undocking")
+	assert_eq(float(Bus.get_value("mission.next_event_get_s")), -1.0,
+		"nothing else planned until Eagle undocks")
+
+
 func test_an_early_undocking_brings_no_doi_pad() -> void:
 	build("lunar_orbit")
 	Bus.set_value("ctl.cmc.mode", 0)
