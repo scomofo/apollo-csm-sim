@@ -80,6 +80,12 @@ func _plan_tli(tr: Trajectory) -> Dictionary:
 ## flying the earlier ones through the RTCC's own solutions, so every start
 ## state is consistent with the mission it continues.
 func start(p_phase: String) -> void:
+	if not PHASES.has(p_phase):
+		# A typo in --phase= used to fall through silently and start in
+		# parking orbit; say so loudly instead. Real but non-startable
+		# phase names (e.g. "tli") still start from parking orbit and are
+		# re-derived from the truth trajectory below.
+		push_error("MissionSequencer.start: unknown phase '%s'; starting in parking orbit" % p_phase)
 	events.clear()
 	visited_lunar_orbit = false
 	tli_pad = {}

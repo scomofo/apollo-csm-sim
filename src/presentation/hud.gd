@@ -115,6 +115,9 @@ func setup(p_rt: SimRuntime, p_book: ChecklistBook = null) -> void:
 	hb.set_content_margin_all(12)
 	_help.add_theme_stylebox_override("normal", hb)
 	_help.visible = true
+	# The HUD lives for the whole app run (created once in main.gd), so this
+	# relies on Godot 4's automatic signal disconnect when the node is freed
+	# at exit; no _exit_tree disconnect needed.
 	rt.sequencer.capcom.connect(_on_capcom)
 	var last = Bus.get_value("mission.capcom")
 	if last != null:

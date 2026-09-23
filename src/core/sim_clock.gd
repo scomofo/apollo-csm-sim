@@ -32,14 +32,17 @@ const INTERACTIVE_MAX_RATE: float = 100.0
 const POWERED_MAX_RATE: float = 10.0
 ## Cap on steps per render frame to avoid a spiral of death.
 const MAX_STEPS_PER_FRAME: int = 2000
+## Julian Date (UTC) of Apollo 11 liftoff, 1969-07-16 13:32:00 UTC: the
+## default liftoff_jd, restored by reset().
+const DEFAULT_LIFTOFF_JD: float = 2440419.0638889
 ## The channels that schedule events: GETs to land a coast step on.
 const EVENT_CHANNELS: Array[String] = ["seq.next_event_get_s", "guid.next_event_get_s", "lm.guid.next_event_get_s"]
 
 ## Ground Elapsed Time, seconds since liftoff.
 var get_seconds: float = 0.0
 ## Julian Date (UTC) of liftoff; GET 0. Default is Apollo 11 liftoff,
-## 1969-07-16 13:32:00 UTC.
-var liftoff_jd: float = 2440419.0638889
+## 1969-07-16 13:32:00 UTC (DEFAULT_LIFTOFF_JD).
+var liftoff_jd: float = DEFAULT_LIFTOFF_JD
 var rate: float = 1.0:
 	set(value):
 		rate = value
@@ -188,6 +191,7 @@ func get_display() -> String:
 
 func reset(start_get: float = 0.0) -> void:
 	get_seconds = start_get
+	liftoff_jd = DEFAULT_LIFTOFF_JD
 	_accumulator = 0.0
 	step_count = 0
 	_set_rate_index(0)

@@ -43,3 +43,58 @@ jobs:
 
       - name: Run unit and scenario tests
         run: ~/godot/godot --headless --path . -s addons/gut/gut_cmdln.gd -gexit
+
+  lint:
+    # Static checks that need no Godot binary. gdlint is advisory
+    # (continue-on-error) until the pre-existing findings are triaged;
+    # the data-file gate below is blocking because those files are
+    # load-bearing and the check is exact.
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install gdlint
+        run: pip install "gdtoolkit==4.5.0"
+
+      - name: Lint GDScript (advisory)
+        continue-on-error: true
+        run: gdlint src scenes tests tools
+
+      - name: Validate data files
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("data")
+          files = sorted(root.rglob("*.json"))
+          assert files, "no JSON data files found"
+          for f in files:
+              json.loads(f.read_text())  # every data file must parse
+
+          # Load-bearing propulsion, docking and ELS numbers from
+          # data/spacecraft.json: present, numeric and positive.
+          sc = json.loads((root / "spacecraft.json").read_text())
+          required = {
+              "sps": ["thrust_n", "isp_s", "propellant_kg"],
+              "dps": ["thrust_n", "isp_s", "propellant_kg"],
+              "aps": ["thrust_n", "isp_s", "propellant_kg"],
+              "sivb": ["thrust_n", "isp_s", "propellant_kg"],
+              "docking": ["undock_speed_mps", "closing_max_mps"],
+              "els": ["drogue_alt_m", "main_alt_m"],
+          }
+          for section, keys in required.items():
+              assert section in sc, f"spacecraft.json: missing section '{section}'"
+              for key in keys:
+                  v = sc[section][key]
+                  assert isinstance(v, (int, float)) and v > 0, \
+                      f"spacecraft.json: {section}.{key} = {v!r}"
+          print(f"OK: {len(files)} JSON files parse; required fields present and positive")
+          PY
