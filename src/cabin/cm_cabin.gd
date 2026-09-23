@@ -46,6 +46,9 @@ const WINDOWS := {
 ## the whole console, including the right-hand panel the commander can't
 ## touch from the couch.
 const CLICK_RANGE := 2.0
+## Centre of the checklist card, by the commander's left shoulder, 0.5 m
+## from the eye (body, m).
+const CARD_CENTRE := Vector3(1.02, -1.02, -0.40)
 ## Couch centrelines, y (m): commander, centre, right.
 const COUCH_Y := [-0.62, 0.0, 0.62]
 ## Wall mesh resolution: 5 cm along the axis, 2.5 deg around it.
@@ -55,6 +58,9 @@ const AROUND_STEPS := 144
 ## Where the player's rig goes: the commander's eye, looking along +X with
 ## the crew's up. Its global basis is the identity in the space view.
 var anchor: Node3D
+## Where the checklist card goes: +Z faces the commander's eye, +Y is the
+## crew's up.
+var card_mount: Node3D
 ## CockpitLayout.build() output: row id -> node.
 var items: Dictionary = {}
 var _panels: Dictionary = {}
@@ -71,6 +77,10 @@ func _init() -> void:
 	anchor.name = "PlayerAnchor"
 	anchor.transform = Transform3D(FACE_BASIS, EYE_CDR)
 	add_child(anchor)
+	card_mount = Node3D.new()
+	card_mount.name = "CardMount"
+	card_mount.transform = Transform3D(Basis.looking_at(CARD_CENTRE - EYE_CDR, Vector3(0, 0, -1)), CARD_CENTRE)
+	add_child(card_mount)
 
 
 ## A cabin with the shipped layout built onto its panels. Layout errors are
@@ -229,10 +239,10 @@ func _build_panels() -> void:
 		_panels[panel_name] = mount
 
 
-## Floodlights between the crew and the console, so the panel faces are
-## lit; otherwise only the windows let light in.
+## Floodlights between the crew and the console, so the panel faces and
+## the checklist card are lit; otherwise only the windows let light in.
 func _build_lights() -> void:
-	for spot in [["FloodLeft", Vector3(0.95, -1.05, -0.45)], ["FloodRight", Vector3(0.95, 1.05, -0.45)],
+	for spot in [["FloodLeft", Vector3(0.85, -0.95, -0.60)], ["FloodRight", Vector3(0.85, 0.95, -0.60)],
 			["FloodCentre", Vector3(0.9, 0.0, -0.95)]]:
 		var l := OmniLight3D.new()
 		l.name = spot[0]

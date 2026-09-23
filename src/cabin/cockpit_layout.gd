@@ -238,7 +238,7 @@ func _validate_overlaps() -> void:
 
 
 ## Half size of a row's footprint on the panel, mm.
-func footprint_mm(r: Dictionary) -> Vector2:
+static func footprint_mm(r: Dictionary) -> Vector2:
 	var half: Vector2 = TYPES[r["type"]]["half_mm"]
 	var s := str(parse_params(r.get("params", "")).get("scale", "1"))
 	return half * (float(s) if s.is_valid_float() else 1.0)
