@@ -29,6 +29,8 @@ var landed_q: Quaternion = Quaternion.IDENTITY
 var touchdown: Dictionary = {}
 ## Landed, how long its engine has pushed it up harder than its weight, s.
 var lift_s: float = 0.0
+## The ΔV its engines and jets have given it, summed, m/s.
+var dv_total: float = 0.0
 
 
 func _init(p_id: String = "lm", p_config: String = "lm", p_mass: float = 0.0) -> void:
@@ -47,6 +49,7 @@ func step(dt: float, force_body: Vector3 = Vector3.ZERO, torque_body: Vector3 = 
 	traj.step(dt, ext)
 	attitude.step(dt, torque_body)
 	dv_step = a * dt if force_body != Vector3.ZERO else Vector3.ZERO
+	dv_total += dv_step.length()
 	coasting = force_body == Vector3.ZERO and torque_body == Vector3.ZERO
 
 
@@ -110,6 +113,7 @@ func snapshot() -> Dictionary:
 		"omega": [attitude.omega.x, attitude.omega.y, attitude.omega.z],
 		"landed": landed, "landed_pos": [landed_pos.x, landed_pos.y, landed_pos.z],
 		"landed_q": [landed_q.x, landed_q.y, landed_q.z, landed_q.w], "touchdown": touchdown, "lift_s": lift_s,
+		"dv_total": dv_total,
 	}
 
 
@@ -127,4 +131,5 @@ static func from_snapshot(d: Dictionary) -> Vehicle:
 	v.landed_q = Quaternion(lq[0], lq[1], lq[2], lq[3])
 	v.touchdown = d.get("touchdown", {})
 	v.lift_s = float(d.get("lift_s", 0.0))
+	v.dv_total = float(d.get("dv_total", 0.0))
 	return v

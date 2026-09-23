@@ -297,9 +297,10 @@ The 2D HUD stays as the desktop fallback.
 
 ## 3. The LM and a lunar landing
 
-**Status: slices 3a to 3d done: the LM undocks, flies free and docks
-again, flies DOI on its own computer, lands at Tranquility Base, and
-lifts off to orbit at the time the RTCC gives.**
+**Status: slices 3a to 3e done: the LM undocks, flies free and docks
+again, flies DOI on its own computer, lands at Tranquility Base, lifts
+off to orbit at the time the RTCC gives, and flies the rendezvous back
+to Columbia, which docks with it.**
 Before 3a the LM was only mass: 15,103 kg added in the `csm_lm`
 configuration (`data/spacecraft.json`) and dropped at LM JETT before TEI.
 
@@ -498,6 +499,72 @@ the direction of flight. Taken from downrange, the +Z axis swung 180° as
 the thrust passed the horizontal near insertion, and the LM reached orbit
 rolling at 4.5°/s.
 
+Slice 3e flies the rendezvous:
+
+- **Targeting** (`src/systems/rendezvous.gd`), which the RTCC and the
+  LGC share, flown on the flight model:
+  - CSI is a horizontal burn at the LM's first apolune. It is sized so
+    that, with CDH half a revolution on, the CSM stands 26.6° above the
+    LM's horizon at TPI's time.
+  - CDH puts the LM on an orbit a constant height below the CSM's. Its
+    semi-major axis is the CSM's less that height, and its radial
+    velocity is the CSM's there, scaled by (a_CSM / a_LM)^1.5.
+  - TPI comes when the CSM rises to 26.6°, with the transfer that meets
+    it after it has flown 130°, found by Newton's method on the miss.
+  - The midcourse corrections aim at the same meeting.
+- **The CSI PAD.** `Rtcc.plan_rendezvous()` flies the sequence from both
+  vehicles' state vectors, with TPI 2 h 35 min after insertion, as Apollo
+  11 had it. The ground uplinks CSI's and TPI's times, and Columbia's
+  state vector as MSFN tracked it, 914 m off, most of it along the track
+  (`mission.json` "rendezvous").
+- **The rendezvous radar** (`src/systems/rendezvous_radar.gd`) measures
+  the range, the range rate and the line of sight to Columbia, out to
+  400 nmi, unless the Moon is in the way.
+- **P20** marks once a minute. The first mark after an uplink takes the
+  radar's relative position outright. Later marks weight it by half, and
+  move the velocity by the position's residual and the range rate's.
+  V16N54 shows the range, the range rate and Columbia's elevation, and
+  V06N49 the last mark.
+- **P32 to P35** target each burn with Luminary's displays (N11, N13,
+  N37, N55, N58, N75 and N81), and P41 flies it on the RCS.
+- **Checkpoints are schema 3.** They carry the LGC's rendezvous state,
+  and schema 2 checkpoints are rejected. Restored, the rendezvous radar
+  measures again from the restored vehicles.
+- **Braking and docking.** From a mile out, the test's commander brakes
+  on the TTCA by the gates (30 ft/s from a mile, 20 from 3,000 ft, 10
+  from 1,500 ft, 5 from 500 ft), nulling the line of sight's drift, and
+  stops 40 m out. Eagle turns its docking port to Columbia, and Collins
+  flies the probe into the drogue.
+
+As with the descent and the ascent, the sequence flew in a Python model
+first.
+
+`tests/scenarios/test_rendezvous.gd` is the check. From Eagle's insertion
+(the ascent is 3d's check):
+- The CSI PAD: CSI 52.3 ft/s, 50 min 50 s after insertion (Apollo 11:
+  51.5 ft/s, 50 min 18 s), 15 nmi below Columbia, then TPI 24.0 ft/s and
+  30.9 ft/s to brake (Apollo 11: TPI about 25 ft/s, and closing at 31 ft/s
+  0.7 mile out).
+- In 12 marks, P20 takes Columbia's 914 m error down to 0.2 m relative
+  to Eagle. What is left against the truth, 4 m, is Eagle's own
+  navigation error, which the rendezvous doesn't feel.
+- The LGC flies the sequence: CSI 52.3 ft/s, then CDH 2.1 ft/s onto an
+  orbit 14.6 nmi below Columbia's. TPI is 24.0 ft/s, 18 s before the
+  plan's time, and the midcourse corrections are 0.2 and 0.1 ft/s.
+  Braking takes 15 min, and station-keeping begins 45 min after TPI
+  (Apollo 11: 15 min and 48 min). Collins docks at 0.33 ft/s, dead
+  centre.
+- Eagle's ΔV from insertion to station-keeping is 116.0 ft/s, 6 % over
+  the RTCC's plan of 109.1 ft/s. The check allows 20 %.
+
+Writing it showed that the targeting needs doubles. CDH's ΔV, taken as
+the difference of two single-precision velocities of 1.6 km/s, was off
+by up to a tenth of a millimetre per second. That moved Columbia's
+elevation at TPI by 10⁻⁵ radians from one trial to the next, noise the
+secant method could not solve through, so the LGC found no CSI solution
+from its own state vectors. With the ΔV in doubles, CSI converges to
+10⁻⁷ radians.
+
 ### What changes underneath
 
 - **Two vehicles at once.** Done in 3a. Today's channels stay the CSM's,
@@ -505,7 +572,8 @@ rolling at 4.5°/s.
   once it has a computer), which left the existing tests and checklists
   untouched. The coast-step policy (`sys.coast_ok`, `dyn.coast_dt_s`)
   holds for both vehicles, and the snapshot has a map of vehicles
-  (schema 2). The LM's systems went into it in 3b.
+  (schema 2). The LM's systems went into it in 3b, and the LGC's
+  rendezvous state in 3e (schema 3).
 - **An AGC core with two program sets.** Done in 3b:
   `src/systems/agc_core.gd` under the CMC's Colossus programs (`agc.gd`)
   and the LGC's Luminary programs (`lgc.gd`). Milestone 4 changes the
@@ -526,8 +594,8 @@ rolling at 4.5°/s.
 | Descent orbit insertion to about 15 km (50,000 ft) | P30, P40 on the DPS | The CMC's P30 and P40 dialogue, with an RTCC DOI PAD |
 | Powered descent | P63 braking, P64 approach with landing-point redesignation, P65 automatic landing, P66 rate of descent, P68 landing confirmation, with landing radar updates | Klumpp's Apollo lunar descent guidance (MIT Draper Laboratory, 1971). Done in 3c |
 | Ascent to about 9 × 45 nmi | P12, at the RTCC's liftoff time | After E guidance (Cherry, 1964), which Luminary's P12 flew. Done in 3d |
-| Rendezvous: CSI, CDH, TPI, two midcourse corrections, braking | P20, P32 to P35, burns flown with P41 on the LM RCS | Luminary GSOP, section 5; the Apollo 11 flight plan |
-| Docking | Manual, with the THC | — |
+| Rendezvous: CSI, CDH, TPI, two midcourse corrections, braking | P20, P32 to P35, burns flown with P41 on the LM RCS | Luminary GSOP, section 5; the Apollo 11 flight plan. Done in 3e |
+| Docking | Manual, with the THC | Done in 3a, and flown after the rendezvous in 3e |
 
 ### Who flies what
 
@@ -544,7 +612,7 @@ the CSM. Switching vehicles at will is a later choice.
 | 3b (done) | AGC core split. LM data, DPS, APS, LM RCS and LM DAP. LGC P00, P30, P40, P41, P42, P47 | The existing tests pass unchanged. New test: fly a DOI PAD on the LGC to its pericynthion target |
 | 3c (done) | Moon-fixed frame, landing site, LOI over the site, P63, P64, P66, P68, touchdown | Test: automatic guidance from PDI to touchdown lands within 500 m of the site at under 1 m/s vertical and 0.5 m/s horizontal speed. A second run flies P66 with scripted hand-controller inputs |
 | 3d (done) | Lunar liftoff time from the RTCC, P12 | Test: liftoff to insertion, within set limits of the target orbit |
-| 3e | P20, P32 to P35, braking, docking | Test: insertion to docking capture, with total ΔV within a set margin of the RTCC plan |
+| 3e (done) | P20, P32 to P35, braking, docking | Test: insertion to docking capture, with total ΔV within a set margin of the RTCC plan |
 | 3f | Undocking-to-TEI timeline in `mission.json`; start phases `lunar_descent`, `lunar_surface` and `lunar_ascent`; checklists; CAPCOM; an LM cockpit (desktop overlay first, then cabin prefabs from milestone 2) | The new start phases are built from the earlier ones, and the full suite passes |
 
 **Done when** `--phase=lunar_descent` lands at Tranquility Base and
@@ -589,7 +657,7 @@ quiet between burns.
 | Slice | Work | Check |
 |---|---|---|
 | 4a Ephemeris | Real Moon and Sun positions for the mission dates, in a dated inertial frame. The Moon-fixed frame from 3c gets a real rotation model. Recommended: Chebyshev coefficients fitted to JPL ephemeris vectors, generated by a script in `tools/`, stored under `data/`, with their provenance in NOTICE | Error against held-out reference vectors stays under 1 km for the Moon's position and 0.01° for the Sun's direction. The scenario suite passes, re-tuned only where the flight really changed. Re-measure the Fidelity table |
-| 4b Onboard state | The AGC keeps its own state vectors (the CSM's; the LGC's has done so since 3c, `Lgc.nav`, and it has held the CSM's as the ground uplinks it since 3d, `Lgc.csm_nav`): it coasts them with its own integration and updates them from sensed ΔV while thrusting (`AgcCore.sense()` already integrates `dyn.dv_step`, and the LGC's `lm.dyn.dv_step`). Every program and noun uses them, never truth. Truth gains small forces the AGC doesn't model (vents, unbalanced attitude jets), with seeded dispersions whose seed is in the checkpoint. The RTCC plans from a tracked state with tracking error. The crew accepts state-vector uplinks through P27 (V71) | Test: after a long coast, the onboard state has drifted from truth by a bounded amount, and an uplink replaces it with the tracked state. The MCC and LOI scenarios pass with an uplink step |
+| 4b Onboard state | The AGC keeps its own state vectors (the CSM's; the LGC's has done so since 3c, `Lgc.nav`, and it has held the CSM's as the ground uplinks it since 3d, `Lgc.csm_nav`, which it coasts and P20's radar marks update since 3e): it coasts them with its own integration and updates them from sensed ΔV while thrusting (`AgcCore.sense()` already integrates `dyn.dv_step`, and the LGC's `lm.dyn.dv_step`). Every program and noun uses them, never truth. Truth gains small forces the AGC doesn't model (vents, unbalanced attitude jets), with seeded dispersions whose seed is in the checkpoint. The RTCC plans from a tracked state with tracking error. The crew accepts state-vector uplinks through P27 (V71) | Test: after a long coast, the onboard state has drifted from truth by a bounded amount, and an uplink replaces it with the tracked state. The MCC and LOI scenarios pass with an uplink step |
 | 4c IMU and P52 | REFSMMATs (launch pad, preferred for each burn, landing site), gyro drift, and ICDU angles and the FDAI relative to REFSMMAT. Gimbal lock costs the alignment instead of only lighting the lamp. An optics view (sextant and scanning telescope) with the 37 Apollo navigation stars; P51, P52, V41 N20 coarse align, N05 star angle difference, N93 torquing angles. Desktop first; in the cabin the optics sit at the lower equipment bay, away from the couch | Test: drift for 12 h, realign with P52 and two star marks, and the residual misalignment is under a set limit. A burn flown on a misaligned platform misses by the amount the misalignment predicts |
 | 4d Onboard navigation (stretch) | P23 cislunar sightings and P22 landmark tracking. (In the LM, the landing radar has updated the LGC's altitude and velocity since 3c) | Test: P23 marks alone keep the entry corridor within limits without an uplink |
 

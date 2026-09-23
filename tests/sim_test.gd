@@ -3,6 +3,12 @@
 class_name SimTest
 extends GutTest
 
+## The THC's detent: a smaller deflection commands nothing (src/systems/rcs.gd).
+const CSM_THC_DETENT := 0.05
+## Translation jets per body axis: all four quads fire along X, two along
+## Y and Z (src/systems/rcs.gd).
+const CSM_JETS := Vector3(4, 2, 2)
+
 var rt: SimRuntime
 
 
@@ -95,13 +101,15 @@ func fly_pad() -> float:
 ## maneuver; ENGINE ARM at
 ## [param arm] (2 DES, 1 ASC, 0 for the RCS), PRO at V99, PRO after
 ## residuals; then ENGINE ARM OFF and MODE FREE. [param monitor], if
-## given, is called at each second of the countdown and the burn. Returns
-## the maneuver's sensed ΔV (m/s).
-func fly_lm_pad(prog: int, arm: int, monitor: Callable = Callable()) -> float:
+## given, is called at each second of the countdown and the burn. Without
+## [param from_p30] the maneuver is one the LGC stored itself (P32 to
+## P35). Returns the maneuver's sensed ΔV (m/s).
+func fly_lm_pad(prog: int, arm: int, monitor: Callable = Callable(), from_p30: bool = true) -> float:
 	var lgc := rt.lgc()
-	keys("V37E30E", lgc)
-	assert_eq(lgc.program, 30, "LGC P30 selected")
-	keys("PPP", lgc)
+	if from_p30:
+		keys("V37E30E", lgc)
+		assert_eq(lgc.program, 30, "LGC P30 selected")
+		keys("PPP", lgc)
 	assert_true(lgc.maneuver_valid, "maneuver stored in the LGC")
 	var tig := lgc.maneuver_tig
 	run(maxf(tig - 900.0 - SimClock.get_seconds, 0.0))
@@ -124,3 +132,105 @@ func fly_lm_pad(prog: int, arm: int, monitor: Callable = Callable()) -> float:
 	Bus.set_value("ctl.lm.engine_arm", 0)
 	Bus.set_value("ctl.lm.mode", 0)
 	return dv
+
+
+## Set the free LM down at the landing site, upright, its +Z axis
+## [param yaw_deg] to the left of the CSM's direction of motion [the landing
+## itself is slice 3c's test].
+func set_lm_down(yaw_deg: float = 0.0) -> void:
+	var lm := rt.dynamics.lm
+	var cm := Dynamics.lm_cm_height("lm")
+	var site := rt.sequencer.landing_site()
+	var up := Rtcc.site_at(site, lm.traj.t).normalized()
+	var pos := up * (site.length() + cm)
+	lm.traj.set_state("moon", lm.traj.t, pos, Bodies.moon_omega().cross(pos))
+	var tr := rt.dynamics.traj
+	var fwd := tr.pos().cross(tr.vel()).normalized().cross(up).normalized().rotated(up, deg_to_rad(yaw_deg))
+	lm.attitude.q = Basis(up, fwd.cross(up), fwd).get_rotation_quaternion()
+	lm.attitude.omega = Vector3.ZERO
+	lm.land(site.length() + cm)
+
+# --- the CSM's translation controller, and docking --------------------------------
+
+## The LM's docking port relative to the CSM's, and its velocity, CSM body
+## axes: what the crew reads off the docking target.
+func dock_rel_pos() -> Vector3:
+	return Bus.get_value("dock.rel_pos", Vector3.ZERO)
+
+
+func dock_rel_vel() -> Vector3:
+	return Bus.get_value("dock.rel_vel", Vector3.ZERO)
+
+
+## The ΔV one fixed step of full translation gives the CSM along each body
+## axis, m/s.
+func csm_step_dv() -> Vector3:
+	var f := float(SpacecraftData.section("sm_rcs")["jet_thrust_n"])
+	return CSM_JETS * (f * SimClock.FIXED_DT / rt.dynamics.mass)
+
+
+## Translate for one fixed step toward the ΔV [param owed] (m/s, CSM body
+## axes): each axis at the duty its share needs, or not at all below the
+## detent. Returns what is still owed after the ΔV the step gave.
+func csm_translate_step(owed: Vector3) -> Vector3:
+	var cap := csm_step_dv()
+	var thc := Vector3.ZERO
+	for k in 3:
+		var duty := clampf(owed[k] / cap[k], -1.0, 1.0)
+		if absf(duty) >= CSM_THC_DETENT:
+			thc[k] = duty
+	Bus.set_value("ctl.thc", thc)
+	run(SimClock.FIXED_DT, false)
+	var dv: Array = Bus.get_value("dyn.dv_step", [0.0, 0.0, 0.0])
+	return owed - rt.dynamics.attitude.body_from_eci() * Vector3(dv[0], dv[1], dv[2])
+
+
+## Give the CSM the ΔV [param dv] (m/s, body axes) on the THC.
+func csm_translate(dv: Vector3) -> void:
+	var owed := dv
+	for i in 20000:
+		var cap := csm_step_dv()
+		if absf(owed.x) < cap.x * CSM_THC_DETENT and absf(owed.y) < cap.y * CSM_THC_DETENT and absf(owed.z) < cap.z * CSM_THC_DETENT:
+			break
+		owed = csm_translate_step(owed)
+	Bus.set_value("ctl.thc", Vector3.ZERO)
+	run(SimClock.FIXED_DT, false)
+
+
+## Stop relative to the LM.
+func csm_null_rates() -> void:
+	for i in 2:
+		csm_translate(dock_rel_vel())
+
+
+## Move the CSM so the LM's port ends up at [param target] (CSM body
+## axes), in about [param seconds].
+func csm_move_to(target: Vector3, seconds: float) -> void:
+	for i in 2:
+		csm_null_rates()
+		var u := (dock_rel_pos() - target) / seconds
+		csm_translate(u)
+		run(seconds - 1.0)
+	csm_null_rates()
+
+
+## Close on the LM at [param speed], as a pilot does it: every second,
+## trim the closing speed and steer the drogue back onto the probe's axis
+## (the vehicles' orbits curve their paths apart). Returns once the probe
+## has met the drogue.
+func csm_approach(speed: float, max_s: float = 300.0) -> bool:
+	Bus.set_value("dock.contact", {})
+	var end := SimClock.get_seconds + max_s
+	while SimClock.get_seconds < end:
+		if not dock_contact().is_empty():
+			return true
+		var p := dock_rel_pos()
+		var want := Vector3(-speed, -p.y / 5.0, -p.z / 5.0).clamp(-Vector3.ONE * speed, Vector3.ONE * speed)
+		csm_translate(dock_rel_vel() - want)
+		run(1.0, false)
+	return false
+
+
+## The last contact of the probe with the drogue (Docking.contact()).
+func dock_contact() -> Dictionary:
+	return Bus.get_value("dock.contact", {})

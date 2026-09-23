@@ -7,101 +7,11 @@
 ## Contacts outside the capture limits rebound.
 extends SimTest
 
-## The THC's detent: a smaller deflection commands nothing (src/systems/rcs.gd).
-const DETENT := 0.05
-## Translation jets per body axis: all four quads fire along X, two along
-## Y and Z (src/systems/rcs.gd).
-const JETS := Vector3(4, 2, 2)
-
 
 func _undock() -> void:
 	Bus.set_value("ctl.seq.undock", true)
 	run(SimClock.FIXED_DT, false)
 	Bus.set_value("ctl.seq.undock", false)
-
-
-## The LM's docking port relative to the CSM's, and its velocity, CSM body
-## axes: what the crew reads off the docking target.
-func _rel_pos() -> Vector3:
-	return Bus.get_value("dock.rel_pos", Vector3.ZERO)
-
-
-func _rel_vel() -> Vector3:
-	return Bus.get_value("dock.rel_vel", Vector3.ZERO)
-
-
-## The ΔV one fixed step of full translation gives the CSM along each body
-## axis, m/s.
-func _step_dv() -> Vector3:
-	var f := float(SpacecraftData.section("sm_rcs")["jet_thrust_n"])
-	return JETS * (f * SimClock.FIXED_DT / rt.dynamics.mass)
-
-
-## Translate for one fixed step toward the ΔV [param owed] (m/s, CSM body
-## axes): each axis at the duty its share needs, or not at all below the
-## detent. Returns what is still owed after the ΔV the step gave.
-func _translate_step(owed: Vector3) -> Vector3:
-	var cap := _step_dv()
-	var thc := Vector3.ZERO
-	for k in 3:
-		var duty := clampf(owed[k] / cap[k], -1.0, 1.0)
-		if absf(duty) >= DETENT:
-			thc[k] = duty
-	Bus.set_value("ctl.thc", thc)
-	run(SimClock.FIXED_DT, false)
-	var dv: Array = Bus.get_value("dyn.dv_step", [0.0, 0.0, 0.0])
-	return owed - rt.dynamics.attitude.body_from_eci() * Vector3(dv[0], dv[1], dv[2])
-
-
-## Give the CSM the ΔV [param dv] (m/s, body axes) on the THC.
-func _translate(dv: Vector3) -> void:
-	var owed := dv
-	for i in 20000:
-		var cap := _step_dv()
-		if absf(owed.x) < cap.x * DETENT and absf(owed.y) < cap.y * DETENT and absf(owed.z) < cap.z * DETENT:
-			break
-		owed = _translate_step(owed)
-	Bus.set_value("ctl.thc", Vector3.ZERO)
-	run(SimClock.FIXED_DT, false)
-
-
-## Stop relative to the LM.
-func _null_rates() -> void:
-	for i in 2:
-		_translate(_rel_vel())
-
-
-## Move the CSM so the LM's port ends up at [param target] (CSM body
-## axes), in about [param seconds].
-func _move_to(target: Vector3, seconds: float) -> void:
-	for i in 2:
-		_null_rates()
-		var u := (_rel_pos() - target) / seconds
-		_translate(u)
-		run(seconds - 1.0)
-	_null_rates()
-
-
-## Close on the LM at [param speed], as a pilot does it: every second,
-## trim the closing speed and steer the drogue back onto the probe's axis
-## (the vehicles' orbits curve their paths apart). Returns once the probe
-## has met the drogue.
-func _approach(speed: float, max_s: float = 300.0) -> bool:
-	Bus.set_value("dock.contact", {})
-	var end := SimClock.get_seconds + max_s
-	while SimClock.get_seconds < end:
-		if not _contact().is_empty():
-			return true
-		var p := _rel_pos()
-		var want := Vector3(-speed, -p.y / 5.0, -p.z / 5.0).clamp(-Vector3.ONE * speed, Vector3.ONE * speed)
-		_translate(_rel_vel() - want)
-		run(1.0, false)
-	return false
-
-
-## The last contact of the probe with the drogue (Docking.contact()).
-func _contact() -> Dictionary:
-	return Bus.get_value("dock.contact", {})
 
 
 # --- the LM's local frame ---------------------------------------------------------
@@ -142,17 +52,17 @@ func _local() -> Array:
 func _station(station: Vector3, seconds: float) -> void:
 	for i in 3:
 		var l := _local()
-		_translate(rt.dynamics.attitude.body_from_eci() * _out(_frame(), (station - l[0]) / seconds - l[1]))
+		csm_translate(rt.dynamics.attitude.body_from_eci() * _out(_frame(), (station - l[0]) / seconds - l[1]))
 		run(seconds - 2.0)
 	for i in 2:
 		var l := _local()
-		_translate(rt.dynamics.attitude.body_from_eci() * _out(_frame(), -l[1]))
+		csm_translate(rt.dynamics.attitude.body_from_eci() * _out(_frame(), -l[1]))
 
 
 ## Burn [param dv] m/s radially down, the thrust kept on the local
 ## vertical as it turns (the CSM's attitude holds still meanwhile).
 func _radial_burn(dv: float) -> void:
-	var cap := _step_dv()
+	var cap := csm_step_dv()
 	var rate := minf(cap.y, cap.z) * 0.8
 	var owed := Vector3.ZERO
 	var given := 0.0
@@ -162,9 +72,9 @@ func _radial_burn(dv: float) -> void:
 			var inc := minf(rate, dv - given)
 			owed += rt.dynamics.attitude.body_from_eci() * down * inc
 			given += inc
-		elif absf(owed.x) < cap.x * DETENT and absf(owed.y) < cap.y * DETENT and absf(owed.z) < cap.z * DETENT:
+		elif absf(owed.x) < cap.x * CSM_THC_DETENT and absf(owed.y) < cap.y * CSM_THC_DETENT and absf(owed.z) < cap.z * CSM_THC_DETENT:
 			break
-		owed = _translate_step(owed)
+		owed = csm_translate_step(owed)
 	Bus.set_value("ctl.thc", Vector3.ZERO)
 	run(SimClock.FIXED_DT, false)
 
@@ -275,9 +185,9 @@ func test_equiperiod_separation_a_revolution_and_docking_again() -> void:
 	assert_lt((lm_now - _vec(lm_end, 0)).length(), 1.0, "and so does the LM")
 	assert_lt((_local()[0] - back).length(), 0.05, "to within 5 cm of each other")
 	# Dock again: line up 10 m out, and close at 0.1 m/s.
-	_move_to(Vector3(10.0, 0.0, 0.0), 60.0)
-	assert_true(_approach(0.1), "the probe met the drogue")
-	var c := _contact()
+	csm_move_to(Vector3(10.0, 0.0, 0.0), 60.0)
+	assert_true(csm_approach(0.1), "the probe met the drogue")
+	var c := dock_contact()
 	gut.p("Docked: %s" % Docking.describe(c))
 	assert_true(c["captured"], "within the capture limits")
 	assert_almost_eq(float(c["closing_mps"]), 0.1, 0.005, "closing at 0.1 m/s")
@@ -304,8 +214,8 @@ func test_undocking_is_not_the_lm_jettison_on_the_checklist() -> void:
 	_undock()
 	list.update()
 	assert_string_starts_with(str(list.current().get("text", "")), "LM JETT", "undocked, the LM hasn't gone")
-	_move_to(Vector3(10.0, 0.0, 0.0), 60.0)
-	assert_true(_approach(0.1), "the probe met the drogue")
+	csm_move_to(Vector3(10.0, 0.0, 0.0), 60.0)
+	assert_true(csm_approach(0.1), "the probe met the drogue")
 	assert_eq(str(Bus.get_value("dock.state")), "docked", "docked again")
 	list.update()
 	assert_string_starts_with(str(list.current().get("text", "")), "LM JETT", "still to jettison")
@@ -338,10 +248,10 @@ func test_contacts_outside_the_capture_limits_rebound() -> void:
 	build("lunar_orbit")
 	Bus.set_value("ctl.cmc.mode", 0)
 	_undock()
-	_move_to(Vector3(8.0, 0.0, 0.0), 40.0)
+	csm_move_to(Vector3(8.0, 0.0, 0.0), 40.0)
 	# Too fast: 0.5 m/s.
-	assert_true(_approach(0.5), "the probe met the drogue")
-	var c := _contact()
+	assert_true(csm_approach(0.5), "the probe met the drogue")
+	var c := dock_contact()
 	assert_false(c["captured"])
 	assert_eq(c["fault"], "closing")
 	assert_almost_eq(float(c["closing_mps"]), 0.5, 0.005)
@@ -351,13 +261,13 @@ func test_contacts_outside_the_capture_limits_rebound() -> void:
 	assert_almost_eq(float(Bus.get_value("dock.range_rate_mps")), 0.25, 0.01, "rebounding at half the closing speed")
 	assert_string_contains(str(Bus.get_value("mission.capcom")), "contact, no capture: closing at 1.64 ft/s")
 	# Misaligned by 20°, at a gentle 0.1 m/s.
-	_null_rates()
+	csm_null_rates()
 	var d := rt.dynamics
 	d.attitude.q = (d.attitude.q * Quaternion(Vector3(0, 0, 1), deg_to_rad(20.0))).normalized()
 	run(SimClock.FIXED_DT, false)
-	_move_to(Vector3(8.0, 0.0, 0.0), 40.0)
-	assert_true(_approach(0.1), "the probe met the drogue")
-	c = _contact()
+	csm_move_to(Vector3(8.0, 0.0, 0.0), 40.0)
+	assert_true(csm_approach(0.1), "the probe met the drogue")
+	c = dock_contact()
 	assert_eq(c["fault"], "misaligned")
 	assert_almost_eq(float(c["misalign_deg"]), 20.0, 0.1)
 	assert_eq(Docking.describe(c), "no capture: 20° out of line")

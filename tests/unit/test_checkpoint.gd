@@ -37,7 +37,7 @@ func test_restore_rejects_foreign_checkpoints() -> void:
 func test_a_checkpoint_keeps_each_vehicle_under_its_name() -> void:
 	build("lunar_orbit")
 	var snap := rt.snapshot()
-	assert_eq(snap["schema_version"], 2)
+	assert_eq(snap["schema_version"], 3)
 	assert_eq(snap["vehicles"].keys(), ["csm"], "docked, the LM is part of the CSM's csm_lm")
 	assert_eq(snap["vehicles"]["csm"]["dynamics"]["config"], "csm_lm")
 	assert_has(snap["vehicles"]["csm"]["systems"], "agc")
@@ -56,7 +56,16 @@ func test_a_checkpoint_from_before_the_vehicles_map_is_rejected() -> void:
 	snap["dynamics"] = snap["vehicles"]["csm"]["dynamics"]
 	snap["systems"] = snap["vehicles"]["csm"]["systems"]
 	snap.erase("vehicles")
-	assert_eq(rt.restore(snap), "checkpoint schema 1, expected 2")
+	assert_eq(rt.restore(snap), "checkpoint schema 1, expected 3")
+
+
+func test_a_checkpoint_from_before_the_rendezvous_is_rejected() -> void:
+	build("lunar_orbit")
+	var snap := rt.snapshot()
+	# Schema 2's LGC had no rendezvous state.
+	snap["schema_version"] = 2
+	snap["vehicles"]["csm"]["systems"]["lgc"].erase("rendezvous")
+	assert_eq(rt.restore(snap), "checkpoint schema 2, expected 3")
 
 
 func test_the_lms_systems_come_back_with_it() -> void:
@@ -96,16 +105,38 @@ func test_the_lms_systems_come_back_with_it() -> void:
 	assert_lt(d.length(), 1.0, "the LM flies on as it did")
 
 
+func test_the_lgcs_rendezvous_state_comes_back_as_it_was() -> void:
+	build("lunar_orbit")
+	Bus.set_value("ctl.cmc.mode", 0)
+	Bus.set_value("ctl.seq.undock", true)
+	run(1.0, false)
+	var lgc := rt.lgc()
+	lgc.uplink_rendezvous(300000.0, 305000.0)
+	lgc.rr_marks = 3
+	var text := JSON.stringify(rt.snapshot())
+	# Later, in the same runtime: P20 on, more marks and other times.
+	lgc.rr_nav = true
+	lgc.rr_marks = 9
+	lgc.rdv_csi_tig = 310000.0
+	lgc.rdv_cdh_tig = 312000.0
+	assert_eq(rt.restore(JSON.parse_string(text)), "")
+	assert_same(rt.lgc(), lgc, "the same LGC")
+	assert_false(lgc.rr_nav, "P20 off, as it was")
+	assert_eq(lgc.rr_marks, 3)
+	assert_eq([lgc.rdv_csi_tig, lgc.rdv_tpi_tig], [300000.0, 305000.0], "the uplinked times")
+	assert_eq(lgc.rdv_cdh_tig, 0.0, "no CDH time: the one set after the checkpoint is gone")
+
+
 func test_the_lms_systems_ride_with_the_vehicle_that_carries_them() -> void:
 	build("lunar_orbit")
 	var systems: Dictionary = rt.snapshot()["vehicles"]["csm"]["systems"]
-	for k in ["agc", "lgc", "lm_rcs", "dps", "aps", "lr"]:
+	for k in ["agc", "lgc", "lm_rcs", "dps", "aps", "lr", "rr"]:
 		assert_has(systems, k, "docked, the CSM's entry carries the LM's systems")
 	Bus.set_value("ctl.cmc.mode", 0)
 	Bus.set_value("ctl.seq.undock", true)
 	run(1.0, false)
 	var snap := rt.snapshot()
-	assert_eq(snap["vehicles"]["lm"]["systems"].keys(), ["lgc", "lm_rcs", "dps", "aps", "lr"], "free, the LM's own entry")
+	assert_eq(snap["vehicles"]["lm"]["systems"].keys(), ["lgc", "lm_rcs", "dps", "aps", "lr", "rr"], "free, the LM's own entry")
 	assert_does_not_have(snap["vehicles"]["csm"]["systems"], "lgc")
 	build("lunar_orbit")
 	Bus.set_value("ctl.seq.lm_jett", true)

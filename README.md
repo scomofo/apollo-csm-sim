@@ -157,6 +157,24 @@ guidance, after the E guidance Luminary flew, puts it into a 9 × 45 nmi
 orbit in Columbia's plane, 60,000 ft up and climbing at 32 ft/s, and the
 engine stops about seven minutes after liftoff.
 
+**The rendezvous.** After insertion, Mission Control's CSI PAD carries
+the RTCC's plan: Apollo 11's coelliptic sequence, flown from both
+vehicles' state vectors, with TPI 2 h 35 min after insertion, as Apollo
+11 had it. The ground uplinks CSI's and TPI's times, and Columbia's state
+vector as MSFN tracked it, about 900 m off (mission.json "rendezvous").
+In P20 the rendezvous radar marks Columbia once a minute, and the marks
+take the error out of where the LGC has Columbia relative to Eagle.
+V16N54 shows the range, the range rate and Columbia's elevation. P32
+targets CSI at the first apolune: the horizontal burn that, with CDH half
+a revolution on, has Columbia 26.6° above Eagle's horizon at TPI's time.
+P33 targets CDH, onto an orbit a constant 15 nmi below Columbia's. P34
+finds when Columbia comes up to 26.6°, and the transfer that meets it
+after it has flown 130° of its orbit. P35 corrects the course 15 and 30
+minutes after TPI, and P41 flies each burn on the RCS. From a mile out
+the commander brakes on the TTCA, holding the closing rate to the range
+gates, and stops about 40 m from Columbia. Collins then flies the probe
+into the drogue, as he did.
+
 The LGC also has P41 (LM RCS), P42 (the ascent engine, after staging)
 and P47, and ENGINE START lifts a landed ascent stage off by hand. The LM
 has no cockpit yet, so only the tests fly it (slice 3f adds one).
@@ -194,11 +212,11 @@ The right column names the files in this repository.
 | [`src/dynamics/orbit.gd`][g-orbit] (Earth, J2) | `src/dynamics/trajectory.gd` | Earth–Moon three-body RK4, state re-based at the lunar sphere of influence |
 | [`src/systems/electrical.gd`][g-electrical] | `src/systems/eps.gd` | Fuel cells, cryo O2/H2, entry batteries, O2 tank failure |
 | OAMS/RCS in [`src/dynamics/dynamics.gd`][g-dynamics] | `src/systems/rcs.gd`, `src/systems/sps.gd` | SM quads A–D, CM rings, SPS with arm valves and transients |
-| [`src/systems/guidance.gd`][g-guidance] + MDIU | `src/systems/agc_core.gd`, `agc.gd`, `lgc.gd`, `ascent_guidance.gd` + `src/systems/dsky.gd` | One AGC core (verb/noun DSKY, P30, thrusting programs, P47, DAP) under two program sets: the CMC's P00/30/40/41/47/61/64/67 and the LGC's P00/12/30/40/41/42/47/63/64/65/66/68 |
-| — | `src/systems/dps.gd`, `aps.gd`, `lm_rcs.gd`, `landing_radar.gd` | The LM's descent and ascent engines, its RCS and its landing radar |
+| [`src/systems/guidance.gd`][g-guidance] + MDIU | `src/systems/agc_core.gd`, `agc.gd`, `lgc.gd`, `ascent_guidance.gd`, `rendezvous.gd` + `src/systems/dsky.gd` | One AGC core (verb/noun DSKY, P30, thrusting programs, P47, DAP) under two program sets: the CMC's P00/30/40/41/47/61/64/67 and the LGC's P00/12/20/30/32/33/34/35/40/41/42/47/63/64/65/66/68 |
+| — | `src/systems/dps.gd`, `aps.gd`, `lm_rcs.gd`, `landing_radar.gd`, `rendezvous_radar.gd` | The LM's descent and ascent engines, its RCS, and its landing and rendezvous radars |
 | — | `src/dynamics/terrain.gd`, `data/terrain/`, `tools/terrain/build_terrain.py` | The surface from NASA's elevation maps: LROC's Apollo 11 site model at 4 m, SLDEM2015 along the approach, LOLA elsewhere (sources in NOTICE) |
 | [`src/mission/mission_sequencer.gd`][g-sequencer] | rewritten | Phases, S-IVB/IU TLI automation, separations, failures, CAPCOM |
-| — | `src/mission/rtcc.gd` | Ground targeting: TLI, MCC, LOI-1/2 over the landing site, TEI, the LM's DOI for the landing pass and its liftoff time, by shooting on the flight model. The sequencer's PDI PAD uplinks the LM's state vector with its tracking error |
+| — | `src/mission/rtcc.gd` | Ground targeting: TLI, MCC, LOI-1/2 over the landing site, TEI, the LM's DOI for the landing pass, its liftoff time and its rendezvous (the CSI PAD), by shooting on the flight model. The sequencer's PDI PAD uplinks the LM's state vector with its tracking error, and the CSI PAD the CSM's with its own |
 | [`src/mission/procedure_runner.gd`][g-procedure] | `src/mission/checklist.gd` | Bus-checked flight-plan checklists |
 | [`src/systems/recovery.gd`][g-recovery] | `src/systems/els.gd` | Drogues, reefed mains |
 | GUT tests, headless | GUT 9.4.0 (vendored in `addons/gut/`), headless | Unit tests plus full mission-segment scenarios |
@@ -285,6 +303,8 @@ These parts are modelled from published figures (rounded; see
 - SM RCS (100 lbf jets)
 - LM descent engine (10,125 lbf, throttleable from 10 % to 60 %, Isp
   311 s), ascent engine (3,500 lbf) and RCS (100 lbf jets in two systems)
+- The rendezvous radar's range (400 nmi), and the TPI elevation and
+  transfer angle (26.6° and 130°)
 - J-2 TLI (the burn takes about 5 min)
 - CSM, LM and S-IVB masses (the LM's split between its stages is
   estimated)
@@ -302,6 +322,11 @@ A flown Apollo 11 profile in the simulator reproduces these values:
 | DOI | 73.0 ft/s, 30 s | ~76 ft/s, ~30 s |
 | Powered descent | 12 min 6 s, touchdown 140 m from the target (the LGC's crossrange error, which the radar can't see) | 12 min 35 s, about 6 km past the target |
 | Ascent, liftoff to cutoff | 7 min 8 s, then 60,054 ft and 32.1 ft/s up, 9.0 × 45.1 nmi | 7 min 17 s, then 60,666 ft and 32.8 ft/s up, 9.5 × 47.3 nmi |
+| CSI | 52.3 ft/s, 50 min 50 s after insertion | 51.5 ft/s, 50 min 18 s after insertion |
+| TPI | 24.0 ft/s, 2 h 34 min 17 s after insertion | ~25 ft/s, 2 h 34 min 35 s after insertion |
+| Midcourse corrections | 0.2 and 0.1 ft/s | ~1 ft/s each |
+| Braking, then station-keeping | 15 min 26 s, station-keeping 45 min after TPI | 15 min 8 s, station-keeping 48 min after TPI |
+| Docking | 50 min after TPI | 59 min after TPI |
 | Entry peak load | 6.9 g | ~6.5 g |
 | Splashdown | 8.6 m/s | — |
 
@@ -342,8 +367,14 @@ ones:
   state vectors, and uplinks them as the truth. The lead Columbia has at
   insertion is estimated from Apollo 11's rendezvous. P12's steering
   takes the engine's nominal thrust for its acceleration, not the
-  measured one, and the LGC holds the CSM's state vector without
-  coasting it.
+  measured one.
+- **The rendezvous.** The rendezvous radar is noise-free and finds
+  Columbia wherever it is, without gimbal limits or a manual lock-on.
+  P20 weights each mark by fixed gains, not Luminary's filter, and
+  updates only Columbia's state vector. The RTCC and P32 to P35 target
+  impulsive burns on the flight model, which P41 flies as finite ones,
+  and CDH comes half a revolution after CSI. MSFN's error in Columbia's
+  state vector and the braking gates are estimates.
 - **Docking.** Capture docks the vehicles hard at once, without a soft
   dock and probe retraction. Only the probe can touch the LM: the
   vehicles' bodies pass through each other. The docking geometry, the
@@ -379,12 +410,20 @@ The unit tests cover:
 - The ascent guidance: its targets are a 9 × 45 nmi orbit, it pitches
   over along the track, steers back into the CSM's plane, and its time to
   go is the rocket equation's
+- The rendezvous targeting: the CSM's elevation, the next apsis, CDH
+  leaving the LM the same height below the CSM's orbit all the way round,
+  CSI sized for the TPI elevation at TPI's time, and TPI's time and its
+  transfer meeting the CSM (24.6 ft/s, and 31.6 ft/s to brake)
+- The rendezvous radar: range, range rate and the line of sight in the
+  LM's axes, and no data with the Moon in the way, beyond 400 nmi,
+  docked or powered down
 - DSKY key logic
 - CMC programs
 - Systems: SPS arming, EPS consumption and the Apollo 13 failure, SCS/CMC
   autopilot, the coast-step policy
-- Checkpoint round-trip, with a map of vehicles (schema 2), each with its
-  own systems, and older checkpoints rejected
+- Checkpoint round-trip, with a map of vehicles, each with its own
+  systems, and the LGC's rendezvous state (schema 3). Older checkpoints
+  are rejected
 - The main scene
 - The hand controllers, from the keys and from the XR thumbsticks, with
   the thumbstick deadzone
@@ -468,6 +507,15 @@ The scenario tests fly real segments through the crew interface:
   32.1 ft/s up into a 9.0 × 45.1 nmi orbit, 0.001° from Columbia's
   plane, with Columbia 16.42° ahead and 167 kg of propellant left. A
   checkpoint taken mid-ascent flies on to the same insertion
+- The rendezvous (`tests/scenarios/test_rendezvous.gd`), slice 3e's
+  check. From Eagle's insertion, the CSI PAD plans CSI at 52.3 ft/s
+  (Apollo 11: 51.5), 15 nmi below Columbia, and TPI at 24.0 ft/s.
+  Columbia's uplinked state vector is 914 m off, and after 12 marks P20
+  has it within 0.2 m relative to Eagle. The LGC flies the sequence: CDH
+  2.1 ft/s onto 14.6 nmi below, TPI 18 s before the plan's time, and
+  midcourse corrections of 0.2 and 0.1 ft/s. The commander brakes by the
+  gates and stops 40 m out, and Collins docks at 0.33 ft/s. Eagle's ΔV,
+  116.0 ft/s, is 6 % over the RTCC's plan (the check allows 20 %)
 - The LM's other systems (`tests/scenarios/test_lm_burns.gd`): P41 on its
   RCS, P47 on a translation, staging and P42 on the ascent engine, its
   autopilot turning and holding it, the LGC dark while the LM is docked,
@@ -493,5 +541,6 @@ godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=2 --yaw=0.55 
 value: CI, a VR cockpit, the LM and a lunar landing, and navigation
 realism. The VR cockpit waits on a headset run. The LM undocks, flies
 free and docks again (slice 3a), flies DOI on its own computer (slice
-3b), lands at Tranquility Base (slice 3c), and lifts off to orbit at the
-RTCC's time (slice 3d).
+3b), lands at Tranquility Base (slice 3c), lifts off to orbit at the
+RTCC's time (slice 3d), and flies the rendezvous back to Columbia, which
+docks with it (slice 3e).
