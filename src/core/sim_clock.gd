@@ -7,7 +7,8 @@
 ## more steps per frame rather than enlarging dt, except while the vehicle
 ## coasts (sys.coast_ok): then the step grows to the propagator's
 ## recommended coast step (dyn.coast_dt_s), landing exactly on the next
-## scheduled event (seq.next_event_get_s, guid.next_event_get_s).
+## scheduled event (seq.next_event_get_s, and each computer's
+## guid.next_event_get_s: the CMC's and the LGC's).
 extends Node
 
 signal ticked(dt: float)
@@ -31,6 +32,8 @@ const INTERACTIVE_MAX_RATE: float = 100.0
 const POWERED_MAX_RATE: float = 10.0
 ## Cap on steps per render frame to avoid a spiral of death.
 const MAX_STEPS_PER_FRAME: int = 2000
+## The channels that schedule events: GETs to land a coast step on.
+const EVENT_CHANNELS: Array[String] = ["seq.next_event_get_s", "guid.next_event_get_s", "lm.guid.next_event_get_s"]
 
 ## Ground Elapsed Time, seconds since liftoff.
 var get_seconds: float = 0.0
@@ -104,7 +107,7 @@ func advance(sim_seconds: float, max_steps: int = -1, interactive: bool = false)
 
 
 func _at_event() -> bool:
-	for ch in ["seq.next_event_get_s", "guid.next_event_get_s"]:
+	for ch in EVENT_CHANNELS:
 		if absf(float(Bus.get_value(ch, -1.0)) - get_seconds) < 1e-6:
 			return true
 	return false
@@ -121,7 +124,7 @@ func step_dt() -> float:
 	if Bus.command_epoch != _epoch_seen:
 		return FIXED_DT
 	var dt := clampf(float(Bus.get_value("dyn.coast_dt_s", 1.0)), FIXED_DT, COAST_DT_MAX)
-	for ch in ["seq.next_event_get_s", "guid.next_event_get_s"]:
+	for ch in EVENT_CHANNELS:
 		var next_get := float(Bus.get_value(ch, -1.0))
 		if next_get > get_seconds:
 			var until := next_get - get_seconds

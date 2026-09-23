@@ -142,3 +142,38 @@ func test_the_free_lm_is_drawn_where_it_flies_and_turned_as_it_is() -> void:
 	assert_almost_eq(drawn.length(), SpaceView.LM_RENDER_MAX, 1e-2)
 	assert_almost_eq(drawn.normalized(), far.normalized(), Vector3.ONE * 1e-5, "in its direction")
 	assert_almost_eq(free.global_transform.basis.get_scale().x, SpaceView.LM_RENDER_MAX / far.length(), 1e-5, "scaled to its apparent size")
+
+
+func test_the_staged_lm_is_drawn_without_its_descent_stage() -> void:
+	var q := _turned()
+	var p := Docking.params()
+	var span := float(p["csm_port_m"]) + float(p["lm_port_m"])
+	var x := Basis(q) * Vector3.RIGHT
+	Bus.set_value("dyn.config", "csm")
+	Bus.set_value("dock.state", "free")
+	Bus.set_value("lm.dyn.primary", "earth")
+	Bus.set_value("lm.dyn.config", "lm")
+	Bus.set_value("lm.dyn.r_m", [R + x.x * span, x.y * span, x.z * span])
+	Bus.set_value("lm.dyn.att_q", q * Docking.LM_IN_CSM)
+	_render(q)
+	var free: Node3D = view.lm_free
+	var descent: Node3D = free.get_node("Descent")
+	assert_true(descent.visible, "the whole LM")
+	var port := Vector3(SpaceView.CSM_PORT_X, 0, 0)
+	var port_at := free.global_transform * port
+	# Staged in place: the ascent stage's centre of mass nearer the port by
+	# the difference of the two port distances; the port doesn't move.
+	var lift := Docking.lm_port_m("lm") - Docking.lm_port_m("lm_ascent")
+	var s := span - lift
+	Bus.set_value("lm.dyn.config", "lm_ascent")
+	Bus.set_value("lm.dyn.r_m", [R + x.x * s, x.y * s, x.z * s])
+	_render(q)
+	assert_false(descent.visible, "staged, the descent stage stays behind")
+	assert_almost_eq(free.global_transform * port, port_at, Vector3.ONE * 1e-3, "the docking port where it was")
+	# Docked again as the ascent stage, the stack's LM is drawn staged too.
+	Bus.set_value("dyn.config", "csm_lm")
+	Bus.set_value("dock.state", "docked")
+	_render(q)
+	var docked: Node3D = view.get("_parts")["lm"]
+	assert_true(docked.visible)
+	assert_false(docked.get_node("Descent").visible, "the docked ascent stage")

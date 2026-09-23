@@ -35,19 +35,21 @@ func run_until(cond: Callable, max_s: float, chunk: float = 60.0, fast: bool = t
 	return cond.call()
 
 
-func keys(seq: String) -> void:
+## Key [param seq] into the CMC's DSKY, or [param computer]'s (the LGC's).
+func keys(seq: String, computer: AgcCore = null) -> void:
 	# "V37E40E" style: V=VERB N=NOUN E=ENTR P=PRO C=CLR K=KEY REL R=RSET
+	var dsky := (computer if computer != null else rt.agc()).dsky
 	for ch in seq:
 		match ch:
-			"V": rt.agc().dsky.press("VERB")
-			"N": rt.agc().dsky.press("NOUN")
-			"E": rt.agc().dsky.press("ENTR")
-			"P": rt.agc().dsky.press("PRO")
-			"C": rt.agc().dsky.press("CLR")
-			"K": rt.agc().dsky.press("KEY REL")
-			"R": rt.agc().dsky.press("RSET")
+			"V": dsky.press("VERB")
+			"N": dsky.press("NOUN")
+			"E": dsky.press("ENTR")
+			"P": dsky.press("PRO")
+			"C": dsky.press("CLR")
+			"K": dsky.press("KEY REL")
+			"R": dsky.press("RSET")
 			" ": pass
-			_: rt.agc().dsky.press(ch)
+			_: dsky.press(ch)
 
 
 ## Fly an uplinked PAD the way the crew does: P30 accept; a quarter of an
@@ -84,4 +86,39 @@ func fly_pad() -> float:
 	Bus.set_value("ctl.sps.arm_a", false)
 	Bus.set_value("ctl.sps.arm_b", false)
 	Bus.set_value("ctl.cmc.mode", 0)
+	return dv
+
+
+## Fly a PAD uplinked to the LGC the way the LM crew does: P30 accept; LGC
+## MODE AUTO and the thrusting program [param prog] (P40 on the DPS, P41 on
+## the RCS, P42 on the APS) with auto maneuver; ENGINE ARM at
+## [param arm] (2 DES, 1 ASC, 0 for the RCS), PRO at V99, PRO after
+## residuals; then ENGINE ARM OFF and MODE FREE. [param monitor], if
+## given, is called at each second of the countdown and the burn. Returns
+## the maneuver's sensed ΔV (m/s).
+func fly_lm_pad(prog: int, arm: int, monitor: Callable = Callable()) -> float:
+	var lgc := rt.lgc()
+	keys("V37E30E", lgc)
+	assert_eq(lgc.program, 30, "LGC P30 selected")
+	keys("PPP", lgc)
+	assert_true(lgc.maneuver_valid, "maneuver stored in the LGC")
+	var tig := lgc.maneuver_tig
+	Bus.set_value("ctl.lm.mode", 2)
+	keys("V37E%dE" % prog, lgc)
+	assert_eq(lgc.program, prog, "P%d selected" % prog)
+	keys("P", lgc)   # V50N18: perform auto maneuver
+	Bus.set_value("ctl.lm.engine_arm", arm)
+	run(maxf(tig - 12.0 - SimClock.get_seconds, 0.0))
+	var ok := run_until(func() -> bool: return lgc.step_name == "v99", 20.0, 1.0, false)
+	assert_true(ok, "reached V99 before TIG")
+	keys("P", lgc)
+	ok = run_until(func() -> bool:
+		if monitor.is_valid():
+			monitor.call()
+		return lgc.step_name == "post", 2000.0, 1.0, false)
+	assert_true(ok, "burn completed")
+	var dv := lgc.dv_accum
+	keys("P", lgc)
+	Bus.set_value("ctl.lm.engine_arm", 0)
+	Bus.set_value("ctl.lm.mode", 0)
 	return dv
