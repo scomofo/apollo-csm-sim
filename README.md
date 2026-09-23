@@ -303,7 +303,7 @@ The scenario tests fly real segments through the crew interface:
 
 - S-IVB TLI to lunar arrival
 - MCC, LOI-1 and LOI-2 into lunar orbit
-- TEI and two transearth MCCs into the entry corridor
+- TEI and the transearth MCCs into the entry corridor
 - CM/SM separation, P61/P64 entry and splashdown
 - An MCC PAD flown with P30 and P41 using only the cabin's controls,
   each one clicked through the desktop rig

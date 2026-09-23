@@ -198,8 +198,12 @@ Writing the test found two things:
   TIG, time enough for the maneuver to the burn attitude. Between burns
   it drifts in CMC MODE FREE, because an attitude hold in lunar orbit
   limit-cycles and slows the clock the same way. `SimTest.fly_pad()`,
-  which the other mission scenarios use, still selects P40 at once;
-  before LOI-1 that costs about 20 seconds of fixed steps.
+  which the other mission scenarios use, now flies a PAD the same way.
+  It also steps into V99 a second at a time, so PRO comes at TIG−5 s and
+  the engine lights on time, where it had lit up to 10 s late.
+  `test_lunar_mission.gd` went from 130 s to 23 s. TEI now leaves a
+  vacuum perigee of 79 km, not −174 km, and one transearth MCC puts it in
+  the corridor.
 
 What remains for the milestone is the recorded headset pass.
 
