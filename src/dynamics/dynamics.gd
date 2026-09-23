@@ -4,16 +4,21 @@
 ## Dynamics of gemini-capsule, https://github.com/scomofo/gemini-capsule).
 ##
 ## The CSM (in any configuration, the docked LM included) publishes dyn.*.
-## After undocking the LM flies free as a second vehicle and publishes
-## lm.dyn.*, and the docking channels (dock.*) give the ports' relative
-## state (src/dynamics/docking.gd). A contact between the ports within the
-## capture limits docks the vehicles again; any other contact rebounds.
+## After undocking the LM flies free as a second vehicle, under its own
+## engines and RCS, and publishes lm.dyn.*; the docking channels (dock.*)
+## give the ports' relative state (src/dynamics/docking.gd). A contact
+## between the ports within the capture limits docks the vehicles again;
+## any other contact rebounds. The LM's mass, docked or free, follows its
+## own propellant (its DPS, APS and RCS).
 ##
 ## Reads:  sps.thrust_n, rcs.force_body, rcs.torque_body, sivb.thrust_n,
 ##         sivb.dir, sps.prop_kg, rcs.sm_prop_kg, rcs.cm_prop_kg,
 ##         sivb.prop_kg, els.drogue, els.mains, guid.bank_cmd_deg,
-##         guid.bank_auto, ctl.rhc
-## Writes: dyn.* (see publish_state), lm.dyn.*, dock.state, dock.range_m,
+##         guid.bank_auto, ctl.rhc, guid.dap_busy; the LM's lm.dps.thrust_n,
+##         lm.aps.thrust_n, lm.rcs.force_body, lm.rcs.torque_body,
+##         lm.dps.prop_kg, lm.aps.prop_kg, lm.rcs.prop_kg, lm.guid.dap_busy
+## Writes: dyn.* (see publish_state), lm.dyn.* (the free LM's; docked,
+##         lm.dyn.config alone: "lm", or "lm_ascent"), dock.state, dock.range_m,
 ##         dock.range_rate_mps, dock.rel_pos, dock.rel_vel (the LM's port
 ##         relative to the CSM's, CSM body axes), dock.misalign_deg,
 ##         dock.contact (the last contact, Docking.contact()), sys.coast_ok
@@ -47,6 +52,8 @@ var last_torque: Vector3 = Vector3.ZERO
 ## The LM while it flies free of the CSM; null while it is docked (part of
 ## the csm_lm configuration), before transposition and after LM JETT.
 var lm: Vehicle = null
+## The docked LM's configuration: "lm", or "lm_ascent" once staged.
+var lm_config: String = "lm"
 ## The probe tip's height above the drogue, and its offset across it, at
 ## the last step: a contact is where the height crosses zero.
 var _last_axial: float = 0.0
@@ -67,6 +74,7 @@ func initialize(primary: String, get_s: float, pos: Vector3, vel: Vector3, cfg: 
 	traj.set_state(primary, get_s, pos, vel)
 	config = cfg
 	lm = null
+	lm_config = "lm"
 	landed = false
 	bank = 0.0
 	max_g = 0.0
@@ -90,8 +98,23 @@ func update_mass() -> void:
 		float(Bus.get_value("sps.prop_kg", SpacecraftData.section("sps")["propellant_kg"])),
 		float(Bus.get_value("rcs.sm_prop_kg", 4.0 * SpacecraftData.section("sm_rcs")["quad_propellant_kg"])),
 		float(Bus.get_value("rcs.cm_prop_kg", 2.0 * SpacecraftData.section("cm_rcs")["ring_propellant_kg"])),
-		float(Bus.get_value("sivb.prop_kg", SpacecraftData.section("sivb")["propellant_kg"])))
+		float(Bus.get_value("sivb.prop_kg", SpacecraftData.section("sivb")["propellant_kg"])),
+		_lm_mass(lm_config))
 	attitude.inertia = SpacecraftData.inertia(config, mass)
+
+
+## The LM's mass in [param cfg], from its systems' propellant (full tanks
+## until they publish it).
+func _lm_mass(cfg: String) -> float:
+	var f := SpacecraftData.lm_full_loads()
+	return SpacecraftData.lm_total_mass(cfg, float(Bus.get_value("lm.dps.prop_kg", f[0])),
+		float(Bus.get_value("lm.aps.prop_kg", f[1])), float(Bus.get_value("lm.rcs.prop_kg", f[2])))
+
+
+## The LM is still with the mission: in the S-IVB's adapter, docked, or
+## flying free (not jettisoned).
+func has_lm() -> bool:
+	return lm != null or config == "stack" or config == "csm_lm"
 
 
 func in_atmosphere() -> bool:
@@ -151,13 +174,13 @@ func tick(dt: float) -> void:
 	Bus.set_value("dyn.dv_step", [ext[0] * dt, ext[1] * dt, ext[2] * dt] if ext.size() == 3 else [0.0, 0.0, 0.0])
 	_step_lm(dt)
 	publish_state()
-	_publish_coast(coasting)
+	_publish_coast(coasting and (lm == null or (lm.coasting and not bool(Bus.get_value("lm.guid.dap_busy", false)))))
 
 
 ## The coast-step policy holds for both vehicles: a coast step is taken
-## only while both coast (the free LM always does until slice 3b), and it
-## is no longer than either trajectory allows, or than PROXIMITY_DT while
-## they are close.
+## only while both coast (nothing acts on either, and neither's autopilot
+## is trying to), and it is no longer than either trajectory allows, or
+## than PROXIMITY_DT while they are close.
 func _publish_coast(coasting: bool) -> void:
 	Bus.set_value("sys.coast_ok", coasting)
 	var dt := traj.coast_dt()
@@ -177,14 +200,14 @@ func undock() -> bool:
 	if config != "csm_lm":
 		return false
 	var p := Docking.params()
-	var m_lm := SpacecraftData.lm_mass()
+	var m_lm := _lm_mass(lm_config)
 	update_mass()
 	var m := mass
 	var m_csm := m - m_lm
 	var ecl := attitude.eci_from_body()
 	var x := ecl * Vector3.RIGHT
 	var w := ecl * attitude.omega
-	var span := float(p["csm_port_m"]) + float(p["lm_port_m"])
+	var span := float(p["csm_port_m"]) + Docking.lm_port_m(lm_config)
 	var push := float(p["undock_speed_mps"])
 	# Each centre of mass from the stack's, and its velocity.
 	var off_csm := -x * (span * m_lm / m)
@@ -197,11 +220,11 @@ func undock() -> bool:
 		s[3 + i] += dv_lm[i]
 		traj.s[i] += off_csm[i]
 		traj.s[3 + i] += dv_csm[i]
-	lm = Vehicle.new("lm", "lm", m_lm)
+	lm = Vehicle.new("lm", lm_config, m_lm)
 	lm.traj.set_state_d(traj.primary, traj.t, s)
 	lm.attitude.q = (attitude.q * Docking.LM_IN_CSM).normalized()
-	# [simplified] The LM holds the attitude it undocked in, as its DAP
-	# would (slice 3b): it keeps none of the stack's rates.
+	# [simplified] The LM's DAP nulls the stack's rates as it undocks: the
+	# LM keeps none of them, and its DAP holds the attitude it undocked in.
 	lm.attitude.omega = Vector3.ZERO
 	config = "csm"
 	update_mass()
@@ -210,11 +233,38 @@ func undock() -> bool:
 	return true
 
 
+## Step the free LM under its engines and RCS.
 func _step_lm(dt: float) -> void:
 	if lm == null:
 		return
-	lm.step(dt)
+	lm.mass = _lm_mass(lm.config)
+	lm.attitude.inertia = SpacecraftData.inertia(lm.config, lm.mass)
+	var force := Vector3(float(Bus.get_value("lm.dps.thrust_n", 0.0)) + float(Bus.get_value("lm.aps.thrust_n", 0.0)), 0.0, 0.0)
+	force += Bus.get_value("lm.rcs.force_body", Vector3.ZERO)
+	lm.step(dt, force, Bus.get_value("lm.rcs.torque_body", Vector3.ZERO))
 	_check_contact()
+
+
+## Stage the free LM: the ascent stage flies on from where its centre of
+## mass was in the whole LM, moving and turning as the LM was, and the
+## descent stage stays behind [simplified: it is no longer simulated].
+## The docking port doesn't move. Returns false unless the whole LM flies
+## free.
+func stage_lm() -> bool:
+	if lm == null or lm.config != "lm":
+		return false
+	var ecl := lm.attitude.eci_from_body()
+	var off := ecl * Vector3(Docking.lm_port_m("lm") - Docking.lm_port_m("lm_ascent"), 0.0, 0.0)
+	var dv := (ecl * lm.attitude.omega).cross(off)
+	for i in 3:
+		lm.traj.s[i] += off[i]
+		lm.traj.s[3 + i] += dv[i]
+	lm.config = "lm_ascent"
+	lm.mass = _lm_mass(lm.config)
+	lm.attitude.inertia = SpacecraftData.inertia(lm.config, lm.mass)
+	_arm_contact()
+	publish_state()
+	return true
 
 
 ## Take the probe tip's place over the drogue as the start of the next
@@ -267,7 +317,10 @@ func _capture() -> void:
 	h += to_body * Vector3(rel[0], rel[1], rel[2]).cross(Vector3(rel[3], rel[4], rel[5])) * (m_csm * m_lm / m)
 	for i in 6:
 		traj.s[i] += rel[i] * m_lm / m
+	lm_config = lm.config
 	lm = null
+	# The LM's IMU senses nothing more of its own.
+	Bus.set_value("lm.dyn.dv_step", [0.0, 0.0, 0.0])
 	config = "csm_lm"
 	update_mass()
 	var i_s := attitude.inertia
@@ -296,6 +349,8 @@ func _rebound(g: Dictionary) -> void:
 func _publish_docking() -> void:
 	Bus.set_value("dock.state", "free" if lm != null else ("docked" if config == "csm_lm" else "none"))
 	if lm == null:
+		if config == "csm_lm":
+			Bus.set_value("lm.dyn.config", lm_config)
 		return
 	lm.publish()
 	var g := Docking.relative(traj, attitude, lm)
@@ -408,6 +463,7 @@ func snapshot() -> Dictionary:
 		"omega": [attitude.omega.x, attitude.omega.y, attitude.omega.z],
 		"config": config, "landed": landed, "landed_speed": landed_speed,
 		"bank": bank, "max_g": max_g, "sensed_dv": Array(sensed_dv),
+		"lm_config": lm_config,
 	}
 
 
@@ -425,6 +481,7 @@ func restore(d: Dictionary, lm_d: Dictionary = {}) -> void:
 	bank = float(d.get("bank", 0.0))
 	max_g = float(d.get("max_g", 0.0))
 	sensed_dv = PackedFloat64Array(d.get("sensed_dv", [0, 0, 0]))
+	lm_config = str(d.get("lm_config", "lm"))
 	update_mass()
 	lm = Vehicle.from_snapshot(lm_d) if not lm_d.is_empty() else null
 	if lm != null:

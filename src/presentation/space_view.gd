@@ -195,7 +195,7 @@ func _build_csm() -> Node3D:
 
 
 ## The LM, simplified, as it sits docked ahead of the CM apex: in the CSM
-## model's axes.
+## model's axes. Its descent stage is the child "Descent".
 func _build_lm() -> Node3D:
 	var lm := Node3D.new()
 	var asc := MeshInstance3D.new()
@@ -211,14 +211,15 @@ func _build_lm() -> Node3D:
 	desc.mesh = db
 	desc.material_override = _mat(Color(0.85, 0.65, 0.25), 0.9, 0.35)
 	desc.position = Vector3(7.3, 0, 0)
+	desc.name = "Descent"
 	lm.add_child(desc)
 	return lm
 
 
-## The docked LM's body axes and centre of mass in the CSM model's axes.
-func _lm_docked() -> Transform3D:
-	var p := Docking.params()
-	return Transform3D(Basis(Docking.LM_IN_CSM), Vector3(CSM_PORT_X + float(p["lm_port_m"]), 0, 0))
+## The docked LM's body axes and centre of mass in the CSM model's axes,
+## for its configuration [param cfg] (the ascent stage's, staged).
+func _lm_docked(cfg: String = "lm") -> Transform3D:
+	return Transform3D(Basis(Docking.LM_IN_CSM), Vector3(CSM_PORT_X + Docking.lm_port_m(cfg), 0, 0))
 
 
 ## Place the free LM where it flies relative to the CSM, and turned as it
@@ -240,7 +241,7 @@ func _place_lm_free(q: Quaternion) -> void:
 	if d > LM_RENDER_MAX:
 		turn = turn.scaled(Vector3.ONE * (LM_RENDER_MAX / d))
 		at *= LM_RENDER_MAX / d
-	lm_free.transform = Transform3D(turn, at) * _lm_docked().affine_inverse()
+	lm_free.transform = Transform3D(turn, at) * _lm_docked(str(Bus.get_value("lm.dyn.config", "lm"))).affine_inverse()
 
 
 func _chutes(parent: Node3D, n: int, r: float, dist: float, c: Color) -> Node3D:
@@ -306,6 +307,9 @@ func _process(_delta: float) -> void:
 	var cfg := str(Bus.get_value("dyn.config", "stack"))
 	_parts["sm"].visible = cfg != "cm"
 	_parts["lm"].visible = cfg == "csm_lm"
+	var staged := str(Bus.get_value("lm.dyn.config", "lm")) == "lm_ascent"
+	_parts["lm"].get_node("Descent").visible = not staged
+	lm_free.get_node("Descent").visible = not staged
 	lm_free.visible = str(Bus.get_value("dock.state", "")) == "free"
 	if lm_free.visible:
 		_place_lm_free(q)

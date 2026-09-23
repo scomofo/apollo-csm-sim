@@ -1,11 +1,12 @@
 ## Runs the mission: builds the start state for a phase, tracks the flight
 ## phase from truth, performs the Saturn/IU automation (TLI), carries out
 ## crew separation commands, injects scripted failures, and plays Mission
-## Control: PAD requests are solved by the RTCC and uplinked to the CMC.
+## Control: PAD requests are solved by the RTCC and uplinked to the CMC, or
+## to the LGC for the LM's burns.
 ##
 ## Reads:  ctl.seq.csm_sep, ctl.seq.undock, ctl.seq.lm_jett,
-##         ctl.seq.cm_sm_sep (crew pushbuttons, edge-triggered),
-##         ctl.ground.pad_request (String)
+##         ctl.seq.cm_sm_sep, ctl.lm.stage (crew pushbuttons,
+##         edge-triggered), ctl.ground.pad_request (String)
 ## Writes: mission.phase, mission.capcom, mission.pad_text, mission.event.<id>,
 ##         mission.result, mission.tli_tig
 class_name MissionSequencer
@@ -33,7 +34,7 @@ var _o2_failed: bool = false
 
 func _ready() -> void:
 	SimClock.add_ticker(tick, SimClock.Stage.MISSION)
-	for ch in ["ctl.seq.csm_sep", "ctl.seq.undock", "ctl.seq.lm_jett", "ctl.seq.cm_sm_sep"]:
+	for ch in ["ctl.seq.csm_sep", "ctl.seq.undock", "ctl.seq.lm_jett", "ctl.seq.cm_sm_sep", "ctl.lm.stage"]:
 		_edges[ch] = bool(Bus.get_value(ch, false))
 	Bus.subscribe("ctl.ground.pad_request", _on_pad_request)
 	if dynamics != null:
@@ -181,6 +182,10 @@ func _crew_commands() -> void:
 						dynamics.set_configuration("cm")
 						_fire("cm_sm_sep")
 						_say("CM/SM separation confirmed.")
+				"ctl.lm.stage":
+					if dynamics.stage_lm():
+						_fire("lm_staging")
+						_say("Houston copies staging. Eagle's ascent stage is flying.")
 		_edges[ch] = now
 
 
@@ -267,13 +272,19 @@ func _on_pad_request(kind: Variant) -> void:
 	Bus.set_value("ctl.ground.pad_request", "")
 
 
-## Solve and uplink a maneuver PAD: "mcc", "loi", "circ", "tei".
+## Solve and uplink a maneuver PAD: "mcc", "loi", "circ", "tei" for the
+## CMC; "doi" for the LGC, while the LM flies free.
 func request_pad(kind: String) -> Dictionary:
 	var tr := dynamics.traj.clone()
 	var mass := dynamics.mass
 	var now := SimClock.get_seconds
 	var pad := {}
 	match kind:
+		"doi":
+			if dynamics.lm != null and dynamics.lm.config == "lm":
+				var doi := mission.section("doi")
+				pad = Rtcc.plan_doi(dynamics.lm.traj.clone(), dynamics.lm.mass, now + float(doi["lead_s"]),
+					float(doi["pericynthion_alt_km"]) * 1000.0)
 		"loi":
 			pad = Rtcc.plan_loi(tr, mass, float(mission.section("loi")["apolune_alt_km"]) * 1000.0)
 		"circ":
@@ -298,8 +309,9 @@ func request_pad(kind: String) -> Dictionary:
 		last_pad = {}
 		return {}
 	last_pad = pad
-	if systems.has("agc"):
-		systems["agc"].uplink_maneuver(float(pad["tig"]), pad["dv_lvlh"])
+	var computer := "lgc" if kind == "doi" else "agc"
+	if systems.has(computer):
+		systems[computer].uplink_maneuver(float(pad["tig"]), pad["dv_lvlh"])
 	var text := Rtcc.pad_text(pad)
 	Bus.set_value("mission.pad_text", text)
 	_say("Houston, uplinking " + text)

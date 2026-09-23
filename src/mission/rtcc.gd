@@ -2,9 +2,9 @@
 ## Control ran for every Apollo maneuver, reduced to what this simulator
 ## needs. Every solution is found by shooting with the same three-body
 ## propagator the vehicle flies (Trajectory) and the same burn laws the
-## vehicle executes (S-IVB energy cutoff, CMC P40 LVLH-held thrust), so a PAD flown
-## as uplinked lands close to its target; residuals are what midcourse
-## corrections are for.
+## vehicle executes (S-IVB energy cutoff, CMC P40 LVLH-held thrust, LGC P40
+## on the DPS's throttle schedule), so a PAD flown as uplinked lands close
+## to its target; residuals are what midcourse corrections are for.
 ##
 ## A PAD is a Dictionary: {"name", "tig" (GET s), "dv_lvlh" (Vector3, m/s),
 ## "dv" (m/s), "burn_s", plus solution-specific predictions}.
@@ -45,6 +45,47 @@ static func simulate_sps_burn(traj: Trajectory, mass: float, dv_lvlh: Vector3, d
 		left -= acc * h
 		m -= mdot * h
 	return m
+
+
+## Fly an LGC P40 burn on the DPS on [param traj]: thrust held along the
+## [param dv_lvlh] direction in the moving LVLH frame, at the start
+## throttle for the first p40_start_s and the burn throttle after, until
+## its magnitude has been gained (the law the LGC flies). Returns the mass
+## after.
+static func simulate_dps_burn(traj: Trajectory, mass: float, dv_lvlh: Vector3, dt: float = 0.5) -> float:
+	var d := SpacecraftData.section("dps")
+	var f := float(d["thrust_n"])
+	var mdot := f / (float(d["isp_s"]) * Units.G0)
+	var t_start := float(d["p40_start_s"])
+	var u := dv_lvlh.normalized()
+	var left := dv_lvlh.length()
+	var m := mass
+	var t := 0.0
+	while left > 1e-4:
+		var k := float(d["p40_start_throttle"]) if t < t_start else float(d["p40_throttle"])
+		var acc := f * k / m
+		var h := minf(dt, left / acc)
+		if t < t_start:
+			h = minf(h, t_start - t)
+		var a := lvlh_to_inertial(traj, u) * acc
+		traj.step(h, PackedFloat64Array([a.x, a.y, a.z]))
+		left -= acc * h
+		m -= mdot * k * h
+		t += h
+	return m
+
+
+## How long an LGC P40 burn of [param dv] on the DPS lasts, s.
+static func dps_burn_time(mass: float, dv: float) -> float:
+	var d := SpacecraftData.section("dps")
+	var ve := float(d["isp_s"]) * Units.G0
+	var mdot := float(d["thrust_n"]) / ve
+	var t_start := float(d["p40_start_s"])
+	var m_start := mass - mdot * float(d["p40_start_throttle"]) * t_start
+	var dv_start := ve * log(mass / m_start)
+	if absf(dv) <= dv_start:
+		return mass * (1.0 - exp(-absf(dv) / ve)) / (mdot * float(d["p40_start_throttle"]))
+	return t_start + m_start * (1.0 - exp(-(absf(dv) - dv_start) / ve)) / (mdot * float(d["p40_throttle"]))
 
 
 static func lvlh_to_inertial(traj: Trajectory, dv_lvlh: Vector3) -> Vector3:
@@ -264,6 +305,55 @@ static func plan_circularize(traj: Trajectory, mass: float, at: String = "periap
 	var dv := sqrt(mu / tr.radius()) - tr.speed()
 	var tb := burn_time(mass, dv)
 	return {"name": "CIRC", "tig": tr.t - tb / 2.0, "dv_lvlh": Vector3(dv, 0, 0), "dv": absf(dv), "burn_s": tb}
+
+
+## Coast [param traj] (modified) to its next periapsis, within a
+## revolution and a half. Returns its altitude above the primary, m (the
+## conic's there).
+static func next_periapsis_alt(traj: Trajectory) -> float:
+	var box := {"prev": traj.radial_rate()}
+	var peri := func(t2: Trajectory) -> bool:
+		var rr := t2.radial_rate()
+		var hit: bool = box["prev"] < 0.0 and rr >= 0.0
+		box["prev"] = rr
+		return hit
+	traj.coast_until(peri, traj.t + 1.5 * float(traj.conic()["period"]), 20.0, 0.002)
+	return float(traj.conic()["rp"]) - Bodies.radius_of(traj.primary)
+
+
+## Descent orbit insertion: the LM's retrograde External ΔV at
+## [param tig], flown on the DPS with the LGC's P40 throttle schedule, and
+## sized (by bisection on the finite burn) to put the next pericynthion at
+## [param pericynthion_alt]. Apollo 11: 50,000 ft.
+static func plan_doi(traj: Trajectory, mass: float, tig: float, pericynthion_alt: float) -> Dictionary:
+	if traj.primary != "moon":
+		return {}
+	var at := traj.clone()
+	at.coast_to(tig, 60.0, FRAC)
+	var outcome := func(dvm: float) -> float:
+		var t2 := at.clone()
+		simulate_dps_burn(t2, mass, Vector3(-dvm, 0, 0))
+		return next_periapsis_alt(t2)
+	# The pericynthion falls as the retrograde ΔV grows: bisect between no
+	# burn and one that would reach the surface.
+	var lo := 0.0
+	var hi := 0.5 * float(at.speed())
+	if float(outcome.call(lo)) < pericynthion_alt:
+		return {}
+	for _i in 60:
+		var mid := (lo + hi) / 2.0
+		if float(outcome.call(mid)) > pericynthion_alt:
+			lo = mid
+		else:
+			hi = mid
+		if hi - lo < 0.001:
+			break
+	var dv := (lo + hi) / 2.0
+	var t3 := at.clone()
+	simulate_dps_burn(t3, mass, Vector3(-dv, 0, 0))
+	var hp := next_periapsis_alt(t3)
+	return {"name": "DOI", "tig": tig, "dv_lvlh": Vector3(-dv, 0, 0), "dv": dv,
+		"burn_s": dps_burn_time(mass, dv), "hp": hp, "hp_get": t3.t}
 
 
 # --- TEI ------------------------------------------------------------------------

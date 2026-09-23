@@ -3,7 +3,9 @@
   "mass": {
     "cm_dry_kg": 5450.0,
     "sm_dry_kg": 4300.0,
-    "lm_kg": 15103.0,
+    "_lm_source": "LM-5 Eagle, 15,103 kg with full tanks [published]: the descent stage's dry mass and the propellant loads (dps, aps, lm_rcs) [published, rounded]; the ascent stage's dry mass, with the crew and their equipment, makes up the total [estimated]",
+    "lm_descent_dry_kg": 2034.0,
+    "lm_ascent_dry_kg": 2181.0,
     "sivb_dry_kg": 11500.0
   },
   "sps": {
@@ -32,17 +34,50 @@
     "isp_s": 421.0,
     "propellant_kg": 75000.0
   },
+  "dps": {
+    "_source": "Descent engine: 10,125 lbf full thrust, throttleable from 10 % to 60 % [published]; Isp and propellant load [published, rounded]; transients [estimated]. P40 starts it at 10 % for 15 s and then burns at 40 %, as Apollo 11's DOI did [published]",
+    "thrust_n": 45040.0,
+    "isp_s": 311.0,
+    "propellant_kg": 8248.0,
+    "throttle_min": 0.1,
+    "throttle_max": 0.6,
+    "tau_on_s": 0.3,
+    "tau_off_s": 0.25,
+    "p40_start_throttle": 0.1,
+    "p40_start_s": 15.0,
+    "p40_throttle": 0.4
+  },
+  "aps": {
+    "_source": "Ascent engine: 3,500 lbf, fixed thrust [published]; Isp and propellant load [published, rounded]; transients [estimated]",
+    "thrust_n": 15570.0,
+    "isp_s": 311.0,
+    "propellant_kg": 2353.0,
+    "tau_on_s": 0.3,
+    "tau_off_s": 0.25
+  },
+  "lm_rcs": {
+    "_source": "R-4D, 100 lbf, Isp ~290 s; sixteen jets in four quads on the ascent stage, fed by two systems, A and B, 633 lb of propellant in all [published]; the jets each system fires per axis and their lever arms [estimated]",
+    "jet_thrust_n": 444.8,
+    "isp_s": 290.0,
+    "system_propellant_kg": 143.5,
+    "rotation_jets": 2,
+    "x_jets": 2,
+    "yz_jets": 1,
+    "arm_m": 1.7
+  },
   "configurations": {
     "stack":  {"inertia": [60000.0, 5000000.0, 5000000.0], "ref_mass_kg": 140000.0, "rcs_pitch_arm_m": 0.0, "rcs_roll_arm_m": 0.0},
     "csm_lm": {"inertia": [45000.0, 900000.0, 900000.0], "ref_mass_kg": 44000.0, "rcs_pitch_arm_m": 5.0, "rcs_roll_arm_m": 1.95},
     "csm":    {"inertia": [22000.0, 95000.0, 95000.0], "ref_mass_kg": 28800.0, "rcs_pitch_arm_m": 3.2, "rcs_roll_arm_m": 1.95},
     "cm":     {"inertia": [6000.0, 5500.0, 5500.0], "ref_mass_kg": 5560.0, "rcs_pitch_arm_m": 1.6, "rcs_roll_arm_m": 1.4},
-    "lm":     {"inertia": [33000.0, 42000.0, 42000.0], "ref_mass_kg": 15103.0}
+    "lm":     {"inertia": [33000.0, 42000.0, 42000.0], "ref_mass_kg": 15103.0},
+    "lm_ascent": {"inertia": [7000.0, 5000.0, 5000.0], "ref_mass_kg": 4821.0}
   },
   "docking": {
-    "_source": "Probe-and-drogue docking [estimated throughout]: each docking port's distance from its vehicle's centre of mass along +X, the probe's push apart at undocking, the capture limits (closing speed, lateral speed, lateral miss, misalignment, relative rate), the radius within which the probe strikes the LM, and the rebound of a contact without capture",
+    "_source": "Probe-and-drogue docking [estimated throughout]: each docking port's distance from its vehicle's centre of mass along +X (the LM's, whole and as its ascent stage), the probe's push apart at undocking, the capture limits (closing speed, lateral speed, lateral miss, misalignment, relative rate), the radius within which the probe strikes the LM, and the rebound of a contact without capture",
     "csm_port_m": 5.5,
     "lm_port_m": 3.4,
+    "lm_ascent_port_m": 1.5,
     "undock_speed_mps": 0.03,
     "closing_max_mps": 0.3,
     "lateral_speed_max_mps": 0.15,

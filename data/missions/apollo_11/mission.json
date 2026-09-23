@@ -10,6 +10,7 @@
   "tde_delay_s": 3600.0,
   "loi": {"apolune_alt_km": 315.0},
   "tei": {"dv_mps": 1000.0, "entry_perigee_alt_km": 37.0},
+  "doi": {"pericynthion_alt_km": 15.24, "lead_s": 900.0, "_comment": "Descent orbit insertion: the LM's pericynthion at 50,000 ft [published]. TIG is lead_s after the PAD request [simplified: until slice 3c puts the pericynthion ahead of the landing site]"},
   "failures": {"o2_tank_2_get_s": -1.0},
   "start_phases": ["parking_orbit", "translunar_coast", "lunar_orbit", "transearth_coast", "entry"]
 }

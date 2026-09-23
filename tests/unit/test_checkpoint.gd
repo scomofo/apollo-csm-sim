@@ -57,3 +57,69 @@ func test_a_checkpoint_from_before_the_vehicles_map_is_rejected() -> void:
 	snap["systems"] = snap["vehicles"]["csm"]["systems"]
 	snap.erase("vehicles")
 	assert_eq(rt.restore(snap), "checkpoint schema 1, expected 2")
+
+
+func test_the_lms_systems_come_back_with_it() -> void:
+	build("lunar_orbit")
+	Bus.set_value("ctl.cmc.mode", 0)
+	Bus.set_value("ctl.seq.undock", true)
+	run(1.0, false)
+	# Turn the LM a little on its RCS, stage it, and store a maneuver.
+	Bus.set_value("ctl.lm.rhc", Vector3(0.0, 0.0, 1.0))
+	run(3.0, false)
+	Bus.set_value("ctl.lm.rhc", Vector3.ZERO)
+	Bus.set_value("ctl.lm.stage", true)
+	run(1.0, false)
+	rt.lgc().uplink_maneuver(SimClock.get_seconds + 1800.0, Vector3(3.0, 0.0, 0.0))
+	keys("V37E30EPPP", rt.lgc())
+	run(60.0)
+	var rcs := float(Bus.get_value("lm.rcs.prop_kg"))
+	var mass := rt.dynamics.lm.mass
+	var tig := rt.lgc().maneuver_tig
+	var text := JSON.stringify(rt.snapshot())
+	run(900.0)
+	var expect := rt.dynamics.lm.traj.s.duplicate()
+	var expect_t := SimClock.get_seconds
+	build("")
+	assert_eq(rt.restore(JSON.parse_string(text)), "")
+	assert_eq(rt.dynamics.lm.config, "lm_ascent", "the ascent stage")
+	assert_almost_eq(rt.dynamics.lm.mass, mass, 1e-6)
+	assert_lt(rcs, 287.0, "some RCS propellant used")
+	assert_almost_eq(float(Bus.get_value("lm.rcs.prop_kg")), rcs, 1e-6, "and still used")
+	assert_true(rt.lgc().maneuver_valid, "the LGC's stored maneuver")
+	assert_almost_eq(rt.lgc().maneuver_tig, tig, 1e-6)
+	assert_false(rt.agc().maneuver_valid, "the CMC's none")
+	run(expect_t - SimClock.get_seconds)
+	var lag := expect_t - SimClock.get_seconds
+	var d := Vector3(rt.dynamics.lm.traj.s[0] - expect[0], rt.dynamics.lm.traj.s[1] - expect[1], rt.dynamics.lm.traj.s[2] - expect[2])
+	d -= Vector3(rt.dynamics.lm.traj.s[3], rt.dynamics.lm.traj.s[4], rt.dynamics.lm.traj.s[5]) * lag
+	assert_lt(d.length(), 1.0, "the LM flies on as it did")
+
+
+func test_the_lms_systems_ride_with_the_vehicle_that_carries_them() -> void:
+	build("lunar_orbit")
+	var systems: Dictionary = rt.snapshot()["vehicles"]["csm"]["systems"]
+	for k in ["agc", "lgc", "lm_rcs", "dps", "aps"]:
+		assert_has(systems, k, "docked, the CSM's entry carries the LM's systems")
+	Bus.set_value("ctl.cmc.mode", 0)
+	Bus.set_value("ctl.seq.undock", true)
+	run(1.0, false)
+	var snap := rt.snapshot()
+	assert_eq(snap["vehicles"]["lm"]["systems"].keys(), ["lgc", "lm_rcs", "dps", "aps"], "free, the LM's own entry")
+	assert_does_not_have(snap["vehicles"]["csm"]["systems"], "lgc")
+	build("lunar_orbit")
+	Bus.set_value("ctl.seq.lm_jett", true)
+	run(1.0, false)
+	assert_does_not_have(rt.snapshot()["vehicles"]["csm"]["systems"], "lgc", "after LM JETT, gone with the LM")
+	# A docked LM that has used propellant keeps it through a checkpoint,
+	# and the stack weighs it.
+	build("lunar_orbit")
+	rt.systems["lm_rcs"].restore({"systems": [100.0, 143.5]})
+	run(SimClock.FIXED_DT, false)
+	var mass := rt.dynamics.mass
+	var text := JSON.stringify(rt.snapshot())
+	build("")
+	assert_eq(rt.restore(JSON.parse_string(text)), "")
+	assert_almost_eq(float(Bus.get_value("lm.rcs.prop_kg")), 243.5, 1e-6, "the LM's RCS as it was")
+	run(SimClock.FIXED_DT, false)
+	assert_almost_eq(rt.dynamics.mass, mass, 0.01, "and the stack's mass with it")

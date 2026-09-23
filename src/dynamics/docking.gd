@@ -7,7 +7,8 @@
 ##
 ## The probe is on the CSM's +X axis, csm_port_m from its centre of mass,
 ## and the drogue on the LM's +X (up) axis, lm_port_m from its centre of
-## mass. Docked, the LM's +X points back along the CSM's -X [estimated].
+## mass (lm_ascent_port_m from the ascent stage's, after staging). Docked,
+## the LM's +X points back along the CSM's -X [estimated].
 ## Capture latches the vehicles hard docked at once [simplified: no soft
 ## dock and probe retraction], and only the probe can meet the LM
 ## [simplified: no collisions between the vehicles' bodies].
@@ -21,6 +22,12 @@ const LM_IN_CSM := Quaternion(0.0, 0.0, 1.0, 0.0)
 
 static func params() -> Dictionary:
 	return SpacecraftData.section("docking")
+
+
+## The LM's docking port's distance from its centre of mass along +X, m,
+## for its configuration [param cfg] ("lm" or "lm_ascent").
+static func lm_port_m(cfg: String) -> float:
+	return float(params()["lm_ascent_port_m" if cfg == "lm_ascent" else "lm_port_m"])
 
 
 ## [param b]'s state relative to [param a]'s, [x, y, z, vx, vy, vz] in
@@ -53,7 +60,7 @@ static func relative(csm_traj: Trajectory, csm_att: Attitude, lm: Vehicle) -> Di
 	var rc := csm_att.eci_from_body()
 	var rl := lm.attitude.eci_from_body()
 	var arm_c := rc * Vector3(float(p["csm_port_m"]), 0.0, 0.0)
-	var arm_l := rl * Vector3(float(p["lm_port_m"]), 0.0, 0.0)
+	var arm_l := rl * Vector3(lm_port_m(lm.config), 0.0, 0.0)
 	var wc := rc * csm_att.omega
 	var wl := rl * lm.attitude.omega
 	var d := Vector3(rel[0], rel[1], rel[2]) + arm_l - arm_c

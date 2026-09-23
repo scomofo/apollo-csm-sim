@@ -1,11 +1,9 @@
-## A vehicle flying free of the CSM: in slice 3a, the LM after undocking.
-## Dynamics owns it as it owns the CSM: its trajectory, attitude and mass
-## are truth, stepped with the CSM's step on the SimClock. It publishes the
+## A vehicle flying free of the CSM: the LM after undocking. Dynamics owns
+## it as it owns the CSM: its trajectory, attitude and mass are truth,
+## stepped with the CSM's step on the SimClock, under the forces and
+## torques of its own systems (the LM's engines and RCS). It publishes the
 ## channels the CSM publishes as dyn.*, under its own prefix (lm.dyn.r_m,
 ## lm.dyn.att_q; docs/ROADMAP.md, milestone 3).
-##
-## The LM has no systems yet [simplified: until slice 3b gives it its RCS,
-## engines and DAP, it coasts and holds the attitude it undocked in].
 class_name Vehicle
 extends RefCounted
 
@@ -16,6 +14,11 @@ var config: String = ""
 var mass: float = 0.0
 var traj: Trajectory = Trajectory.new()
 var attitude: Attitude = Attitude.new()
+## The last step's non-gravitational ΔV, inertial m/s (what its IMU's
+## accelerometers sense).
+var dv_step: Vector3 = Vector3.ZERO
+## Nothing acted on the vehicle in the last step.
+var coasting: bool = true
 
 
 func _init(p_id: String = "lm", p_config: String = "lm", p_mass: float = 0.0) -> void:
@@ -26,10 +29,15 @@ func _init(p_id: String = "lm", p_config: String = "lm", p_mass: float = 0.0) ->
 	attitude.inertia = SpacecraftData.inertia(config, mass)
 
 
-## Coast [param dt] seconds: nothing acts on the vehicle.
-func step(dt: float) -> void:
-	traj.step(dt)
-	attitude.step(dt)
+## Step [param dt] seconds under [param force_body] (N) and
+## [param torque_body] (N·m), body axes.
+func step(dt: float, force_body: Vector3 = Vector3.ZERO, torque_body: Vector3 = Vector3.ZERO) -> void:
+	var a := attitude.eci_from_body() * force_body / mass
+	var ext := PackedFloat64Array([a.x, a.y, a.z]) if force_body != Vector3.ZERO else PackedFloat64Array()
+	traj.step(dt, ext)
+	attitude.step(dt, torque_body)
+	dv_step = a * dt if force_body != Vector3.ZERO else Vector3.ZERO
+	coasting = force_body == Vector3.ZERO and torque_body == Vector3.ZERO
 
 
 ## Body rates in inertial axes, rad/s.
@@ -39,6 +47,7 @@ func omega_eci() -> Vector3:
 
 func publish() -> void:
 	publish_motion(prefix, traj, attitude, mass, config)
+	Bus.set_value(prefix + "dyn.dv_step", [dv_step.x, dv_step.y, dv_step.z])
 
 
 ## Publish the motion channels every vehicle has, under [param p]:

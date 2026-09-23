@@ -314,7 +314,8 @@ The 2D HUD stays as the desktop fallback.
 
 ## 3. The LM and a lunar landing
 
-**Status: slice 3a done: the LM undocks, flies free and docks again.**
+**Status: slices 3a and 3b done: the LM undocks, flies free and docks
+again, and flies DOI on its own computer.**
 Before 3a the LM was only mass: 15,103 kg added in the `csm_lm`
 configuration (`data/spacecraft.json`) and dropped at LM JETT before TEI.
 
@@ -357,6 +358,41 @@ the two orbits' periods differed by about 10 ms, which is 16 m of drift
 a revolution. The test's pilot holds station in the local frame, as a crew
 would, flying against the horizon.
 
+Slice 3b gives the LM its own systems:
+
+- **One AGC core, two computers.** `src/systems/agc_core.gd` holds the
+  verb/noun dialogue, the program table and alarms, P30, the thrusting
+  programs, P47 and the DAP. The CMC (`agc.gd`, Colossus) and the LGC
+  (`lgc.gd`, Luminary) each add their own programs, engines and
+  controls. The CMC flies as it did: the scenario suite prints the same
+  numbers, digit for digit.
+- **The LGC** reads the LM's truth (`lm.dyn.*`) and writes `lm.guid.*`
+  and `lm.dsky.*`, on its own DSKY. It has P00, P30, P40 on the descent
+  engine, P41 on the LM RCS, P42 on the ascent engine and P47. It powers
+  up as the LM undocks and holds the attitude it undocked in.
+- **The LM's systems**: the descent engine, throttleable from 10 % to
+  60 % (`dps.gd`), the ascent engine (`aps.gd`), and the RCS, two
+  systems of 100 lbf jets (`lm_rcs.gd`). They fire only while the LM
+  flies free. The LM's mass, docked or free, follows its own tanks.
+  STAGE leaves the descent stage behind, and the docking port stays
+  where it was.
+- **DOI.** `Rtcc.plan_doi()` sizes a retrograde burn on the descent
+  engine to put the next pericynthion at 50,000 ft, flying the throttle
+  schedule the LGC flies: 10 % for 15 s, then 40 %, as Apollo 11 did.
+  Mission Control uplinks the PAD to the LGC.
+- **Checkpoints stay schema 2.** Each vehicle's entry carries its own
+  systems: the LM's while it flies free, the CSM's with the docked LM's
+  among them, as its mass is part of the CSM's configuration. A 3a
+  checkpoint restores as it was saved (its LM had no systems, so full
+  tanks).
+
+The scenario test (`tests/scenarios/test_doi.gd`) undocks Eagle, uplinks a
+DOI PAD (71.6 ft/s, 29 s) and flies it on the LGC. Half a revolution
+later Eagle passes its pericynthion at 15,197 m, 43 m under the PAD's
+15,240 m, a second after the PAD's time. Columbia's orbit is untouched.
+`tests/scenarios/test_lm_burns.gd` flies P41, P47, staging and P42, and
+the LM's autopilot.
+
 ### What changes underneath
 
 - **Two vehicles at once.** Done in 3a. Today's channels stay the CSM's,
@@ -364,13 +400,11 @@ would, flying against the horizon.
   once it has a computer), which left the existing tests and checklists
   untouched. The coast-step policy (`sys.coast_ok`, `dyn.coast_dt_s`)
   holds for both vehicles, and the snapshot has a map of vehicles
-  (schema 2). `SimRuntime` still has one AGC, and the LM's systems will
-  go into its entry in the map.
-- **An AGC core with two program sets.** `src/systems/agc.gd` mixes the
-  verb/noun dialogue and the DAP with Colossus programs. Split it into a
-  core (dialogue, program table, alarms, DAP) and two program sets: the
-  CMC's (Colossus) and the LGC's (Luminary). Milestone 4 then changes
-  the core once for both computers.
+  (schema 2). The LM's systems went into it in 3b.
+- **An AGC core with two program sets.** Done in 3b:
+  `src/systems/agc_core.gd` under the CMC's Colossus programs (`agc.gd`)
+  and the LGC's Luminary programs (`lgc.gd`). Milestone 4 changes the
+  core once for both computers.
 - **A Moon-fixed frame.** The Moon doesn't rotate in the simulation's
   truth; only `space_view.gd` turns it to face the Earth. A landing site
   needs a Moon-fixed frame. Put it behind one function in
@@ -407,7 +441,7 @@ the CSM. Switching vehicles at will is a later choice.
 | Slice | Work | Check |
 |---|---|---|
 | 3a (done) | Two vehicles: undocking, independent flight, docking capture, snapshot schema 2 | Test: undock in lunar orbit, separate and coast one revolution; a checkpoint restored mid-revolution matches the uninterrupted run; re-dock within the capture limits |
-| 3b | AGC core split. LM data, DPS, APS, LM RCS and LM DAP. LGC P00, P30, P40, P41, P42, P47 | The existing tests pass unchanged. New test: fly a DOI PAD on the LGC to its pericynthion target |
+| 3b (done) | AGC core split. LM data, DPS, APS, LM RCS and LM DAP. LGC P00, P30, P40, P41, P42, P47 | The existing tests pass unchanged. New test: fly a DOI PAD on the LGC to its pericynthion target |
 | 3c | Moon-fixed frame, landing site, LOI over the site, P63, P64, P66, P68, touchdown | Test: automatic guidance from PDI to touchdown lands within 500 m of the site at under 1 m/s vertical and 0.5 m/s horizontal speed. A second run flies P66 with scripted hand-controller inputs |
 | 3d | Lunar liftoff time from the RTCC, P12 | Test: liftoff to insertion, within set limits of the target orbit |
 | 3e | P20, P32 to P35, braking, docking | Test: insertion to docking capture, with total ΔV within a set margin of the RTCC plan |
@@ -453,7 +487,7 @@ quiet between burns.
 | Slice | Work | Check |
 |---|---|---|
 | 4a Ephemeris | Real Moon and Sun positions for the mission dates, in a dated inertial frame. The Moon-fixed frame from 3c gets a real rotation model. Recommended: Chebyshev coefficients fitted to JPL ephemeris vectors, generated by a script in `tools/`, stored under `data/`, with their provenance in NOTICE | Error against held-out reference vectors stays under 1 km for the Moon's position and 0.01° for the Sun's direction. The scenario suite passes, re-tuned only where the flight really changed. Re-measure the Fidelity table |
-| 4b Onboard state | The AGC keeps its own state vectors (the CSM's, and the LM's from 3b): it coasts them with its own integration and updates them from sensed ΔV while thrusting (`Agc.sense()` already integrates `dyn.dv_step`). Every program and noun uses them, never truth. Truth gains small forces the AGC doesn't model (vents, unbalanced attitude jets), with seeded dispersions whose seed is in the checkpoint. The RTCC plans from a tracked state with tracking error. The crew accepts state-vector uplinks through P27 (V71) | Test: after a long coast, the onboard state has drifted from truth by a bounded amount, and an uplink replaces it with the tracked state. The MCC and LOI scenarios pass with an uplink step |
+| 4b Onboard state | The AGC keeps its own state vectors (the CSM's, and the LM's from 3b): it coasts them with its own integration and updates them from sensed ΔV while thrusting (`AgcCore.sense()` already integrates `dyn.dv_step`, and the LGC's `lm.dyn.dv_step`). Every program and noun uses them, never truth. Truth gains small forces the AGC doesn't model (vents, unbalanced attitude jets), with seeded dispersions whose seed is in the checkpoint. The RTCC plans from a tracked state with tracking error. The crew accepts state-vector uplinks through P27 (V71) | Test: after a long coast, the onboard state has drifted from truth by a bounded amount, and an uplink replaces it with the tracked state. The MCC and LOI scenarios pass with an uplink step |
 | 4c IMU and P52 | REFSMMATs (launch pad, preferred for each burn, landing site), gyro drift, and ICDU angles and the FDAI relative to REFSMMAT. Gimbal lock costs the alignment instead of only lighting the lamp. An optics view (sextant and scanning telescope) with the 37 Apollo navigation stars; P51, P52, V41 N20 coarse align, N05 star angle difference, N93 torquing angles. Desktop first; in the cabin the optics sit at the lower equipment bay, away from the couch | Test: drift for 12 h, realign with P52 and two star marks, and the residual misalignment is under a set limit. A burn flown on a misaligned platform misses by the amount the misalignment predicts |
 | 4d Onboard navigation (stretch) | P23 cislunar sightings and P22 landmark tracking. In the LM, the landing radar updates the LGC's altitude and velocity during P63 and P64 | Test: P23 marks alone keep the entry corridor within limits without an uplink |
 

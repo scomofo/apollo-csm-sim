@@ -104,8 +104,8 @@ event (TLI, TIG−60 s, V99) and at entry.
 
 **Undocking and docking.** In lunar orbit, **UNDOCK** releases Eagle. The
 probe pushes the two apart at 0.1 ft/s, and the LM flies free on its own
-orbit, holding the attitude it undocked in: it has no systems of its own
-yet. While it flies free, the flight panel shows the range to its
+orbit. Its computer, the LGC, powers up as it undocks and holds the
+attitude it undocked in. While it flies free, the flight panel shows the range to its
 docking port, the range rate, where the port is along the CSM's axes (X
 along the probe) and how it moves, and how far the two docking axes are
 out of line. Fly the CSM back to it on the translation controller. The
@@ -113,6 +113,14 @@ probe captures, and the vehicles are docked again, when it meets the
 drogue at under 1 ft/s, moving across at under 0.5 ft/s, within 1 ft of
 its centre, within 10° of alignment and under 1°/s of relative rate. Any
 other contact rebounds, and CAPCOM says why.
+
+**Eagle's own burns.** The LM has its own computer, the LGC, with its own
+DSKY. Its descent and ascent engines, its RCS and its autopilot fly the
+same way as Columbia's. Mission Control uplinks a DOI PAD to the LGC,
+and the crew flies it with P30 and P40 on the descent engine: 10 %
+throttle for 15 s, then 40 %, as Apollo 11 did. The LGC also has P41
+(LM RCS), P42 (the ascent engine, after staging) and P47. The LM has no
+cockpit yet, so only the tests fly it (slice 3f adds one).
 
 The on-screen checklist follows along. Steps with a check mark complete
 themselves when the Bus shows the action was done. In the cabin, the same
@@ -147,9 +155,10 @@ The right column names the files in this repository.
 | [`src/dynamics/orbit.gd`][g-orbit] (Earth, J2) | `src/dynamics/trajectory.gd` | Earth–Moon three-body RK4, state re-based at the lunar sphere of influence |
 | [`src/systems/electrical.gd`][g-electrical] | `src/systems/eps.gd` | Fuel cells, cryo O2/H2, entry batteries, O2 tank failure |
 | OAMS/RCS in [`src/dynamics/dynamics.gd`][g-dynamics] | `src/systems/rcs.gd`, `src/systems/sps.gd` | SM quads A–D, CM rings, SPS with arm valves and transients |
-| [`src/systems/guidance.gd`][g-guidance] + MDIU | `src/systems/agc.gd` + `src/systems/dsky.gd` | CMC programs P00/30/40/41/47/61/64/67, verb/noun DSKY, DAP |
+| [`src/systems/guidance.gd`][g-guidance] + MDIU | `src/systems/agc_core.gd`, `agc.gd`, `lgc.gd` + `src/systems/dsky.gd` | One AGC core (verb/noun DSKY, P30, thrusting programs, P47, DAP) under two program sets: the CMC's P00/30/40/41/47/61/64/67 and the LGC's P00/30/40/41/42/47 |
+| — | `src/systems/dps.gd`, `aps.gd`, `lm_rcs.gd` | The LM's descent and ascent engines and its RCS |
 | [`src/mission/mission_sequencer.gd`][g-sequencer] | rewritten | Phases, S-IVB/IU TLI automation, separations, failures, CAPCOM |
-| — | `src/mission/rtcc.gd` | Ground targeting: TLI, MCC, LOI-1/2, TEI by shooting on the flight model |
+| — | `src/mission/rtcc.gd` | Ground targeting: TLI, MCC, LOI-1/2, TEI and the LM's DOI by shooting on the flight model |
 | [`src/mission/procedure_runner.gd`][g-procedure] | `src/mission/checklist.gd` | Bus-checked flight-plan checklists |
 | [`src/systems/recovery.gd`][g-recovery] | `src/systems/els.gd` | Drogues, reefed mains |
 | GUT tests, headless | GUT 9.4.0 (vendored in `addons/gut/`), headless | Unit tests plus full mission-segment scenarios |
@@ -234,8 +243,11 @@ These parts are modelled from published figures (rounded; see
 
 - SPS (20,500 lbf, Isp 314 s)
 - SM RCS (100 lbf jets)
+- LM descent engine (10,125 lbf, throttleable from 10 % to 60 %, Isp
+  311 s), ascent engine (3,500 lbf) and RCS (100 lbf jets in two systems)
 - J-2 TLI (the burn takes about 5 min)
-- CSM, LM and S-IVB masses
+- CSM, LM and S-IVB masses (the LM's split between its stages is
+  estimated)
 - CM hypersonic L/D 0.3
 - Parachute deployment altitudes
 
@@ -264,9 +276,12 @@ ones:
 - **Entry guidance.** It is a constant-drag bank controller without range
   targeting.
 - **Atmosphere.** Earth rotation and winds are ignored.
-- **Launch and landing.** There is no launch phase and no LM landing. The
-  LM undocks and flies free, but it has no systems yet: it coasts,
-  holding the attitude it undocked in, and its mass is the docked LM's.
+- **Launch and landing.** There is no launch phase and no LM landing.
+- **The LM.** Its systems power up as it undocks. Docked, it is dark,
+  and the CSM flies the stack. The crew's throttle-up in DOI is the
+  LGC's. The descent engine has no gimbal trim, and staging leaves the
+  descent stage behind, no longer simulated. The ascent engine fires only
+  after staging (no fire-in-the-hole abort).
 - **Docking.** Capture docks the vehicles hard at once, without a soft
   dock and probe retraction. Only the probe can touch the LM: the
   vehicles' bodies pass through each other. The docking geometry, the
@@ -292,8 +307,8 @@ The unit tests cover:
 - CMC programs
 - Systems: SPS arming, EPS consumption and the Apollo 13 failure, SCS/CMC
   autopilot, the coast-step policy
-- Checkpoint round-trip, with a map of vehicles (schema 2), and older
-  checkpoints rejected
+- Checkpoint round-trip, with a map of vehicles (schema 2), each with its
+  own systems, and older checkpoints rejected
 - The main scene
 - The hand controllers, from the keys and from the XR thumbsticks, with
   the thumbstick deadzone
@@ -349,6 +364,16 @@ The scenario tests fly real segments through the crew interface:
   mid-revolution flies on as the uninterrupted run does. The CSM docks
   again on the translation controller, and contacts that close too fast
   or misaligned rebound
+- DOI on the LGC (`tests/scenarios/test_doi.gd`), slice 3b's check. Eagle
+  undocks, Mission Control uplinks a DOI PAD to the LGC, and P40 flies it
+  on the descent engine, at 10 % and then 40 % throttle. Half a
+  revolution later Eagle passes its pericynthion within 250 m of the
+  PAD's 50,000 ft (15,197 m against 15,240 m), while Columbia's orbit
+  stays as it was
+- The LM's other systems (`tests/scenarios/test_lm_burns.gd`): P41 on its
+  RCS, P47 on a translation, staging and P42 on the ascent engine, its
+  autopilot turning and holding it, the LGC dark while the LM is docked,
+  and the two computers each keeping its own DSKY
 
 `tools/screenshot.tscn` renders the images above (`--view=0` window,
 `1` chase, `2` cabin; `--hud=0` leaves the HUD out, `--menu=1` shows the
@@ -368,5 +393,6 @@ godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=2 --yaw=0.55 
 
 [docs/ROADMAP.md](docs/ROADMAP.md) plans what comes next, in order of
 value: CI, a VR cockpit, the LM and a lunar landing, and navigation
-realism. The VR cockpit waits on a headset run, and the LM has begun:
-it undocks, flies free and docks again (slice 3a).
+realism. The VR cockpit waits on a headset run. The LM has begun: it
+undocks, flies free and docks again (slice 3a), and flies DOI on its own
+computer (slice 3b).

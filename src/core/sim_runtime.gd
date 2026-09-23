@@ -7,6 +7,7 @@ extends RefCounted
 
 ## 2: the vehicles' dynamics and systems under "vehicles" (slice 3a).
 const SCHEMA_VERSION := 2
+## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],
 	["agc", "res://src/systems/agc.gd"],
@@ -15,7 +16,16 @@ const SYSTEMS := [
 	["sivb", "res://src/systems/sivb.gd"],
 	["els", "res://src/systems/els.gd"],
 ]
-## Crew control defaults: CMC attitude source, HOLD, SPS disarmed.
+## The LM's systems. They come after the CSM's, so in each clock stage
+## they tick after the CSM's.
+const LM_SYSTEMS := [
+	["lgc", "res://src/systems/lgc.gd"],
+	["lm_rcs", "res://src/systems/lm_rcs.gd"],
+	["dps", "res://src/systems/dps.gd"],
+	["aps", "res://src/systems/aps.gd"],
+]
+## Crew control defaults: CMC attitude source, HOLD, SPS disarmed; the LM's
+## DAP in HOLD, its engines disarmed and both RCS systems open.
 const CONTROL_DEFAULTS := {
 	"ctl.scs.att_source": 0, "ctl.cmc.mode": 1,
 	"ctl.sps.arm_a": false, "ctl.sps.arm_b": false, "ctl.sps.thrust_on": false,
@@ -24,6 +34,8 @@ const CONTROL_DEFAULTS := {
 	"ctl.eps.fc1": true, "ctl.eps.fc2": true, "ctl.eps.fc3": true,
 	"ctl.seq.csm_sep": false, "ctl.seq.undock": false, "ctl.seq.lm_jett": false, "ctl.seq.cm_sm_sep": false,
 	"ctl.ground.pad_request": "",
+	"ctl.lm.mode": 1, "ctl.lm.rhc": Vector3.ZERO, "ctl.lm.thc": Vector3.ZERO,
+	"ctl.lm.engine_arm": 0, "ctl.lm.stage": false, "ctl.lm.rcs.sys_a": true, "ctl.lm.rcs.sys_b": true,
 }
 
 var mission: Mission
@@ -44,7 +56,7 @@ static func build(parent: Node, mission_path: String = "") -> SimRuntime:
 	rt.dynamics.name = "Dynamics"
 	parent.add_child(rt.dynamics)
 	rt.nodes.append(rt.dynamics)
-	for pair in SYSTEMS:
+	for pair in SYSTEMS + LM_SYSTEMS:
 		var n: Node = load(pair[1]).new()
 		n.name = str(pair[0]).to_upper()
 		parent.add_child(n)
@@ -60,8 +72,14 @@ static func build(parent: Node, mission_path: String = "") -> SimRuntime:
 	return rt
 
 
+## The CMC.
 func agc() -> Agc:
 	return systems["agc"]
+
+
+## The LGC.
+func lgc() -> Lgc:
+	return systems["lgc"]
 
 
 func free_nodes() -> void:
@@ -72,16 +90,17 @@ func free_nodes() -> void:
 
 
 ## The checkpoint: the clock, the mission, the crew's controls, and a map
-## of vehicles, each with its dynamics and systems. The CSM is always
-## there; the LM only while it flies free (docked, it is part of the CSM's
-## csm_lm configuration) and has no systems until slice 3b.
+## of vehicles, each with its dynamics and the systems it carries. The CSM
+## is always there. The LM is there while it flies free; docked (or in the
+## S-IVB's adapter) it is part of the CSM's configuration, and its systems
+## are in the CSM's entry. After LM JETT they are gone with it.
 func snapshot() -> Dictionary:
-	var sys := {}
-	for k in systems:
-		sys[k] = systems[k].snapshot()
-	var vehicles := {"csm": {"dynamics": dynamics.snapshot(), "systems": sys}}
+	var csm_systems := _systems_snapshot(SYSTEMS)
+	var vehicles := {"csm": {"dynamics": dynamics.snapshot(), "systems": csm_systems}}
 	if dynamics.lm != null:
-		vehicles["lm"] = {"dynamics": dynamics.lm.snapshot(), "systems": {}}
+		vehicles["lm"] = {"dynamics": dynamics.lm.snapshot(), "systems": _systems_snapshot(LM_SYSTEMS)}
+	elif dynamics.has_lm():
+		csm_systems.merge(_systems_snapshot(LM_SYSTEMS))
 	var ctl := {}
 	for c in Bus.channels():
 		if c.begins_with("ctl."):
@@ -95,6 +114,19 @@ func snapshot() -> Dictionary:
 		"vehicles": vehicles,
 		"controls": ctl,
 	}
+
+
+func _systems_snapshot(list: Array) -> Dictionary:
+	var out := {}
+	for pair in list:
+		out[pair[0]] = systems[pair[0]].snapshot()
+	return out
+
+
+func _systems_restore(list: Array, d: Dictionary) -> void:
+	for pair in list:
+		if d.has(pair[0]):
+			systems[pair[0]].restore(d[pair[0]])
 
 
 ## Restore a snapshot (possibly round-tripped through JSON). Returns an
@@ -119,9 +151,8 @@ func restore(d: Dictionary) -> String:
 	SimClock.restore(d["clock"])
 	var lm: Dictionary = d["vehicles"].get("lm", {})
 	dynamics.restore(csm["dynamics"], lm.get("dynamics", {}))
-	for k in systems:
-		if csm["systems"].has(k):
-			systems[k].restore(csm["systems"][k])
+	_systems_restore(SYSTEMS, csm["systems"])
+	_systems_restore(LM_SYSTEMS, lm.get("systems", csm["systems"]))
 	sequencer.restore(d["mission"])
 	return ""
 
