@@ -15,12 +15,19 @@
 ## (docs/HEADSET_RUN.md) come up on both rigs; the recorder writes its
 ## record only in a headset.
 ##
+## On the desktop the player moves to the LM as it undocks (VehicleSwitch),
+## and L changes vehicles while it flies free: the HUD, the space view, the
+## hand controllers and the DSKY keys follow, and C cycles the LM's window
+## and chase views. In a headset the player stays in the CM's cabin
+## [simplified: the LM has no cabin yet].
+##
 ## Writes: player.rig ("xr" or "desktop"), player.xr_session,
 ##         player.xr_focus, player.xr_refresh_hz
 ##
 ## Start phase: the exported start_phase, or "--phase=<name>" after "--" on
 ## the command line (parking_orbit, translunar_coast, lunar_orbit,
-## lunar_descent, lunar_surface, lunar_ascent, transearth_coast, entry).
+## lunar_descent, lunar_surface, lunar_ascent, transearth_coast, entry). The
+## LM's phases start in the LM.
 extends Node3D
 
 const CHECKPOINT_PATH := "user://apollo_checkpoint.json"
@@ -39,6 +46,8 @@ var cabin: CmCabin
 var rig: Node3D
 var xr: bool = false
 var hud: Hud
+## Which vehicle the player flies (player.vehicle).
+var vehicles: VehicleSwitch
 ## The checklists and which one is open: the HUD, the card, the highlight
 ## and the wrist menu share it.
 var book: ChecklistBook
@@ -114,6 +123,25 @@ func _ready() -> void:
 	hci.name = "HandControllerInput"
 	add_child(hci)
 	set_view(VIEW_CABIN if xr else 0)
+	vehicles = VehicleSwitch.new()
+	vehicles.name = "VehicleSwitch"
+	vehicles.csm_only = xr
+	vehicles.changed.connect(_on_vehicle)
+	add_child(vehicles)
+
+
+## The player moved to [param v]: the HUD and the view follow. The LM has
+## window and chase views, and no cabin.
+func _on_vehicle(v: String) -> void:
+	hud.set_vehicle(v)
+	view.vehicle = v
+	if v == "lm" and view.view_mode == VIEW_CABIN:
+		set_view(0)
+
+
+## The DSKY of the computer in the vehicle the player flies.
+func _dsky() -> Dsky:
+	return rt.lgc().dsky if vehicles.vehicle == "lm" else rt.agc().dsky
 
 
 func _place_rig() -> void:
@@ -184,7 +212,7 @@ func set_view(mode: int) -> void:
 func _process(_delta: float) -> void:
 	if SimClock.controls_locked():
 		return
-	var t := Input.is_key_pressed(KEY_T)
+	var t := Input.is_key_pressed(KEY_T) and vehicles.vehicle != "lm"
 	if t != _t_held:
 		_t_held = t
 		Bus.set_value("ctl.sps.thrust_on", t)
@@ -206,17 +234,18 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	var kc: Key = event.keycode
 	if DSKY_KEYS.has(kc):
-		rt.agc().dsky.press(DSKY_KEYS[kc])
+		_dsky().press(DSKY_KEYS[kc])
 	elif kc >= KEY_0 and kc <= KEY_9:
-		rt.agc().dsky.press(str(kc - KEY_0))
+		_dsky().press(str(kc - KEY_0))
 	elif kc >= KEY_KP_0 and kc <= KEY_KP_9:
-		rt.agc().dsky.press(str(kc - KEY_KP_0))
+		_dsky().press(str(kc - KEY_KP_0))
 	else:
 		match kc:
 			KEY_BRACKETLEFT: SimClock.slower()
 			KEY_BRACKETRIGHT: SimClock.faster()
 			KEY_P: SimClock.paused = not SimClock.paused
-			KEY_C: set_view((view.view_mode + 1) % 3)
+			KEY_C: set_view((view.view_mode + 1) % (2 if vehicles.vehicle == "lm" else 3))
+			KEY_L: vehicles.toggle()
 			KEY_H: hud.toggle_help()
 			KEY_F5:
 				var err := rt.save_file(CHECKPOINT_PATH)

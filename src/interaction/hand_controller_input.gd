@@ -17,10 +17,17 @@
 ##   command runs from 0 to 1.
 ## Above the interactive time-rate limit both controllers read zero.
 ##
+## Flying the LM (player.vehicle "lm", src/presentation/vehicle_switch.gd)
+## the same commands go to its ACA and TTCA (ctl.lm.rhc, ctl.lm.thc),
+## about and along the LM's axes (X up, Y right, Z forward): roll is about
+## Z, pitch about Y, yaw about -X (nose right), R/F rise and sink, and
+## Up/Down move forward and aft. The other vehicle's controllers read zero.
+##
 ## Adapted from gemini-capsule at 40e449c (README.md lists the port), which
 ## writes scalar ctl.hand_controller.* channels for Gemini's single
 ## attitude controller.
-## Writes: ctl.rhc, ctl.thc
+## Reads:  player.vehicle
+## Writes: ctl.rhc, ctl.thc, ctl.lm.rhc, ctl.lm.thc
 class_name HandControllerInput
 extends Node
 
@@ -50,14 +57,19 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	if SimClock.controls_locked():
-		Bus.set_value("ctl.rhc", Vector3.ZERO)
-		Bus.set_value("ctl.thc", Vector3.ZERO)
-		return
-	var keys := keyboard_commands(Callable(Input, "is_key_pressed"))
-	var sticks := stick_commands(_stick(_left), _stick(_right), _grip(_left))
-	Bus.set_value("ctl.rhc", (keys[0] + sticks[0]).clamp(-Vector3.ONE, Vector3.ONE))
-	Bus.set_value("ctl.thc", (keys[1] + sticks[1]).clamp(-Vector3.ONE, Vector3.ONE))
+	var rhc := Vector3.ZERO
+	var thc := Vector3.ZERO
+	if not SimClock.controls_locked():
+		var keys := keyboard_commands(Callable(Input, "is_key_pressed"))
+		var sticks := stick_commands(_stick(_left), _stick(_right), _grip(_left))
+		rhc = (keys[0] + sticks[0]).clamp(-Vector3.ONE, Vector3.ONE)
+		thc = (keys[1] + sticks[1]).clamp(-Vector3.ONE, Vector3.ONE)
+	var lm := str(Bus.get_value("player.vehicle", "csm")) == "lm"
+	var lm_cmd := lm_commands(rhc, thc)
+	Bus.set_value("ctl.rhc", Vector3.ZERO if lm else rhc)
+	Bus.set_value("ctl.thc", Vector3.ZERO if lm else thc)
+	Bus.set_value("ctl.lm.rhc", lm_cmd[0] if lm else Vector3.ZERO)
+	Bus.set_value("ctl.lm.thc", lm_cmd[1] if lm else Vector3.ZERO)
 
 
 ## [rhc, thc] from the keyboard. [param pressed] is Callable(Key) -> bool.
@@ -70,6 +82,13 @@ static func keyboard_commands(pressed: Callable) -> Array[Vector3]:
 	var thc := Vector3(_axis(pressed, KEY_R, KEY_F), _axis(pressed, KEY_RIGHT, KEY_LEFT),
 		_axis(pressed, KEY_DOWN, KEY_UP))
 	return [rhc, thc]
+
+
+## The LM's [ACA, TTCA] for the CSM-style commands [param rhc] (roll,
+## pitch, yaw right) and [param thc] (X, Y, Z down): about and along the
+## LM's axes, X up, Y right, Z forward.
+static func lm_commands(rhc: Vector3, thc: Vector3) -> Array[Vector3]:
+	return [Vector3(-rhc.z, rhc.y, rhc.x), Vector3(thc.x, thc.y, -thc.z)]
 
 
 ## [rhc, thc] from the thumbsticks (Godot's +y is pushed forward).

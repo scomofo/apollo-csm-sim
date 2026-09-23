@@ -1,6 +1,12 @@
 ## Desktop cockpit overlay: DSKY, crew switches, flight and systems data,
 ## Mission Control (PAD requests), CAPCOM log and the flight-plan checklist.
 ## Controls publish ctl.* channels on the Bus; displays read the Bus.
+##
+## Flying the LM (set_vehicle("lm")) it is Eagle's: the LGC's DSKY, the
+## LM's switches (the LGC's mode, ENGINE ARM, ABORT STAGE, ENGINE START and
+## STOP, the RCS systems and the ROD switch), its flight data and systems,
+## and the FDAI on its attitude [simplified: an overlay, not the LM's
+## panels].
 class_name Hud
 extends CanvasLayer
 
@@ -12,6 +18,7 @@ V  N  Enter   VERB  NOUN  ENTR
 Space  Bksp   PRO   CLR
 Insert  Del   KEY REL  RSET
 T             SPS THRUST ON (hold, manual backup)
+L             fly the LM / the CSM, while the LM flies free
 [  ]  P       time rate slower / faster, pause
 C             window / chase / cabin view   (right-drag: look)
 Cabin view    click a control, scroll to move it; right-click: mouse look,
@@ -22,6 +29,11 @@ H             this help"""
 var rt: SimRuntime
 var mono: Font
 var dsky_panel: DskyPanel
+## The LGC's DSKY, shown in place of the CMC's while the player flies the
+## LM.
+var lgc_panel: DskyPanel
+## "csm" or "lm": the vehicle the panels are for.
+var vehicle: String = "csm"
 var _flight: Label
 var _systems: Label
 var _top: Label
@@ -29,13 +41,17 @@ var _capcom: RichTextLabel
 var _check_title: OptionButton
 var _check_text: RichTextLabel
 var _help: Label
-var _fdai: Control
+var _fdai: Fdai
 ## The checklists and which one is open, shared with the cabin's card and
 ## the wrist menu.
 var book: ChecklistBook
 var _switches: PanelContainer
+var _lm_switches: PanelContainer
+var _mcc: PanelContainer
+var _lm_mcc: PanelContainer
 var _flight_panel: PanelContainer
 var _systems_panel: PanelContainer
+var _in_cabin: bool = false
 var _toggles: Dictionary = {}
 var _options: Dictionary = {}
 var _capcom_lines: PackedStringArray = []
@@ -62,6 +78,10 @@ func setup(p_rt: SimRuntime, p_book: ChecklistBook = null) -> void:
 	_style(dsky_panel)
 	dsky_panel.setup(rt.agc().dsky, mono)
 	left.add_child(dsky_panel)
+	lgc_panel = DskyPanel.new()
+	_style(lgc_panel)
+	lgc_panel.setup(rt.lgc().dsky, mono)
+	left.add_child(lgc_panel)
 	left.add_child(_checklist_panel())
 	# Right column: flight data, FDAI, systems, switches, Mission Control.
 	var right := VBoxContainer.new()
@@ -79,7 +99,7 @@ func setup(p_rt: SimRuntime, p_book: ChecklistBook = null) -> void:
 	fp.add_child(fh)
 	_flight = _label(fh, 13)
 	_flight.custom_minimum_size = Vector2(250, 0)
-	_fdai = preload("res://src/presentation/fdai.gd").new()
+	_fdai = Fdai.new()
 	_fdai.custom_minimum_size = Vector2(150, 150)
 	fh.add_child(_fdai)
 	var sp := PanelContainer.new()
@@ -89,7 +109,12 @@ func setup(p_rt: SimRuntime, p_book: ChecklistBook = null) -> void:
 	_systems = _label(sp, 12)
 	_switches = _switch_panel()
 	right.add_child(_switches)
-	right.add_child(_mcc_panel())
+	_lm_switches = _lm_switch_panel()
+	right.add_child(_lm_switches)
+	_mcc = _mcc_panel([["MCC", "mcc"], ["LOI-1", "loi"], ["LOI-2", "circ"], ["TEI", "tei"]])
+	right.add_child(_mcc)
+	_lm_mcc = _mcc_panel([["DOI", "doi"], ["PDI", "pdi"], ["ASCENT", "ascent"], ["CSI", "csi"]])
+	right.add_child(_lm_mcc)
 	# CAPCOM strip along the bottom.
 	var cp := PanelContainer.new()
 	_style(cp)
@@ -123,6 +148,7 @@ func setup(p_rt: SimRuntime, p_book: ChecklistBook = null) -> void:
 	if last != null:
 		_capcom_lines.append(str(last))
 		_capcom.text = str(last)
+	set_vehicle(str(Bus.get_value("player.vehicle", "csm")))
 
 
 ## Open the checklist that fits the flight phase.
@@ -139,8 +165,27 @@ func toggle_help() -> void:
 ## panels step aside, and the checklist, Mission Control and CAPCOM stay
 ## until they move to the wrist menu (docs/ROADMAP.md, slice 2d).
 func set_cabin_view(on: bool) -> void:
-	for p in [dsky_panel, _flight_panel, _systems_panel, _switches]:
-		p.visible = not on
+	_in_cabin = on
+	_show_panels()
+
+
+## Show the panels for [param v]: "csm", or "lm" for Eagle's.
+func set_vehicle(v: String) -> void:
+	vehicle = v
+	_fdai.vehicle = v
+	_show_panels()
+
+
+func _show_panels() -> void:
+	var lm := vehicle == "lm"
+	for p in [_flight_panel, _systems_panel]:
+		p.visible = not _in_cabin
+	dsky_panel.visible = not lm and not _in_cabin
+	_switches.visible = not lm and not _in_cabin
+	lgc_panel.visible = lm and not _in_cabin
+	_lm_switches.visible = lm and not _in_cabin
+	_mcc.visible = not lm
+	_lm_mcc.visible = lm
 
 
 func _style(p: PanelContainer) -> void:
@@ -215,14 +260,37 @@ func _toggle(parent: Node, text: String, ch: String) -> void:
 	_toggles[ch] = b
 
 
-func _momentary(parent: Node, text: String, ch: String) -> void:
+func _momentary(parent: Node, text: String, ch: String, on: Variant = true,
+		off: Variant = false) -> void:
 	var b := Button.new()
 	b.text = text
 	b.focus_mode = Control.FOCUS_NONE
 	b.add_theme_font_size_override("font_size", 11)
-	b.button_down.connect(func() -> void: Bus.set_value(ch, true))
-	b.button_up.connect(func() -> void: Bus.set_value(ch, false))
+	b.button_down.connect(func() -> void: Bus.set_value(ch, on))
+	b.button_up.connect(func() -> void: Bus.set_value(ch, off))
 	parent.add_child(b)
+
+
+## Eagle's switches: the LGC's mode, the engines, staging, the RCS and the
+## ROD switch.
+func _lm_switch_panel() -> PanelContainer:
+	var p := PanelContainer.new()
+	_style(p)
+	var g := GridContainer.new()
+	g.columns = 3
+	p.add_child(g)
+	_option(g, "LGC MODE", "ctl.lm.mode", ["FREE", "HOLD", "AUTO"])
+	_option(g, "ENG ARM", "ctl.lm.engine_arm", ["OFF", "ASC", "DES"])
+	_momentary(g, "ABORT STAGE", "ctl.lm.stage")
+	_momentary(g, "ENG START", "ctl.lm.eng_start")
+	_momentary(g, "ENG STOP", "ctl.lm.eng_stop")
+	g.add_child(Control.new())
+	_toggle(g, "RCS SYS A", "ctl.lm.rcs.sys_a")
+	_toggle(g, "RCS SYS B", "ctl.lm.rcs.sys_b")
+	g.add_child(Control.new())
+	_momentary(g, "ROD UP", "ctl.lm.rod", 1, 0)
+	_momentary(g, "ROD DOWN", "ctl.lm.rod", -1, 0)
+	return p
 
 
 func _option(parent: Node, text: String, ch: String, items: Array) -> void:
@@ -242,7 +310,8 @@ func _option(parent: Node, text: String, ch: String, items: Array) -> void:
 	_options[ch] = o
 
 
-func _mcc_panel() -> PanelContainer:
+## Mission Control's PAD requests, [param pads] [[label, kind], ...].
+func _mcc_panel(pads: Array) -> PanelContainer:
 	var p := PanelContainer.new()
 	_style(p)
 	var v := VBoxContainer.new()
@@ -253,7 +322,7 @@ func _mcc_panel() -> PanelContainer:
 	v.add_child(t)
 	var h := HBoxContainer.new()
 	v.add_child(h)
-	for pair in [["MCC", "mcc"], ["LOI-1", "loi"], ["LOI-2", "circ"], ["TEI", "tei"]]:
+	for pair in pads:
 		var b := Button.new()
 		b.text = pair[0]
 		b.focus_mode = Control.FOCUS_NONE
@@ -309,6 +378,78 @@ func _checklist_text() -> String:
 
 # --- per frame --------------------------------------------------------------------
 
+## Eagle's flight data: its height over the ground below it, its speed
+## over the turning surface, its orbit, the landing radar's ΔH, the
+## rendezvous radar's range, and the LGC's ALT and VEL lamps and CONTACT
+## LIGHT.
+func _lm_flight_text() -> String:
+	var ft := Units.FT
+	var nm := Units.NMI
+	var ra: Array = Bus.get_value("lm.dyn.r_m", [Bodies.R_MOON, 0.0, 0.0])
+	var va: Array = Bus.get_value("lm.dyn.v_mps", [0.0, 0.0, 0.0])
+	var r := Vector3(ra[0], ra[1], ra[2])
+	var agl := INF
+	var vh := 0.0
+	if str(Bus.get_value("lm.dyn.primary", "moon")) == "moon":
+		agl = LunarGround.height_over_ground(LunarGround.lm_moon_fixed())
+		var rel := Vector3(va[0], va[1], va[2]) - Bodies.moon_omega().cross(r)
+		vh = (rel - r.normalized() * rel.dot(r.normalized())).length()
+	var apo := float(Bus.get_value("lm.dyn.apo_alt_m", 0.0))
+	var landed := bool(Bus.get_value("lm.dyn.landed", false))
+	var w := Fdai.crew_axes(Bus.get_value("lm.dyn.omega", Vector3.ZERO), "lm")
+	var lamps := PackedStringArray()
+	for l in ["alt", "vel"]:
+		if bool(Bus.get_value("lm.dsky.lamp." + l, false)):
+			lamps.append(l.to_upper())
+	if bool(Bus.get_value("lm.contact_light", false)):
+		lamps.append("CONTACT LIGHT")
+	var rr := "RR   no track"
+	if bool(Bus.get_value("lm.rr.data_good", false)):
+		rr = "RR   %8.2f nmi  %+7.1f ft/s" % [float(Bus.get_value("lm.rr.range_m", 0.0)) / nm,
+			float(Bus.get_value("lm.rr.range_rate_mps", 0.0)) / ft]
+	return """EAGLE  CONFIG %s%s
+AGL     %9s ft
+HDOT    %+9.1f ft/s
+VH      %9.1f ft/s
+HA      %9s nmi
+HP      %9s nmi
+MASS    %9.0f lb
+RATE  %+.2f %+.2f %+.2f °/s
+ΔH (LR) %+9.0f ft
+%s
+LAMPS %s""" % [
+		str(Bus.get_value("lm.dyn.config", "lm")).to_upper(),
+		"  LANDED" if landed else "",
+		"%.0f" % (agl / ft) if agl != INF else "--",
+		float(Bus.get_value("lm.dyn.alt_rate_mps", 0.0)) / ft, vh / ft,
+		"--" if landed else "UNBOUND" if apo == INF else "%.1f" % (apo / nm),
+		"--" if landed else "%.1f" % (float(Bus.get_value("lm.dyn.peri_alt_m", 0.0)) / nm),
+		Units.kg_to_lb(float(Bus.get_value("lm.dyn.mass_kg", 0.0))),
+		rad_to_deg(w.x), rad_to_deg(w.y), rad_to_deg(w.z),
+		float(Bus.get_value("lm.guid.delta_h_m", 0.0)) / ft, rr,
+		" ".join(lamps) if not lamps.is_empty() else "--"]
+
+
+## Eagle's engines, RCS and LGC.
+func _lm_systems_text() -> String:
+	var mnvr := ""
+	if bool(Bus.get_value("lm.guid.maneuver_valid", false)):
+		mnvr = "MNVR LOADED TIG " + Units.hms(float(Bus.get_value("lm.guid.maneuver_tig", 0.0)))
+	return """DPS  %6.0f lb  THR %3.0f%%  %s
+APS  %6.0f lb  %s
+RCS  A %4.0f  B %4.0f lb
+LGC  P%02d %s  VG %.1f ft/s  %s""" % [
+		Units.kg_to_lb(float(Bus.get_value("lm.dps.prop_kg", 0.0))),
+		float(Bus.get_value("lm.dps.throttle_pct", 0.0)),
+		"FIRING" if bool(Bus.get_value("lm.dps.on", false)) else "",
+		Units.kg_to_lb(float(Bus.get_value("lm.aps.prop_kg", 0.0))),
+		"FIRING" if float(Bus.get_value("lm.aps.thrust_n", 0.0)) > 0.0 else "",
+		Units.kg_to_lb(float(Bus.get_value("lm.rcs.sys_a_kg", 0.0))),
+		Units.kg_to_lb(float(Bus.get_value("lm.rcs.sys_b_kg", 0.0))),
+		int(Bus.get_value("lm.guid.program", 0)), str(Bus.get_value("lm.guid.step", "")),
+		float(Bus.get_value("lm.guid.vg_mps", 0.0)) / Units.FT, mnvr]
+
+
 ## While the LM flies free: where its docking port is from the CSM's, in
 ## the CSM's body axes (X along the probe), and the last contact.
 func _docking_text() -> String:
@@ -337,10 +478,16 @@ func _process(_delta: float) -> void:
 	if rt == null:
 		return
 	var primary := str(Bus.get_value("dyn.primary", "earth"))
-	_top.text = "APOLLO 11  GET %s   %s   rate x%s%s   %s" % [SimClock.get_display(),
+	_top.text = "APOLLO 11  GET %s   %s   %s   rate x%s%s   %s" % [SimClock.get_display(),
 		str(Bus.get_value("mission.phase", "")).to_upper().replace("_", " "),
+		"EAGLE" if vehicle == "lm" else "COLUMBIA",
 		str(int(SimClock.rate)), "  PAUSED" if SimClock.paused else "",
 		"[controls locked]" if SimClock.controls_locked() else ""]
+	_sync_controls()
+	if vehicle == "lm":
+		_flight.text = _lm_flight_text()
+		_systems.text = _lm_systems_text()
+		return
 	var nm := Units.NMI
 	var ft := Units.FT
 	var apo := float(Bus.get_value("dyn.apo_alt_m", 0.0))
@@ -399,10 +546,14 @@ CMC  P%02d %s  VG %.1f ft/s  %s""" % [
 		"MNVR LOADED TIG " + Units.hms(float(Bus.get_value("guid.maneuver_tig", 0.0))) if bool(Bus.get_value("guid.maneuver_valid", false)) else ""]
 	if o2 <= 0.0:
 		_systems.text += "\nO2 DEPLETED"
+
+
+## The checklist and the switches, in step with the Bus (checkpoint loads,
+## tests).
+func _sync_controls() -> void:
 	if _check_title.selected != book.current:
 		_check_title.selected = book.current
 	_check_text.text = _checklist_text()
-	# Keep toggles in step with the Bus (checkpoint loads, tests).
 	for ch in _toggles:
 		var want := bool(Bus.get_value(ch, false))
 		if _toggles[ch].button_pressed != want:

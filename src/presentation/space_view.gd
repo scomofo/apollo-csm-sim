@@ -11,6 +11,19 @@
 ## (docs/ROADMAP.md, slice 2b). Celestial bodies are drawn at a fixed render
 ## distance with their radius scaled to preserve apparent size, which keeps
 ## float32 rendering exact from low orbit to translunar distances.
+##
+## Flying the LM (vehicle "lm", while it flies free) the LM is the origin
+## instead, in its own axes (LM_BODY_TO_GODOT: its windows are -Z, its +X
+## the crew's up), and the CSM is drawn where it flies. The window view
+## looks out of the LM's forward windows from its centre of mass, where
+## the bodies' scaled distances are true. Near the Moon the ground below
+## the LM (LunarGround, from the height maps) takes the place of the
+## Moon's sphere, at the sphere's scale; the camera's near plane comes in
+## toward it, and the CSM is drawn nearer than it, so the ground can't
+## hide the CSM. Below CHASE_MIN_ALT_M the chase view gives way to the
+## window view [simplified: a camera beside the LM would see the scaled
+## Moon from far to one side of the LM, and near the surface from inside
+## it].
 extends Node3D
 
 const RENDER_DIST := 2000.0
@@ -19,8 +32,20 @@ const CHASE_DIST := 38.0
 ## CM/SM interface): the end of the probe's base.
 const CSM_PORT_X := 3.5
 ## A free LM farther than this is drawn at this distance, scaled to keep
-## its apparent size, so it stays in front of the Earth and Moon.
+## its apparent size, so it stays in front of the Earth and Moon (and the
+## CSM, seen from the LM).
 const LM_RENDER_MAX := 1000.0
+## The LM's body axes in the render axes: +X (up) is +Y, +Y (right) is +X
+## and +Z (forward, out of the windows) is -Z.
+const LM_BODY_TO_GODOT: Basis = Basis(Vector3(0, 1, 0), Vector3(1, 0, 0), Vector3(0, 0, -1))
+## Below this height the LM's chase view gives way to its window view.
+const CHASE_MIN_ALT_M := 40000.0
+## Below this height the LM's view draws the ground (LunarGround).
+const GROUND_MAX_ALT_M := 400000.0
+## The camera's near plane, render units (m for the spacecraft), and how
+## far in it may come toward the ground below the LM.
+const NEAR := 0.05
+const NEAR_MIN := 0.0005
 
 var camera: Camera3D
 var earth: MeshInstance3D
@@ -30,9 +55,13 @@ var sun: DirectionalLight3D
 var csm: Node3D
 ## The LM while it flies free (the docked LM is part of csm).
 var lm_free: Node3D
+## The ground below the LM, drawn from it near the Moon.
+var ground: LunarGround
 ## 0 window, 1 chase, 2 cabin: the CM cabin (src/cabin/cm_cabin.gd) is
 ## drawn in place of the CM, and the player's rig has the camera.
 var view_mode: int = 0
+## The vehicle the view is from: "csm", or "lm" while it flies free.
+var vehicle: String = "csm"
 var look_yaw: float = 0.0
 var look_pitch: float = 0.0
 var chase_yaw: float = 0.6
@@ -63,8 +92,10 @@ func _ready() -> void:
 	lm_free = _build_lm()
 	lm_free.visible = false
 	add_child(lm_free)
+	ground = LunarGround.new()
+	add_child(ground)
 	camera = Camera3D.new()
-	camera.near = 0.05
+	camera.near = NEAR
 	camera.far = RENDER_DIST * 3.0
 	camera.fov = 60.0
 	add_child(camera)
@@ -244,6 +275,29 @@ func _place_lm_free(q: Quaternion) -> void:
 	lm_free.transform = Transform3D(turn, at) * _lm_docked(str(Bus.get_value("lm.dyn.config", "lm"))).affine_inverse()
 
 
+## Seen from the free LM: the CSM where it flies relative to the LM, and
+## turned as it is, in the render axes. Farther than [param far] it is
+## drawn at that distance, scaled to keep its apparent size.
+func _place_csm_from_lm(far: float) -> void:
+	var r: Array = Bus.get_value("dyn.r_m", [0.0, 0.0, 0.0])
+	var rl: Array = Bus.get_value("lm.dyn.r_m", r)
+	var rel := Vector3(r[0] - rl[0], r[1] - rl[1], r[2] - rl[2])
+	var primary := str(Bus.get_value("lm.dyn.primary", "moon"))
+	if str(Bus.get_value("dyn.primary", primary)) != primary:
+		var m := Bodies.moon_state(float(Bus.get_value("time.get_s", 0.0)))
+		rel += Vector3(m[0], m[1], m[2]) * (1.0 if primary == "earth" else -1.0)
+	var at := eci_to_cabin * rel
+	var turn := eci_to_cabin * Basis(Bus.get_value("dyn.att_q", Quaternion.IDENTITY) as Quaternion)
+	var d := at.length()
+	if d > far:
+		turn = turn.scaled(Vector3.ONE * (far / d))
+		at *= far / d
+	# The model's origin is the CM/SM interface; the centre of mass is along
+	# +X from it.
+	var cg := Vector3(CSM_PORT_X - float(Docking.params()["csm_port_m"]), 0, 0)
+	csm.transform = Transform3D(turn, at) * Transform3D(Basis.IDENTITY, -cg)
+
+
 func _chutes(parent: Node3D, n: int, r: float, dist: float, c: Color) -> Node3D:
 	var g := Node3D.new()
 	parent.add_child(g)
@@ -265,8 +319,11 @@ func _chutes(parent: Node3D, n: int, r: float, dist: float, c: Color) -> Node3D:
 # --- per frame -----------------------------------------------------------------
 
 func _process(_delta: float) -> void:
-	var primary := str(Bus.get_value("dyn.primary", "earth"))
-	var r: Array = Bus.get_value("dyn.r_m", [Bodies.R_EARTH + 185000.0, 0.0, 0.0])
+	# The vehicle the view is from: its position, attitude and axes.
+	var from_lm := vehicle == "lm" and str(Bus.get_value("dock.state", "")) == "free"
+	var p := "lm." if from_lm else ""
+	var primary := str(Bus.get_value(p + "dyn.primary", "earth"))
+	var r: Array = Bus.get_value(p + "dyn.r_m", [Bodies.R_EARTH + 185000.0, 0.0, 0.0])
 	var t := float(Bus.get_value("time.get_s", 0.0))
 	var rel := Vector3(r[0], r[1], r[2])
 	var m := Bodies.moon_state(t)
@@ -282,11 +339,30 @@ func _process(_delta: float) -> void:
 		to_moon = moon_pos - rel
 	# The world turns around the fixed cabin: body axes are the cabin axes,
 	# so an ECI vector is taken into the body frame and then to Godot axes.
-	var q: Quaternion = Bus.get_value("dyn.att_q", Quaternion.IDENTITY)
-	eci_to_cabin = Frames.BODY_TO_GODOT * Basis(q).inverse()
+	var q: Quaternion = Bus.get_value(p + "dyn.att_q", Quaternion.IDENTITY)
+	var body := LM_BODY_TO_GODOT if from_lm else Frames.BODY_TO_GODOT
+	eci_to_cabin = body * Basis(q).inverse()
 	_place(earth, eci_to_cabin * to_earth, Bodies.R_EARTH)
 	_place(earth_glow, eci_to_cabin * to_earth, Bodies.R_EARTH * 1.025)
-	_place(moon, eci_to_cabin * to_moon, Bodies.R_MOON)
+	# From the LM near the Moon: its height over the ground below it, the
+	# sphere through that ground, and the ground itself in its place.
+	var near_moon := from_lm and primary == "moon"
+	var agl := INF
+	var s_moon := RENDER_DIST / to_moon.length()
+	var drawn := false
+	if near_moon:
+		var eye := LunarGround.lm_moon_fixed()
+		agl = LunarGround.height_over_ground(eye)
+		var ground_r := sqrt(eye[0] * eye[0] + eye[1] * eye[1] + eye[2] * eye[2]) - agl
+		_place(moon, eci_to_cabin * to_moon, ground_r)
+		var mf_to_view := eci_to_cabin * Bodies.moon_fixed(t)
+		drawn = agl < GROUND_MAX_ALT_M and ground.follow(eye, agl, mf_to_view, s_moon)
+	else:
+		_place(moon, eci_to_cabin * to_moon, Bodies.R_MOON)
+	ground.visible = drawn
+	if drawn:
+		moon.visible = false
+	camera.near = clampf(0.3 * agl * s_moon, NEAR_MIN, NEAR) if near_moon else NEAR
 	# The glow is a sphere, but a faceted one seen from close by: it keeps
 	# its ECI orientation, as the Earth and Moon do, so its silhouette turns
 	# with the world instead of staying fixed to the cabin.
@@ -303,9 +379,8 @@ func _process(_delta: float) -> void:
 	sun.basis = eci_to_cabin * Basis.looking_at(-sd, Vector3(0, 0, 1) if absf(sd.z) < 0.99 else Vector3(1, 0, 0))
 	(earth_glow.material_override as ShaderMaterial).set_shader_parameter("sun_dir", eci_to_cabin * sd)
 	sky_material.set_shader_parameter("cabin_to_eci", eci_to_cabin.inverse())
-	# Spacecraft: fixed, in body axes.
-	var body := Frames.BODY_TO_GODOT
-	csm.basis = body
+	# Spacecraft: the one the view is from fixed, in its body axes.
+	csm.transform = Transform3D(body, Vector3.ZERO)
 	var cfg := str(Bus.get_value("dyn.config", "stack"))
 	_parts["sm"].visible = cfg != "cm"
 	_parts["lm"].visible = cfg == "csm_lm"
@@ -313,7 +388,14 @@ func _process(_delta: float) -> void:
 	_parts["lm"].get_node("Descent").visible = not staged
 	lm_free.get_node("Descent").visible = not staged
 	lm_free.visible = str(Bus.get_value("dock.state", "")) == "free"
-	if lm_free.visible:
+	if from_lm:
+		var far := LM_RENDER_MAX
+		if near_moon:
+			far = clampf(0.5 * agl * s_moon, 2.0 * camera.near, LM_RENDER_MAX)
+		_place_csm_from_lm(far)
+		var lm_cfg := str(Bus.get_value("lm.dyn.config", "lm"))
+		lm_free.transform = Transform3D(body, Vector3.ZERO) * _lm_docked(lm_cfg).affine_inverse()
+	elif lm_free.visible:
 		_place_lm_free(q)
 	_parts["sivb"].visible = cfg == "stack"
 	_parts["plume"].visible = float(Bus.get_value("sps.thrust_n", 0.0)) > 1000.0 or float(Bus.get_value("sivb.thrust_n", 0.0)) > 0.0
@@ -321,9 +403,11 @@ func _process(_delta: float) -> void:
 	_parts["drogues"].visible = bool(Bus.get_value("els.drogue", false))
 	_parts["main_chutes"].visible = bool(Bus.get_value("els.mains", false))
 	_parts["main_chutes"].scale = Vector3.ONE * lerpf(0.3, 1.0, float(Bus.get_value("els.main_fraction", 1.0)))
-	_parts["cm"].visible = view_mode != 2
+	_parts["cm"].visible = view_mode != 2 or from_lm
 	# Camera, in body axes too, so only the crew's own look turns it.
-	if view_mode == 2:
+	if from_lm:
+		_lm_camera(body)
+	elif view_mode == 2:
 		csm.visible = true
 	elif view_mode == 0:
 		csm.visible = false
@@ -341,6 +425,26 @@ func _process(_delta: float) -> void:
 		var off := body * (Basis(Vector3(0, 0, 1), chase_yaw) * Basis(Vector3(0, 1, 0), -chase_pitch) * Vector3(-1, 0, 0))
 		var dist := CHASE_DIST * (2.2 if cfg == "stack" else 1.0)
 		camera.transform = Transform3D(Basis.IDENTITY, off * dist).looking_at(Vector3.ZERO, up)
+
+
+## The camera from the LM: its forward windows, or, above
+## CHASE_MIN_ALT_M, the chase view around it.
+func _lm_camera(body: Basis) -> void:
+	csm.visible = true
+	var up := body * Vector3(1, 0, 0)
+	var fwd := body * Vector3(0, 0, 1)
+	if view_mode == 1 and float(Bus.get_value("lm.dyn.alt_m", 0.0)) >= CHASE_MIN_ALT_M:
+		var around := Basis(Vector3(1, 0, 0), chase_yaw) * Basis(Vector3(0, 1, 0), chase_pitch)
+		var off := body * (around * Vector3(0, 0, -1))
+		camera.transform = Transform3D(Basis.IDENTITY, off * CHASE_DIST) \
+			.looking_at(Vector3.ZERO, up)
+		return
+	# Out of the forward windows, from the centre of mass, with free head
+	# turn.
+	lm_free.visible = false
+	var right := fwd.cross(up).normalized()
+	var b := Basis(right, up, -fwd) * Basis(Vector3.UP, look_yaw) * Basis(Vector3.RIGHT, look_pitch)
+	camera.transform = Transform3D(b, Vector3.ZERO)
 
 
 func _place(mi: MeshInstance3D, offset: Vector3, radius: float) -> void:
