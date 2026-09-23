@@ -300,7 +300,9 @@ The 2D HUD stays as the desktop fallback.
 **Status: slices 3a to 3e done: the LM undocks, flies free and docks
 again, flies DOI on its own computer, lands at Tranquility Base, lifts
 off to orbit at the time the RTCC gives, and flies the rendezvous back
-to Columbia, which docks with it.**
+to Columbia, which docks with it. Slice 3f has begun: Mission Control's
+timeline from undocking to TEI, and the start phases `lunar_descent`,
+`lunar_surface` and `lunar_ascent`.**
 Before 3a the LM was only mass: 15,103 kg added in the `csm_lm`
 configuration (`data/spacecraft.json`) and dropped at LM JETT before TEI.
 
@@ -565,6 +567,55 @@ secant method could not solve through, so the LGC found no CSI solution
 from its own state vectors. With the ΔV in doubles, CSI converges to
 10⁻⁷ radians.
 
+Slice 3f's first part gives Mission Control its timeline and the LM its
+start phases:
+
+- **The timeline** (`mission.json` "lunar_timeline") runs from undocking
+  to TEI. Each entry comes at an Apollo 11 GET, after a mission event, or
+  before a time the ground has planned, and only if its condition holds
+  then. CAPCOM makes the call, and the ground uplinks the PAD.
+  - The GO calls come as long before each burn as Apollo 11's did: 18 min
+    21 s before DOI, 4 min 57 s before PDI and 12 min 48 s before CSI.
+  - The STAY calls come as long after touchdown as Apollo 11's did.
+  - The ascent and TEI PADs take the opportunity nearest Apollo 11's
+    times.
+  - No PAD comes while the ground's last of its kind is still to be
+    flown, so a test that asks for its own PAD doesn't get a second one.
+    Nor does an undocking a day early bring a DOI PAD.
+- **The flight phase follows Eagle** in lunar orbit: `lunar_descent`
+  from DOI (its perilune under 50 km) to touchdown, `lunar_surface`
+  while it is landed, and `lunar_ascent` from liftoff to docking.
+- **The start phases** are flown on from the `lunar_orbit` start, docked
+  until Apollo 11's undocking at 100:12:00, then through the timeline and
+  the RTCC's own solutions.
+  - `lunar_descent` starts 20 min before PDI, after the DOI PAD flown as
+    the RTCC models the burn.
+  - `lunar_surface` starts 10 min after Eagle is set down on the site, at
+    the time DOI planned for.
+  - `lunar_ascent` starts 20 min before the liftoff the ascent PAD gives.
+- **Checkpoints are schema 4.** They carry Mission Control's planned
+  times and the timeline's progress.
+
+The start phases run half an hour ahead of Apollo 11. The landing pass
+nearest 102:45:40 lands at 102:11:34, and the ascent window nearest
+124:22:00 opens at 123:51:27.
+
+The checks:
+- `tests/scenarios/test_landing.gd` now starts from `lunar_descent`, and
+  lands as it did: 140 m from the site at 0.80 m/s down.
+- `tests/scenarios/test_rendezvous.gd` starts from `lunar_ascent`. It
+  flies P12 and the rendezvous to docking as 3e's check did: CSI
+  52.3 ft/s, TPI 24.0 ft/s, capture at 0.33 ft/s, and Eagle's ΔV 4 %
+  over the plan. Then comes GO for jettison, and after LM JETT the TEI
+  PAD, for 134:41:44.
+- `tests/scenarios/test_lunar_timeline.gd` follows the timeline from
+  `lunar_orbit`, checks each LM start phase, and restores a checkpoint
+  mid-timeline.
+
+Still to come in 3f: the LM cockpit and switching between the vehicles,
+the LM's checklists, and the check that you can fly the whole sequence
+yourself.
+
 ### What changes underneath
 
 - **Two vehicles at once.** Done in 3a. Today's channels stay the CSM's,
@@ -613,7 +664,7 @@ the CSM. Switching vehicles at will is a later choice.
 | 3c (done) | Moon-fixed frame, landing site, LOI over the site, P63, P64, P66, P68, touchdown | Test: automatic guidance from PDI to touchdown lands within 500 m of the site at under 1 m/s vertical and 0.5 m/s horizontal speed. A second run flies P66 with scripted hand-controller inputs |
 | 3d (done) | Lunar liftoff time from the RTCC, P12 | Test: liftoff to insertion, within set limits of the target orbit |
 | 3e (done) | P20, P32 to P35, braking, docking | Test: insertion to docking capture, with total ΔV within a set margin of the RTCC plan |
-| 3f | Undocking-to-TEI timeline in `mission.json`; start phases `lunar_descent`, `lunar_surface` and `lunar_ascent`; checklists; CAPCOM; an LM cockpit (desktop overlay first, then cabin prefabs from milestone 2) | The new start phases are built from the earlier ones, and the full suite passes |
+| 3f (in progress) | Undocking-to-TEI timeline in `mission.json`; start phases `lunar_descent`, `lunar_surface` and `lunar_ascent`; checklists; CAPCOM; an LM cockpit (desktop overlay first, then cabin prefabs from milestone 2) | The new start phases are built from the earlier ones, and the full suite passes |
 
 **Done when** `--phase=lunar_descent` lands at Tranquility Base and
 `--phase=lunar_ascent` docks with Columbia. The README's Fidelity table

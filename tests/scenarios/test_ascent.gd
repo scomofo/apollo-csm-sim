@@ -99,7 +99,7 @@ func test_the_rtcc_times_the_liftoff_for_the_rendezvous() -> void:
 	assert_lt((lgc.nav.pos() - rt.dynamics.lm.traj.pos()).length(), 1.0, "the LM's")
 	assert_almost_eq(lgc.landing_site.length(), rt.sequencer.landing_site().length(), 1.0, "the landing site")
 	assert_true(Bus.get_value("lm.dsky.lamp.uplink_acty"), "UPLINK ACTY")
-	assert_string_contains(str(Bus.get_value("mission.capcom")), "cleared for takeoff")
+	assert_string_contains(str(Bus.get_value("mission.capcom")), "your ascent PAD")
 
 
 func test_p12_needs_the_surface_and_the_csm() -> void:

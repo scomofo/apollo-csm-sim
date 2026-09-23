@@ -8,7 +8,7 @@ extends RefCounted
 const PATH := "res://data/missions/apollo_11/checklists.json"
 ## The checklist that fits each flight phase.
 const FOR_PHASE := {"parking_orbit": 0, "tli": 0, "translunar_coast": 1, "lunar_orbit": 2,
-	"transearth_coast": 3, "entry": 3}
+	"lunar_descent": 2, "lunar_surface": 2, "lunar_ascent": 2, "transearth_coast": 3, "entry": 3}
 
 var lists: Array[Checklist] = []
 ## Index of the open checklist.
