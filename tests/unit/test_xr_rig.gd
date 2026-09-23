@@ -42,3 +42,7 @@ func test_controller_by_button_recenters_and_other_buttons_do_not() -> void:
 	rig.get_node("RightHand").button_pressed.emit(rig.RECENTER_ACTION)
 	assert_eq(rig.recenter_count, n0 + 1, "B/Y recenters")
 	assert_true(rig.has_node("LeftHand/Fingertip") and rig.has_node("RightHand/Fingertip"), "fingertip interactors on both hands")
+	for hand in ["LeftHand", "RightHand"]:
+		var shape := rig.get_node("%s/Fingertip/Shape" % hand) as CollisionShape3D
+		assert_almost_eq((shape.shape as SphereShape3D).radius, 0.012, 1e-9, "the touch sphere is Gemini's")
+		assert_true(rig.get_node("%s/Fingertip/Marker" % hand).visible, "and the tester can see where it is")

@@ -1,17 +1,18 @@
 ## Wrist menu (docs/ROADMAP.md, slice 2d): the pushbuttons for what the 2D
 ## HUD offers beyond the cabin's panels: Mission Control's PAD requests,
-## the time rate and pause, recentre and eye height, and the checklist. In
-## a headset it rides on the left hand and shows when the palm faces the
-## head, or on the left controller's menu button; on the desktop it rides
-## on the camera and M shows it. A status line gives GET, the time rate
-## and whether the clock is paused.
+## the time rate and pause, recentre, eye height and seat, the checklist,
+## and the comfort aids. In a headset it rides on the left hand and shows
+## when the palm faces the head, or on the left controller's menu button;
+## on the desktop it rides on the camera and M shows it. A status line
+## gives GET, the time rate, the worst recent frame time and the seat.
 ## Adapted from gemini-capsule's src/presentation/wrist_menu.gd at 40e449c
-## (README.md lists the port): its comfort, guide and new-flight buttons
-## stay behind, it doesn't save settings yet, and the PAD buttons write
-## ctl.ground.pad_request, the channel the HUD's Mission Control buttons
-## write. The buttons are presentation controls, so they work while time
-## acceleration locks the panels.
+## (README.md lists the port): its guide and new-flight buttons stay
+## behind, SEAT is new, it doesn't save settings yet, and the PAD buttons
+## write ctl.ground.pad_request, the channel the HUD's Mission Control
+## buttons write. The buttons are presentation controls, so they work
+## while time acceleration locks the panels.
 ##
+## Reads:  perf.frame_ms_max
 ## Writes: ctl.ground.pad_request, present.menu.visible,
 ##         present.checklist.highlight_enabled, player.eye_height_offset_m
 class_name WristMenu
@@ -24,8 +25,9 @@ const HEIGHT_LIMIT := 0.15
 const BUTTONS := [
 	["mcc", "MCC"], ["loi", "LOI-1"], ["circ", "LOI-2"], ["tei", "TEI"],
 	["slower", "RATE -"], ["faster", "RATE +"], ["pause", "PAUSE"], ["recenter", "RECENTRE"],
-	["eye_up", "EYE +1cm"], ["eye_down", "EYE -1cm"], ["highlight", "HILITE"], ["hide", "HIDE"],
-	["checklist", "CHECKLIST"], ["next", "NEXT STEP"],
+	["eye_up", "EYE +1cm"], ["eye_down", "EYE -1cm"], ["seat", "SEAT"], ["hide", "HIDE"],
+	["checklist", "CHECKLIST"], ["next", "NEXT STEP"], ["highlight", "HILITE"], ["vignette", "VIGNETTE"],
+	["horizon", "HORIZON"], ["authentic", "AUTHENTIC"],
 ]
 ## The PAD request each Mission Control button makes (MissionSequencer.request_pad).
 const PAD_REQUESTS := ["mcc", "loi", "circ", "tei"]
@@ -47,6 +49,10 @@ var rig: Node3D
 var head: Node3D
 var hand: Node3D
 var book: ChecklistBook
+## Optional: the comfort aids its VIGNETTE, HORIZON and AUTHENTIC buttons
+## switch, and the cabin whose seat SEAT changes.
+var comfort: Comfort
+var cabin: CmCabin
 var status_label: Label3D
 var _buttons: Dictionary = {}
 var _touch_layers: Dictionary = {}
@@ -144,7 +150,9 @@ func _process(_delta: float) -> void:
 		elif _shown and d < hide_dot and not _pinned:
 			_set_shown(false)
 	if _shown:
-		status_label.text = "GET %s   x%d%s" % [SimClock.get_display(), int(SimClock.rate), "   PAUSED" if SimClock.paused else ""]
+		status_label.text = "GET %s   x%d%s   %.1f ms   %s" % [SimClock.get_display(), int(SimClock.rate),
+			"   PAUSED" if SimClock.paused else "", float(Bus.get_value("perf.frame_ms_max", 0.0)),
+			cabin.seat if cabin != null else ""]
 
 
 ## The controller's menu button shows and hides the menu whatever the palm does.
@@ -222,9 +230,19 @@ func _on_button(id: String) -> void:
 				Bus.set_value("player.eye_height_offset_m", h)
 				if rig.has_method("recenter"):
 					rig.call("recenter")
+		"seat":
+			if cabin:
+				cabin.set_seat("CMP" if cabin.seat == "CDR" else "CDR")
 		"highlight":
 			Bus.set_value("present.checklist.highlight_enabled",
 				not bool(Bus.get_value("present.checklist.highlight_enabled", true)))
+		"vignette", "horizon", "authentic":
+			if comfort:
+				match id:
+					"vignette": comfort.vignette_enabled = not comfort.vignette_enabled
+					"horizon": comfort.horizon_aid = not comfort.horizon_aid
+					"authentic": comfort.authentic = not comfort.authentic
+				comfort.update_from_bus()
 		"checklist":
 			if book:
 				book.cycle()

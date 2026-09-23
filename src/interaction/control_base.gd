@@ -7,7 +7,10 @@
 ##
 ## Subclasses choose which finger motion counts by overriding
 ## _touch_direction(). Nothing changes on hover: only a crossing actuates.
-## Taken from gemini-capsule at 40e449c (README.md lists the port).
+## Taken from gemini-capsule at 40e449c (README.md lists the port), with
+## one addition for the headset acceptance recorder: a fingertip crossing
+## also names the control on player.last_touch_label, so presses of the
+## DSKY keys and the wrist menu, which write no channel, can be told apart.
 class_name ControlBase
 extends Node3D
 
@@ -59,9 +62,11 @@ func _on_area_entered(area: Area3D) -> void:
 		# Evidence for the headset gate, published before the control's own
 		# channel so a subscriber sees the source with the state change:
 		# this actuation came from a fingertip crossing, not a far-field
-		# click or a script.
-		Bus.set_value("player.touch_actuations", int(Bus.get_value("player.touch_actuations", 0)) + 1)
+		# click or a script. The count goes last, so its subscribers see
+		# which control and channel it was.
+		Bus.set_value("player.last_touch_label", label if label != "" else str(name))
 		Bus.set_value("player.last_touch_channel", channel)
+		Bus.set_value("player.touch_actuations", int(Bus.get_value("player.touch_actuations", 0)) + 1)
 		actuate(dir)
 
 

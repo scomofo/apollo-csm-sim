@@ -6,9 +6,9 @@
 ## at 40e449c (README.md lists the port): Gemini's checklist assist names
 ## the control, and its frame is a fixed ring; here the frame fits the
 ## control's footprint, so it can go round the DSKY as well as a switch.
-## Presentation only.
+## Off in authentic mode, as in Gemini. Presentation only.
 ##
-## Reads:  present.checklist.highlight_enabled
+## Reads:  present.checklist.highlight_enabled, present.comfort.authentic
 ## Writes: present.checklist.next_control (the framed control's id, or ""),
 ##         present.checklist.highlight (whether the frame shows)
 class_name ChecklistHighlight
@@ -72,7 +72,8 @@ func _process(delta: float) -> void:
 
 func update() -> void:
 	var id := ""
-	if cabin != null and book != null and bool(Bus.get_value("present.checklist.highlight_enabled", true)):
+	if cabin != null and book != null and bool(Bus.get_value("present.checklist.highlight_enabled", true)) \
+			and not bool(Bus.get_value("present.comfort.authentic", false)):
 		id = resolve(cabin, book.target())
 	if id != target_id:
 		target_id = id

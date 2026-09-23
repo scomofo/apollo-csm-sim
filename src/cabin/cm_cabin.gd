@@ -14,6 +14,11 @@ extends Node3D
 
 ## Commander's (left couch) design eye point, m.
 const EYE_CDR := Vector3(0.75, -0.62, -0.30)
+## Centre couch design eye point, m: the command module pilot's seat for
+## launch and entry, and where the main DSKY is straight ahead.
+const EYE_CMP := Vector3(0.75, 0.0, -0.30)
+## Where the player can sit.
+const SEATS := {"CDR": EYE_CDR, "CMP": EYE_CMP}
 ## Axes of a panel face and of the player anchor, in body axes: +X to the
 ## crew's right, +Y the crew's up (body -Z), +Z toward the crew (body -X).
 const FACE_BASIS := Basis(Vector3(0, 1, 0), Vector3(0, 0, -1), Vector3(-1, 0, 0))
@@ -55,9 +60,11 @@ const COUCH_Y := [-0.62, 0.0, 0.62]
 const WALL_STEPS := 41
 const AROUND_STEPS := 144
 
-## Where the player's rig goes: the commander's eye, looking along +X with
-## the crew's up. Its global basis is the identity in the space view.
+## Where the player's rig goes: the seat's eye, looking along +X with the
+## crew's up. Its global basis is the identity in the space view.
 var anchor: Node3D
+## The seat the anchor is at (a SEATS key).
+var seat: String = "CDR"
 ## Where the checklist card goes: +Z faces the commander's eye, +Y is the
 ## crew's up.
 var card_mount: Node3D
@@ -79,8 +86,8 @@ func _init() -> void:
 	add_child(anchor)
 	card_mount = Node3D.new()
 	card_mount.name = "CardMount"
-	card_mount.transform = Transform3D(Basis.looking_at(CARD_CENTRE - EYE_CDR, Vector3(0, 0, -1)), CARD_CENTRE)
 	add_child(card_mount)
+	set_seat("CDR")
 
 
 ## A cabin with the shipped layout built onto its panels. Layout errors are
@@ -93,6 +100,19 @@ static func create() -> CmCabin:
 			push_error("controls.csv: " + e)
 	cabin.items = layout.build(cabin)
 	return cabin
+
+
+## Move the player's anchor to [param seat_name]'s eye, and the checklist
+## card with it, so the card sits by that seat's left shoulder. The rig
+## rides on the anchor, so the player moves too; the cabin never does.
+func set_seat(seat_name: String) -> void:
+	if not SEATS.has(seat_name):
+		return
+	seat = seat_name
+	var eye: Vector3 = SEATS[seat_name]
+	anchor.position = eye
+	card_mount.transform = Transform3D(Basis.looking_at(CARD_CENTRE - EYE_CDR, Vector3(0, 0, -1)), eye + CARD_CENTRE - EYE_CDR)
+	Bus.set_value("player.seat", seat_name)
 
 
 ## Hand the cabin DSKY the CMC's keyboard.

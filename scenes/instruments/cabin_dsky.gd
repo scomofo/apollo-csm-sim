@@ -137,6 +137,7 @@ func _build_keys() -> void:
 		var key_name: String = k[0]
 		var b: Node3D = PUSHBUTTON.instantiate()
 		b.name = "Key_" + key_name.replace(" ", "_").replace("+", "PLUS").replace("-", "MINUS")
+		b.set("label", key_name)
 		b.set("lamp_colour", Color(0.6, 0.6, 0.62))
 		# Typing stays open during time acceleration, as on the 2D DSKY, and a
 		# far-field click lets go quickly enough for the next digit.

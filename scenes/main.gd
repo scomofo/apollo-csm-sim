@@ -10,7 +10,13 @@
 ## XR rig replaces the desktop rig and the cabin is the only view. In the
 ## cabin, the checklist card and highlight show the open checklist and the
 ## wrist menu (M on the desktop) requests PADs and sets the clock; the HUD
-## shares the same ChecklistBook.
+## shares the same ChecklistBook. The comfort aids, the gaze tooltip, the
+## frame-time monitor and the headset acceptance recorder
+## (docs/HEADSET_RUN.md) come up on both rigs; the recorder writes its
+## record only in a headset.
+##
+## Writes: player.rig ("xr" or "desktop"), player.xr_session,
+##         player.xr_focus, player.xr_refresh_hz
 ##
 ## Start phase: the exported start_phase, or "--phase=<name>" after "--" on
 ## the command line (parking_orbit, translunar_coast, lunar_orbit,
@@ -39,6 +45,14 @@ var book: ChecklistBook
 var card: ChecklistCard
 var highlight: ChecklistHighlight
 var menu: WristMenu
+var comfort: Comfort
+var tooltip: GazeTooltip
+var perf: PerfMonitor
+var recorder: VrAcceptanceRecorder
+## The OpenXR interface, found at start. A test can set a stand-in first
+## (initialised, with OpenXR's session signals) to run the headset branch
+## without a runtime.
+var xr_interface: XRInterface
 var _looking: bool = false
 var _t_held: bool = false
 
@@ -66,37 +80,83 @@ func _ready() -> void:
 	highlight.cabin = cabin
 	highlight.book = book
 	cabin.add_child(highlight)
+	var cam: Camera3D = rig.get_node("XRCamera3D") if xr else rig.get_node("Camera3D")
+	comfort = Comfort.new()
+	comfort.name = "Comfort"
+	cam.add_child(comfort)
+	tooltip = GazeTooltip.new()
+	tooltip.name = "GazeTooltip"
+	if not xr:
+		tooltip.pointer_camera = cam
+		tooltip.reach = CmCabin.CLICK_RANGE
+	cam.add_child(tooltip)
 	menu = WristMenu.new()
 	menu.name = "WristMenu"
-	if xr:
-		menu.setup(rig, rig.get_node("XRCamera3D"), rig.get_node("LeftHand"), book)
-	else:
-		menu.setup(rig, rig.get_node("Camera3D"), null, book)
+	menu.comfort = comfort
+	menu.cabin = cabin
+	menu.setup(rig, cam, rig.get_node("LeftHand") if xr else null, book)
+	perf = PerfMonitor.new()
+	perf.name = "PerfMonitor"
+	add_child(perf)
+	recorder = VrAcceptanceRecorder.new()
+	recorder.name = "VrAcceptanceRecorder"
+	recorder.rig = rig
+	recorder.xr_interface = xr_interface if xr else null
+	recorder.write_on_exit = xr
+	add_child(recorder)
 	hud = Hud.new()
 	hud.name = "Hud"
 	add_child(hud)
 	hud.setup(rt, book)
 	hud.select_checklist_for(start_phase)
-	var hci := HandControllerInput.new()
+	# In a headset the thumbsticks fly the hand controllers too.
+	var hci := HandControllerInput.for_xr_rig(rig) if xr else HandControllerInput.new()
 	hci.name = "HandControllerInput"
 	add_child(hci)
 	set_view(VIEW_CABIN if xr else 0)
 
 
 func _place_rig() -> void:
-	var openxr := XRServer.find_interface("OpenXR")
-	xr = openxr != null and openxr.is_initialized()
+	if xr_interface == null:
+		xr_interface = XRServer.find_interface("OpenXR")
+	xr = xr_interface != null and xr_interface.is_initialized()
+	Bus.set_value("player.rig", "xr" if xr else "desktop")
 	if xr:
+		print("Main: OpenXR initialised, XR rig")
 		get_viewport().use_xr = true
+		# The runtime paces the headset's frames. V-Sync on the desktop
+		# window would hold them to the monitor's refresh (60 Hz on most).
+		DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
+		xr_interface.session_begun.connect(_on_xr_session_begun)
+		xr_interface.session_stopping.connect(_on_xr_session_stopping)
+		xr_interface.session_focussed.connect(func() -> void: Bus.set_value("player.xr_focus", true))
+		xr_interface.session_visible.connect(func() -> void: Bus.set_value("player.xr_focus", false))
 		rig = XR_RIG.instantiate()
 	else:
 		rig = DESKTOP_RIG.instantiate()
 		rig.set("click_range", CmCabin.CLICK_RANGE)
-		var cam: Camera3D = rig.get_node("Camera3D")
-		cam.near = 0.05
-		cam.far = SpaceView.RENDER_DIST * 3.0
+	# Both cameras reach past the Earth and Moon, drawn RENDER_DIST away.
+	var cam: Camera3D = rig.get_node("XRCamera3D") if xr else rig.get_node("Camera3D")
+	cam.near = 0.05
+	cam.far = SpaceView.RENDER_DIST * 3.0
 	rig.name = "PlayerRig"
 	cabin.anchor.add_child(rig)
+
+
+## Pace frames to the headset's refresh when the runtime reports it.
+func _on_xr_session_begun() -> void:
+	var rate: float = xr_interface.get_display_refresh_rate() if xr_interface.has_method("get_display_refresh_rate") else 0.0
+	if rate > 0.0:
+		Engine.max_fps = int(round(rate))
+		perf.frame_budget_ms = 1000.0 / rate
+		Bus.set_value("player.xr_refresh_hz", rate)
+	Bus.set_value("player.xr_session", true)
+	print("Main: OpenXR session begun (%s Hz)" % (str(rate) if rate > 0.0 else "runtime default"))
+
+
+func _on_xr_session_stopping() -> void:
+	Bus.set_value("player.xr_session", false)
+	Bus.set_value("player.xr_focus", false)
 
 
 ## 0 window, 1 chase, 2 cabin. A headset has only the cabin.
