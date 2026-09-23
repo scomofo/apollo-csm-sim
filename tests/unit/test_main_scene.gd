@@ -50,9 +50,28 @@ func test_c_cycles_the_window_chase_and_cabin_views() -> void:
 		assert_eq(rig_camera.current, in_cabin, "the rig's camera")
 		assert_eq(main.view.camera.current, not in_cabin, "the space view's camera")
 		assert_eq(main.rig.is_processing_unhandled_input(), in_cabin, "the rig takes the mouse in the cabin")
+		assert_eq(main.menu.is_processing_unhandled_input(), in_cabin, "and M opens the wrist menu there")
 		assert_eq(main.hud.dsky_panel.visible, not in_cabin, "the 2D DSKY steps aside for the cabin's")
 		await wait_process_frames(1)
 		assert_eq(main.view._parts["cm"].visible, not in_cabin, "the CM model gives way to the cabin")
+	main.rt.free_nodes()
+
+
+func test_the_cabin_has_the_checklist_card_highlight_and_wrist_menu() -> void:
+	var main: Node = load("res://scenes/main.tscn").instantiate()
+	main.start_phase = "lunar_orbit"
+	add_child_autofree(main)
+	await wait_process_frames(2)
+	assert_eq(main.card.get_parent(), main.cabin.card_mount, "the card by the commander's shoulder")
+	assert_eq(main.highlight.get_parent(), main.cabin)
+	assert_eq(main.menu.get_parent(), main.rig.get_node("Camera3D"), "the desktop menu rides on the camera")
+	assert_eq(main.hud.book, main.book, "the HUD and the cabin share one checklist book")
+	assert_eq(main.book.list().title, "Lunar orbit and TEI", "opened for the phase")
+	assert_eq(main.card.title_label.text, "CHECKLIST  LUNAR ORBIT AND TEI")
+	var eye: Vector3 = main.cabin.anchor.global_position
+	var to_eye: Vector3 = (eye - main.card.global_position).normalized()
+	assert_gt(main.card.global_basis.z.dot(to_eye), 0.999, "the card faces the commander's eye")
+	assert_almost_eq(eye.distance_to(main.card.global_position), 0.49, 0.01, "at reading distance")
 	main.rt.free_nodes()
 
 

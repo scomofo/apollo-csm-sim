@@ -14,6 +14,8 @@ executed through the Apollo Guidance Computer's DSKY.
 
 ![The CM cabin in lunar orbit: FDAI, DSKY and the main display console](docs/images/cabin_lunar_orbit.png)
 
+![The checklist card with the TEI PAD and CAPCOM, and the wrist menu](docs/images/cabin_checklist.png)
+
 The project used
 [scomofo/gemini-capsule](https://github.com/scomofo/gemini-capsule) as its
 template and began as the `apollo/` directory of that repository. It now
@@ -55,6 +57,7 @@ recorded yet ([docs/ROADMAP.md](docs/ROADMAP.md), slice 2e).
 | Right-drag | Look around (window and chase views) |
 | In the cabin view: click, scroll | Work the control under the cursor: a click cycles a switch or presses a key, scrolling moves a switch up or down |
 | In the cabin view: right-click, Z, Home | Mouse look on and off; inspect the control under the cursor; recentre |
+| In the cabin view: M | Wrist menu: PAD requests, time rate, pause, recentre, eye height, checklist |
 | F5 / F9 | Save / load checkpoint |
 | H | Key help |
 
@@ -92,7 +95,11 @@ event (TLI, TIG−60 s, V99) and at entry.
    3 km/s, and the drogue and main parachutes deploy automatically.
 
 The on-screen checklist follows along. Steps with a check mark complete
-themselves when the Bus shows the action was done.
+themselves when the Bus shows the action was done. In the cabin, the same
+checklist is on the card by the commander's left shoulder, with the last
+PAD and CAPCOM's calls, and a green frame marks the control for the
+current step. The wrist menu's NEXT STEP goes past a step without a
+check, and CHECKLIST opens the next checklist.
 
 To reproduce the Apollo 13 failure, set `failures.o2_tank_2_get_s` in
 `data/missions/apollo_11/mission.json` (the flown time was 55:54:53 =
@@ -165,6 +172,8 @@ drawings are transcribed.
 | [`scenes/player/xr_rig.tscn`][v-xr-rig], [`openxr_action_map.tres`][v-action-map] | same paths | None. OpenXR is off in `project.godot` until `--xr-mode on`, with the seated Local reference space (Gemini's `project.godot` sets Stage) |
 | [`scenes/player/desktop_rig.gd`][v-desktop-rig] | same path | No keyboard head movement, because W/A/S/D/Q/E fly the RHC here. Recentre is the `recenter` action on Home, because R is the THC's +X |
 | [`src/interaction/hand_controller_input.gd`][v-hci] | same path | Writes `ctl.rhc` and `ctl.thc` from the keys and the thumbsticks; holding the left grip switches the sticks to the THC |
+| [`src/presentation/wrist_menu.gd`][v-wrist-menu] | same path | Apollo's buttons: the PAD requests (writing `ctl.ground.pad_request`, as the HUD does), time rate, pause, recentre, eye height, CHECKLIST, NEXT STEP and HILITE. Gemini's comfort, guide and new-flight buttons stay behind, and settings aren't saved yet |
+| [`src/presentation/checklist_highlight.gd`][v-highlight] | same path | Finds the control from the step's `control` or its check channel, and the frame fits the control's footprint, DSKY included |
 | [`src/cabin/cockpit_layout.gd`][v-layout], [`controls.csv`, `channels.csv`][v-cockpit-data] | `src/cabin/cockpit_layout.gd`, `data/cockpit/` | Rows are checked against `CmCabin`'s panels and the channel types in `channels.csv`, and for overlaps. No `spec_id` column until a CM cockpit spec exists. A switch on a bool channel publishes a bool; switch positions are lettered beside the lever and around the knob |
 | [`tests/unit/`][v-tests]: `test_control_library`, `test_xr_rig`, `test_openxr_action_map`, `test_desktop_inspection`, `test_gauge_linear_face` | same paths | Gemini-only cases dropped or replaced |
 
@@ -180,6 +189,8 @@ drawings are transcribed.
 [v-hci]: https://github.com/scomofo/gemini-capsule/blob/40e449cfb8c35111de47a33bd351b2d945e6fa52/src/interaction/hand_controller_input.gd
 [v-tests]: https://github.com/scomofo/gemini-capsule/tree/40e449cfb8c35111de47a33bd351b2d945e6fa52/tests/unit
 [v-layout]: https://github.com/scomofo/gemini-capsule/blob/40e449cfb8c35111de47a33bd351b2d945e6fa52/src/cabin/cockpit_layout.gd
+[v-wrist-menu]: https://github.com/scomofo/gemini-capsule/blob/40e449cfb8c35111de47a33bd351b2d945e6fa52/src/presentation/wrist_menu.gd
+[v-highlight]: https://github.com/scomofo/gemini-capsule/blob/40e449cfb8c35111de47a33bd351b2d945e6fa52/src/presentation/checklist_highlight.gd
 [v-cockpit-data]: https://github.com/scomofo/gemini-capsule/tree/40e449cfb8c35111de47a33bd351b2d945e6fa52/assets/data/cockpit
 
 ## Fidelity
@@ -255,6 +266,12 @@ The unit tests cover:
   the desktop rig can click every control from the commander's couch
 - What the cabin shows and sets on the Bus: the DSKY display, the FDAI
   attitude, and switches that follow the HUD and checkpoints
+- The checklists in the cabin: one book shared by the HUD and the card,
+  the card's checklist, PAD and CAPCOM, and the highlight on the control
+  each step names or whose channel it checks
+- The wrist menu: its PAD, clock, recentre, eye-height and checklist
+  buttons, M and the controller button, the palm gesture, and buttons
+  that work while the panels are locked
 
 The scenario tests fly real segments through the crew interface:
 
@@ -264,13 +281,18 @@ The scenario tests fly real segments through the crew interface:
 - CM/SM separation, P61/P64 entry and splashdown
 - An MCC PAD flown with P30 and P41 using only the cabin's controls,
   each one clicked through the desktop rig
+- A PAD requested from the wrist menu through the desktop rig: UPLINK
+  ACTY on the cabin DSKY, the PAD on the checklist card, and the
+  checklist worked on from the menu and the DSKY
 
 `tools/screenshot.tscn` renders the images above (`--view=0` window,
-`1` chase, `2` cabin; `--hud=0` leaves the HUD out):
+`1` chase, `2` cabin; `--hud=0` leaves the HUD out, `--menu=1` shows the
+wrist menu, and `--pad=<kind>` asks Mission Control for a PAD first):
 
 ```
 godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=1 --out=res://docs/images/x.png
 godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=2 --yaw=-0.3 --pitch=-0.12 --hud=0 --out=res://docs/images/cabin_lunar_orbit.png
+godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=2 --yaw=0.55 --pitch=-0.08 --hud=0 --menu=1 --pad=tei --out=res://docs/images/cabin_checklist.png
 ```
 
 ## Roadmap

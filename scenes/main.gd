@@ -7,7 +7,10 @@
 ##
 ## On the desktop, C cycles the window, chase and cabin views, and the HUD
 ## stays as the fallback. With OpenXR running (start with --xr-mode on) the
-## XR rig replaces the desktop rig and the cabin is the only view.
+## XR rig replaces the desktop rig and the cabin is the only view. In the
+## cabin, the checklist card and highlight show the open checklist and the
+## wrist menu (M on the desktop) requests PADs and sets the clock; the HUD
+## shares the same ChecklistBook.
 ##
 ## Start phase: the exported start_phase, or "--phase=<name>" after "--" on
 ## the command line (parking_orbit, translunar_coast, lunar_orbit,
@@ -30,6 +33,12 @@ var cabin: CmCabin
 var rig: Node3D
 var xr: bool = false
 var hud: Hud
+## The checklists and which one is open: the HUD, the card, the highlight
+## and the wrist menu share it.
+var book: ChecklistBook
+var card: ChecklistCard
+var highlight: ChecklistHighlight
+var menu: WristMenu
 var _looking: bool = false
 var _t_held: bool = false
 
@@ -47,10 +56,26 @@ func _ready() -> void:
 	add_child(cabin)
 	cabin.connect_runtime(rt)
 	_place_rig()
+	book = ChecklistBook.load_default()
+	card = ChecklistCard.new()
+	card.name = "ChecklistCard"
+	card.book = book
+	cabin.card_mount.add_child(card)
+	highlight = ChecklistHighlight.new()
+	highlight.name = "ChecklistHighlight"
+	highlight.cabin = cabin
+	highlight.book = book
+	cabin.add_child(highlight)
+	menu = WristMenu.new()
+	menu.name = "WristMenu"
+	if xr:
+		menu.setup(rig, rig.get_node("XRCamera3D"), rig.get_node("LeftHand"), book)
+	else:
+		menu.setup(rig, rig.get_node("Camera3D"), null, book)
 	hud = Hud.new()
 	hud.name = "Hud"
 	add_child(hud)
-	hud.setup(rt)
+	hud.setup(rt, book)
 	hud.select_checklist_for(start_phase)
 	var hci := HandControllerInput.new()
 	hci.name = "HandControllerInput"
@@ -85,8 +110,10 @@ func set_view(mode: int) -> void:
 	if xr:
 		(rig.get_node("XRCamera3D") as Camera3D).make_current()
 		return
-	# The desktop rig takes the mouse only in the cabin.
+	# The desktop rig and its wrist menu take the mouse and M only in the
+	# cabin.
 	rig.set_process_unhandled_input(in_cabin)
+	menu.set_process_unhandled_input(in_cabin)
 	if in_cabin:
 		(rig.get_node("Camera3D") as Camera3D).make_current()
 	else:
