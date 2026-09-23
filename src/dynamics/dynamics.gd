@@ -263,6 +263,9 @@ func _step_lm(dt: float) -> void:
 		lm.lift_s = lm.lift_s + dt if lift > g * LIFTOFF_MARGIN else 0.0
 		if lm.lift_s < LIFTOFF_S:
 			lm.hold_on_surface(lm.traj.t + dt)
+			# An engine running keeps the steps fine: its thrust builds, or
+			# tails off, over them.
+			lm.coasting = thrust <= 0.0
 			return
 		lm.landed = false
 		lm.lift_s = 0.0
@@ -557,3 +560,10 @@ func restore(d: Dictionary, lm_d: Dictionary = {}) -> void:
 	if lm != null:
 		_arm_contact()
 	publish_state()
+	# What _check_surface() published at touchdown: a landed LM's probes
+	# still touch, and its last touchdown stands.
+	if lm != null:
+		if lm.landed:
+			Bus.set_value("lm.contact_light", lm.config == "lm")
+		if not lm.touchdown.is_empty():
+			Bus.set_value("lm.touchdown", lm.touchdown)

@@ -167,11 +167,47 @@ func test_automatic_guidance_lands_at_tranquility_base() -> void:
 	run(2.0, false)
 	assert_eq(float(Bus.get_value("lm.dps.thrust_n")), 0.0, "P68: engine off")
 	assert_true(rt.dynamics.lm.landed, "and still down")
+	# A checkpoint on the surface brings back the touchdown and the light.
+	var text := JSON.stringify(rt.snapshot())
+	build("")
+	assert_eq(rt.restore(JSON.parse_string(text)), "")
+	lgc = rt.lgc()
+	assert_eq(Bus.get_value("lm.touchdown", {}), JSON.parse_string(JSON.stringify(td)), "lm.touchdown restored")
+	assert_true(Bus.get_value("lm.contact_light", false), "CONTACT LIGHT restored")
 	# V06N43 shows where the LGC has Eagle: its own state vector, off by
 	# what the radar couldn't see.
 	var n43: Array = lgc.noun_values(43)
 	assert_almost_eq(float(n43[0]), SITE_LAT, 0.02, "V06N43 latitude")
 	assert_almost_eq(float(n43[1]), SITE_LON, 0.02, "and longitude")
+
+
+func test_a_checkpoint_in_p63_before_ignition_keeps_the_burn_attitude() -> void:
+	build("")
+	assert_eq(rt.restore(JSON.parse_string(_before_pdi)), "")
+	var lgc := rt.lgc()
+	keys("V37E63E", lgc)
+	keys("P", lgc)
+	Bus.set_value("ctl.lm.mode", 2)
+	keys("P", lgc)
+	assert_true(run_until(func() -> bool: return lgc.step_name == "wait", 600.0, 1.0, false), "in the burn attitude")
+	var target := lgc.auto_target
+	var text := JSON.stringify(rt.snapshot())
+	build("")
+	assert_eq(rt.restore(JSON.parse_string(text)), "")
+	lgc = rt.lgc()
+	assert_eq(lgc.step_name, "wait")
+	assert_lt(lgc.auto_target.angle_to(target), 1e-4, "the burn attitude comes back with it")
+	# And PDI fires against the velocity over the surface.
+	Bus.set_value("ctl.lm.engine_arm", 2)
+	run(maxf(lgc.pdi_tig - 12.0 - SimClock.get_seconds, 0.0))
+	assert_true(run_until(func() -> bool: return lgc.step_name == "v99", 20.0, 1.0, false), "V99 at TIG-5 s")
+	keys("P", lgc)
+	run(30.0, false)
+	var tr := rt.dynamics.lm.traj
+	var rel := tr.vel() - Bodies.moon_omega().cross(tr.pos())
+	var thrust_axis := Basis(rt.dynamics.lm.attitude.q) * Vector3.RIGHT
+	assert_gt(float(Bus.get_value("lm.dps.thrust_n")), 0.0, "the descent engine burning")
+	assert_gt(rad_to_deg(thrust_axis.angle_to(rel)), 150.0, "retrograde")
 
 
 func test_without_radar_updates_the_lgc_flies_into_the_ground() -> void:
@@ -363,7 +399,11 @@ func test_a_landed_lm_turns_with_the_moon_and_can_lift_off() -> void:
 	Bus.set_value("ctl.lm.eng_start", true)
 	run(SimClock.FIXED_DT, false)
 	Bus.set_value("ctl.lm.eng_start", false)
-	run(10.0, false)
+	# At full time acceleration: the engine running keeps the steps fine,
+	# while its thrust builds on the surface and after.
+	steps = SimClock.step_count
+	run(10.0)
+	assert_gt(SimClock.step_count - steps, 495, "fine steps from engine start")
 	assert_false(lm.landed, "lift-off")
 	var h := lm.traj.radius() - site_r
 	assert_gt(h, 50.0, "climbing on the ascent engine")
