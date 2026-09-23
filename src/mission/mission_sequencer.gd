@@ -2,7 +2,8 @@
 ## phase from truth, performs the Saturn/IU automation (TLI), carries out
 ## crew separation commands, injects scripted failures, and plays Mission
 ## Control: PAD requests are solved by the RTCC and uplinked to the CMC, or
-## to the LGC for the LM's burns.
+## to the LGC for the LM's burns, its descent and its ascent. It calls the
+## LM's landing, liftoff and insertion.
 ##
 ## Reads:  ctl.seq.csm_sep, ctl.seq.undock, ctl.seq.lm_jett,
 ##         ctl.seq.cm_sm_sep, ctl.lm.stage (crew pushbuttons,
@@ -40,6 +41,7 @@ func _ready() -> void:
 	if dynamics != null:
 		dynamics.docking_contact.connect(_on_docking_contact)
 		dynamics.lm_touchdown.connect(_on_lm_touchdown)
+		dynamics.lm_liftoff.connect(_on_lm_liftoff)
 
 
 func _exit_tree() -> void:
@@ -49,6 +51,8 @@ func _exit_tree() -> void:
 		dynamics.docking_contact.disconnect(_on_docking_contact)
 	if dynamics != null and dynamics.lm_touchdown.is_connected(_on_lm_touchdown):
 		dynamics.lm_touchdown.disconnect(_on_lm_touchdown)
+	if dynamics != null and dynamics.lm_liftoff.is_connected(_on_lm_liftoff):
+		dynamics.lm_liftoff.disconnect(_on_lm_liftoff)
 
 
 # --- start states ------------------------------------------------------------
@@ -199,7 +203,8 @@ func _crew_commands() -> void:
 				"ctl.lm.stage":
 					if dynamics.stage_lm():
 						_fire("lm_staging")
-						_say("Houston copies staging. Eagle's ascent stage is flying.")
+						var flying := "" if dynamics.lm.landed else " Eagle's ascent stage is flying."
+						_say("Houston copies staging." + flying)
 		_edges[ch] = now
 
 
@@ -221,6 +226,28 @@ func _on_lm_touchdown(touchdown: Dictionary) -> void:
 			float(touchdown["vertical_mps"]) / Units.FT, float(touchdown["horizontal_mps"]) / Units.FT])
 	else:
 		_say("Houston: Roger, Tranquility. We copy you on the ground.")
+
+
+## The LM left the surface.
+func _on_lm_liftoff(_get_s: float) -> void:
+	_fire("lm_liftoff")
+	_say("Houston: we have liftoff. Eagle, you're looking good.")
+
+
+## After the liftoff, the ascent engine is off with the LM in orbit:
+## insertion. The orbit's apsides are above the landing site.
+func _check_insertion() -> void:
+	var lm := dynamics.lm
+	if lm == null or lm.landed or not _has("lm_liftoff") or _has("lm_insertion") or lm.traj.primary != "moon" \
+			or bool(Bus.get_value("lm.aps.on", false)):
+		return
+	var c := lm.traj.conic()
+	var site_r := landing_site().length()
+	if float(c["energy"]) >= 0.0 or float(c["rp"]) <= site_r:
+		return
+	_fire("lm_insertion")
+	_say("Houston: Eagle, you're in orbit, %.1f by %.1f." % [(float(c["rp"]) - site_r) / Units.NMI,
+		(float(c["ra"]) - site_r) / Units.NMI])
 
 
 func _transposition_and_docking() -> void:
@@ -254,6 +281,7 @@ func _automation() -> void:
 		_say("Houston, we've had a problem. Main B bus undervolt; O2 tank 2 pressure reading zero.")
 	if dynamics.landed and not _has("landing"):
 		_fire("landing")
+	_check_insertion()
 
 
 func _update_phase() -> void:
@@ -298,10 +326,13 @@ func _on_pad_request(kind: Variant) -> void:
 
 ## Solve and uplink a maneuver PAD: "mcc", "loi", "circ", "tei" for the
 ## CMC; "doi" for the LGC, while the LM flies free; "pdi", the LGC's state
-## vector for powered descent (pdi_pad()).
+## vector for powered descent (pdi_pad()); "ascent", the liftoff time for
+## the LGC's P12 (ascent_pad()).
 func request_pad(kind: String) -> Dictionary:
 	if kind == "pdi":
 		return pdi_pad()
+	if kind == "ascent":
+		return ascent_pad()
 	var tr := dynamics.traj.clone()
 	var mass := dynamics.mass
 	var now := SimClock.get_seconds
@@ -383,6 +414,43 @@ func pdi_pad() -> Dictionary:
 	Bus.set_value("mission.pad_text", text)
 	_say("Houston: Eagle, we've uplinked your state vector. " + text)
 	_fire("pad_pdi")
+	return pad
+
+
+## The ascent PAD, with the LM on the surface: the RTCC times the liftoff
+## for the CSM to lead the LM by the insertion phase angle (mission.json
+## "ascent") at insertion, flying P12's own guidance, in the first window
+## ten minutes out or later. The ground uplinks the LM's state vector and
+## its spot as the landing site, the CSM's state vector, and the liftoff
+## time [simplified: as MSFN tracked them, the truth]. Returns the PAD
+## (Rtcc.plan_liftoff()), or {} without a landed LM.
+func ascent_pad() -> Dictionary:
+	var lgc: Lgc = systems.get("lgc")
+	var lm := dynamics.lm
+	var pad := {}
+	if lm != null and lm.landed and lgc != null:
+		var site := lm.landed_pos.normalized() * Terrain.radius_under(lm.landed_pos)
+		var f := SpacecraftData.lm_full_loads()
+		var mass := SpacecraftData.lm_total_mass("lm_ascent", 0.0, float(Bus.get_value("lm.aps.prop_kg", f[1])),
+			float(Bus.get_value("lm.rcs.prop_kg", f[2])))
+		var phase_deg := float(mission.section("ascent")["insertion_phase_deg"])
+		pad = Rtcc.plan_liftoff(site, mass, dynamics.traj.clone(), phase_deg, SimClock.get_seconds + 600.0)
+		if not pad.is_empty():
+			lgc.uplink_state(lm.traj)
+			lgc.uplink_landing_site(site)
+			lgc.uplink_csm_state(dynamics.traj)
+			lgc.uplink_liftoff(float(pad["tig"]))
+	last_pad = pad
+	if pad.is_empty():
+		_say("Houston: no ascent solution.")
+		return {}
+	var text := "ASCENT PAD: TIG %s  N76 VH %.1f HDOT %.1f ft/s  XRNG %.2f nmi  INSERTION %s, %.1f x %.1f nmi" % [
+		Units.hms(float(pad["tig"])), float(pad["vh"]) / Units.FT, float(pad["hdot"]) / Units.FT,
+		float(pad["xrng"]) / Units.NMI, Units.hms(float(pad["insertion_get"])), float(pad["hp"]) / Units.NMI,
+		float(pad["ha"]) / Units.NMI]
+	Bus.set_value("mission.pad_text", text)
+	_say("Houston: Eagle, you're cleared for takeoff. " + text)
+	_fire("pad_ascent")
 	return pad
 
 

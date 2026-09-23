@@ -139,10 +139,27 @@ the landing point, and each click of the hand controller moves it: 0.5°
 fore or aft, 2° left or right. P65 lands automatically. At the first
 click of the ROD switch, P66 hands the attitude to the crew while the
 throttle holds the descent rate, 1 ft/s per click. CONTACT LIGHT comes
-on when a probe touches, and at touchdown P68 shuts the engine down. The
-LGC also has P41 (LM RCS), P42 (the ascent engine, after staging) and
-P47, and ENGINE START lifts a landed ascent stage off. The LM has no
-cockpit yet, so only the tests fly it (slice 3f adds one).
+on when a probe touches, and at touchdown P68 shuts the engine down.
+
+**The ascent.** On the surface, Mission Control's ascent PAD gives the
+liftoff time. The RTCC flies the LGC's own ascent from where Eagle sits,
+and times the liftoff for Columbia to lead by 16.4° at insertion, an
+estimate of the lead Apollo 11's rendezvous needed (mission.json
+"ascent"). Eagle's and
+Columbia's state vectors come up with it. P12 shows the liftoff time
+(N33), the insertion targets (N76: 5,535 ft/s, 32 ft/s up, and how far
+Eagle sits from Columbia's plane) and the countdown (N74). At V99, five
+seconds out, the crew stage with ABORT STAGE, arm the ascent engine and
+key PRO: "Abort Stage, Engine Arm, Ascent, Proceed", as Aldrin called
+it. The ascent engine lifts Eagle straight up to 40 ft/s while it yaws to
+face along Columbia's track, and it pitches over. The LGC's ascent
+guidance, after the E guidance Luminary flew, puts it into a 9 × 45 nmi
+orbit in Columbia's plane, 60,000 ft up and climbing at 32 ft/s, and the
+engine stops about seven minutes after liftoff.
+
+The LGC also has P41 (LM RCS), P42 (the ascent engine, after staging)
+and P47, and ENGINE START lifts a landed ascent stage off by hand. The LM
+has no cockpit yet, so only the tests fly it (slice 3f adds one).
 
 The on-screen checklist follows along. Steps with a check mark complete
 themselves when the Bus shows the action was done. In the cabin, the same
@@ -177,11 +194,11 @@ The right column names the files in this repository.
 | [`src/dynamics/orbit.gd`][g-orbit] (Earth, J2) | `src/dynamics/trajectory.gd` | Earth–Moon three-body RK4, state re-based at the lunar sphere of influence |
 | [`src/systems/electrical.gd`][g-electrical] | `src/systems/eps.gd` | Fuel cells, cryo O2/H2, entry batteries, O2 tank failure |
 | OAMS/RCS in [`src/dynamics/dynamics.gd`][g-dynamics] | `src/systems/rcs.gd`, `src/systems/sps.gd` | SM quads A–D, CM rings, SPS with arm valves and transients |
-| [`src/systems/guidance.gd`][g-guidance] + MDIU | `src/systems/agc_core.gd`, `agc.gd`, `lgc.gd` + `src/systems/dsky.gd` | One AGC core (verb/noun DSKY, P30, thrusting programs, P47, DAP) under two program sets: the CMC's P00/30/40/41/47/61/64/67 and the LGC's P00/30/40/41/42/47/63/64/65/66/68 |
+| [`src/systems/guidance.gd`][g-guidance] + MDIU | `src/systems/agc_core.gd`, `agc.gd`, `lgc.gd`, `ascent_guidance.gd` + `src/systems/dsky.gd` | One AGC core (verb/noun DSKY, P30, thrusting programs, P47, DAP) under two program sets: the CMC's P00/30/40/41/47/61/64/67 and the LGC's P00/12/30/40/41/42/47/63/64/65/66/68 |
 | — | `src/systems/dps.gd`, `aps.gd`, `lm_rcs.gd`, `landing_radar.gd` | The LM's descent and ascent engines, its RCS and its landing radar |
 | — | `src/dynamics/terrain.gd`, `data/terrain/`, `tools/terrain/build_terrain.py` | The surface from NASA's elevation maps: LROC's Apollo 11 site model at 4 m, SLDEM2015 along the approach, LOLA elsewhere (sources in NOTICE) |
 | [`src/mission/mission_sequencer.gd`][g-sequencer] | rewritten | Phases, S-IVB/IU TLI automation, separations, failures, CAPCOM |
-| — | `src/mission/rtcc.gd` | Ground targeting: TLI, MCC, LOI-1/2 over the landing site, TEI and the LM's DOI for the landing pass, by shooting on the flight model. The sequencer's PDI PAD uplinks the LM's state vector with its tracking error |
+| — | `src/mission/rtcc.gd` | Ground targeting: TLI, MCC, LOI-1/2 over the landing site, TEI, the LM's DOI for the landing pass and its liftoff time, by shooting on the flight model. The sequencer's PDI PAD uplinks the LM's state vector with its tracking error |
 | [`src/mission/procedure_runner.gd`][g-procedure] | `src/mission/checklist.gd` | Bus-checked flight-plan checklists |
 | [`src/systems/recovery.gd`][g-recovery] | `src/systems/els.gd` | Drogues, reefed mains |
 | GUT tests, headless | GUT 9.4.0 (vendored in `addons/gut/`), headless | Unit tests plus full mission-segment scenarios |
@@ -284,6 +301,7 @@ A flown Apollo 11 profile in the simulator reproduces these values:
 | TEI | 1,000 m/s | 1,001 m/s |
 | DOI | 73.0 ft/s, 30 s | ~76 ft/s, ~30 s |
 | Powered descent | 12 min 6 s, touchdown 140 m from the target (the LGC's crossrange error, which the radar can't see) | 12 min 35 s, about 6 km past the target |
+| Ascent, liftoff to cutoff | 7 min 8 s, then 60,054 ft and 32.1 ft/s up, 9.0 × 45.1 nmi | 7 min 17 s, then 60,666 ft and 32.8 ft/s up, 9.5 × 47.3 nmi |
 | Entry peak load | 6.9 g | ~6.5 g |
 | Splashdown | 8.6 m/s | — |
 
@@ -320,6 +338,12 @@ ones:
   LGC's. The descent engine has no gimbal trim, and staging leaves the
   descent stage behind, no longer simulated. The ascent engine fires only
   after staging (no fire-in-the-hole abort).
+- **The ascent.** The ground times the liftoff from both vehicles' true
+  state vectors, and uplinks them as the truth. The lead Columbia has at
+  insertion is estimated from Apollo 11's rendezvous. P12's steering
+  takes the engine's nominal thrust for its acceleration, not the
+  measured one, and the LGC holds the CSM's state vector without
+  coasting it.
 - **Docking.** Capture docks the vehicles hard at once, without a soft
   dock and probe retraction. Only the probe can touch the LM: the
   vehicles' bodies pass through each other. The docking geometry, the
@@ -348,6 +372,9 @@ The unit tests cover:
 - The landing radar: its slant range to the ground in both antenna
   positions, over West crater too, its data-good ranges and its velocity
   over the turning surface
+- The ascent guidance: its targets are a 9 × 45 nmi orbit, it pitches
+  over along the track, steers back into the CSM's plane, and its time to
+  go is the rocket equation's
 - DSKY key logic
 - CMC programs
 - Systems: SPS arming, EPS consumption and the Apollo 13 failure, SCS/CMC
@@ -430,6 +457,13 @@ The scenario tests fly real segments through the crew interface:
     ROD switch.
   
   A landed LM turns with the Moon, and lifts off on its ascent engine.
+- The ascent (`tests/scenarios/test_ascent.gd`), slice 3d's check. Eagle
+  is set down at the site. The RTCC times the liftoff for Columbia to
+  lead by 16.4° at insertion. P12 lifts off at that time, rises for 8 s,
+  and cuts off 7 min 8 s after liftoff. It inserts at 60,054 ft and
+  32.1 ft/s up into a 9.0 × 45.1 nmi orbit, 0.001° from Columbia's
+  plane, with Columbia 16.42° ahead and 167 kg of propellant left. A
+  checkpoint taken mid-ascent flies on to the same insertion
 - The LM's other systems (`tests/scenarios/test_lm_burns.gd`): P41 on its
   RCS, P47 on a translation, staging and P42 on the ascent engine, its
   autopilot turning and holding it, the LGC dark while the LM is docked,
@@ -455,4 +489,5 @@ godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=2 --yaw=0.55 
 value: CI, a VR cockpit, the LM and a lunar landing, and navigation
 realism. The VR cockpit waits on a headset run. The LM undocks, flies
 free and docks again (slice 3a), flies DOI on its own computer (slice
-3b), and lands at Tranquility Base (slice 3c).
+3b), lands at Tranquility Base (slice 3c), and lifts off to orbit at the
+RTCC's time (slice 3d).

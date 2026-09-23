@@ -6,7 +6,7 @@ milestone moves.
 
 | # | Milestone | Why | Size | Needs |
 |---|---|---|---|---|
-| 1 | [CI green](#1-ci-green) | Every later change should merge on a green run | No code | GitHub Actions starting jobs again |
+| 1 | [CI green](#1-ci-green) | Every later change should merge on a green run | No code | The owner protecting `main` |
 | 2 | [VR cockpit](#2-vr-cockpit) | Fly from the couch; gemini-capsule already has most of the parts | Medium, mostly porting | 1 |
 | 3 | [The LM and a lunar landing](#3-the-lm-and-a-lunar-landing) | The half of the mission the simulator leaves out | Largest | 1; 2 for the LM's own cockpit |
 | 4 | [Navigation realism](#4-navigation-realism) | The crew's work between burns, and the README's first two simplifications | Large | 1; slice 3b before 4b |
@@ -38,44 +38,27 @@ picture).
 
 ## 1. CI green
 
-**Status: blocked on GitHub Actions. The suite passes.**
+**Status: CI passes on every push and pull request. What's left is
+protecting `main`.**
 
-`.github/workflows/ci.yml` has one job, `test`: download Godot 4.4.1
-(cached), import the project, and run GUT headless. It hasn't run a job
-yet. Its only run,
-[35795789969](https://github.com/scomofo/apollo-csm-sim/actions/runs/35795789969)
-(the push of `23a6b54` to `main`), ended in `startup_failure` before any
-job was created.
+`.github/workflows/ci.yml` runs two jobs. `test` downloads Godot 4.4.1
+(cached), imports the project and runs GUT headless. `lint` runs gdlint,
+advisory for now, and checks the data files, which blocks.
 
-The workflow isn't the cause. gemini-capsule fails the same way. Its CI
-last started jobs at 21:07 UTC on 2026-09-22. Every run since 21:42 UTC
-has ended in `startup_failure` with no jobs, although its `ci.yml` hasn't
-changed since 16:24 UTC that day. Something outside both repositories
-stopped Actions from starting jobs. Nothing in `ci.yml` needs to change.
+From 02:38 to 15:20 UTC on 2026-09-23 every run ended in
+`startup_failure` before any job started, as gemini-capsule's did.
+Something outside both repositories had stopped Actions from starting
+jobs, and nothing in `ci.yml` had to change. Jobs have run since the push
+of `1769a82` at 16:07 UTC
+([35886600500](https://github.com/scomofo/apollo-csm-sim/actions/runs/35886600500)),
+and every run since has passed, on pull requests and on merges to `main`
+alike.
 
-Run locally at `23a6b54` with the commands in `ci.yml`:
-
-| Step | Result |
-|---|---|
-| `godot --headless --path . --import` | Exit 0 in 11 s |
-| `godot --headless --path . -s addons/gut/gut_cmdln.gd -gexit` | Exit 0: 45 of 45 tests and 194 asserts passed in 139 s |
-
-GUT also prints one warning and counts 10 orphans. The warning is about
-the inner class `TestSubscriber` in `tests/unit/test_bus.gd`, which
-doesn't extend `GutTest`, so GUT skips it. Neither fails the run.
-
-When Actions starts jobs again:
-
-1. Push to `main`, for example by merging a pull request. A run that
-   ended in `startup_failure` can't be re-run: the API answers 403,
-   "This workflow run cannot be retried". Expect about three minutes
-   (the job's limit is 20).
-2. If the runner fails where the local run passed, fix that before
-   anything else merges.
-3. Protect `main` and make the `test` job a required check.
+The last step is the owner's: protect `main` and make the `test` job a
+required check.
 
 **Done when** a push to `main` and a pull request both show a green
-`test` job, and `main` requires it.
+`test` job (done), and `main` requires it.
 
 ## 2. VR cockpit
 
@@ -314,8 +297,9 @@ The 2D HUD stays as the desktop fallback.
 
 ## 3. The LM and a lunar landing
 
-**Status: slices 3a to 3c done: the LM undocks, flies free and docks
-again, flies DOI on its own computer, and lands at Tranquility Base.**
+**Status: slices 3a to 3d done: the LM undocks, flies free and docks
+again, flies DOI on its own computer, lands at Tranquility Base, and
+lifts off to orbit at the time the RTCC gives.**
 Before 3a the LM was only mass: 15,103 kg added in the `csm_lm`
 configuration (`data/spacecraft.json`) and dropped at LM JETT before TEI.
 
@@ -463,6 +447,57 @@ PDI:
 - The P66 run takes over at 150 m with scripted hand-controller and ROD
   inputs and lands at 0.77 m/s down.
 
+Slice 3d lifts it off:
+
+- **The liftoff time.** `Rtcc.plan_liftoff()` flies the LGC's own ascent
+  from where Eagle sits, and finds the liftoff, in the first window ten
+  minutes out or later, that has Columbia 16.4° ahead at insertion
+  (`mission.json` "ascent"). That lead is estimated: flying Apollo 11's
+  coelliptic sequence (CSI circularizing at the first apolune, TPI at
+  26.6° elevation), it puts TPI 2 h 35 min after insertion, where Apollo
+  11 flew it. The ascent PAD uplinks the liftoff time with Eagle's and
+  Columbia's state vectors, as the truth.
+- **P12.** V06N33 shows the liftoff time and V06N76 the targets
+  (5,535 ft/s, 32 ft/s up, and the LM's distance from Columbia's plane).
+  V16N74 counts down, and V99N74 comes five seconds out, when the crew
+  stage with ABORT STAGE, arm the ascent engine and PRO: "Abort Stage,
+  Engine Arm, Ascent, Proceed", as Aldrin called it. The LM rises
+  vertically to 40 ft/s up while it yaws to face along Columbia's track,
+  then pitches over.
+- **E guidance** (`src/systems/ascent_guidance.gd`, after Cherry's,
+  which Luminary's P12 flew). The thrust's radial and out-of-plane parts
+  follow acceleration profiles linear in time, which reach 60,000 ft and
+  32 ft/s up in Columbia's plane as the time to go runs out. The rest of
+  the thrust is horizontal, and the time to go comes from the rocket
+  equation. The steering is held for the last 2 s, and the engine is cut
+  off with its tail-off's lead. The LM's +Y axis stays along Columbia's
+  orbit normal, so it pitches over without rolling and reaches orbit
+  windows down.
+- **The CSM's state vector in the LGC** (`Lgc.csm_nav`), which the
+  rendezvous programs of slice 3e will use.
+
+As with the descent, the guidance flew in a Python model first. It
+inserted within 15 m and 0.15 m/s of its targets, 425 s after ignition,
+with 183 kg of propellant left.
+
+`tests/scenarios/test_ascent.gd` is the check. Eagle is set down at the
+site (the landing is 3c's check):
+- The RTCC's PAD: liftoff in the first window, Columbia 16.4° ahead at
+  insertion, and a 9.0 × 44.8 nmi orbit predicted.
+- P12 lifts off 0.7 s after TIG, rises for 8 s to 59 m, and cuts off
+  7 min 8 s after liftoff (Apollo 11: 7 min 17 s). It inserts at
+  60,054 ft and 32.1 ft/s up into a 9.0 × 45.1 nmi orbit above the site,
+  0.001° from Columbia's plane, with Columbia 16.42° ahead and 167 kg of
+  the ascent engine's propellant left. After the pitchover the LM turns
+  at under 1°/s.
+- A checkpoint taken 200 s into the ascent flies on to the same
+  insertion.
+
+Writing it showed that the LM's roll must come from the plane, not from
+the direction of flight. Taken from downrange, the +Z axis swung 180° as
+the thrust passed the horizontal near insertion, and the LM reached orbit
+rolling at 4.5°/s.
+
 ### What changes underneath
 
 - **Two vehicles at once.** Done in 3a. Today's channels stay the CSM's,
@@ -482,7 +517,7 @@ PDI:
   site at the landing time.
 - **The surface.** Done in 3c at Tranquility Base (0.674° N, 23.473° E),
   on NASA's elevation maps, with touchdown, CONTACT LIGHT, and a landed LM
-  that can lift off.
+  that can lift off. P12 flies it back to orbit since 3d.
 
 ### Guidance
 
@@ -490,7 +525,7 @@ PDI:
 |---|---|---|
 | Descent orbit insertion to about 15 km (50,000 ft) | P30, P40 on the DPS | The CMC's P30 and P40 dialogue, with an RTCC DOI PAD |
 | Powered descent | P63 braking, P64 approach with landing-point redesignation, P65 automatic landing, P66 rate of descent, P68 landing confirmation, with landing radar updates | Klumpp's Apollo lunar descent guidance (MIT Draper Laboratory, 1971). Done in 3c |
-| Ascent to about 9 × 45 nmi | P12 | Luminary GSOP, section 5 |
+| Ascent to about 9 × 45 nmi | P12, at the RTCC's liftoff time | After E guidance (Cherry, 1964), which Luminary's P12 flew. Done in 3d |
 | Rendezvous: CSI, CDH, TPI, two midcourse corrections, braking | P20, P32 to P35, burns flown with P41 on the LM RCS | Luminary GSOP, section 5; the Apollo 11 flight plan |
 | Docking | Manual, with the THC | — |
 
@@ -508,7 +543,7 @@ the CSM. Switching vehicles at will is a later choice.
 | 3a (done) | Two vehicles: undocking, independent flight, docking capture, snapshot schema 2 | Test: undock in lunar orbit, separate and coast one revolution; a checkpoint restored mid-revolution matches the uninterrupted run; re-dock within the capture limits |
 | 3b (done) | AGC core split. LM data, DPS, APS, LM RCS and LM DAP. LGC P00, P30, P40, P41, P42, P47 | The existing tests pass unchanged. New test: fly a DOI PAD on the LGC to its pericynthion target |
 | 3c (done) | Moon-fixed frame, landing site, LOI over the site, P63, P64, P66, P68, touchdown | Test: automatic guidance from PDI to touchdown lands within 500 m of the site at under 1 m/s vertical and 0.5 m/s horizontal speed. A second run flies P66 with scripted hand-controller inputs |
-| 3d | Lunar liftoff time from the RTCC, P12 | Test: liftoff to insertion, within set limits of the target orbit |
+| 3d (done) | Lunar liftoff time from the RTCC, P12 | Test: liftoff to insertion, within set limits of the target orbit |
 | 3e | P20, P32 to P35, braking, docking | Test: insertion to docking capture, with total ΔV within a set margin of the RTCC plan |
 | 3f | Undocking-to-TEI timeline in `mission.json`; start phases `lunar_descent`, `lunar_surface` and `lunar_ascent`; checklists; CAPCOM; an LM cockpit (desktop overlay first, then cabin prefabs from milestone 2) | The new start phases are built from the earlier ones, and the full suite passes |
 
@@ -554,7 +589,7 @@ quiet between burns.
 | Slice | Work | Check |
 |---|---|---|
 | 4a Ephemeris | Real Moon and Sun positions for the mission dates, in a dated inertial frame. The Moon-fixed frame from 3c gets a real rotation model. Recommended: Chebyshev coefficients fitted to JPL ephemeris vectors, generated by a script in `tools/`, stored under `data/`, with their provenance in NOTICE | Error against held-out reference vectors stays under 1 km for the Moon's position and 0.01° for the Sun's direction. The scenario suite passes, re-tuned only where the flight really changed. Re-measure the Fidelity table |
-| 4b Onboard state | The AGC keeps its own state vectors (the CSM's; the LGC's has done so since 3c, `Lgc.nav`): it coasts them with its own integration and updates them from sensed ΔV while thrusting (`AgcCore.sense()` already integrates `dyn.dv_step`, and the LGC's `lm.dyn.dv_step`). Every program and noun uses them, never truth. Truth gains small forces the AGC doesn't model (vents, unbalanced attitude jets), with seeded dispersions whose seed is in the checkpoint. The RTCC plans from a tracked state with tracking error. The crew accepts state-vector uplinks through P27 (V71) | Test: after a long coast, the onboard state has drifted from truth by a bounded amount, and an uplink replaces it with the tracked state. The MCC and LOI scenarios pass with an uplink step |
+| 4b Onboard state | The AGC keeps its own state vectors (the CSM's; the LGC's has done so since 3c, `Lgc.nav`, and it has held the CSM's as the ground uplinks it since 3d, `Lgc.csm_nav`): it coasts them with its own integration and updates them from sensed ΔV while thrusting (`AgcCore.sense()` already integrates `dyn.dv_step`, and the LGC's `lm.dyn.dv_step`). Every program and noun uses them, never truth. Truth gains small forces the AGC doesn't model (vents, unbalanced attitude jets), with seeded dispersions whose seed is in the checkpoint. The RTCC plans from a tracked state with tracking error. The crew accepts state-vector uplinks through P27 (V71) | Test: after a long coast, the onboard state has drifted from truth by a bounded amount, and an uplink replaces it with the tracked state. The MCC and LOI scenarios pass with an uplink step |
 | 4c IMU and P52 | REFSMMATs (launch pad, preferred for each burn, landing site), gyro drift, and ICDU angles and the FDAI relative to REFSMMAT. Gimbal lock costs the alignment instead of only lighting the lamp. An optics view (sextant and scanning telescope) with the 37 Apollo navigation stars; P51, P52, V41 N20 coarse align, N05 star angle difference, N93 torquing angles. Desktop first; in the cabin the optics sit at the lower equipment bay, away from the couch | Test: drift for 12 h, realign with P52 and two star marks, and the residual misalignment is under a set limit. A burn flown on a misaligned platform misses by the amount the misalignment predicts |
 | 4d Onboard navigation (stretch) | P23 cislunar sightings and P22 landmark tracking. (In the LM, the landing radar has updated the LGC's altitude and velocity since 3c) | Test: P23 marks alone keep the entry corridor within limits without an uplink |
 
