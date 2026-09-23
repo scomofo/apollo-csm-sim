@@ -79,8 +79,9 @@ When Actions starts jobs again:
 
 ## 2. VR cockpit
 
-**Status: slices 2a to 2d done; 2e, the headset run, is prepared and
-needs a person in a headset.** The rigs, interaction layer, prefabs,
+**Status: slices 2a to 2d done, and every checklist is flown from the
+cabin; 2e, the headset run, is prepared and needs a person in a
+headset.** The rigs, interaction layer, prefabs,
 panel layout, wrist menu, checklist highlight, comfort aids, headset
 recorder and action map are ported with their tests (README.md lists
 every file and change), and
@@ -168,9 +169,39 @@ What needs a person: the sitting itself, and the rows only a tester can
 judge (reach from each couch, legibility, comfort over ten minutes, no
 flip on hover).
 
-What remains for the milestone: a scenario test that works every
-checklist from the cabin (only the MCC is flown there yet), and the
-recorded headset pass.
+Every checklist is now worked from the cabin.
+`tests/scenarios/test_cabin_checklists.gd` flies each one from the
+commander's couch through the desktop rig, until the card shows it
+complete:
+
+- **Parking orbit and TLI**: V82 on the DSKY after cutoff, then CSM/LV
+  SEP.
+- **LOI-1, LOI-2 and TEI**, each flown down the SPS burn checklist on P40,
+  with LM JETT between them.
+- **Entry**: an MCC request (none is needed), CM/SM SEP, P61, ELS LOGIC
+  and AUTO, and on to splashdown.
+
+Mission Control's PADs, NEXT STEP and CHECKLIST come from the wrist menu.
+The simulator's SPS cutoffs leave under 0.2 ft/s to trim, so LOI-1 is
+cut off 0.5 ft/s short, and the crew trims it with the translation
+controller on the keys.
+
+Writing the test found two things:
+
+- **The checklist book lost its place.** It did when the crew turned to
+  the SPS burn checklist and back. Now CHECKLIST turns to each checklist
+  where it was left, and a finished one starts again, as the SPS burn
+  checklist does for each burn.
+- **P40 belongs near TIG.** Selected when the PAD arrives, its steering
+  holds the burn attitude for hours, and the clock can only take fine
+  steps meanwhile. The crew selects it about a quarter of an hour before
+  TIG, time enough for the maneuver to the burn attitude. Between burns
+  it drifts in CMC MODE FREE, because an attitude hold in lunar orbit
+  limit-cycles and slows the clock the same way. `SimTest.fly_pad()`,
+  which the other mission scenarios use, still selects P40 at once;
+  before LOI-1 that costs about 20 seconds of fixed steps.
+
+What remains for the milestone is the recorded headset pass.
 
 Today the cockpit is a 2D overlay. `src/presentation/hud.gd` draws the
 DSKY, a grid of switches, the FDAI, Mission Control, CAPCOM and the

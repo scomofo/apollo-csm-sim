@@ -314,6 +314,11 @@ The scenario tests fly real segments through the crew interface:
   on a switch, the DSKY and the menu (a click doesn't count), the
   thumbsticks' pitch and roll response, the lock above 100× and the
   record it writes
+- Every checklist worked from the commander's couch through the desktop
+  rig until the card shows it complete: parking orbit and TLI, LOI-1,
+  LOI-2 and TEI each down the SPS burn checklist on P40 with a residual
+  trimmed on the translation controller, LM JETT, and entry to
+  splashdown. The cabin scenarios share `tests/cabin_test.gd`
 
 `tools/screenshot.tscn` renders the images above (`--view=0` window,
 `1` chase, `2` cabin; `--hud=0` leaves the HUD out, `--menu=1` shows the
