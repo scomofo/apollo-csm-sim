@@ -1,13 +1,16 @@
 ## Slice 3e's check (docs/ROADMAP.md, milestone 3): from insertion to
-## docking. Eagle lifts off from Tranquility Base (slice 3d's check) into
-## its 9 x 45 nmi orbit, 16.4° behind Columbia. The ground reads up the CSI
-## PAD and uplinks Columbia's state vector, off by MSFN's tracking error;
-## P20's rendezvous radar marks take the error out. The LGC targets CSI
-## (P32), CDH (P33), TPI (P34) and two midcourse corrections (P35), and
+## docking, and slice 3f's: the lunar_ascent start phase docks with
+## Columbia. From that phase Eagle lifts off from Tranquility Base at the
+## ascent PAD's time (slice 3d's check) into its 9 x 45 nmi orbit, 16.4°
+## behind Columbia. Five minutes after insertion the ground's timeline
+## uplinks the CSI PAD and Columbia's state vector, off by MSFN's tracking
+## error; P20's rendezvous radar marks take the error out. The LGC targets
+## CSI (P32), CDH (P33), TPI (P34) and two midcourse corrections (P35), and
 ## P41 flies each on the RCS. From a mile out the commander brakes on the
 ## TTCA by the gates, nulling the line of sight's drift, and stops 40 m
 ## from Columbia. Eagle turns its docking port to Columbia, and Collins
-## flies the probe into the drogue, as he did.
+## flies the probe into the drogue, as he did. The timeline's last calls
+## follow: GO for jettison, and the TEI PAD.
 extends SimTest
 
 ## Translation jets per LM body axis, both systems: X four, Y and Z two;
@@ -23,19 +26,12 @@ var _inserted := ""
 
 
 func before_all() -> void:
-	build("lunar_orbit")
-	Bus.set_value("ctl.cmc.mode", 0)
-	Bus.set_value("ctl.seq.undock", true)
-	run(1.0, false)
-	Bus.set_value("ctl.seq.undock", false)
-	set_lm_down()
-	run(60.0)
-	var pad := rt.sequencer.request_pad("ascent")
+	build("lunar_ascent")
 	var lgc := rt.lgc()
 	keys("V37E12E", lgc)
 	keys("PP", lgc)
 	Bus.set_value("ctl.lm.mode", 2)
-	run(float(pad["tig"]) - 12.0 - SimClock.get_seconds)
+	run(float(rt.sequencer.plan["liftoff_tig"]) - 12.0 - SimClock.get_seconds)
 	run_until(func() -> bool: return lgc.step_name == "v99", 20.0, 1.0, false)
 	Bus.set_value("ctl.lm.stage", true)
 	run(SimClock.FIXED_DT, false)
@@ -50,11 +46,13 @@ func before_all() -> void:
 	_inserted = JSON.stringify(rt.snapshot())
 
 
-## Restore Eagle just inserted, and request the CSI PAD.
+## Restore Eagle just inserted, and fly on to the CSI PAD, which the
+## timeline uplinks five minutes after insertion.
 func _csi_pad() -> Dictionary:
 	build("")
 	assert_eq(rt.restore(JSON.parse_string(_inserted)), "")
-	return rt.sequencer.request_pad("csi")
+	assert_true(run_until(func() -> bool: return rt.sequencer.pads.has("csi"), 600.0, 1.0), "the CSI PAD")
+	return rt.sequencer.pads.get("csi", {})
 
 
 ## How far the LGC's CSM state vector is from the CSM, m.
@@ -78,6 +76,8 @@ func test_the_ground_plans_csi_and_p20_takes_out_the_tracking_error() -> void:
 	var ins := rt.sequencer.event_get("lm_insertion")
 	assert_gt(ins, 0.0, "the insertion, from the checkpoint")
 	assert_eq(float(Bus.get_value("mission.event.lm_insertion", -1.0)), ins, "and on the Bus again")
+	assert_almost_eq(float(rt.sequencer.timeline_done.get("csi_pad", -1.0)) - ins, 300.0, 1.5, "the PAD 5 min after insertion")
+	assert_eq(rt.sequencer.phase, "lunar_ascent")
 	assert_between(float(pad["tig"]) - ins, 2700.0, 3600.0, "CSI at the first apolune (Apollo 11: 50 min 18 s after insertion)")
 	assert_almost_eq(float(pad["tpi_get"]) - ins, 9275.0, 0.01, "TPI 2 h 35 min after insertion")
 	assert_almost_eq(float(pad["dv"]) / Units.FT, 51.5, 3.0, "CSI (Apollo 11: 51.5 ft/s)")
@@ -239,6 +239,24 @@ func test_from_insertion_to_docking() -> void:
 	gut.p("Docked at %s: %s" % [Units.hms(SimClock.get_seconds), Docking.describe(c)])
 	assert_true(c["captured"], "within the capture limits")
 	assert_eq(str(Bus.get_value("dock.state")), "docked")
+	assert_eq(rt.sequencer.phase, "lunar_orbit", "docked again")
+	# The timeline's last calls: GO for jettison two hours after docking
+	# (Apollo 11: 2 h 5 min), and after LM JETT the TEI PAD, for the
+	# opportunity nearest Apollo 11's 135:23:42.
+	Bus.set_value("ctl.cmc.mode", 0)
+	var docked := rt.sequencer.event_get("docking")
+	run(docked + 7489.0 + 10.0 - SimClock.get_seconds)
+	assert_almost_eq(float(rt.sequencer.timeline_done.get("go_jettison", -1.0)), docked + 7489.0, 10.0, "GO for jettison")
+	Bus.set_value("ctl.seq.lm_jett", true)
+	run(1.0, false)
+	Bus.set_value("ctl.seq.lm_jett", false)
+	assert_eq(rt.dynamics.config, "csm", "Eagle jettisoned")
+	run(134.0 * 3600.0 + 76.0 + 10.0 - SimClock.get_seconds)
+	var tei: Dictionary = rt.sequencer.pads.get("tei", {})
+	assert_eq(str(tei.get("name", "")), "TEI", "the TEI PAD at 134:01:16")
+	gut.p("GO for jettison at %s; %s" % [Units.hms(float(rt.sequencer.timeline_done["go_jettison"])), Rtcc.pad_text(tei)])
+	var period := float(rt.dynamics.traj.conic()["period"])
+	assert_almost_eq(float(tei.get("tig", 0.0)), 135.0 * 3600.0 + 23.0 * 60.0 + 42.0, 0.5 * period, "nearest Apollo 11's TEI")
 	# The checks: the sequence as planned, and the ΔV within 20 % of the plan.
 	assert_lt(err_csi, 5.0, "P20 had Columbia's state vector by CSI")
 	assert_almost_eq(csi_lgc, float(pad["dv"]), 0.3, "the LGC's CSI agrees with the ground's")

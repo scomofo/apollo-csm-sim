@@ -32,14 +32,20 @@ From the repository root:
 godot --path .                                  # parking orbit, TLI ahead
 godot --path . -- --phase=translunar_coast      # after TLI and docking
 godot --path . -- --phase=lunar_orbit           # 60 nmi, Eagle docked
+godot --path . -- --phase=lunar_descent         # Eagle after DOI, 20 min before PDI
+godot --path . -- --phase=lunar_surface         # Eagle at Tranquility Base, 10 min after landing
+godot --path . -- --phase=lunar_ascent          # 20 min before liftoff, the ascent PAD in
 godot --path . -- --phase=transearth_coast      # after TEI
 godot --path . -- --phase=entry                 # ~15 min before entry interface
 ```
 
 Later start phases are made by flying the earlier ones through the RTCC's own
-solutions (TLI, TEI), so every start is consistent with the mission it
-continues. Starting in `transearth_coast` or `entry` takes a few seconds
-while the ground computes the trajectory.
+solutions (TLI, DOI, the landing time, the liftoff time, TEI), so every
+start is consistent with the mission it continues. The LM's start phases
+undock Eagle at Apollo 11's time and follow Mission Control's timeline
+from there (below). Starting in any phase after `lunar_orbit` takes a few
+seconds while the ground computes the trajectory. The LM has no cockpit
+yet, so its phases are flown by the tests; slice 3f adds one.
 
 `godot --path . --xr-mode on` starts OpenXR, which is off by default, and
 puts you in the commander's couch in a headset. No headset run has been
@@ -72,7 +78,8 @@ Every DSKY key and cockpit switch is also clickable on screen, in the HUD
 or on the CM's main display console in the cabin view. Above 100× the
 cabin's switches lock, and its DSKY keys still work. Time acceleration
 drops back to 10× by itself when an engine lights, at each scheduled
-event (TLI, TIG−60 s, V99) and at entry.
+event (TLI, TIG−60 s, V99, and Mission Control's calls and PADs from
+undocking to TEI) and at entry.
 
 ## Flying the mission
 
@@ -174,6 +181,28 @@ minutes after TPI, and P41 flies each burn on the RCS. From a mile out
 the commander brakes on the TTCA, holding the closing rate to the range
 gates, and stops about 40 m from Columbia. Collins then flies the probe
 into the drogue, as he did.
+
+**Mission Control's timeline.** From undocking to TEI, Mission Control
+keeps Apollo 11's timeline (mission.json "lunar_timeline"):
+- **Undocking and DOI.** CAPCOM gives GO for undocking at 100:00. The DOI
+  PAD comes 8½ minutes after Eagle undocks, and GO for DOI 18 minutes
+  before the burn.
+- **Powered descent.** The PDI PAD's state vector comes 15 minutes before
+  PDI, and GO for powered descent 5 minutes before it.
+- **On the surface.** CAPCOM gives STAY for T2 and T3. The ascent PAD comes
+  at 122:22, for the liftoff window nearest Apollo 11's 124:22, and
+  "cleared for takeoff" 5 minutes before liftoff.
+- **Rendezvous.** The CSI PAD comes 5 minutes after insertion, and GO for
+  CSI 13 minutes before the burn.
+- **Jettison and TEI.** GO for jettison comes two hours after docking.
+  After LM JETT, the TEI PAD comes at 134:01, for the opportunity nearest
+  Apollo 11's 135:23:42.
+
+Each PAD comes only when the vehicles can use it, and not while the
+ground's last PAD of its kind is still to be flown. An undocking a day
+early, for docking practice, brings no DOI PAD. In lunar orbit the flight
+phase follows Eagle: LUNAR DESCENT from DOI, LUNAR SURFACE while it is
+landed, and LUNAR ASCENT from liftoff until it docks.
 
 The LGC also has P41 (LM RCS), P42 (the ascent engine, after staging)
 and P47, and ENGINE START lifts a landed ascent stage off by hand. The LM
@@ -324,8 +353,8 @@ A flown Apollo 11 profile in the simulator reproduces these values:
 | Ascent, liftoff to cutoff | 7 min 8 s, then 60,054 ft and 32.1 ft/s up, 9.0 × 45.1 nmi | 7 min 17 s, then 60,666 ft and 32.8 ft/s up, 9.5 × 47.3 nmi |
 | CSI | 52.3 ft/s, 50 min 50 s after insertion | 51.5 ft/s, 50 min 18 s after insertion |
 | TPI | 24.0 ft/s, 2 h 34 min 17 s after insertion | ~25 ft/s, 2 h 34 min 35 s after insertion |
-| Midcourse corrections | 0.2 and 0.1 ft/s | ~1 ft/s each |
-| Braking, then station-keeping | 15 min 26 s, station-keeping 45 min after TPI | 15 min 8 s, station-keeping 48 min after TPI |
+| Midcourse corrections | 0.1 ft/s and less | ~1 ft/s each |
+| Braking, then station-keeping | 15 min 25 s, station-keeping 45 min after TPI | 15 min 8 s, station-keeping 48 min after TPI |
 | Docking | 50 min after TPI | 59 min after TPI |
 | Entry peak load | 6.9 g | ~6.5 g |
 | Splashdown | 8.6 m/s | — |
@@ -368,6 +397,10 @@ ones:
   insertion is estimated from Apollo 11's rendezvous. P12's steering
   takes the engine's nominal thrust for its acceleration, not the
   measured one.
+- **The LM's start phases.** Columbia drifts in CMC MODE FREE while
+  Eagle flies. The start phases fly DOI as the RTCC models P40's burn,
+  and set Eagle down on the site at the time DOI planned for. They leave
+  the descent stage the propellant the automatic landing leaves.
 - **The rendezvous.** The rendezvous radar is noise-free and finds
   Columbia wherever it is, without gimbal limits or a manual lock-on.
   P20 weights each mark by fixed gains, not Luminary's filter, and
@@ -486,9 +519,11 @@ The scenario tests fly real segments through the crew interface:
   PAD's 50,000 ft above the site (15,205 m against 15,239 m), while
   Columbia's orbit stays as it was
 - The landing at Tranquility Base (`tests/scenarios/test_landing.gd`),
-  slice 3c's check. LOI turns the orbit over the site, and the
-  `lunar_orbit` phase starts over it. The PDI PAD's state vector is off
-  by its tracking error at PDI. From a checkpoint before PDI:
+  slice 3c's check, and slice 3f's for the `lunar_descent` start phase.
+  LOI turns the orbit over the site, and the `lunar_orbit` phase starts
+  over it. From `lunar_descent`, the timeline's PDI PAD puts the LGC's
+  state vector off by the tracking error at PDI. From a checkpoint before
+  PDI:
   - The automatic landing. The crew keys V57 when the radar's altitude
     comes good, with ΔH at −954 m, and ΔH is −22 m by high gate. P63,
     P64 and P65 land Eagle 140 m from the site at 0.8 m/s down and none
@@ -508,14 +543,31 @@ The scenario tests fly real segments through the crew interface:
   plane, with Columbia 16.42° ahead and 167 kg of propellant left. A
   checkpoint taken mid-ascent flies on to the same insertion
 - The rendezvous (`tests/scenarios/test_rendezvous.gd`), slice 3e's
-  check. From Eagle's insertion, the CSI PAD plans CSI at 52.3 ft/s
-  (Apollo 11: 51.5), 15 nmi below Columbia, and TPI at 24.0 ft/s.
-  Columbia's uplinked state vector is 914 m off, and after 12 marks P20
-  has it within 0.2 m relative to Eagle. The LGC flies the sequence: CDH
-  2.1 ft/s onto 14.6 nmi below, TPI 18 s before the plan's time, and
-  midcourse corrections of 0.2 and 0.1 ft/s. The commander brakes by the
-  gates and stops 40 m out, and Collins docks at 0.33 ft/s. Eagle's ΔV,
-  116.0 ft/s, is 6 % over the RTCC's plan (the check allows 20 %)
+  check, and slice 3f's for the `lunar_ascent` start phase. From that
+  phase, P12 lifts Eagle off at the ascent PAD's time, 123:51:27.
+  - Five minutes after insertion the timeline's CSI PAD plans CSI at
+    52.3 ft/s (Apollo 11: 51.5), 15 nmi below Columbia, and TPI at
+    24.0 ft/s.
+  - Columbia's uplinked state vector is 914 m off, and after 12 marks
+    P20 has it within 0.2 m relative to Eagle.
+  - The LGC flies the sequence: CDH 2.1 ft/s onto 14.7 nmi below, TPI
+    18 s before the plan's time, and midcourse corrections of 0.1 ft/s
+    and less.
+  - The commander brakes by the gates and stops 40 m out, and Collins
+    docks at 0.33 ft/s. Eagle's ΔV, 113.7 ft/s, is 4 % over the RTCC's
+    plan (the check allows 20 %).
+  - GO for jettison comes 2 h 5 min after docking. After LM JETT, the TEI
+    PAD plans TEI at 134:41:44, the opportunity nearest Apollo 11's
+    135:23:42
+- Mission Control's timeline (`tests/scenarios/test_lunar_timeline.gd`),
+  slice 3f. From `lunar_orbit`: GO for undocking at 100:00, the DOI PAD
+  8 min 29 s after Eagle undocks, and GO for DOI 18 min 21 s before the
+  burn. An undocking a day early brings no DOI PAD. Each LM start phase
+  continues the mission: `lunar_descent` on the descent orbit 20 min
+  before PDI, `lunar_surface` on the site after the landing, with STAY
+  for T3 and the ascent PAD to come, and `lunar_ascent` with the ascent
+  PAD in. A checkpoint taken mid-timeline carries on as the uninterrupted
+  run does
 - The LM's other systems (`tests/scenarios/test_lm_burns.gd`): P41 on its
   RCS, P47 on a translation, staging and P42 on the ascent engine, its
   autopilot turning and holding it, the LGC dark while the LM is docked,
@@ -543,4 +595,5 @@ realism. The VR cockpit waits on a headset run. The LM undocks, flies
 free and docks again (slice 3a), flies DOI on its own computer (slice
 3b), lands at Tranquility Base (slice 3c), lifts off to orbit at the
 RTCC's time (slice 3d), and flies the rendezvous back to Columbia, which
-docks with it (slice 3e).
+docks with it (slice 3e). Slice 3f has begun with Mission Control's
+timeline from undocking to TEI and the LM's start phases.

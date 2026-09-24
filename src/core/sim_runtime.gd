@@ -7,7 +7,8 @@ extends RefCounted
 
 ## 2: the vehicles' dynamics and systems under "vehicles" (slice 3a).
 ## 3: the LGC's rendezvous state (slice 3e).
-const SCHEMA_VERSION := 3
+## 4: Mission Control's planned times and timeline (slice 3f).
+const SCHEMA_VERSION := 4
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],

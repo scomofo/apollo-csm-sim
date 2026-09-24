@@ -20,7 +20,7 @@
 ##
 ## Start phase: the exported start_phase, or "--phase=<name>" after "--" on
 ## the command line (parking_orbit, translunar_coast, lunar_orbit,
-## transearth_coast, entry).
+## lunar_descent, lunar_surface, lunar_ascent, transearth_coast, entry).
 extends Node3D
 
 const CHECKPOINT_PATH := "user://apollo_checkpoint.json"

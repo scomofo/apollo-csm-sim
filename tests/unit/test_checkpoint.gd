@@ -37,7 +37,7 @@ func test_restore_rejects_foreign_checkpoints() -> void:
 func test_a_checkpoint_keeps_each_vehicle_under_its_name() -> void:
 	build("lunar_orbit")
 	var snap := rt.snapshot()
-	assert_eq(snap["schema_version"], 3)
+	assert_eq(snap["schema_version"], 4)
 	assert_eq(snap["vehicles"].keys(), ["csm"], "docked, the LM is part of the CSM's csm_lm")
 	assert_eq(snap["vehicles"]["csm"]["dynamics"]["config"], "csm_lm")
 	assert_has(snap["vehicles"]["csm"]["systems"], "agc")
@@ -56,7 +56,7 @@ func test_a_checkpoint_from_before_the_vehicles_map_is_rejected() -> void:
 	snap["dynamics"] = snap["vehicles"]["csm"]["dynamics"]
 	snap["systems"] = snap["vehicles"]["csm"]["systems"]
 	snap.erase("vehicles")
-	assert_eq(rt.restore(snap), "checkpoint schema 1, expected 3")
+	assert_eq(rt.restore(snap), "checkpoint schema 1, expected 4")
 
 
 func test_a_checkpoint_from_before_the_rendezvous_is_rejected() -> void:
@@ -65,7 +65,17 @@ func test_a_checkpoint_from_before_the_rendezvous_is_rejected() -> void:
 	# Schema 2's LGC had no rendezvous state.
 	snap["schema_version"] = 2
 	snap["vehicles"]["csm"]["systems"]["lgc"].erase("rendezvous")
-	assert_eq(rt.restore(snap), "checkpoint schema 2, expected 3")
+	assert_eq(rt.restore(snap), "checkpoint schema 2, expected 4")
+
+
+func test_a_checkpoint_from_before_the_timeline_is_rejected() -> void:
+	build("lunar_orbit")
+	var snap := rt.snapshot()
+	# Schema 3's Mission Control had no planned times or timeline.
+	snap["schema_version"] = 3
+	snap["mission"].erase("plan")
+	snap["mission"].erase("timeline_done")
+	assert_eq(rt.restore(snap), "checkpoint schema 3, expected 4")
 
 
 func test_the_lms_systems_come_back_with_it() -> void:

@@ -1,11 +1,12 @@
 ## Slice 3c's check (docs/ROADMAP.md, milestone 3): Eagle lands at
 ## Tranquility Base, on the real terrain (data/terrain/), navigating on the
-## LGC's own state vector. In lunar orbit over the site, the LM undocks and
-## flies the DOI PAD for the landing pass. Fifteen minutes before PDI the
-## ground uplinks its state vector with the PDI PAD, off by MSFN's
-## tracking error: 250 m along track, 150 m to the side and 900 m high at
-## PDI (mission.json "pdi"). Powered descent begins 470 km (ground range)
-## before the site.
+## LGC's own state vector; and slice 3f's: the lunar_descent start phase
+## lands there. In that phase Eagle has undocked in lunar orbit over the
+## site and flown the DOI PAD for the landing pass. Fifteen minutes before
+## PDI the ground's timeline uplinks its state vector with the PDI PAD,
+## off by MSFN's tracking error: 250 m along track, 150 m to the side and
+## 900 m high at PDI (mission.json "pdi"). Powered descent begins 470 km
+## (ground range) before the site.
 ##
 ## The automatic run flies P63 braking, P64 approach and P65: when the
 ## landing radar's altitude comes good, the crew checks ΔH and keys V57,
@@ -27,16 +28,11 @@ var _pdi := {}
 
 
 func before_all() -> void:
-	build("lunar_orbit")
-	Bus.set_value("ctl.cmc.mode", 0)
-	Bus.set_value("ctl.seq.undock", true)
-	run(1.0, false)
-	Bus.set_value("ctl.seq.undock", false)
-	_pad = rt.sequencer.request_pad("doi")
+	build("lunar_descent")
+	_pad = rt.sequencer.pads["doi"]
 	gut.p(Rtcc.pad_text(_pad) + "  landing at " + Units.hms(float(_pad["land_get"])))
-	fly_lm_pad(40, 2)
-	run(float(_pad["hp_get"]) - 900.0 - SimClock.get_seconds)
-	_pdi = rt.sequencer.request_pad("pdi")
+	run_until(func() -> bool: return rt.sequencer.pads.has("pdi"), 600.0, 1.0)
+	_pdi = rt.sequencer.pads.get("pdi", {})
 	gut.p(str(Bus.get_value("mission.pad_text")))
 	_before_pdi = JSON.stringify(rt.snapshot())
 
@@ -121,6 +117,9 @@ func test_automatic_guidance_lands_at_tranquility_base() -> void:
 	var lgc := _to_ignition()
 	assert_almost_eq(lgc.pdi_tig, float(_pad["hp_get"]), 10.0, "P63 ignites where the DOI put the pericynthion")
 	assert_true(Bus.get_value("lm.dsky.lamp.alt"), "ALT: no radar altitude yet")
+	assert_eq(rt.sequencer.phase, "lunar_descent")
+	assert_almost_eq(float(rt.sequencer.timeline_done.get("go_pdi", -1.0)), float(_pdi["tig"]) - 297.0, 6.0,
+		"GO for powered descent 4 min 57 s before PDI, as Apollo 11 had it")
 	var seen := {"programs": [], "ftp": false, "recovered": false, "hg": 0.0, "dh_hg": 0.0, "lamps_out": false}
 	var t_ig := lgc.pdi_tig
 	var landed := run_until(func() -> bool:
@@ -140,6 +139,8 @@ func test_automatic_guidance_lands_at_tranquility_base() -> void:
 				seen["recovered"] = true
 		return rt.dynamics.lm.landed, 1000.0, 1.0, false)
 	assert_true(landed, "touchdown")
+	run(SimClock.FIXED_DT, false)
+	assert_eq(rt.sequencer.phase, "lunar_surface", "on the surface")
 	var td: Dictionary = rt.dynamics.lm.touchdown
 	gut.p("Radar altitude good at %.0f m over the ground, ΔH %.0f m; at high gate ΔH %.0f m, LGC error %s" % [
 		seen.get("dh0_agl", 0.0), seen.get("dh0", 0.0), seen["dh_hg"], seen.get("err_hg", Vector3.ZERO)])
