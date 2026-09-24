@@ -5,7 +5,8 @@
 ## Everything is worked the way a player on the desktop works it: the rig
 ## looks at a panel control and a left click goes through its input
 ## handling to ControlBase.actuate_far(); a wrist-menu button is clicked
-## where it shows on the screen; the keys go through Input.
+## where it shows on the screen; the keys go through Input (SimTest's
+## hold_key()).
 class_name CabinTest
 extends SimTest
 
@@ -24,14 +25,6 @@ var card: ChecklistCard
 var highlight: ChecklistHighlight
 var menu: WristMenu
 var hands: HandControllerInput
-var _held_keys: Array[Key] = []
-
-
-## A test that stopped with a key down leaves Input clean for the next.
-func after_each() -> void:
-	for k in _held_keys:
-		_key_event(k, false)
-	_held_keys.clear()
 
 
 ## Build the cabin on the runtime build() made, with the checklist for
@@ -159,47 +152,6 @@ func switch_to(id: String, position: int) -> void:
 			return
 		await click(c)
 	assert_eq(c.get("position_index"), position, "%s clicked to position %d" % [id, position])
-
-
-## Hold a keyboard key down for HandControllerInput, which reads Input.
-func hold_key(code: Key) -> void:
-	_key_event(code, true)
-	_held_keys.append(code)
-	await wait_process_frames(2)
-
-
-func release_key(code: Key) -> void:
-	_key_event(code, false)
-	_held_keys.erase(code)
-	await wait_process_frames(2)
-
-
-func _key_event(code: Key, down: bool) -> void:
-	var ev := InputEventKey.new()
-	ev.keycode = code
-	ev.physical_keycode = code
-	ev.pressed = down
-	Input.parse_input_event(ev)
-
-
-# --- flying ---------------------------------------------------------------------
-
-## Fly [param seconds], in chunks with a frame between them, so the card
-## and the highlight keep up with the Bus as they do in flight.
-func fly(seconds: float, chunk: float = 60.0, fast: bool = true) -> void:
-	await fly_until(func() -> bool: return false, seconds, chunk, fast)
-
-
-## Fly until [param cond] holds or [param max_s] passes, as fly(); returns
-## whether it held.
-func fly_until(cond: Callable, max_s: float, chunk: float = 60.0, fast: bool = true) -> bool:
-	var end := SimClock.get_seconds + max_s
-	while SimClock.get_seconds < end - 1e-6:
-		if cond.call():
-			return true
-		run(minf(chunk, end - SimClock.get_seconds), fast)
-		await wait_process_frames(1)
-	return cond.call()
 
 
 # --- the checklist --------------------------------------------------------------

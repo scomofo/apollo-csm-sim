@@ -1,5 +1,8 @@
 ## Shared harness for Apollo simulator tests: builds a headless runtime,
-## drives the DSKY and steps simulated time deterministically.
+## drives the DSKY and steps simulated time deterministically. For the
+## harnesses with presentation on top (CabinTest, DesktopTest) it flies in
+## chunks with a frame between them, and holds keys down for
+## HandControllerInput.
 class_name SimTest
 extends GutTest
 
@@ -10,6 +13,14 @@ const CSM_THC_DETENT := 0.05
 const CSM_JETS := Vector3(4, 2, 2)
 
 var rt: SimRuntime
+var _held_keys: Array[Key] = []
+
+
+## A test that stopped with a key down leaves Input clean for the next.
+func after_each() -> void:
+	for k in _held_keys:
+		_key_event(k, false)
+	_held_keys.clear()
 
 
 func build(phase: String = "") -> SimRuntime:
@@ -39,6 +50,46 @@ func run_until(cond: Callable, max_s: float, chunk: float = 60.0, fast: bool = t
 			return true
 		run(minf(chunk, end - SimClock.get_seconds), fast)
 	return cond.call()
+
+
+## Fly [param seconds], in chunks with a frame between them, so the
+## presentation (the HUD, the cabin's card and highlight) and the hand
+## controllers keep up with the Bus as they do in flight.
+func fly(seconds: float, chunk: float = 60.0, fast: bool = true) -> void:
+	await fly_until(func() -> bool: return false, seconds, chunk, fast)
+
+
+## Fly until [param cond] holds or [param max_s] passes, as fly(); returns
+## whether it held.
+func fly_until(cond: Callable, max_s: float, chunk: float = 60.0, fast: bool = true) -> bool:
+	var end := SimClock.get_seconds + max_s
+	while SimClock.get_seconds < end - 1e-6:
+		if cond.call():
+			return true
+		run(minf(chunk, end - SimClock.get_seconds), fast)
+		await wait_process_frames(1)
+	return cond.call()
+
+
+## Hold a keyboard key down for HandControllerInput, which reads Input.
+func hold_key(code: Key) -> void:
+	_key_event(code, true)
+	_held_keys.append(code)
+	await wait_process_frames(2)
+
+
+func release_key(code: Key) -> void:
+	_key_event(code, false)
+	_held_keys.erase(code)
+	await wait_process_frames(2)
+
+
+func _key_event(code: Key, down: bool) -> void:
+	var ev := InputEventKey.new()
+	ev.keycode = code
+	ev.physical_keycode = code
+	ev.pressed = down
+	Input.parse_input_event(ev)
 
 
 ## Key [param seq] into the CMC's DSKY, or [param computer]'s (the LGC's).

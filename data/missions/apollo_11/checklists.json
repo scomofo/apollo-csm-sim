@@ -1,13 +1,13 @@
 {
-  "_comment": "Condensed from the Apollo 11 CSM flight plan and checklists [adapted for this simulator]. Keys: V/N/Enter = VERB/NOUN/ENTR, Space = PRO. control: the cabin control a step is done on (an id in data/cockpit/controls.csv); without it the checklist highlight finds the control that writes the step's check channel.",
+  "_comment": "Condensed from the Apollo 11 CSM flight plan and checklists [adapted for this simulator]. Keys: V/N/Enter = VERB/NOUN/ENTR, Space = PRO. control: the cabin control a step is done on (an id in data/cockpit/controls.csv); without it the checklist highlight finds the control that writes the step's check channel. phases: the flight phases (mission.phase) a checklist is for; it opens at the start, and as the crew comes back aboard Columbia, in one. Eagle's are in lm_checklists.json.",
   "checklists": [
-    {"title": "Parking orbit and TLI", "steps": [
+    {"title": "Parking orbit and TLI", "phases": ["parking_orbit", "tli"], "steps": [
       {"text": "Watch the S-IVB/IU: TLI is automatic at the GO-for-TLI TIG"},
       {"text": "TLI ignition", "check": {"channel": "sivb.state", "op": "eq", "value": "burning"}},
       {"text": "TLI cutoff: verify apogee beyond the Moon (V82E)", "control": "P2_DSKY", "check": {"channel": "sivb.state", "op": "eq", "value": "done"}},
       {"text": "CSM/LV SEP: transposition, docking and LM extraction", "control": "P1_CSM_LV_SEP", "check": {"channel": "dyn.config", "op": "eq", "value": "csm_lm"}}
     ]},
-    {"title": "SPS burn (P30 / P40)", "steps": [
+    {"title": "SPS burn (P30 / P40)", "phases": ["translunar_coast"], "steps": [
       {"text": "Mission Control: request the PAD (uplink lights UPLINK ACTY)"},
       {"text": "V37E 30E - P30 External Delta-V", "control": "P2_DSKY", "check": {"channel": "guid.program", "op": "eq", "value": 30}},
       {"text": "Verify TIG (N33), PRO; verify N81 DV, PRO; check N42, PRO", "control": "P2_DSKY", "check": {"channel": "guid.maneuver_valid", "op": "eq", "value": true}},
@@ -21,7 +21,7 @@
       {"text": "DELTA-V THRUST A and B - OFF", "check": {"channel": "ctl.sps.arm_a", "op": "eq", "value": false}},
       {"text": "Trim N85 residuals with the THC, then PRO", "control": "P2_DSKY", "check": {"channel": "guid.program", "op": "eq", "value": 0}}
     ]},
-    {"title": "Lunar orbit and TEI", "steps": [
+    {"title": "Lunar orbit and TEI", "phases": ["lunar_orbit", "lunar_descent", "lunar_surface", "lunar_ascent"], "steps": [
       {"text": "Request LOI PAD ~8 h before pericynthion; fly with the SPS burn checklist"},
       {"text": "Lunar orbit confirmed", "check": {"channel": "mission.phase", "op": "eq", "value": "lunar_orbit"}},
       {"text": "Request LOI-2 PAD and circularize"},
@@ -29,7 +29,7 @@
       {"text": "Request TEI PAD; fly it with the SPS burn checklist"},
       {"text": "Transearth coast", "check": {"channel": "mission.phase", "op": "eq", "value": "transearth_coast"}}
     ]},
-    {"title": "Entry", "steps": [
+    {"title": "Entry", "phases": ["transearth_coast", "entry"], "steps": [
       {"text": "Request MCC PADs to trim the entry corridor (vacuum perigee ~37 km)"},
       {"text": "CM/SM SEP (15 min before entry interface)", "control": "P1_CM_SM_SEP", "check": {"channel": "dyn.config", "op": "eq", "value": "cm"}},
       {"text": "V37E 61E - P61 Entry preparation", "control": "P2_DSKY", "check": {"channel": "guid.program", "op": "ge", "value": 61}},

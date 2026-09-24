@@ -90,6 +90,7 @@
 ## Writes: the core's channels under lm. (lm.guid.*, lm.dsky.*),
 ##         lm.guid.dps_on, lm.guid.dps_throttle, lm.guid.aps_on (P12, P42),
 ##         lm.guid.lr_antenna (1 in P63, 2 from P64), lm.guid.delta_h_m,
+##         lm.guid.lr_update (V57 given), lm.guid.rr_nav (P20 running),
 ##         lm.dsky.lamp.alt, lm.dsky.lamp.vel
 class_name Lgc
 extends AgcCore
@@ -558,6 +559,8 @@ func extra_step() -> void:
 	var lpd_clicks := Vector2i(detent.x if detent.x != _aca_was.x else 0, detent.y if detent.y != _aca_was.y else 0)
 	_aca_was = detent
 	Bus.set_value("lm.guid.lr_antenna", 2 if program in [64, 65, 66, 68] else 1)
+	Bus.set_value("lm.guid.lr_update", lr_update)
+	Bus.set_value("lm.guid.rr_nav", rr_nav)
 	var now := _now()
 	var dt := now - _guide_get if _guide_get >= 0.0 else 0.0
 	_landing_radar(dt if program in DESCENT else 0.0)

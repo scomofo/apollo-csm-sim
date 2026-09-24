@@ -232,7 +232,14 @@ ground below Eagle is drawn from the same height maps its gear lands on.
 In a headset you stay in Columbia's cabin, since Eagle has none yet.
 
 The on-screen checklist follows along. Steps with a check mark complete
-themselves when the Bus shows the action was done. In the cabin, the same
+themselves when the Bus shows the action was done. Columbia and Eagle
+each have their own checklists, and the HUD shows those of the vehicle
+you fly. At the start each opens the one for the flight phase, and so
+does the vehicle you board as Eagle undocks or docks; L goes back to the
+other's where they stood. Eagle's four take it from the undocking
+through DOI, the powered descent and landing, the surface stay and
+liftoff, and the rendezvous to docking
+(`data/missions/apollo_11/lm_checklists.json`). In the cabin, the same
 checklist is on the card by the commander's left shoulder, with the last
 PAD and CAPCOM's calls, and a green frame marks the control for the
 current step. The wrist menu's NEXT STEP goes past a step without a
@@ -490,13 +497,18 @@ The unit tests cover:
   times and timeline (schema 4). Older checkpoints
   are rejected
 - The main scene, and in Eagle from `lunar_descent`: its HUD, the keys on
-  its LGC, its two views and L between the vehicles
+  its LGC, its two views, its checklist for the phase, and L between the
+  vehicles
 - The hand controllers, from the keys and from the XR thumbsticks, with
   the thumbstick deadzone, and in Eagle its ACA and TTCA about its own
   axes, as its FDAI reads them
 - Which vehicle you fly: Eagle from undocking, Columbia again at docking
   or jettison, L between them while Eagle flies free, and Columbia only
-  in a headset
+  in a headset. Boarding, not L, opens the vehicle's checklist for the
+  phase
+- Columbia's and Eagle's checklists: each opens the one its phases name,
+  and the HUD shows the checklists of the vehicle flown, both keeping up
+  with the Bus whichever shows
 - The space view: the cabin and the cameras stay fixed while Earth, Moon,
   Sun and stars turn around them with the attitude, and the LM, once it
   undocks, is drawn where it flies and turned as it is. From Eagle, the
@@ -611,6 +623,25 @@ The scenario tests fly real segments through the crew interface:
   for T3 and the ascent PAD to come, and `lunar_ascent` with the ascent
   PAD in. A checkpoint taken mid-timeline carries on as the uninterrupted
   run does
+- Eagle's checklists from its desktop HUD
+  (`tests/scenarios/test_lm_checklists.gd`), slice 3f's check. The main
+  scene runs in a viewport of its own, worked as a player at the desktop
+  works it: the DSKY on the keys through the scene's input, the HUD's
+  buttons clicked where they show and its switches set, and the braking
+  and the docking on the hand controllers' keys. Each of Eagle's four
+  checklists is flown from its phase's start until the HUD shows it
+  complete:
+  - From `lunar_orbit`: UNDOCK in Columbia at GO for undocking, and DOI
+    to a pericynthion 15,286 m above the site.
+  - From `lunar_descent`: P63 to P68, and a landing 140 m from the site.
+  - From `lunar_surface`: STAY for T3, the ascent PAD, and P12 to a
+    9.0 × 45.0 nmi orbit.
+  - From `lunar_ascent`: the liftoff, then P20, CSI (52.3 ft/s), CDH,
+    TPI (24.0 ft/s) and the two midcourse corrections on P41, braking by
+    the gates on the TTCA's keys in 15 min 23 s, and, after L, Columbia
+    flown into the drogue on the THC's keys, capturing at 0.33 ft/s.
+
+  The desktop scenarios share `tests/desktop_test.gd`
 - The LM's other systems (`tests/scenarios/test_lm_burns.gd`): P41 on its
   RCS, P47 on a translation, staging and P42 on the ascent engine, its
   autopilot turning and holding it, the LGC dark while the LM is docked,
@@ -643,4 +674,6 @@ free and docks again (slice 3a), flies DOI on its own computer (slice
 RTCC's time (slice 3d), and flies the rendezvous back to Columbia, which
 docks with it (slice 3e). Slice 3f has given Mission Control its
 timeline from undocking to TEI, the LM its start phases, and you Eagle's
-cockpit, as a desktop overlay, and the view out of its windows.
+cockpit, as a desktop overlay, the view out of its windows, and its
+checklists, each flown from the desktop HUD. Eagle's cabin is still to
+come.

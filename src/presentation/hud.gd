@@ -5,8 +5,8 @@
 ## Flying the LM (set_vehicle("lm")) it is Eagle's: the LGC's DSKY, the
 ## LM's switches (the LGC's mode, ENGINE ARM, ABORT STAGE, ENGINE START and
 ## STOP, the RCS systems and the ROD switch), its flight data and systems,
-## and the FDAI on its attitude [simplified: an overlay, not the LM's
-## panels].
+## its checklists, and the FDAI on its attitude [simplified: an overlay,
+## not the LM's panels].
 class_name Hud
 extends CanvasLayer
 
@@ -34,6 +34,12 @@ var dsky_panel: DskyPanel
 var lgc_panel: DskyPanel
 ## "csm" or "lm": the vehicle the panels are for.
 var vehicle: String = "csm"
+## The checklists the panel shows: Columbia's (csm_book), shared with the
+## cabin's card and the wrist menu, or, flying the LM, Eagle's (lm_book).
+## Both keep up with the Bus whichever shows.
+var book: ChecklistBook
+var csm_book: ChecklistBook
+var lm_book: ChecklistBook
 var _flight: Label
 var _systems: Label
 var _top: Label
@@ -42,9 +48,6 @@ var _check_title: OptionButton
 var _check_text: RichTextLabel
 var _help: Label
 var _fdai: Fdai
-## The checklists and which one is open, shared with the cabin's card and
-## the wrist menu.
-var book: ChecklistBook
 var _switches: PanelContainer
 var _lm_switches: PanelContainer
 var _mcc: PanelContainer
@@ -57,9 +60,11 @@ var _options: Dictionary = {}
 var _capcom_lines: PackedStringArray = []
 
 
-func setup(p_rt: SimRuntime, p_book: ChecklistBook = null) -> void:
+func setup(p_rt: SimRuntime, p_book: ChecklistBook = null, p_lm_book: ChecklistBook = null) -> void:
 	rt = p_rt
-	book = p_book if p_book != null else ChecklistBook.load_default()
+	csm_book = p_book if p_book != null else ChecklistBook.load_default()
+	lm_book = p_lm_book if p_lm_book != null else ChecklistBook.load_lm()
+	book = csm_book
 	var sf := SystemFont.new()
 	sf.font_names = PackedStringArray(["DejaVu Sans Mono", "Consolas", "Menlo", "Courier New", "monospace"])
 	mono = sf
@@ -151,7 +156,8 @@ func setup(p_rt: SimRuntime, p_book: ChecklistBook = null) -> void:
 	set_vehicle(str(Bus.get_value("player.vehicle", "csm")))
 
 
-## Open the checklist that fits the flight phase.
+## Open the checklist that fits the flight phase, in the book the panel
+## shows.
 func select_checklist_for(phase: String) -> void:
 	book.select_for_phase(phase)
 	_check_title.selected = book.current
@@ -173,6 +179,8 @@ func set_cabin_view(on: bool) -> void:
 func set_vehicle(v: String) -> void:
 	vehicle = v
 	_fdai.vehicle = v
+	book = lm_book if v == "lm" else csm_book
+	_fill_titles()
 	_show_panels()
 
 
@@ -344,14 +352,13 @@ func _checklist_panel() -> PanelContainer:
 	v.add_child(h)
 	_check_title = OptionButton.new()
 	_check_title.focus_mode = Control.FOCUS_NONE
-	for c in book.lists:
-		_check_title.add_item(c.title)
-	_check_title.item_selected.connect(book.select)
+	_fill_titles()
+	_check_title.item_selected.connect(func(i: int) -> void: book.select(i))
 	h.add_child(_check_title)
 	var nb := Button.new()
 	nb.text = "Next"
 	nb.focus_mode = Control.FOCUS_NONE
-	nb.pressed.connect(book.next)
+	nb.pressed.connect(func() -> void: book.next())
 	h.add_child(nb)
 	_check_text = RichTextLabel.new()
 	_check_text.fit_content = true
@@ -362,10 +369,20 @@ func _checklist_panel() -> PanelContainer:
 	return p
 
 
+## The checklist choices: the titles in the book the panel shows.
+func _fill_titles() -> void:
+	_check_title.clear()
+	for c in book.lists:
+		_check_title.add_item(c.title)
+	if not book.lists.is_empty():
+		_check_title.selected = book.current
+
+
 func _checklist_text() -> String:
+	csm_book.update()
+	lm_book.update()
 	if book.list() == null:
 		return ""
-	book.update()
 	var lines := PackedStringArray()
 	for s in book.window():
 		var mark := "[color=#6c6]✓[/color] " if s["state"] == "done" else ("[color=#fd4]▶[/color] " if s["state"] == "current" else "   ")
