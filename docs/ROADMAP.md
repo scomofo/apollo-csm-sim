@@ -300,9 +300,11 @@ The 2D HUD stays as the desktop fallback.
 **Status: slices 3a to 3e done: the LM undocks, flies free and docks
 again, flies DOI on its own computer, lands at Tranquility Base, lifts
 off to orbit at the time the RTCC gives, and flies the rendezvous back
-to Columbia, which docks with it. Slice 3f has begun: Mission Control's
-timeline from undocking to TEI, and the start phases `lunar_descent`,
-`lunar_surface` and `lunar_ascent`.**
+to Columbia, which docks with it. Slice 3f has given Mission Control its
+timeline from undocking to TEI, the LM its start phases `lunar_descent`,
+`lunar_surface` and `lunar_ascent`, and the player Eagle's cockpit on the
+desktop and its checklists, each flown from there. Eagle's cabin is still
+to come.**
 Before 3a the LM was only mass: 15,103 kg added in the `csm_lm`
 configuration (`data/spacecraft.json`) and dropped at LM JETT before TEI.
 
@@ -646,8 +648,53 @@ surface and in orbit (`tests/unit/test_space_view.gd`); and the main
 scene started in `lunar_descent`, with Eagle's HUD, the keys on the LGC,
 its two views and L between the vehicles (`tests/unit/test_main_scene.gd`).
 
-Still to come in 3f: the LM's checklists, and the check that you can fly
-the whole sequence yourself.
+Slice 3f's third part gives Eagle its checklists, and checks that you
+can fly them yourself:
+
+- **Eagle's checklists** (`data/missions/apollo_11/lm_checklists.json`):
+  the undocking and DOI, the powered descent from P63 to P68, the surface
+  stay and P12 to orbit, and the rendezvous from P20 through CSI, CDH,
+  TPI and the two midcourse corrections to braking and docking. Every
+  step checks itself off on the Bus: the LGC's program and step and its
+  stored maneuver, the switches, the engines, the landing, liftoff and
+  insertion, Mission Control's PADs and calls, and the docking. The LGC
+  now publishes V57's radar updates and P20's marks being taken
+  (`lm.guid.lr_update`, `lm.guid.rr_nav`) for them. Between burns they
+  put the LGC in free drift [simplified: each firing of an attitude
+  hold's jets drops time acceleration back to 10×; in free drift it
+  stays].
+- **Each vehicle its own checklists.** A checklist names the flight
+  phases it is for, in place of the book's table of them. The HUD shows
+  the checklists of the vehicle you fly. At the start both vehicles'
+  open the one for the phase, and so do the ones of the vehicle you
+  board as Eagle undocks or docks (`VehicleSwitch.boarded`). L goes back
+  to the other's where they stood, and both keep up with the Bus
+  whichever shows.
+- **The check** (`tests/scenarios/test_lm_checklists.gd`). The main
+  scene runs in a viewport of its own, worked as a player at the desktop
+  works it (`tests/desktop_test.gd`): the DSKY on the keys through the
+  scene's input, the HUD's buttons clicked where they show and its
+  switches set, and the braking and the docking on the hand controllers'
+  keys. Each of Eagle's checklists is flown from its phase's start until
+  the HUD shows it complete.
+  - From `lunar_orbit`: CMC MODE FREE and UNDOCK in Columbia at GO for
+    undocking, and DOI down the first checklist, to a pericynthion
+    15,286 m above the site.
+  - From `lunar_descent`: P63 to P68, V57 when the radar has the ground,
+    and a landing 140 m from the site.
+  - From `lunar_surface`: STAY for T3, the ascent PAD, and P12 to a
+    9.0 × 45.0 nmi orbit.
+  - From `lunar_ascent`: the liftoff again, then the rendezvous as the
+    LGC flew it in 3e (CSI 52.3 ft/s, TPI 24.0 ft/s), braked by the
+    gates on the keys in 15 min 23 s. After L, Columbia docks at
+    0.33 ft/s.
+
+  Writing it showed that most of what the DSKY's keys do reaches the Bus
+  at the computer's next step, 20 ms on; only a program change goes at
+  once. The test gives each typed sequence that step.
+
+Still to come in 3f: Eagle's cabin, from milestone 2's prefabs, so the LM
+can be flown in a headset.
 
 ### What changes underneath
 
@@ -698,7 +745,7 @@ flies free (slice 3f).
 | 3c (done) | Moon-fixed frame, landing site, LOI over the site, P63, P64, P66, P68, touchdown | Test: automatic guidance from PDI to touchdown lands within 500 m of the site at under 1 m/s vertical and 0.5 m/s horizontal speed. A second run flies P66 with scripted hand-controller inputs |
 | 3d (done) | Lunar liftoff time from the RTCC, P12 | Test: liftoff to insertion, within set limits of the target orbit |
 | 3e (done) | P20, P32 to P35, braking, docking | Test: insertion to docking capture, with total ΔV within a set margin of the RTCC plan |
-| 3f (in progress) | Undocking-to-TEI timeline in `mission.json`; start phases `lunar_descent`, `lunar_surface` and `lunar_ascent`; checklists; CAPCOM; an LM cockpit (desktop overlay first, then cabin prefabs from milestone 2) | The new start phases are built from the earlier ones, and the full suite passes |
+| 3f (in progress) | Undocking-to-TEI timeline in `mission.json`; start phases `lunar_descent`, `lunar_surface` and `lunar_ascent`; checklists; CAPCOM; an LM cockpit (desktop overlay first, then cabin prefabs from milestone 2) | The new start phases are built from the earlier ones; every LM checklist is flown from the desktop HUD; and the full suite passes |
 
 **Done when** `--phase=lunar_descent` lands at Tranquility Base and
 `--phase=lunar_ascent` docks with Columbia. The README's Fidelity table

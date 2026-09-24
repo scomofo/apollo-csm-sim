@@ -12,7 +12,12 @@
 class_name VehicleSwitch
 extends Node
 
+## The player flies [param vehicle] now: gone aboard it, or by L.
 signal changed(vehicle: String)
+## The player went aboard [param vehicle]: at the start, or as the docking
+## state moved them. The vehicle's checklist for the phase opens then; L
+## goes back to where the other vehicle's checklists stand.
+signal boarded(vehicle: String)
 
 var vehicle: String = ""
 ## Keep the player in the CSM.
@@ -23,6 +28,7 @@ var _dock_was: String = ""
 func _ready() -> void:
 	_dock_was = _dock()
 	_choose("lm" if _dock_was == "free" else "csm")
+	boarded.emit(vehicle)
 
 
 func _process(_delta: float) -> void:
@@ -35,7 +41,10 @@ func update() -> void:
 	var d := _dock()
 	if d != _dock_was:
 		_dock_was = d
+		var was := vehicle
 		_choose("lm" if d == "free" else "csm")
+		if vehicle != was:
+			boarded.emit(vehicle)
 
 
 ## Change vehicles while the LM flies free. Returns whether it did.

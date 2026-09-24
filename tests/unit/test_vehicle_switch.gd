@@ -5,14 +5,17 @@ extends GutTest
 
 var vs: VehicleSwitch
 var seen: Array = []
+var went: Array = []
 
 
 func before_each() -> void:
 	Bus.reset()
 	seen = []
+	went = []
 	Bus.set_value("dock.state", "docked")
 	vs = VehicleSwitch.new()
 	vs.changed.connect(func(v: String) -> void: seen.append(v))
+	vs.boarded.connect(func(v: String) -> void: went.append(v))
 	add_child_autofree(vs)
 
 
@@ -37,6 +40,17 @@ func test_undocking_takes_the_player_to_the_lm_and_docking_back() -> void:
 	vs.update()
 	assert_eq(vs.vehicle, "csm", "the LM jettisoned")
 	assert_eq(seen, ["csm", "lm", "csm", "lm", "csm", "lm", "csm"], "each change once")
+	assert_eq(went, ["csm", "lm", "csm", "lm", "csm"], "aboard at the start and as the docking state moved them, not on L")
+
+
+func test_docking_with_the_player_in_the_csm_boards_nothing() -> void:
+	Bus.set_value("dock.state", "free")
+	vs.update()
+	vs.toggle()
+	Bus.set_value("dock.state", "docked")
+	vs.update()
+	assert_eq(vs.vehicle, "csm")
+	assert_eq(went, ["csm", "lm"], "already aboard")
 
 
 func test_a_start_with_the_lm_free_starts_in_it() -> void:
@@ -49,9 +63,12 @@ func test_a_start_with_the_lm_free_starts_in_it() -> void:
 func test_in_a_headset_the_player_stays_in_the_csm() -> void:
 	var other := VehicleSwitch.new()
 	other.csm_only = true
+	var aboard: Array = []
+	other.boarded.connect(func(v: String) -> void: aboard.append(v))
 	add_child_autofree(other)
 	Bus.set_value("dock.state", "free")
 	other.update()
 	assert_eq(other.vehicle, "csm")
 	assert_false(other.toggle())
 	assert_eq(Bus.get_value("player.vehicle"), "csm")
+	assert_eq(aboard, ["csm"], "aboard Columbia from the start, and still")

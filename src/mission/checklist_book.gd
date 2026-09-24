@@ -1,23 +1,33 @@
 ## The flight-plan checklists and which one is open, shared by the HUD's
 ## checklist panel, the cabin's checklist card, the checklist highlight and
 ## the wrist menu: a step acknowledged on one of them shows on all.
+## Columbia's checklists are one book (load_default()) and Eagle's another
+## (load_lm()), each with its own open checklist.
 ## Presentation state, like the HUD's before it: checkpoints don't save it.
 class_name ChecklistBook
 extends RefCounted
 
 const PATH := "res://data/missions/apollo_11/checklists.json"
-## The checklist that fits each flight phase.
-const FOR_PHASE := {"parking_orbit": 0, "tli": 0, "translunar_coast": 1, "lunar_orbit": 2,
-	"lunar_descent": 2, "lunar_surface": 2, "lunar_ascent": 2, "transearth_coast": 3, "entry": 3}
+const LM_PATH := "res://data/missions/apollo_11/lm_checklists.json"
 
 var lists: Array[Checklist] = []
 ## Index of the open checklist.
 var current: int = 0
 
 
+## Columbia's checklists.
 static func load_default() -> ChecklistBook:
+	return load_file(PATH)
+
+
+## Eagle's checklists.
+static func load_lm() -> ChecklistBook:
+	return load_file(LM_PATH)
+
+
+static func load_file(path: String) -> ChecklistBook:
 	var b := ChecklistBook.new()
-	b.lists = Checklist.load_all(PATH)
+	b.lists = Checklist.load_all(path)
 	return b
 
 
@@ -36,11 +46,13 @@ func select(i: int) -> void:
 		lists[current].index = 0
 
 
-## Open the checklist for [param phase] where it stands.
+## Open the checklist for [param phase] (the first whose phases have it)
+## where it stands. With none for it, the open one stays open.
 func select_for_phase(phase: String) -> void:
-	var i: int = FOR_PHASE.get(phase, 0)
-	if i < lists.size():
-		current = i
+	for i in lists.size():
+		if lists[i].phases.has(phase):
+			current = i
+			return
 
 
 ## The next checklist, where it stands.

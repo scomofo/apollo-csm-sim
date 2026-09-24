@@ -6,10 +6,12 @@
 ## read-and-continue.
 ##
 ## check: {"channel": "...", "op": "eq"|"ne"|"gt"|"lt"|"ge"|"le", "value": v}
+## phases: the flight phases (mission.phase) the checklist is for.
 class_name Checklist
 extends RefCounted
 
 var title: String = ""
+var phases: PackedStringArray = []
 var steps: Array = []
 var index: int = 0
 
@@ -23,6 +25,7 @@ static func load_all(path: String) -> Array[Checklist]:
 	for c in d.get("checklists", []):
 		var cl := Checklist.new()
 		cl.title = str(c["title"])
+		cl.phases = PackedStringArray(c.get("phases", []))
 		cl.steps = c["steps"]
 		out.append(cl)
 	return out

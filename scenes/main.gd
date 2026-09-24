@@ -19,7 +19,10 @@
 ## and L changes vehicles while it flies free: the HUD, the space view, the
 ## hand controllers and the DSKY keys follow, and C cycles the LM's window
 ## and chase views. In a headset the player stays in the CM's cabin
-## [simplified: the LM has no cabin yet].
+## [simplified: the LM has no cabin yet]. Each vehicle has its checklists
+## (the HUD shows those of the vehicle flown): at the start both open the
+## one for the flight phase (mission.phase), and as the docking state moves
+## the player aboard one, the HUD opens its one for the phase then.
 ##
 ## Writes: player.rig ("xr" or "desktop"), player.xr_session,
 ##         player.xr_focus, player.xr_refresh_hz
@@ -117,7 +120,10 @@ func _ready() -> void:
 	hud.name = "Hud"
 	add_child(hud)
 	hud.setup(rt, book)
-	hud.select_checklist_for(start_phase)
+	# Both vehicles' checklists open for the phase the flight starts in.
+	var phase := str(Bus.get_value("mission.phase", start_phase))
+	book.select_for_phase(phase)
+	hud.lm_book.select_for_phase(phase)
 	# In a headset the thumbsticks fly the hand controllers too.
 	var hci := HandControllerInput.for_xr_rig(rig) if xr else HandControllerInput.new()
 	hci.name = "HandControllerInput"
@@ -127,6 +133,7 @@ func _ready() -> void:
 	vehicles.name = "VehicleSwitch"
 	vehicles.csm_only = xr
 	vehicles.changed.connect(_on_vehicle)
+	vehicles.boarded.connect(_on_boarded)
 	add_child(vehicles)
 
 
@@ -137,6 +144,12 @@ func _on_vehicle(v: String) -> void:
 	view.vehicle = v
 	if v == "lm" and view.view_mode == VIEW_CABIN:
 		set_view(0)
+
+
+## The player went aboard [param _v], whose checklists the HUD now shows:
+## the one for the flight phase opens, where it stands.
+func _on_boarded(_v: String) -> void:
+	hud.select_checklist_for(str(Bus.get_value("mission.phase", start_phase)))
 
 
 ## The DSKY of the computer in the vehicle the player flies.
