@@ -177,3 +177,106 @@ func test_the_staged_lm_is_drawn_without_its_descent_stage() -> void:
 	var docked: Node3D = view.get("_parts")["lm"]
 	assert_true(docked.visible)
 	assert_false(docked.get_node("Descent").visible, "the docked ascent stage")
+
+
+func test_from_the_lm_the_world_turns_with_it_and_the_csm_is_where_it_flies() -> void:
+	var q := _turned()
+	var p := Docking.params()
+	var span := float(p["csm_port_m"]) + float(p["lm_port_m"])
+	var x := Basis(q) * Vector3.RIGHT
+	# The LM 30 m off its docked place and turned a quarter turn.
+	Bus.set_value("dyn.config", "csm")
+	Bus.set_value("dock.state", "free")
+	Bus.set_value("lm.dyn.primary", "earth")
+	Bus.set_value("lm.dyn.config", "lm")
+	Bus.set_value("lm.dyn.r_m", [R + x.x * span, x.y * span, x.z * span + 30.0])
+	Bus.set_value("lm.dyn.v_mps", [0.0, V, 0.0])
+	Bus.set_value("lm.dyn.alt_m", 185000.0)
+	var ql := q * Docking.LM_IN_CSM * Quaternion(Vector3(1, 0, 0), PI / 2.0)
+	Bus.set_value("lm.dyn.att_q", ql)
+	view.view_mode = 1
+	_render(q)
+	var from_csm := _csm_to_lm()
+	view.vehicle = "lm"
+	_render(q)
+	assert_true(view.eci_to_cabin.is_equal_approx(SpaceView.LM_BODY_TO_GODOT * Basis(ql).inverse()),
+		"the world turns with the LM")
+	var lm_at := Vector3(SpaceView.CSM_PORT_X + float(p["lm_port_m"]), 0, 0)
+	assert_almost_eq(view.lm_free.global_transform * lm_at, Vector3.ZERO, Vector3.ONE * 1e-4,
+		"the LM's centre of mass at the origin")
+	assert_true(_csm_to_lm().is_equal_approx(from_csm),
+		"the two vehicles as they are to each other, seen from either")
+	assert_true(view.csm.visible and view.lm_free.visible, "both drawn in the chase view")
+	assert_almost_eq(view.camera.global_transform.origin.length(), SpaceView.CHASE_DIST, 1e-3,
+		"the chase camera around the LM")
+	# The window: out of the LM's forward windows (+Z), its +X the crew's up.
+	view.view_mode = 0
+	view._process(0.0)
+	var cam: Transform3D = view.camera.global_transform
+	var lm_axes := SpaceView.LM_BODY_TO_GODOT
+	assert_almost_eq(-cam.basis.z, lm_axes * Vector3(0, 0, 1), Vector3.ONE * 1e-6,
+		"looks along the LM's +Z")
+	assert_almost_eq(cam.basis.y, lm_axes * Vector3(1, 0, 0), Vector3.ONE * 1e-6, "up is its +X")
+	assert_false(view.lm_free.visible, "from inside it, the LM isn't drawn")
+	# Near the surface the chase view gives way to the window's.
+	view.view_mode = 1
+	Bus.set_value("lm.dyn.alt_m", 10000.0)
+	view._process(0.0)
+	assert_true(view.camera.global_transform.is_equal_approx(cam), "below 40 km, the window view")
+
+
+func test_from_eagle_on_the_moon_the_ground_takes_the_spheres_place() -> void:
+	# Eagle on its gear at Tranquility Base, below the reference sphere,
+	# facing north; Columbia straight overhead.
+	var lat := 0.67416
+	var lon := 23.47314
+	var cm := 3.6
+	var site_r := Bodies.R_MOON + Terrain.height(lat, lon) + cm
+	var site := Bodies.selenographic_to_fixed(lat, lon, site_r)
+	var mf := Bodies.moon_fixed(0.0)
+	var r := mf * site
+	var up := r.normalized()
+	var north := (mf.z - up * up.dot(mf.z)).normalized()
+	var csm_r := up * (Bodies.R_MOON + 111000.0)
+	Bus.set_value("dyn.primary", "moon")
+	Bus.set_value("dyn.r_m", [csm_r.x, csm_r.y, csm_r.z])
+	Bus.set_value("dyn.att_q", Quaternion.IDENTITY)
+	Bus.set_value("dock.state", "free")
+	Bus.set_value("lm.dyn.primary", "moon")
+	Bus.set_value("lm.dyn.config", "lm")
+	Bus.set_value("lm.dyn.r_m", [r.x, r.y, r.z])
+	Bus.set_value("lm.dyn.landed", true)
+	Bus.set_value("lm.dyn.landed_pos_m", [site.x, site.y, site.z])
+	Bus.set_value("lm.dyn.att_q", Basis(up, north.cross(up), north).get_rotation_quaternion())
+	view.vehicle = "lm"
+	view.view_mode = 0
+	view._process(0.0)
+	assert_true(view.moon.visible,
+		"the sphere, through the ground below Eagle, until the ground is built")
+	assert_false(view.ground.visible)
+	var t0 := Time.get_ticks_msec()
+	while not view.ground.visible and Time.get_ticks_msec() - t0 < 20000:
+		await wait_process_frames(1)
+		view._process(0.0)
+	assert_true(view.ground.visible, "the ground below Eagle")
+	assert_false(view.moon.visible, "in place of the sphere")
+	assert_eq(view.camera.global_transform.origin, Vector3.ZERO, "the eye at the centre of mass")
+	var s := SpaceView.RENDER_DIST / r.length()
+	# The eye's height over the ground below it (site is single precision).
+	var n := sqrt(float(site.x) * site.x + float(site.y) * site.y + float(site.z) * site.z)
+	var h := Terrain.height(rad_to_deg(asin(site.z / n)), rad_to_deg(atan2(site.y, site.x)))
+	var agl := n - Bodies.R_MOON - h
+	assert_almost_eq(agl, cm, 0.1)
+	var below: Vector3 = view.ground.global_transform * view.ground.points[0]
+	assert_almost_eq(below, Vector3(0, -agl * s, 0), Vector3.ONE * 2e-6,
+		"the ground below the eye, as high as it is")
+	assert_lt(view.camera.near, agl * s, "the near plane short of it")
+	var cg := Vector3(SpaceView.CSM_PORT_X - float(Docking.params()["csm_port_m"]), 0, 0)
+	var csm_at: Vector3 = view.csm.global_transform * cg
+	assert_lt(csm_at.length(), cm * s, "Columbia drawn nearer than the ground")
+	assert_gt(csm_at.normalized().y, 0.999, "straight overhead")
+
+
+## The LM model's placement relative to the CSM model's.
+func _csm_to_lm() -> Transform3D:
+	return view.csm.global_transform.affine_inverse() * view.lm_free.global_transform

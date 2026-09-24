@@ -34,6 +34,23 @@ func test_sticks_fly_rotation_and_the_left_grip_switches_them_to_translation() -
 	assert_eq(c[1], Vector3(-1.0, 0.5, -1.0), "right Y = X, left X = Y, left forward = up (-Z)")
 
 
+func test_in_the_lm_they_fly_its_aca_and_ttca_about_its_axes() -> void:
+	var lm := HandControllerInput.lm_commands(Vector3(1, 1, 1), Vector3(1, -1, -1))
+	assert_eq(lm[0], Vector3(-1, 1, 1),
+		"yaw right about -X, pitch up about +Y, roll right about +Z")
+	assert_eq(lm[1], Vector3(1, -1, 1), "rise along +X (R), left along -Y, forward along +Z (Up)")
+	var hci := HandControllerInput.new()
+	add_child_autofree(hci)
+	Bus.set_value("ctl.rhc", Vector3.ONE)
+	Bus.set_value("ctl.lm.rhc", Vector3.ONE)
+	Bus.set_value("player.vehicle", "lm")
+	hci._process(0.0)
+	assert_eq(Bus.get_value("ctl.rhc"), Vector3.ZERO, "the CSM's controllers let go")
+	assert_eq(Bus.get_value("ctl.lm.rhc"), Vector3.ZERO,
+		"and the LM's are centred with no key down")
+	assert_eq(Bus.get_value("ctl.lm.thc"), Vector3.ZERO)
+
+
 func test_a_stick_off_centre_commands_nothing_until_past_the_deadzone() -> void:
 	assert_eq(HandControllerInput.deadzone(Vector2(0.08, -0.12)), Vector2.ZERO, "a resting or drifting stick")
 	assert_eq(HandControllerInput.deadzone(Vector2(0.1, 1.0)), Vector2(0.0, 1.0),

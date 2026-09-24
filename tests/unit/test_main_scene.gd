@@ -92,12 +92,65 @@ func test_undock_on_the_hud_frees_the_lm_for_the_view_and_the_hud_readout() -> v
 	SimClock.advance(60.0)
 	await wait_process_frames(2)
 	assert_eq(str(Bus.get_value("dock.state")), "free")
-	assert_true(main.view.lm_free.visible, "the view draws the free LM")
+	assert_eq(Bus.get_value("player.vehicle"), "lm", "the commander moves to the LM")
+	_press(main, [KEY_L])
+	await wait_process_frames(2)
+	assert_true(main.view.lm_free.visible, "from the CSM, the view draws the free LM")
 	assert_false(main.view._parts["lm"].visible, "not docked to the CSM")
 	var text: String = main.hud._flight.text
 	assert_string_contains(text, "LM RNG", "the HUD reads out the range to the LM")
 	assert_string_contains(text, "%.1f ft" % (float(Bus.get_value("dock.range_m")) / Units.FT))
 	main.rt.free_nodes()
+
+
+func test_the_lm_phases_start_in_the_lm_and_l_changes_vehicles() -> void:
+	var main: Node = load("res://scenes/main.tscn").instantiate()
+	main.start_phase = "lunar_descent"
+	add_child_autofree(main)
+	await wait_process_frames(2)
+	assert_eq(str(Bus.get_value("dock.state")), "free", "the LM flies free")
+	assert_eq(Bus.get_value("player.vehicle"), "lm", "with the commander in it")
+	assert_eq(main.view.vehicle, "lm", "the view is from the LM")
+	assert_true(main.hud.lgc_panel.visible, "the LGC's DSKY")
+	assert_false(main.hud.dsky_panel.visible, "in place of the CMC's")
+	assert_string_contains(main.hud._top.text, "EAGLE")
+	assert_string_contains(main.hud._flight.text, "AGL", "the LM's flight data")
+	_press(main, [KEY_V, KEY_1, KEY_6, KEY_N, KEY_6, KEY_8, KEY_ENTER])
+	assert_eq(main.rt.lgc().dsky.verb, "16", "the keys reach the LGC")
+	assert_eq(main.rt.lgc().dsky.noun, "68")
+	assert_ne(main.rt.agc().dsky.noun, "68", "not the CMC")
+	for mode in [1, 0]:
+		_press(main, [KEY_C])
+		assert_eq(main.view.view_mode, mode, "C: the LM's window and chase views")
+	var arm: OptionButton = main.hud._options["ctl.lm.engine_arm"]
+	arm.item_selected.emit(2)
+	assert_eq(Bus.get_value("ctl.lm.engine_arm"), 2, "ENG ARM DES")
+	# L: back to the CSM, with its DSKY and its three views.
+	_press(main, [KEY_L])
+	assert_eq(Bus.get_value("player.vehicle"), "csm")
+	assert_eq(main.view.vehicle, "csm")
+	assert_true(main.hud.dsky_panel.visible, "the CMC's DSKY")
+	assert_false(main.hud.lgc_panel.visible)
+	await wait_process_frames(1)
+	assert_string_contains(main.hud._top.text, "COLUMBIA")
+	_press(main, [KEY_V, KEY_1, KEY_6, KEY_N, KEY_6, KEY_2, KEY_ENTER])
+	assert_eq(main.rt.agc().dsky.noun, "62", "the keys reach the CMC")
+	assert_eq(main.rt.lgc().dsky.noun, "68", "the LGC keeps its display")
+	_press(main, [KEY_C, KEY_C])
+	assert_eq(main.view.view_mode, 2, "the CM's cabin")
+	_press(main, [KEY_L])
+	assert_eq(main.view.view_mode, 0, "the LM has no cabin: out of its window")
+	assert_false(main.cabin.visible)
+	assert_true(main.view.camera.current)
+	main.rt.free_nodes()
+
+
+func _press(main: Node, keys: Array) -> void:
+	for kc in keys:
+		var ev := InputEventKey.new()
+		ev.keycode = kc
+		ev.pressed = true
+		main._unhandled_input(ev)
 
 
 func test_checklists_load_and_auto_advance() -> void:

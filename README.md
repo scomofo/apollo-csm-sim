@@ -14,6 +14,8 @@ executed through the Apollo Guidance Computer's DSKY.
 
 ![Eagle flying free of Columbia in lunar orbit, with the range to its docking port on the HUD](docs/images/lm_undocked_chase.png)
 
+![Eagle on the descent orbit, 21 nmi up: the view out of its windows, the LGC's DSKY and Eagle's panels](docs/images/eagle_descent_orbit.png)
+
 ![The CM cabin in lunar orbit: FDAI, DSKY and the main display console](docs/images/cabin_lunar_orbit.png)
 
 ![The checklist card with the TEI PAD and CAPCOM, and the wrist menu](docs/images/cabin_checklist.png)
@@ -43,9 +45,9 @@ Later start phases are made by flying the earlier ones through the RTCC's own
 solutions (TLI, DOI, the landing time, the liftoff time, TEI), so every
 start is consistent with the mission it continues. The LM's start phases
 undock Eagle at Apollo 11's time and follow Mission Control's timeline
-from there (below). Starting in any phase after `lunar_orbit` takes a few
-seconds while the ground computes the trajectory. The LM has no cockpit
-yet, so its phases are flown by the tests; slice 3f adds one.
+from there (below), with you in Eagle. Starting in any phase after
+`lunar_orbit` takes a few seconds while the ground computes the
+trajectory.
 
 `godot --path . --xr-mode on` starts OpenXR, which is off by default, and
 puts you in the commander's couch in a headset. No headset run has been
@@ -58,15 +60,16 @@ works in a headset.
 
 | Input | Action |
 |---|---|
-| W/S, A/D, Q/E | Rotational hand controller: pitch, yaw, roll (hold Shift for 10 %) |
-| Arrows, R/F | Translational hand controller: ±Y/±Z, +X/−X (ullage) |
+| W/S, A/D, Q/E | Rotational hand controller: pitch, yaw, roll (hold Shift for 10 %); in Eagle, its ACA |
+| Arrows, R/F | Translational hand controller: ±Y/±Z, +X/−X (ullage); in Eagle, its TTCA: R/F up and down, Up/Down forward and aft |
 | 0–9, `=`/`-` (or keypad) | DSKY digits, + and − |
 | V, N, Enter | VERB, NOUN, ENTR |
 | Space, Backspace | PRO, CLR |
 | Insert, Delete | KEY REL, RSET |
-| T (hold) | SPS THRUST ON, the manual backup |
+| T (hold) | SPS THRUST ON, the manual backup (in Columbia) |
+| L | Fly Eagle or Columbia, while Eagle flies free |
 | `[` `]`, P | Time rate slower/faster (1× to 10,000×), pause |
-| C | Window, chase or cabin view |
+| C | Window, chase or cabin view (in Eagle, window or chase) |
 | Right-drag | Look around (window and chase views) |
 | In the cabin view: click, scroll | Work the control under the cursor: a click cycles a switch or presses a key, scrolling moves a switch up or down |
 | In the cabin view: right-click, Z, Home | Mouse look on and off; inspect the control under the cursor; recentre |
@@ -111,11 +114,13 @@ undocking to TEI) and at entry.
 
 **Undocking and docking.** In lunar orbit, **UNDOCK** releases Eagle. The
 probe pushes the two apart at 0.1 ft/s, and the LM flies free on its own
-orbit. Its computer, the LGC, powers up as it undocks and holds the
-attitude it undocked in. While it flies free, the flight panel shows the range to its
-docking port, the range rate, where the port is along the CSM's axes (X
-along the probe) and how it moves, and how far the two docking axes are
-out of line. Fly the CSM back to it on the translation controller. The
+orbit, with you in it (below). Its computer, the LGC, powers up as it
+undocks and holds the attitude it undocked in. Press **L** to go back to
+Columbia. While Eagle flies free, Columbia's flight panel shows the
+range to its docking port, the range rate, where the port is along the
+CSM's axes (X along the probe) and how it moves, and how far the two
+docking axes are out of line. Fly the CSM back to it on the translation
+controller. The
 probe captures, and the vehicles are docked again, when it meets the
 drogue at under 1 ft/s, moving across at under 0.5 ft/s, within 1 ft of
 its centre, within 10° of alignment and under 1°/s of relative rate. Any
@@ -205,8 +210,26 @@ phase follows Eagle: LUNAR DESCENT from DOI, LUNAR SURFACE while it is
 landed, and LUNAR ASCENT from liftoff until it docks.
 
 The LGC also has P41 (LM RCS), P42 (the ascent engine, after staging)
-and P47, and ENGINE START lifts a landed ascent stage off by hand. The LM
-has no cockpit yet, so only the tests fly it (slice 3f adds one).
+and P47, and ENGINE START lifts a landed ascent stage off by hand.
+
+**Flying Eagle.** You move to Eagle as it undocks, as its commander, and
+back to Columbia when the two dock or Eagle is jettisoned. While Eagle
+flies free, **L** changes vehicles. The HUD becomes Eagle's:
+- The LGC's DSKY, which the keys type into.
+- Eagle's switches: LGC MODE, ENG ARM (ASC or DES), ABORT STAGE, ENG
+  START and STOP, RCS SYS A and B, and ROD UP and DOWN for P66.
+- Its flight data: its height over the ground below it, its vertical
+  speed and its speed over the turning surface, its orbit, its mass and
+  rates, the landing radar's ΔH, the rendezvous radar's range and range
+  rate, and the ALT and VEL lamps and CONTACT LIGHT.
+- Its engines, RCS and LGC, and Mission Control's LM PADs: DOI, PDI,
+  ASCENT and CSI.
+- The FDAI, on Eagle's attitude and rates and its LGC's errors.
+
+The hand controllers fly its ACA and TTCA. The view is out of its
+forward windows, or a chase view above 40 km, and near the Moon the
+ground below Eagle is drawn from the same height maps its gear lands on.
+In a headset you stay in Columbia's cabin, since Eagle has none yet.
 
 The on-screen checklist follows along. Steps with a check mark complete
 themselves when the Bus shows the action was done. In the cabin, the same
@@ -385,8 +408,10 @@ ones:
   as Apollo 11's had none, so the radar's altitude over lower ground reads
   high. The crew's ENGINE STOP after contact light is the LGC's at
   touchdown. The LM can't tip over or break its gear: a hard landing only
-  draws a call from CAPCOM. The space view still draws the Moon as a
-  sphere; the LM cockpit (slice 3f) will show the ground.
+  draws a call from CAPCOM. From Columbia the Moon is a sphere. From
+  Eagle the ground below it is drawn from the maps, on a grid of rings
+  that thins out away from the LM, so relief far from it is smoothed. It
+  is lit as a plain matte surface, without the Moon's own photometry.
 - **The LM.** Its systems power up as it undocks. Docked, it is dark,
   and the CSM flies the stack. The crew's throttle-up in DOI is the
   LGC's. The descent engine has no gimbal trim, and staging leaves the
@@ -397,6 +422,12 @@ ones:
   insertion is estimated from Apollo 11's rendezvous. P12's steering
   takes the engine's nominal thrust for its acceleration, not the
   measured one.
+- **Eagle's cockpit.** It is a desktop overlay, not Eagle's panels: the
+  LGC's DSKY and the switches the LM's burns and landing need, with no
+  abort guidance section. The view from Eagle is from its centre of
+  mass, and its chase view gives way to the window view below 40 km,
+  where a camera beside it would see the scaled Moon from the wrong
+  place. In a headset you stay in Columbia.
 - **The LM's start phases.** Columbia drifts in CMC MODE FREE while
   Eagle flies. The start phases fly DOI as the RTCC models P40's burn,
   and set Eagle down on the site at the time DOI planned for. They leave
@@ -455,14 +486,26 @@ The unit tests cover:
 - Systems: SPS arming, EPS consumption and the Apollo 13 failure, SCS/CMC
   autopilot, the coast-step policy
 - Checkpoint round-trip, with a map of vehicles, each with its own
-  systems, and the LGC's rendezvous state (schema 3). Older checkpoints
+  systems, the LGC's rendezvous state and Mission Control's planned
+  times and timeline (schema 4). Older checkpoints
   are rejected
-- The main scene
+- The main scene, and in Eagle from `lunar_descent`: its HUD, the keys on
+  its LGC, its two views and L between the vehicles
 - The hand controllers, from the keys and from the XR thumbsticks, with
-  the thumbstick deadzone
+  the thumbstick deadzone, and in Eagle its ACA and TTCA about its own
+  axes, as its FDAI reads them
+- Which vehicle you fly: Eagle from undocking, Columbia again at docking
+  or jettison, L between them while Eagle flies free, and Columbia only
+  in a headset
 - The space view: the cabin and the cameras stay fixed while Earth, Moon,
   Sun and stars turn around them with the attitude, and the LM, once it
-  undocks, is drawn where it flies and turned as it is
+  undocks, is drawn where it flies and turned as it is. From Eagle, the
+  two vehicles are drawn as they are to each other, and on the surface
+  the ground takes the sphere's place, 3.6 m below its centre of mass,
+  with Columbia drawn nearer than the ground
+- The ground below Eagle: the maps' heights on its grid, placed at the
+  Moon's scale with the eye at the origin, a new grid as Eagle moves on
+  or comes down, and the last one drawn while a worker builds the next
 - The cabin controls and instruments, the XR and desktop rigs and the
   OpenXR action map taken from gemini-capsule
 - The cockpit layout: `controls.csv` validates, malformed rows are
@@ -576,13 +619,16 @@ The scenario tests fly real segments through the crew interface:
 `tools/screenshot.tscn` renders the images above (`--view=0` window,
 `1` chase, `2` cabin; `--hud=0` leaves the HUD out, `--menu=1` shows the
 wrist menu, `--pad=<kind>` asks Mission Control for a PAD first, and
-`--undock=<s>` undocks the LM and lets it drift for that many seconds).
+`--undock=<s>` undocks the LM and lets it drift for that many seconds,
+and `--vehicle=csm` or `lm` chooses whose view it is while Eagle flies
+free).
 They were rendered in software, so the frame time on the wrist menu's top
 line is the software renderer's:
 
 ```
 godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=1 --out=res://docs/images/x.png
-godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=1 --undock=400 --yaw=3.6 --out=res://docs/images/lm_undocked_chase.png
+godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=1 --undock=400 --yaw=3.6 --vehicle=csm --out=res://docs/images/lm_undocked_chase.png
+godot --path . tools/screenshot.tscn -- --phase=lunar_descent --view=0 --out=res://docs/images/eagle_descent_orbit.png
 godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=2 --yaw=-0.3 --pitch=-0.12 --hud=0 --out=res://docs/images/cabin_lunar_orbit.png
 godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=2 --yaw=0.55 --pitch=-0.08 --hud=0 --menu=1 --pad=tei --out=res://docs/images/cabin_checklist.png
 ```
@@ -595,5 +641,6 @@ realism. The VR cockpit waits on a headset run. The LM undocks, flies
 free and docks again (slice 3a), flies DOI on its own computer (slice
 3b), lands at Tranquility Base (slice 3c), lifts off to orbit at the
 RTCC's time (slice 3d), and flies the rendezvous back to Columbia, which
-docks with it (slice 3e). Slice 3f has begun with Mission Control's
-timeline from undocking to TEI and the LM's start phases.
+docks with it (slice 3e). Slice 3f has given Mission Control its
+timeline from undocking to TEI, the LM its start phases, and you Eagle's
+cockpit, as a desktop overlay, and the view out of its windows.

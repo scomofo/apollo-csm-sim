@@ -84,6 +84,30 @@ static func moon_fixed(t: float) -> Basis:
 	return Basis(x, w.cross(x), w)
 
 
+## The Moon-fixed frame's axes in ECI at GET [param t], as moon_fixed()
+## has them but in doubles: PackedFloat64Array(9), X, then Y, then Z.
+static func moon_fixed_axes(t: float) -> PackedFloat64Array:
+	var th := moon_phase0 + moon_mean_motion() * t
+	var pl := moon_plane()
+	var c := cos(th)
+	var s := sin(th)
+	var x := [-(pl[0] * c + pl[3] * s), -(pl[1] * c + pl[4] * s), -(pl[2] * c + pl[5] * s)]
+	return PackedFloat64Array([x[0], x[1], x[2],
+		pl[7] * x[2] - pl[8] * x[1], pl[8] * x[0] - pl[6] * x[2], pl[6] * x[1] - pl[7] * x[0],
+		pl[6], pl[7], pl[8]])
+
+
+## [param r], a position relative to the Moon in ECI (m, three floats), in
+## the Moon-fixed frame at GET [param t], in doubles: to the millimetre
+## where moon_fixed()'s single-precision Basis gives a decimetre.
+static func to_moon_fixed(r: Array, t: float) -> PackedFloat64Array:
+	var a := moon_fixed_axes(t)
+	return PackedFloat64Array([
+		r[0] * a[0] + r[1] * a[1] + r[2] * a[2],
+		r[0] * a[3] + r[1] * a[4] + r[2] * a[5],
+		r[0] * a[6] + r[1] * a[7] + r[2] * a[8]])
+
+
 ## The Moon's rotation in ECI, rad/s.
 static func moon_omega() -> Vector3:
 	return moon_normal() * moon_mean_motion()

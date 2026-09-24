@@ -80,10 +80,16 @@ func omega_eci() -> Vector3:
 	return attitude.eci_from_body() * attitude.omega
 
 
+## Its motion (publish_motion), the last step's sensed ΔV and whether it
+## sits on the surface, and where it sits: p + "dyn.landed_pos_m", its
+## centre of mass in the Moon-fixed frame. That one is exact; its ECI
+## position, turned from it through a single-precision Basis, moves by
+## centimetres from one step to the next.
 func publish() -> void:
 	publish_motion(prefix, traj, attitude, mass, config)
 	Bus.set_value(prefix + "dyn.dv_step", [dv_step.x, dv_step.y, dv_step.z])
 	Bus.set_value(prefix + "dyn.landed", landed)
+	Bus.set_value(prefix + "dyn.landed_pos_m", [landed_pos.x, landed_pos.y, landed_pos.z])
 
 
 ## Publish the motion channels every vehicle has, under [param p]:

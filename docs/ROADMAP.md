@@ -612,9 +612,42 @@ The checks:
   `lunar_orbit`, checks each LM start phase, and restores a checkpoint
   mid-timeline.
 
-Still to come in 3f: the LM cockpit and switching between the vehicles,
-the LM's checklists, and the check that you can fly the whole sequence
-yourself.
+Slice 3f's second part puts the player in Eagle:
+
+- **Who flies what.** The player moves to the LM as it undocks, as its
+  commander, and back to the CSM when the two dock or the LM is
+  jettisoned (`src/presentation/vehicle_switch.gd`). While the LM flies
+  free, L changes vehicles on the desktop. The vehicle left behind flies
+  on as its computer and switches have it. In a headset the player stays
+  in the CM until the LM has a cabin.
+- **The LM's cockpit** is a desktop overlay for now. In Eagle the HUD
+  shows the LGC's DSKY, which the keys type into, and the LM's switches:
+  the LGC's mode, ENGINE ARM, ABORT STAGE, ENGINE START and STOP, the RCS
+  systems and the ROD switch. It also shows the LM's flight data and
+  systems, and Mission Control's LM PADs. The FDAI shows Eagle's attitude
+  and rates and its LGC's errors. The hand controllers fly its ACA and
+  TTCA, about and along its axes.
+- **The view from Eagle** is out of its forward windows, or a chase view
+  above 40 km. Near the Moon the ground below the LM, drawn from the
+  height maps (`src/presentation/lunar_ground.gd`), takes the place of
+  the Moon's sphere. The sphere's flat facets lie up to 2 km under the
+  surface they stand for, and within 1,927 m of the site the LM is inside
+  the sphere, so the Moon wasn't drawn at all. The ground is a grid of
+  rings around the point below the LM, fine near it and coarse out past
+  the horizon. It is built on a worker thread, with the heights the gear
+  lands on. On the surface the view takes Eagle's position in the
+  Moon-fixed frame. Its ECI position, turned through a single-precision
+  Basis, moves by centimetres from step to step, and the ground would
+  shake with it.
+
+The checks: `tests/unit/test_vehicle_switch.gd` and
+`tests/unit/test_lunar_ground.gd`; the space view from Eagle on the
+surface and in orbit (`tests/unit/test_space_view.gd`); and the main
+scene started in `lunar_descent`, with Eagle's HUD, the keys on the LGC,
+its two views and L between the vehicles (`tests/unit/test_main_scene.gd`).
+
+Still to come in 3f: the LM's checklists, and the check that you can fly
+the whole sequence yourself.
 
 ### What changes underneath
 
@@ -650,10 +683,11 @@ yourself.
 
 ### Who flies what
 
-One person can't fly both vehicles. Proposal: at undocking, the
-player moves to the LM as commander. The CSM coasts under automation,
-holding attitude and tracking the LM. At docking, the player returns to
-the CSM. Switching vehicles at will is a later choice.
+One person can't fly both vehicles. At undocking the player moves to
+the LM, as its commander, and the CSM flies on as its computer and
+switches have it. At docking, or when the LM is jettisoned, the player
+returns to the CSM. On the desktop, L changes vehicles while the LM
+flies free (slice 3f).
 
 ### Slices
 
