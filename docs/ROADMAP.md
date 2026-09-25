@@ -32,18 +32,25 @@ picture).
 - **Start phases stay consistent.** A new `--phase` is built the way the
   existing ones are, from the RTCC's own solutions, so it continues the
   mission it claims to.
-- **CI stays fast.** The suite takes about two and a half minutes. Keep
-  it under ten: start a long scenario from a phase or checkpoint instead
-  of flying the whole mission.
+- **CI stays fast.** The suite runs in three jobs side by side: the unit
+  tests, and the scenario tests in two parts. Keep each job under ten
+  minutes: start a long scenario from a phase or checkpoint instead of
+  flying the whole mission, and give the scenarios another part when
+  theirs grow past that.
 
 ## 1. CI green
 
 **Status: CI passes on every push and pull request. What's left is
 protecting `main`.**
 
-`.github/workflows/ci.yml` runs two jobs. `test` downloads Godot 4.4.1
-(cached), imports the project and runs GUT headless. `lint` runs gdlint,
-advisory for now, and checks the data files, which blocks.
+`.github/workflows/ci.yml` runs the GUT suite headless in three jobs
+side by side, each downloading Godot 4.4.1 (cached) and importing the
+project: the unit tests, and the scenario tests dealt out over two jobs
+in file-name order, so a new scenario file joins one by itself. The
+`test` job passes only when all three have. `lint` runs gdlint, advisory
+for now, and checks the data files, which blocks. The suite ran as one
+job until slice 3f's cabin flights took it to 15 min 55 s of its
+20-minute limit.
 
 From 02:38 to 15:20 UTC on 2026-09-23 every run ended in
 `startup_failure` before any job started, as gemini-capsule's did.
