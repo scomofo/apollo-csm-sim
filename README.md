@@ -530,7 +530,7 @@ The unit tests cover:
   Horizons' sub-Earth point and the libration's limits, smooth joins
   between segments, the Moon's spin as its frame turns, the Sun 10.7°
   over Tranquility Base at touchdown (the mission report has 10.8°), the
-  Moon's pole 6.7° from its orbit's normal, a sidereal month of 27.32
+  Moon's pole 6.6° from its orbit's normal, a sidereal month of 27.32
   days, and the mission choosing the model
 - The terrain: Tranquility Base 1,927 m below the reference sphere, West
   crater 30 m deep east of the LM, and the maps blending without steps
