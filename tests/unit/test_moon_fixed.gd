@@ -24,11 +24,11 @@ func test_the_moon_turns_once_a_sidereal_month() -> void:
 	var a := Bodies.moon_fixed(80.0 * 3600.0)
 	var b := Bodies.moon_fixed(80.0 * 3600.0 + 3600.0)
 	assert_almost_eq(a.x.angle_to(b.x), n * 3600.0, 1e-6, "an hour's turn")
-	assert_almost_eq(Bodies.moon_omega(), Bodies.moon_normal() * n, Vector3.ONE * 1e-12)
+	assert_almost_eq(Bodies.moon_omega(0.0), Bodies.moon_normal() * n, Vector3.ONE * 1e-12)
 	# A point on the surface moves as the Moon turns under it.
 	var p := Bodies.selenographic_to_fixed(0.674, 23.473, Bodies.R_MOON)
 	var v := (b * p - a * p) / 3600.0
-	assert_almost_eq(v.length(), (Bodies.moon_omega().cross(a * p)).length(), 1e-3, "at 4.6 m/s")
+	assert_almost_eq(v.length(), (Bodies.moon_omega(0.0).cross(a * p)).length(), 1e-3, "at 4.6 m/s")
 
 
 func test_selenographic_coordinates_round_trip() -> void:

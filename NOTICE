@@ -34,6 +34,23 @@ maps by tools/terrain/build_terrain.py:
 These are data, not this project's code: use them with the credits
 above.
 
+Lunar and solar ephemeris
+-------------------------
+data/ephemeris/ holds Chebyshev series fitted by
+tools/ephemeris/fit_ephemeris.py, and tests/fixtures/ephemeris_check.json
+the values held out of the fit:
+
+- The Moon's and the Sun's geocentric positions: JPL's DE441 planetary
+  and lunar ephemeris (Park et al., 2021, Astron. J. 161:105), from the
+  JPL Horizons system (https://ssd.jpl.nasa.gov/horizons/). Credit:
+  NASA/JPL-Caltech Solar System Dynamics Group.
+- The Moon's orientation: the IAU Working Group on Cartographic
+  Coordinates and Rotational Elements' 2009 model (Archinal et al., 2011,
+  Celest. Mech. Dyn. Astr. 109:101), as NAIF's text kernel pck00010.tpc
+  gives it (https://naif.jpl.nasa.gov/). Credit: NASA/JPL Navigation and
+  Ancillary Information Facility.
+- TAI - UTC for 1969 from the US Naval Observatory's tai-utc.dat.
+
 Vendored software
 -----------------
 addons/gut/ is GUT (Godot Unit Test) 9.4.0 by Tom "Butch" Wesley,

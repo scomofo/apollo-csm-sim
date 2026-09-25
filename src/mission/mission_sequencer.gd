@@ -774,7 +774,7 @@ func _set_lm_landed(t: float) -> void:
 	var site := landing_site()
 	var up := Rtcc.site_at(site, t).normalized()
 	var pos := up * (site.length() + cm)
-	lm.traj.set_state("moon", t, pos, Bodies.moon_omega().cross(pos))
+	lm.traj.set_state("moon", t, pos, Bodies.moon_omega(t).cross(pos))
 	var tr := dynamics.traj
 	var fwd := tr.pos().cross(tr.vel()).normalized().cross(up).normalized()
 	lm.attitude.q = Basis(up, fwd.cross(up), fwd).get_rotation_quaternion()

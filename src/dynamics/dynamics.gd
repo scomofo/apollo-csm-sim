@@ -306,7 +306,7 @@ func _check_surface() -> void:
 	if alt > cm:
 		return
 	var up := r.normalized()
-	var rel := lm.traj.vel() - Bodies.moon_omega().cross(r)
+	var rel := lm.traj.vel() - Bodies.moon_omega(lm.traj.t).cross(r)
 	var down := -rel.dot(up)
 	var across := (rel + up * down).length()
 	lm.land(ground + cm)

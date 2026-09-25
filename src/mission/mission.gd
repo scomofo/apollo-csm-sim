@@ -29,7 +29,15 @@ func section(name: String) -> Dictionary:
 	return data.get(name, {})
 
 
+## Set Bodies' Moon and Sun from the moon block: JPL's ephemeris for the
+## mission when it names one ("ephemeris", a res:// path), or else the
+## circular model its angles give.
 func apply_ephemeris() -> void:
 	var m := section("moon")
+	if m.has("ephemeris"):
+		var e := Ephemeris.load_file(str(m["ephemeris"]))
+		assert(absf(e.epoch_jd_utc - float(data["liftoff_jd"])) < 1e-9, "the ephemeris counts GET from the mission's liftoff_jd")
+		Bodies.use_ephemeris(e)
+		return
 	Bodies.configure(float(m.get("inclination_deg", 28.5)), float(m.get("raan_deg", 0.0)),
 		float(m.get("phase0_deg", 0.0)), float(m.get("sun_phase_deg", -20.0)))

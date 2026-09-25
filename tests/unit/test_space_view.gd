@@ -74,9 +74,9 @@ func test_world_directions_follow_the_attitude() -> void:
 	var to_moon := Vector3(m[0], m[1], m[2]) - Vector3(R, 0, 0)
 	assert_almost_eq(view.moon.position.normalized(), (eci_to_cabin * to_moon).normalized(), Vector3.ONE * 1e-5)
 	# The light shines from the Sun: its +Z axis points at it.
-	assert_almost_eq(view.sun.global_transform.basis.z, eci_to_cabin * Bodies.sun_direction(), Vector3.ONE * 1e-5)
+	assert_almost_eq(view.sun.global_transform.basis.z, eci_to_cabin * Bodies.sun_direction(0.0), Vector3.ONE * 1e-5)
 	var glow_sun: Vector3 = (view.earth_glow.material_override as ShaderMaterial).get_shader_parameter("sun_dir")
-	assert_almost_eq(glow_sun, eci_to_cabin * Bodies.sun_direction(), Vector3.ONE * 1e-5, "the glow is lit from the Sun")
+	assert_almost_eq(glow_sun, eci_to_cabin * Bodies.sun_direction(0.0), Vector3.ONE * 1e-5, "the glow is lit from the Sun")
 	var sky: Basis = view.sky_material.get_shader_parameter("cabin_to_eci")
 	assert_true(sky.is_equal_approx(eci_to_cabin.inverse()), "the stars stay fixed in ECI")
 	# Body orientations: the Earth's pole is ECI +Z, the Moon faces the Earth,

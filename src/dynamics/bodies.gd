@@ -1,11 +1,16 @@
 ## Earth-Moon system constants and the lunar ephemeris. See README.md, "Fidelity".
 ##
-## The Moon moves on a circular orbit about the Earth in a plane of fixed
-## inclination to the Earth-centred inertial (ECI) equator. That is a
-## deliberate simplification [simplified]: real lunar eccentricity (0.055)
-## and solar perturbation are omitted so that trajectory targeting stays
-## cheap and deterministic. Spacecraft motion itself is fully three-body
-## (Earth + Moon) at all times.
+## Two models of the Moon and the Sun, which the mission's moon block
+## chooses (Mission.apply_ephemeris()):
+## - JPL's (use_ephemeris()): the Moon's and the Sun's geocentric positions
+##   from DE441 and the Moon's orientation from the IAU's rotation model,
+##   fitted for the mission's dates (Ephemeris, data/ephemeris/). ECI is
+##   then the ICRF, the J2000 equator and equinox.
+## - A circular one (configure()): the Moon on a circular orbit in a plane
+##   of fixed inclination to the ECI equator, turning with its pole on that
+##   plane's normal, and a fixed Sun [simplified]. The propagator's analytic
+##   checks fly on it.
+## Spacecraft motion itself is three-body (Earth + Moon) in either.
 class_name Bodies
 extends RefCounted
 
@@ -20,7 +25,11 @@ const MOON_SOI: float = 66100000.0
 ## 400,000 ft).
 const ENTRY_INTERFACE_ALT: float = 121920.0
 
-## Lunar orbit plane: inclination to the ECI equator and node longitude.
+## The JPL ephemeris the Moon and the Sun follow, or null for the circular
+## model below.
+static var ephemeris: Ephemeris = null
+## The circular model's lunar orbit plane: inclination to the ECI equator
+## and node longitude.
 static var moon_inclination: float = deg_to_rad(28.5)
 static var moon_raan: float = 0.0
 ## Moon argument of latitude at GET 0, rad.
@@ -29,20 +38,39 @@ static var moon_phase0: float = 0.0
 static var sun_phase: float = 0.0
 
 
+## The circular model's mean motion, or with the ephemeris the Moon's mean
+## rate of turning over the ephemeris's span (its sidereal month), rad/s.
 static func moon_mean_motion() -> float:
+	if ephemeris:
+		var a := ephemeris.start_get_s
+		var b := a + ephemeris.segments * ephemeris.segment_s
+		return deg_to_rad(ephemeris.moon_angles(b)[2] - ephemeris.moon_angles(a)[2]) / (b - a)
 	return sqrt((MU_EARTH + MU_MOON) / (MOON_DIST * MOON_DIST * MOON_DIST))
 
 
+## Fly on the circular model.
 static func configure(inclination_deg: float, raan_deg: float, phase0_deg: float, sun_phase_deg: float = -20.0) -> void:
+	ephemeris = null
 	sun_phase = deg_to_rad(sun_phase_deg)
 	moon_inclination = deg_to_rad(inclination_deg)
 	moon_raan = deg_to_rad(raan_deg)
 	moon_phase0 = deg_to_rad(phase0_deg)
 
 
+## Fly on JPL's ephemeris [param e].
+static func use_ephemeris(e: Ephemeris) -> void:
+	ephemeris = e
+
+
 ## Unit vectors P (node direction) and Q (90° ahead in the orbit plane) of
 ## the lunar orbit, and its normal W. Returned as PackedFloat64Array(9).
+## With the ephemeris, the osculating orbit's at GET 0.
 static func moon_plane() -> PackedFloat64Array:
+	if ephemeris:
+		var w := moon_normal()
+		var p := Vector3(0, 0, 1).cross(w).normalized()
+		var q := w.cross(p)
+		return PackedFloat64Array([p.x, p.y, p.z, q.x, q.y, q.z, w.x, w.y, w.z])
 	var co := cos(moon_raan)
 	var so := sin(moon_raan)
 	var ci := cos(moon_inclination)
@@ -53,6 +81,8 @@ static func moon_plane() -> PackedFloat64Array:
 ## Moon position and velocity relative to Earth at GET [param t], as
 ## PackedFloat64Array [x, y, z, vx, vy, vz] (m, m/s).
 static func moon_state(t: float) -> PackedFloat64Array:
+	if ephemeris:
+		return ephemeris.moon_state(t)
 	var n := moon_mean_motion()
 	var th := moon_phase0 + n * t
 	var c := cos(th)
@@ -65,18 +95,44 @@ static func moon_state(t: float) -> PackedFloat64Array:
 		vd * (-s * pl[0] + c * pl[3]), vd * (-s * pl[1] + c * pl[4]), vd * (-s * pl[2] + c * pl[5])])
 
 
-## Moon orbit normal in ECI.
+## The Moon's position relative to the Earth at GET [param t], m: the
+## first three entries (the circular model returns its whole state).
+static func moon_position(t: float) -> PackedFloat64Array:
+	if ephemeris:
+		return ephemeris.moon_position(t)
+	return moon_state(t)
+
+
+## The normal of the Moon's orbit about the Earth in ECI: the sense of its
+## motion, which tells a free return from a pass the other way. With the
+## ephemeris, the osculating orbit's at GET 0 (its plane turns some 0.05
+## degrees a day).
 static func moon_normal() -> Vector3:
+	if ephemeris:
+		var m := ephemeris.moon_state(0.0)
+		return Vector3(m[1] * m[5] - m[2] * m[4], m[2] * m[3] - m[0] * m[5], m[0] * m[4] - m[1] * m[3]).normalized()
 	var pl := moon_plane()
 	return Vector3(pl[6], pl[7], pl[8])
 
 
+## The Moon's north pole in ECI at GET [param t]: the axis it turns about.
+## The circular model puts it on the orbit normal; the real one is 6.7
+## degrees from it.
+static func moon_pole(t: float) -> Vector3:
+	var a := moon_fixed_axes(t)
+	return Vector3(a[6], a[7], a[8])
+
+
 ## The Moon-fixed (selenographic) frame at GET [param t]: the basis whose
-## columns are its axes in ECI. X points at the Earth (0° N, 0° E), Z is
-## the north pole and Y is 90° E. [simplified: the Moon turns
-## synchronously, with its pole on the normal of its orbit; the real Moon
-## librates, and its pole is 1.5° from the ecliptic's (slice 4a).]
+## columns are its axes in ECI. X points at the Earth's mean direction
+## (0° N, 0° E), Z is the north pole and Y is 90° E: with the ephemeris,
+## the IAU's mean Earth/polar axis frame, which librates as the real Moon
+## does. [simplified, circular model: the Moon turns synchronously, with
+## its pole on the normal of its orbit.]
 static func moon_fixed(t: float) -> Basis:
+	if ephemeris:
+		var a := ephemeris.moon_axes(t)
+		return Basis(Vector3(a[0], a[1], a[2]), Vector3(a[3], a[4], a[5]), Vector3(a[6], a[7], a[8]))
 	var th := moon_phase0 + moon_mean_motion() * t
 	var pl := moon_plane()
 	var w := Vector3(pl[6], pl[7], pl[8])
@@ -87,6 +143,8 @@ static func moon_fixed(t: float) -> Basis:
 ## The Moon-fixed frame's axes in ECI at GET [param t], as moon_fixed()
 ## has them but in doubles: PackedFloat64Array(9), X, then Y, then Z.
 static func moon_fixed_axes(t: float) -> PackedFloat64Array:
+	if ephemeris:
+		return ephemeris.moon_axes(t)
 	var th := moon_phase0 + moon_mean_motion() * t
 	var pl := moon_plane()
 	var c := cos(th)
@@ -108,8 +166,10 @@ static func to_moon_fixed(r: Array, t: float) -> PackedFloat64Array:
 		r[0] * a[6] + r[1] * a[7] + r[2] * a[8]])
 
 
-## The Moon's rotation in ECI, rad/s.
-static func moon_omega() -> Vector3:
+## The Moon's angular velocity in ECI at GET [param t], rad/s.
+static func moon_omega(t: float) -> Vector3:
+	if ephemeris:
+		return ephemeris.moon_omega(t)
 	return moon_normal() * moon_mean_motion()
 
 
@@ -129,10 +189,14 @@ static func fixed_to_selenographic(p: Vector3) -> Vector3:
 	return Vector3(rad_to_deg(asin(clampf(p.z / maxf(r, 1e-9), -1.0, 1.0))), rad_to_deg(atan2(p.y, p.x)), r)
 
 
-## Unit vector toward the Sun in ECI [simplified: fixed for the mission and
-## placed in the lunar orbit plane at sun_phase, chosen so the Moon shows
-## the waxing crescent Apollo 11 met: ~65° east of the Sun at LOI].
-static func sun_direction() -> Vector3:
+## Unit vector from the Earth toward the Sun in ECI at GET [param t]. With
+## the circular model [simplified: fixed for the mission and placed in the
+## lunar orbit plane at sun_phase, chosen so the Moon shows the waxing
+## crescent Apollo 11 met: ~65° east of the Sun at LOI].
+static func sun_direction(t: float) -> Vector3:
+	if ephemeris:
+		var s := ephemeris.sun_position(t)
+		return Vector3(s[0], s[1], s[2]).normalized()
 	var pl := moon_plane()
 	return (Vector3(pl[0], pl[1], pl[2]) * cos(sun_phase) + Vector3(pl[3], pl[4], pl[5]) * sin(sun_phase)).normalized()
 

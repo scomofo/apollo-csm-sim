@@ -359,7 +359,7 @@ static func site_at(site_mf: Vector3, t: float) -> Vector3:
 ## the plane stays over the site for revolutions either side.
 static func site_orbit_normal(site_mf: Vector3, t: float) -> Vector3:
 	var s := site_at(site_mf, t).normalized()
-	var w := Bodies.moon_normal()
+	var w := Bodies.moon_pole(t)
 	var e := s - w * s.dot(w)
 	if e.length() < 1e-9:
 		return -w
@@ -525,7 +525,7 @@ static func simulate_ascent(tr: Trajectory, mass: float, plane: Vector3, tg: Dic
 			lift_s = lift_s + dt if f * x.dot(up) / m > gr * Dynamics.LIFTOFF_MARGIN else 0.0
 			if lift_s < Dynamics.LIFTOFF_S:
 				var p := Bodies.moon_fixed(tr.t + dt) * spot
-				tr.set_state("moon", tr.t + dt, p, Bodies.moon_omega().cross(p))
+				tr.set_state("moon", tr.t + dt, p, Bodies.moon_omega(tr.t + dt).cross(p))
 				x = p.normalized()
 				m -= mdot * level * dt
 				continue
@@ -558,14 +558,14 @@ static func plan_liftoff(site_mf: Vector3, mass: float, csm: Trajectory, phase_d
 	var cm := site_mf.normalized() * (site_r + Dynamics.lm_cm_height("lm_ascent"))
 	var target := deg_to_rad(phase_deg)
 	# The CSM gains on the spot at its orbital rate, and the Moon's turning.
-	var rate := csm.speed() / csm.radius() - Bodies.moon_mean_motion() * plane.dot(Bodies.moon_normal())
+	var rate := csm.speed() / csm.radius() - Bodies.moon_omega(csm.t).dot(plane)
 	var base := csm.clone()
 	if earliest > base.t:
 		base.coast_to(earliest, 60.0, FRAC)
 	var fly := func(tig: float) -> Dictionary:
 		var tr := Trajectory.new()
 		var p := Bodies.moon_fixed(tig) * cm
-		tr.set_state("moon", tig, p, Bodies.moon_omega().cross(p))
+		tr.set_state("moon", tig, p, Bodies.moon_omega(tig).cross(p))
 		var res := simulate_ascent(tr, mass, plane, tg)
 		var c := base.clone()
 		c.coast_to(tr.t, 60.0, FRAC)
