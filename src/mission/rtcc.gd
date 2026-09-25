@@ -183,69 +183,203 @@ static func _refine(g: Callable, x0: float, x1: float, g0: float, g1: float, tol
 
 # --- TLI --------------------------------------------------------------------------
 
-## Solve the S-IVB TLI ignition time so the stack reaches the Moon with the
-## requested pericynthion altitude on the retrograde (free-return) side.
-## [param traj] is the parking-orbit state (Earth primary), not modified.
+## Coast [param traj] (modified) into the Moon's sphere of influence, or to
+## its closest approach short of it, or to [param t_max]. Returns where the
+## approach's osculating hyperbola about the Moon aims: {"t", "b" (the B
+## vector, inertial, m: from the Moon's centre to where the incoming
+## asymptote crosses the plane through it normal to the asymptote), "s"
+## (the asymptote's direction), "v_inf" (m/s), "reached"}.
+static func lunar_bplane(traj: Trajectory, t_max: float) -> Dictionary:
+	var box := {"prev": INF, "closing": false}
+	var stop := func(tr: Trajectory) -> bool:
+		var m := tr.moon_state_rel()
+		var d := sqrt(m[0] * m[0] + m[1] * m[1] + m[2] * m[2])
+		var passed: bool = d > box["prev"] and box["closing"]
+		box["closing"] = d < box["prev"]
+		box["prev"] = d
+		return d < Bodies.MOON_SOI or passed or (tr.primary == "earth" and tr.radius() < Bodies.R_EARTH)
+	var reached := traj.coast_until(stop, t_max, MAX_DT, FRAC)
+	var m := traj.moon_state_rel()
+	var r := Vector3(m[0], m[1], m[2])
+	var v := Vector3(m[3], m[4], m[5])
+	var h := r.cross(v)
+	var energy := v.length_squared() / 2.0 - Bodies.MU_MOON / r.length()
+	if energy <= 0.0:
+		return {"t": traj.t, "b": r - v.normalized() * r.dot(v.normalized()), "s": v.normalized(), "v_inf": v.length(),
+			"reached": reached}
+	var v_inf := sqrt(2.0 * energy)
+	var e_vec := v.cross(h) / Bodies.MU_MOON - r.normalized()
+	var e := e_vec.length()
+	var p_hat := e_vec / e
+	var q_hat := h.normalized().cross(p_hat)
+	var s_hat := (p_hat + q_hat * sqrt(e * e - 1.0)) / e
+	return {"t": traj.t, "b": s_hat.cross(h.normalized()) * (h.length() / v_inf), "s": s_hat, "v_inf": v_inf,
+		"reached": reached}
+
+
+## The B vector that passes the Moon at [param rp] from its centre, on the
+## retrograde (free-return) side, for the approach [param bp]: in the plane
+## that holds the landing site [param site_mf] at GET [param t_land], or
+## without a site, in the plane of the Moon's orbit.
+static func bplane_target(bp: Dictionary, rp: float, site_mf: Vector3, t_land: float) -> Vector3:
+	var s: Vector3 = bp["s"]
+	var v_inf: float = bp["v_inf"]
+	var b := rp * sqrt(1.0 + 2.0 * Bodies.MU_MOON / (rp * v_inf * v_inf))
+	var n := Bodies.moon_normal()
+	var dir := s.cross(n).normalized()
+	if site_mf != Vector3.ZERO:
+		var site := site_at(site_mf, t_land).normalized()
+		dir = (site - s * site.dot(s)).normalized()
+	# The orbit's normal lies along B x S: against the Moon's orbit normal.
+	if dir.cross(s).dot(n) > 0.0:
+		dir = -dir
+	return dir * b
+
+
+## Solve the S-IVB's TLI ignition time and yaw so the stack reaches the
+## Moon with the requested pericynthion altitude on the retrograde
+## (free-return) side, in the plane that holds the landing site
+## [param site_mf] at GET [param t_land] (or, without a site, the Moon's
+## orbit plane): the aim a midcourse correction then keeps. The ignition
+## time sets where the trajectory passes the Moon along its orbit, the yaw
+## how far out of it. [param traj] is the parking-orbit state (Earth
+## primary), not modified.
+## [simplified: Apollo 11's IU shaped the transfer with iterative guidance
+## and turned its plane 1.3 degrees at TLI; the energy-cutoff law turns it
+## with a fixed yaw, some degrees more.]
 static func plan_tli(traj: Trajectory, stack_mass: float, sivb_prop: float, energy: float,
-		pericynthion_alt: float, earliest: float) -> Dictionary:
-	var target := -(Bodies.R_MOON + pericynthion_alt)
+		pericynthion_alt: float, earliest: float, site_mf: Vector3 = Vector3.ZERO, t_land: float = 0.0) -> Dictionary:
+	var rp := Bodies.R_MOON + pericynthion_alt
 	var period: float = traj.conic()["period"]
 	var start := traj.clone()
 	start.coast_to(earliest, 30.0, FRAC)
-	var eval := func(tig: float) -> float:
+	var site := site_at(site_mf, t_land).normalized() if site_mf != Vector3.ZERO else Vector3.ZERO
+	var fly := func(tig: float, yaw: float) -> Trajectory:
 		var tr := start.clone()
 		tr.coast_to(tig, 30.0, FRAC)
-		Sivb.simulate_burn(tr, stack_mass, sivb_prop, energy)
+		Sivb.simulate_burn(tr, stack_mass, sivb_prop, energy, yaw)
+		return tr
+	# The B vector's miss from the aim, along the B-plane's T axis (in the
+	# Moon's orbit plane) and its R axis.
+	var miss := func(tig: float, yaw: float) -> Vector2:
+		var bp := lunar_bplane(fly.call(tig, yaw), tig + 6.0 * 86400.0)
+		if not bp["reached"]:
+			return Vector2(NAN, NAN)
+		var d: Vector3 = (bp["b"] as Vector3) - bplane_target(bp, rp, site_mf, t_land)
+		var sh: Vector3 = bp["s"]
+		var t_hat := sh.cross(Bodies.moon_normal()).normalized()
+		return Vector2(d.dot(t_hat), d.dot(sh.cross(t_hat)))
+	# The misses at the closest approach itself: the signed pericynthion,
+	# and how far the orbit's plane passes from the site (or the B-plane's
+	# R miss without one), m.
+	var actual := func(tig: float, yaw: float) -> Vector2:
+		var tr: Trajectory = fly.call(tig, yaw)
 		var ap := lunar_approach(tr, tig + 6.0 * 86400.0)
-		return float(ap["f"]) - target if ap["reached"] else NAN
-	var tig := solve_scan(eval, earliest, earliest + 1.5 * period, 18, 0.05)
+		if not ap["reached"]:
+			return Vector2(NAN, NAN)
+		var off := 0.0
+		if site != Vector3.ZERO:
+			var rel := tr.moon_state_rel()
+			off = Vector3(rel[0], rel[1], rel[2]).cross(Vector3(rel[3], rel[4], rel[5])).normalized().dot(site) * rp
+		else:
+			off = (miss.call(tig, yaw) as Vector2).y
+		return Vector2(float(ap["f"]) + rp, off)
+	# The window: where the miss along T changes sign, flying in plane.
+	var tig := solve_scan(func(x: float) -> float: return (miss.call(x, 0.0) as Vector2).x,
+		earliest, earliest + 1.5 * period, 18, 0.5)
 	if is_nan(tig):
 		return {}
+	# Then the ignition time and the yaw together: first onto the B-plane
+	# aim, whose misses run nearly straight with them, then onto the
+	# closest approach's own.
+	var yaw := 0.0
+	for stage in 2:
+		var f: Callable = miss if stage == 0 else actual
+		var tol := 5000.0 if stage == 0 else 500.0
+		for _i in 10:
+			var m0: Vector2 = f.call(tig, yaw)
+			if is_nan(m0.x):
+				return {}
+			if absf(m0.x) < tol and absf(m0.y) < tol:
+				break
+			var mt: Vector2 = ((f.call(tig + 0.5, yaw) as Vector2) - m0) / 0.5
+			var my: Vector2 = ((f.call(tig, yaw + 0.002) as Vector2) - m0) / 0.002
+			var det := mt.x * my.y - my.x * mt.y
+			if absf(det) < 1e-9:
+				return {}
+			tig += clampf((-m0.x * my.y + m0.y * my.x) / det, -120.0, 120.0)
+			yaw += clampf((-mt.x * m0.y + mt.y * m0.x) / det, -0.05, 0.05)
 	var tr := start.clone()
 	tr.coast_to(tig, 30.0, FRAC)
 	var v0 := tr.speed()
-	var left := Sivb.simulate_burn(tr, stack_mass, sivb_prop, energy)
+	var left := Sivb.simulate_burn(tr, stack_mass, sivb_prop, energy, yaw)
 	var cutoff := tr.t
 	var dv := tr.speed() - v0
 	var ap := lunar_approach(tr, tig + 6.0 * 86400.0)
-	return {"name": "TLI", "tig": tig, "energy": energy, "cutoff": cutoff,
+	return {"name": "TLI", "tig": tig, "energy": energy, "yaw": yaw, "cutoff": cutoff,
 		"dv": dv, "sivb_prop_left": left,
 		"pericynthion_get": ap["t"], "pericynthion_alt": float(ap["rp"]) - Bodies.R_MOON}
 
 
 # --- midcourse corrections ---------------------------------------------------
 
-## Minimum-norm LVLH (X, Z) correction at [param tig] driving metric
+## Minimum-norm LVLH correction at [param tig] driving metric
 ## [param target_kind] ("moon": signed pericynthion; "earth": signed
-## perigee) to [param target_f]. Returns a PAD; dv 0 when not required.
-static func plan_mcc(traj: Trajectory, mass: float, tig: float, target_kind: String, target_f: float, t_max: float) -> Dictionary:
+## perigee) to [param target_f]. Toward the Moon with a landing site
+## [param site_mf], it also keeps the approach's plane on the site at GET
+## [param t_land], out of plane (Y) as need be. Returns a PAD; dv 0 when not
+## required.
+static func plan_mcc(traj: Trajectory, mass: float, tig: float, target_kind: String, target_f: float, t_max: float,
+		site_mf: Vector3 = Vector3.ZERO, t_land: float = 0.0) -> Dictionary:
 	var at := traj.clone()
 	at.coast_to(tig, 60.0, FRAC)
-	var metric := func(dv_lvlh: Vector3) -> float:
+	var plane := target_kind == "moon" and site_mf != Vector3.ZERO
+	var site := site_at(site_mf, t_land).normalized() if plane else Vector3.ZERO
+	var rp := absf(target_f)
+	# The misses: the signed pericynthion (or perigee), and how far the
+	# approach's plane passes from the site, m at the pericynthion's radius.
+	var metric := func(dv_lvlh: Vector3) -> Vector2:
 		var tr := at.clone()
 		if dv_lvlh.length() > 1e-6:
 			simulate_sps_burn(tr, mass, dv_lvlh)
 		var res := lunar_approach(tr, t_max) if target_kind == "moon" else earth_return(tr, t_max)
-		return float(res["f"]) - target_f
+		var off := 0.0
+		if plane:
+			var rel := tr.moon_state_rel()
+			off = Vector3(rel[0], rel[1], rel[2]).cross(Vector3(rel[3], rel[4], rel[5])).normalized().dot(site) * rp
+		return Vector2(float(res["f"]) - target_f, off)
 	var dv := Vector3.ZERO
-	var err: float = metric.call(dv)
+	var err: Vector2 = metric.call(dv)
 	var tol := 20000.0 if target_kind == "moon" else 5000.0
-	for _i in 6:
-		if absf(err) < tol:
+	for _i in 8:
+		if absf(err.x) < tol and absf(err.y) < tol:
 			break
 		var h := 0.5
-		var gx: float = (float(metric.call(dv + Vector3(h, 0, 0))) - err) / h
-		var gz: float = (float(metric.call(dv + Vector3(0, 0, h))) - err) / h
-		var g2 := gx * gx + gz * gz
-		if g2 < 1e-9:
-			break
-		var step := Vector3(gx, 0, gz) * (-err / g2)
+		var gx: Vector2 = ((metric.call(dv + Vector3(h, 0, 0)) as Vector2) - err) / h
+		var gy: Vector2 = ((metric.call(dv + Vector3(0, h, 0)) as Vector2) - err) / h
+		var gz: Vector2 = ((metric.call(dv + Vector3(0, 0, h)) as Vector2) - err) / h
+		# The least ΔV that zeroes the misses: J^T (J J^T)^-1 (-err).
+		var a := gx.x * gx.x + gy.x * gy.x + gz.x * gz.x
+		var b := gx.x * gx.y + gy.x * gy.y + gz.x * gz.y
+		var c := gx.y * gx.y + gy.y * gy.y + gz.y * gz.y
+		var step := Vector3.ZERO
+		if plane:
+			var det := a * c - b * b
+			if absf(det) < 1e-9:
+				break
+			var lx := (-err.x * c + err.y * b) / det
+			var ly := (err.x * b - err.y * a) / det
+			step = Vector3(gx.x * lx + gx.y * ly, gy.x * lx + gy.y * ly, gz.x * lx + gz.y * ly)
+		else:
+			if a < 1e-9:
+				break
+			step = Vector3(gx.x, gy.x, gz.x) * (-err.x / a)
 		if step.length() > 150.0:
 			step = step.normalized() * 150.0
 		dv += step
 		err = metric.call(dv)
 	return {"name": "MCC", "tig": tig, "dv_lvlh": dv, "dv": dv.length(),
-		"burn_s": burn_time(mass, dv.length()), "residual_m": err}
+		"burn_s": burn_time(mass, dv.length()), "residual_m": err.x, "plane_residual_m": err.y}
 
 
 # --- lunar orbit ---------------------------------------------------------------

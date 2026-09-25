@@ -88,6 +88,9 @@ func _exit_tree() -> void:
 
 # --- start states ------------------------------------------------------------
 
+## The parking orbit at insertion: circular, in the plane the mission gives
+## (inclination and ascending node in ECI), or without one in the lunar
+## orbit plane, at the given argument of latitude.
 func _parking_orbit_traj() -> Trajectory:
 	var po := mission.section("parking_orbit")
 	var r := Bodies.R_EARTH + float(po["alt_km"]) * 1000.0
@@ -95,6 +98,11 @@ func _parking_orbit_traj() -> Trajectory:
 	var pl := Bodies.moon_plane()
 	var p := Vector3(pl[0], pl[1], pl[2])
 	var q := Vector3(pl[3], pl[4], pl[5])
+	if po.has("raan_deg"):
+		var i := deg_to_rad(float(po["inclination_deg"]))
+		var o := deg_to_rad(float(po["raan_deg"]))
+		p = Vector3(cos(o), sin(o), 0.0)
+		q = Vector3(-sin(o) * cos(i), cos(o) * cos(i), sin(i))
 	var u := deg_to_rad(float(po.get("arg_lat_deg", 0.0)))
 	var tr := Trajectory.new()
 	tr.set_state("earth", float(po["insertion_get_s"]), (p * cos(u) + q * sin(u)) * r, (-p * sin(u) + q * cos(u)) * v)
@@ -111,7 +119,7 @@ func _plan_tli(tr: Trajectory) -> Dictionary:
 	var t := mission.section("tli")
 	return Rtcc.plan_tli(tr, _stack_mass(), float(Bus.get_value("sivb.prop_kg", 75000.0)),
 		float(t["energy_j_per_kg"]), float(t["pericynthion_alt_km"]) * 1000.0,
-		maxf(float(t["earliest_get_s"]), tr.t + 600.0))
+		maxf(float(t["earliest_get_s"]), tr.t + 600.0), landing_site(), float(mission.section("landing")["get_s"]))
 
 
 ## Put the vehicle in the requested phase. Later phases are produced by
@@ -139,7 +147,7 @@ func start(p_phase: String) -> void:
 		var pad := _plan_tli(tr)
 		assert(not pad.is_empty(), "no TLI solution")
 		tr.coast_to(float(pad["tig"]), 30.0)
-		sivb_prop = Sivb.simulate_burn(tr, _stack_mass(), sivb_prop, float(pad["energy"]))
+		sivb_prop = Sivb.simulate_burn(tr, _stack_mass(), sivb_prop, float(pad["energy"]), float(pad["yaw"]))
 		tr.coast_to(tr.t + float(mission.data.get("tde_delay_s", 3600.0)), 60.0)
 		cfg = "csm_lm"
 	if p_phase in ["lunar_orbit", "transearth_coast", "entry"] + LM_PHASES:
@@ -195,7 +203,7 @@ func start(p_phase: String) -> void:
 	if cfg == "stack":
 		tli_pad = _plan_tli(dynamics.traj)
 		if not tli_pad.is_empty():
-			systems["sivb"].arm_tli(float(tli_pad["tig"]), float(tli_pad["energy"]))
+			systems["sivb"].arm_tli(float(tli_pad["tig"]), float(tli_pad["energy"]), float(tli_pad["yaw"]))
 			Bus.set_value("mission.tli_tig", float(tli_pad["tig"]))
 			_say("Apollo 11, Houston. You are GO for TLI. TIG %s, ΔV %.0f ft/s." % [
 				Units.hms(float(tli_pad["tig"])), float(tli_pad["dv"]) / Units.FT])
@@ -429,7 +437,8 @@ func request_pad(kind: String, earliest: float = -1.0) -> Dictionary:
 			var tig := now + 900.0
 			if phase == "translunar_coast":
 				var target := -(Bodies.R_MOON + float(mission.section("tli")["pericynthion_alt_km"]) * 1000.0)
-				pad = Rtcc.plan_mcc(tr, mass, tig, "moon", target, now + 5.0 * 86400.0)
+				pad = Rtcc.plan_mcc(tr, mass, tig, "moon", target, now + 5.0 * 86400.0,
+					landing_site(), float(mission.section("landing")["get_s"]))
 			elif phase == "transearth_coast":
 				var probe := tr.clone()
 				var er := Rtcc.earth_return(probe, now + 5.0 * 86400.0)
