@@ -72,7 +72,7 @@ func tick(_dt: float) -> void:
 	alt_good = ok and hit.x <= float(d["alt_range_m"])
 	vel_good = ok and hit.x <= float(d["vel_range_m"])
 	var v_a: Array = Bus.get_value("lm.dyn.v_mps", [0.0, 0.0, 0.0])
-	var rel := Vector3(v_a[0], v_a[1], v_a[2]) - Bodies.moon_omega().cross(r)
+	var rel := Vector3(v_a[0], v_a[1], v_a[2]) - Bodies.moon_omega(t).cross(r)
 	vel_body = att.inverse() * rel if vel_good else Vector3.ZERO
 	_publish()
 

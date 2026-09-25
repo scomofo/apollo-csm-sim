@@ -408,7 +408,7 @@ func _process(_delta: float) -> void:
 	earth.basis = (eci_to_cabin * Basis(Vector3(0, 0, 1), gmst)).scaled(Vector3.ONE * earth.scale.x)
 	var mf := Bodies.moon_fixed(t)
 	moon.basis = (eci_to_cabin * Basis(mf.y, mf.z, mf.x)).scaled(Vector3.ONE * moon.scale.x)
-	var sd := Bodies.sun_direction()
+	var sd := Bodies.sun_direction(t)
 	sun.basis = eci_to_cabin * Basis.looking_at(-sd, Vector3(0, 0, 1) if absf(sd.z) < 0.99 else Vector3(1, 0, 0))
 	(earth_glow.material_override as ShaderMaterial).set_shader_parameter("sun_dir", eci_to_cabin * sd)
 	sky_material.set_shader_parameter("cabin_to_eci", eci_to_cabin.inverse())

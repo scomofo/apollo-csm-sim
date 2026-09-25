@@ -194,7 +194,7 @@ func set_lm_down(yaw_deg: float = 0.0) -> void:
 	var site := rt.sequencer.landing_site()
 	var up := Rtcc.site_at(site, lm.traj.t).normalized()
 	var pos := up * (site.length() + cm)
-	lm.traj.set_state("moon", lm.traj.t, pos, Bodies.moon_omega().cross(pos))
+	lm.traj.set_state("moon", lm.traj.t, pos, Bodies.moon_omega(lm.traj.t).cross(pos))
 	var tr := rt.dynamics.traj
 	var fwd := tr.pos().cross(tr.vel()).normalized().cross(up).normalized().rotated(up, deg_to_rad(yaw_deg))
 	lm.attitude.q = Basis(up, fwd.cross(up), fwd).get_rotation_quaternion()

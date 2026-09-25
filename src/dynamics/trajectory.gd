@@ -139,7 +139,7 @@ func _accel(tt: float, x: float, y: float, z: float, ext: PackedFloat64Array) ->
 	var qx: float
 	var qy: float
 	var qz: float
-	var m := Bodies.moon_state(tt)
+	var m := Bodies.moon_position(tt)
 	if primary == "earth":
 		mu_p = Bodies.MU_EARTH
 		mu_q = Bodies.MU_MOON
@@ -198,9 +198,10 @@ func step(dt: float, ext: PackedFloat64Array = PackedFloat64Array()) -> void:
 ## hysteresis keeps a trajectory grazing the boundary from chattering.
 func _check_soi() -> void:
 	if primary == "earth":
-		var m := Bodies.moon_state(t)
-		var dx := s[0] - m[0]; var dy := s[1] - m[1]; var dz := s[2] - m[2]
+		var mp := Bodies.moon_position(t)
+		var dx := s[0] - mp[0]; var dy := s[1] - mp[1]; var dz := s[2] - mp[2]
 		if dx * dx + dy * dy + dz * dz < Bodies.MOON_SOI * Bodies.MOON_SOI * 0.99 * 0.99:
+			var m := Bodies.moon_state(t)
 			for i in 6:
 				s[i] -= m[i]
 			primary = "moon"

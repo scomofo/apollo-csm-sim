@@ -96,8 +96,8 @@ func test_the_lunar_orbit_doi_and_pdi_are_planned_for_the_site() -> void:
 	assert_almost_eq(site.length() - Bodies.R_MOON, -1927.5, 1.0, "the site on the terrain, 1,927 m below the reference sphere")
 	var h := rt.dynamics.traj.pos().cross(rt.dynamics.traj.vel()).normalized()
 	assert_almost_eq(h.dot(Rtcc.site_at(site, t_land).normalized()), 0.0, 1e-6, "the orbit passes over the site at the landing time")
-	assert_lt(h.dot(Bodies.moon_normal()), 0.0, "retrograde")
-	assert_almost_eq(rad_to_deg(acos(-h.dot(Bodies.moon_normal()))), SITE_LAT, 0.01, "the site at the ground track's northernmost point")
+	assert_lt(h.dot(Bodies.moon_pole(t_land)), 0.0, "retrograde")
+	assert_almost_eq(rad_to_deg(acos(-h.dot(Bodies.moon_pole(t_land)))), SITE_LAT, 0.01, "the site at the ground track's northernmost point")
 	# The DOI PAD: the pass that lands nearest the landing time, with the
 	# pericynthion 470 km before the site, 50,000 ft above it.
 	assert_eq(str(_pad.get("name", "")), "DOI")
@@ -205,7 +205,7 @@ func test_a_checkpoint_in_p63_before_ignition_keeps_the_burn_attitude() -> void:
 	keys("P", lgc)
 	run(30.0, false)
 	var tr := rt.dynamics.lm.traj
-	var rel := tr.vel() - Bodies.moon_omega().cross(tr.pos())
+	var rel := tr.vel() - Bodies.moon_omega(tr.t).cross(tr.pos())
 	var thrust_axis := Basis(rt.dynamics.lm.attitude.q) * Vector3.RIGHT
 	assert_gt(float(Bus.get_value("lm.dps.thrust_n")), 0.0, "the descent engine burning")
 	assert_gt(rad_to_deg(thrust_axis.angle_to(rel)), 150.0, "retrograde")
@@ -338,7 +338,7 @@ func _fly_by_hand(lgc: Lgc) -> void:
 	var r: Array = Bus.get_value("lm.dyn.r_m")
 	var v: Array = Bus.get_value("lm.dyn.v_mps")
 	var pos := Vector3(r[0], r[1], r[2])
-	var rel := Vector3(v[0], v[1], v[2]) - Bodies.moon_omega().cross(pos)
+	var rel := Vector3(v[0], v[1], v[2]) - Bodies.moon_omega(SimClock.get_seconds).cross(pos)
 	var up := pos.normalized()
 	var h := _agl() - Dynamics.lm_cm_height("lm")
 	var g := Bodies.MU_MOON / pos.length_squared()
@@ -371,7 +371,7 @@ func test_a_landed_lm_turns_with_the_moon_and_can_lift_off() -> void:
 	var site_r := rt.sequencer.landing_site().length()
 	var up := Rtcc.site_at(rt.sequencer.landing_site(), lm.traj.t).normalized()
 	var pos := up * (site_r + cm)
-	lm.traj.set_state("moon", lm.traj.t, pos, Bodies.moon_omega().cross(pos))
+	lm.traj.set_state("moon", lm.traj.t, pos, Bodies.moon_omega(lm.traj.t).cross(pos))
 	var side := up.cross(Vector3.UP if absf(up.dot(Vector3.UP)) < 0.9 else Vector3.RIGHT).normalized()
 	lm.attitude.q = Basis(up, side, up.cross(side)).get_rotation_quaternion()
 	lm.attitude.omega = Vector3.ZERO
@@ -382,7 +382,7 @@ func test_a_landed_lm_turns_with_the_moon_and_can_lift_off() -> void:
 	assert_true(lm.landed, "an hour on the surface")
 	assert_lt(SimClock.step_count - steps, 1500, "coasting")
 	assert_lt((Bodies.moon_fixed(lm.traj.t) * spot - lm.traj.pos()).length(), 1.0, "where the Moon has turned the spot")
-	assert_almost_eq(lm.traj.vel().length(), Bodies.moon_omega().cross(lm.traj.pos()).length(), 1e-3, "moving with the surface")
+	assert_almost_eq(lm.traj.vel().length(), Bodies.moon_omega(lm.traj.t).cross(lm.traj.pos()).length(), 1e-3, "moving with the surface")
 	assert_lt(_miss(), 0.5, "at the site")
 	# The landed LM comes back from a checkpoint where it was.
 	var text := JSON.stringify(rt.snapshot())
@@ -429,6 +429,7 @@ func test_loi_turns_the_orbit_over_the_site() -> void:
 	tr.coast_to(float(loi["tig"]), 60.0)
 	Rtcc.simulate_sps_burn(tr, rt.dynamics.mass, dv)
 	var h := tr.pos().cross(tr.vel()).normalized()
-	var s := Rtcc.site_at(rt.sequencer.landing_site(), float(rt.mission.section("landing")["get_s"])).normalized()
+	var t_land := float(rt.mission.section("landing")["get_s"])
+	var s := Rtcc.site_at(rt.sequencer.landing_site(), t_land).normalized()
 	assert_almost_eq(h.dot(s), 0.0, 1e-5, "over the site at the landing time")
-	assert_lt(h.dot(Bodies.moon_normal()), 0.0, "retrograde")
+	assert_lt(h.dot(Bodies.moon_pole(t_land)), 0.0, "retrograde")
