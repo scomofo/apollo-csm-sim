@@ -1,8 +1,9 @@
-## The cabin's panels come from data/cockpit/controls.csv (docs/ROADMAP.md,
-## slice 2c): every row validates, builds onto its CmCabin panel and
-## round-trips between its node and the Bus, every HUD switch has a cabin
-## control, the cabin DSKY types into the CMC, and the desktop rig can
-## click every control from the commander's couch.
+## The cabins' panels come from data/cockpit/controls.csv (docs/ROADMAP.md,
+## slice 2c) and, Eagle's, lm_controls.csv (slice 3f): every row validates,
+## builds onto its panel and round-trips between its node and the Bus,
+## every HUD switch has a cabin control, each cabin DSKY types into its
+## computer, and the desktop rig can click every control from the
+## commander's station.
 extends SimTest
 
 const RIG := preload("res://scenes/player/desktop_rig.tscn")
@@ -16,17 +17,18 @@ func before_each() -> void:
 	layout = CockpitLayout.load_default()
 
 
-func _cabin() -> CmCabin:
-	var cabin := CmCabin.new()
-	cabin.items = layout.build(cabin)
+func _cabin(p_layout: CockpitLayout = layout, lm: bool = false) -> Cabin:
+	var cabin: Cabin = LmCabin.new() if lm else CmCabin.new()
+	cabin.items = p_layout.build(cabin)
 	add_child_autofree(cabin)
 	return cabin
 
 
 ## Push a switch up the way a finger does until it reaches [param p]; a
-## guarded switch's first push lifts the guard.
+## guarded switch's first push lifts the guard, and a lever-locked one's
+## pulls the lever out before each move.
 func _move(node: Node3D, p: int) -> void:
-	for i in 3:
+	for i in 6:
 		if node.get("position_index") == p:
 			return
 		node.call("actuate", 1)
@@ -37,10 +39,16 @@ func _key(d: CabinDsky, key: String) -> void:
 	d.keys[key].call("release")
 
 
-func test_the_shipped_layout_validates() -> void:
+func test_the_shipped_layouts_validate() -> void:
 	assert_gt(layout.channels.size(), 0, "channels.csv loaded")
 	assert_gt(layout.rows.size(), 0, "controls.csv loaded")
 	assert_true(layout.validate(), "\n".join(layout.errors))
+	var lm := CockpitLayout.load_lm()
+	assert_eq(lm.panels, LmCabin.PANELS, "Eagle's rows go on Eagle's panels")
+	assert_gt(lm.rows.size(), 0, "lm_controls.csv loaded")
+	assert_true(lm.validate(), "\n".join(lm.errors))
+	for r in lm.rows:
+		assert_false(CmCabin.PANELS.has(r["panel"]), "%s: not on Columbia's console" % r["id"])
 
 
 func test_malformed_rows_are_reported() -> void:
@@ -68,6 +76,9 @@ func test_malformed_rows_are_reported() -> void:
 		"BAD_SCALE": "controls keep their size",
 		"BAD_X": "y_mm must be a number",
 		"BAD_SOURCE": "every row names its source",
+		"BAD_VALUES_N": "values must give all 3 positions a value",
+		"BAD_VALUES_DUP": "two positions publish the same value",
+		"BAD_VALUES_BOOL": "a switch on a bool channel publishes a bool, not values",
 	}
 	for id in expect:
 		var found := false
@@ -80,26 +91,39 @@ func test_malformed_rows_are_reported() -> void:
 
 
 func test_every_row_round_trips_between_its_node_and_the_bus() -> void:
-	var cabin := _cabin()
+	_round_trip(layout, _cabin())
+	var lm := CockpitLayout.load_lm()
+	_round_trip(lm, _cabin(lm, true))
+
+
+## The value [param node] publishes in position [param p].
+func _value(node: Node3D, p: int) -> int:
+	return node.call("value_at", p) if node.has_method("value_at") else p
+
+
+func _round_trip(p_layout: CockpitLayout, cabin: Cabin) -> void:
 	var checked := 0
-	for r in layout.rows:
+	for r in p_layout.rows:
 		var id: String = r["id"]
 		var node: Node3D = cabin.items[id]
 		assert_eq(node.get_parent(), cabin.panel_node(r["panel"]), "%s is on %s" % [id, r["panel"]])
 		var ch: String = r["channel"]
-		var as_bool := layout.channel_type(ch) == "bool"
+		var as_bool := p_layout.channel_type(ch) == "bool"
 		match r["type"]:
 			"toggle", "rotary":
 				var n: int = node.get("positions")
 				for p in n:
-					Bus.set_value(ch, (p == 1) if as_bool else p)
+					Bus.set_value(ch, (p == 1) if as_bool else _value(node, p))
 					assert_eq(node.get("position_index"), p, "%s follows the Bus to %d" % [id, p])
-				Bus.set_value(ch, false if as_bool else 0)
+				Bus.set_value(ch, false if as_bool else _value(node, 0))
 				for p in range(1, n):
 					_move(node, p)
 					var v: Variant = Bus.get_value(ch)
 					assert_eq(typeof(v), TYPE_BOOL if as_bool else TYPE_INT, "%s publishes its channel's type" % id)
-					assert_eq(v, (p == 1) if as_bool else p, "%s sets the Bus to position %d" % [id, p])
+					assert_eq(v, (p == 1) if as_bool else _value(node, p), "%s sets the Bus to position %d" % [id, p])
+				if r["type"] == "toggle" and not (node.get("momentary_positions") as PackedInt32Array).is_empty():
+					node.call("release")
+					assert_eq(node.get("position_index"), node.get("rest_position"), "%s springs back" % id)
 			"pushbutton":
 				node.call("actuate", 0)
 				assert_eq(Bus.get_value(ch), true, "%s pressed" % id)
@@ -111,17 +135,27 @@ func test_every_row_round_trips_between_its_node_and_the_bus() -> void:
 				Bus.set_value(ch, false)
 				assert_false(node.get("lit"), "%s out" % id)
 			"numeric":
+				var valid := str(node.get("valid_channel"))
+				if valid != "":
+					Bus.set_value(valid, false)
+					Bus.set_value(ch, 28.37)
+					assert_eq(node.call("text"), node.get("blank_text"), "%s blank without good data" % id)
+					Bus.set_value(valid, true)
 				Bus.set_value(ch, 28.37)
-				assert_eq(node.call("text"), "28.4", "%s reads the Bus" % id)
+				var want := str(node.get("format")) % Units.convert(28.37, str(node.get("converter")))
+				assert_eq(node.call("text"), want, "%s reads the Bus" % id)
+				if id == "P3_BUS_A_VOLTS":
+					assert_eq(want, "28.4")
 			"clock":
 				Bus.set_value("eps.bus_a_v", 28.0)
 				Bus.set_value(ch, 3723.0)
 				assert_eq(node.call("text"), "001:02:03", "%s reads the Bus" % id)
 			"fdai":
 				var ball: Node3D = node.get_node("Ball")
-				Bus.set_value(ch, Quaternion(Vector3(0, 1, 0), 0.4))
+				var level := Frames.LM_LEVEL.get_rotation_quaternion() if node.get("vehicle") == "lm" else Quaternion.IDENTITY
+				Bus.set_value(ch, level * Quaternion(Vector3(0, 1, 0), 0.4))
 				assert_false(ball.basis.is_equal_approx(Basis.IDENTITY), "%s turns its ball" % id)
-				Bus.set_value(ch, Quaternion.IDENTITY)
+				Bus.set_value(ch, level)
 				assert_true(ball.basis.is_equal_approx(Basis.IDENTITY), "%s levels its ball" % id)
 			"dsky":
 				var d := node as CabinDsky
@@ -137,13 +171,20 @@ func test_every_row_round_trips_between_its_node_and_the_bus() -> void:
 				fail_test("%s: no round trip for type %s" % [id, r["type"]])
 				continue
 		checked += 1
-	assert_eq(checked, layout.rows.size(), "every row checked")
+	assert_eq(checked, p_layout.rows.size(), "every row checked")
 
 
 func test_every_hud_switch_has_a_cabin_control() -> void:
-	# Work every button of the HUD's switch panel and record what it writes.
+	assert_eq(_hud_switches_without_a_control("_switch_panel", layout, 21), [], "Columbia's")
+	assert_eq(_hud_switches_without_a_control("_lm_switch_panel", CockpitLayout.load_lm(), 8), [], "Eagle's")
+
+
+## Work every button of the HUD's switch panel [param panel_method],
+## record what it writes, and return the channels [param p_layout] has no
+## control for. The panel writes [param expect] channels.
+func _hud_switches_without_a_control(panel_method: String, p_layout: CockpitLayout, expect: int) -> Array:
 	var hud := Hud.new()
-	var panel: Control = hud.call("_switch_panel")
+	var panel: Control = hud.call(panel_method)
 	var written := {}
 	var record := func(ch: String, _v: Variant) -> void: written[ch] = true
 	Bus.value_changed.connect(record)
@@ -159,12 +200,11 @@ func test_every_hud_switch_has_a_cabin_control() -> void:
 	panel.free()
 	hud.free()
 	var cabin := {}
-	for r in layout.rows:
+	for r in p_layout.rows:
 		if CockpitLayout.TYPES[r["type"]]["control"]:
 			cabin[r["channel"]] = r["id"]
-	assert_eq(written.size(), 21, "the HUD's switch panel writes 21 channels")
-	for ch in written:
-		assert_true(cabin.has(ch), "the cabin has a control for %s" % ch)
+	assert_eq(written.size(), expect, "%s writes %d channels" % [panel_method, expect])
+	return written.keys().filter(func(ch: String) -> bool: return not cabin.has(ch))
 
 
 func test_dsky_keys_type_into_the_cmc_and_it_shows_on_the_cabin_dsky() -> void:
@@ -202,13 +242,45 @@ func test_dsky_keys_type_into_the_cmc_and_it_shows_on_the_cabin_dsky() -> void:
 	assert_false(d.lamps["opr_err"].get("lit"), "RSET")
 
 
-func test_the_desktop_rig_can_click_every_control_from_the_commanders_couch() -> void:
+func test_eagles_dsky_types_into_the_lgc_with_its_alt_and_vel_lamps() -> void:
+	build("lunar_descent")
+	var cabin := LmCabin.create()
+	add_child_autofree(cabin)
+	cabin.connect_runtime(rt)
+	var d: CabinDsky = cabin.items["P4_DSKY"]
+	assert_eq(d.dsky, rt.lgc().dsky, "panel 4's DSKY is the LGC's")
+	assert_eq(d.keys.size(), 19)
+	for lamp in ["uplink_acty", "temp", "no_att", "gimbal_lock", "stby", "prog", "key_rel", "restart", "opr_err", "tracker", "alt", "vel"]:
+		assert_true(d.lamps.has(lamp), "the LGC's %s lamp" % lamp)
+	for k in ["VERB", "1", "6", "NOUN", "6", "8", "ENTR"]:
+		_key(d, k)
+	assert_eq([rt.lgc().dsky.verb, rt.lgc().dsky.noun], ["16", "68"], "V16N68 keyed into the LGC")
+	assert_ne(rt.agc().dsky.noun, "68", "not the CMC")
+	assert_eq([d.fields["verb"].text, d.fields["noun"].text], ["16", "68"], "and shown")
+	Bus.set_value("lm.dsky.lamp.alt", true)
+	Bus.set_value("lm.dsky.lamp.vel", false)
+	assert_true(d.lamps["alt"].get("lit"), "ALT: no landing radar altitude")
+	assert_false(d.lamps["vel"].get("lit"))
+	# Seven rows of lamps in the height of the CMC's five, clear of the keys.
+	var lowest: Node3D = d.lamps["vel"]
+	assert_gt(lowest.position.y - 0.010 * lowest.scale.y, d.keys["7"].position.y + 0.0125, "above the keys")
+	assert_lt(d.lamps["uplink_acty"].position.y + 0.010 * lowest.scale.y, CabinDsky.SIZE.y * 0.5, "on the case")
+
+
+func test_the_desktop_rig_can_click_every_control_from_the_commanders_station() -> void:
+	await _click_every_control(CmCabin.new(), layout, 21 + 19)
+	await _click_every_control(LmCabin.new(), CockpitLayout.load_lm(), 8 + 19)
+
+
+## Build [param p_layout] onto [param cabin] in a viewport and point the
+## desktop rig at each of its [param expect] controls from the commander's
+## eye: each is the one under the pointer.
+func _click_every_control(cabin: Cabin, p_layout: CockpitLayout, expect: int) -> void:
 	var viewport := SubViewport.new()
 	viewport.size = Vector2i(800, 600)
 	viewport.own_world_3d = true
 	add_child_autofree(viewport)
-	var cabin := CmCabin.new()
-	cabin.items = layout.build(cabin)
+	cabin.items = p_layout.build(cabin)
 	viewport.add_child(cabin)
 	var rig: Node3D = RIG.instantiate()
 	rig.set("click_range", CmCabin.CLICK_RANGE)
@@ -223,7 +295,7 @@ func test_the_desktop_rig_can_click_every_control_from_the_commanders_couch() ->
 		elif cabin.items[id] is CabinDsky:
 			for k in cabin.items[id].keys:
 				controls.append(cabin.items[id].keys[k])
-	assert_eq(controls.size(), 21 + 19, "the switches, buttons and DSKY keys")
+	assert_eq(controls.size(), expect, "%s: the switches, buttons and DSKY keys" % cabin.name)
 	for c in controls:
 		assert_true(rig.focus_control(c), "looks at %s" % c.get_path())
 		assert_eq(rig.call("_control_at", Vector2(400, 300)), c, "%s is under the pointer" % c.get_path())

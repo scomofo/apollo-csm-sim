@@ -3,9 +3,11 @@
 ## vehicle. Like the flown instrument, it shows the view from inside the
 ## ball: nose up puts sky at the centre, a right roll turns the horizon
 ## counter-clockwise, and a right yaw moves the markings left.
-## Reads guid.indicator.attitude (Quaternion, body relative to LVLH-aligned body).
-## Nothing publishes that channel yet; the CM cabin slice will
-## (docs/ROADMAP.md, slice 2c).
+## Reads guid.indicator.attitude (Quaternion, body relative to LVLH-aligned
+## body), which the CMC publishes, or the LGC's lm.guid.indicator.attitude
+## with [member vehicle] "lm": the LM flies level with its windows forward
+## along the track and its +X up (Frames.LM_LEVEL), so that attitude reads
+## level on its ball.
 ## Adapted from gemini-capsule at 40e449c (README.md lists the port). Its
 ## ball shows the outside view, as a gimballed sphere seen from behind:
 ## pitch and yaw read reversed. INSIDE_VIEW corrects that. Its ball is also
@@ -14,6 +16,8 @@
 extends Node3D
 
 @export var channel: String = "guid.indicator.attitude"
+## Whose attitude the channel is: "csm" or "lm".
+@export var vehicle: String = "csm"
 
 ## Mirror through the face plane. Conjugating the outside-view rotation by it
 ## reverses its pitch and yaw and keeps its roll: the inside view.
@@ -53,9 +57,9 @@ func _on_attitude(q: Variant) -> void:
 	if not (q is Quaternion):
 		return
 	# q maps LVLH-aligned body vectors to actual body vectors (in the LVLH
-	# frame). In Godot axes: R_godot = B * R_body * B^-1.
-	var b := Frames.BODY_TO_GODOT
-	var r_godot := b * Basis(q as Quaternion) * b.inverse()
+	# frame); taken from the vehicle's level attitude and into Godot axes,
+	# it is the turn the ball shows.
+	var r_godot := Frames.level_turn(q as Quaternion, vehicle)
 	# r_godot.inverse() is the reference frame as seen from the case: the
 	# outside view. The crew reads the inside view.
 	_ball.basis = INSIDE_VIEW * r_godot.inverse() * INSIDE_VIEW

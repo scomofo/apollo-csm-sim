@@ -8,9 +8,10 @@
 ## Subclasses choose which finger motion counts by overriding
 ## _touch_direction(). Nothing changes on hover: only a crossing actuates.
 ## Taken from gemini-capsule at 40e449c (README.md lists the port), with
-## one addition for the headset acceptance recorder: a fingertip crossing
+## two additions. For the headset acceptance recorder, a fingertip crossing
 ## also names the control on player.last_touch_label, so presses of the
 ## DSKY keys and the wrist menu, which write no channel, can be told apart.
+## And a hidden control takes no pointer or gaze ray (_update_touch_layer).
 class_name ControlBase
 extends Node3D
 
@@ -27,6 +28,7 @@ extends Node3D
 var presentation_only: bool = false
 
 var _touch: Area3D
+var _touch_layer: int = 1
 var _last_touch_time: float = -1.0
 var _touching: Area3D
 
@@ -46,6 +48,21 @@ func _ready() -> void:
 	_touch.monitoring = true
 	_touch.area_entered.connect(_on_area_entered)
 	_touch.area_exited.connect(_on_area_exited)
+	_touch_layer = _touch.collision_layer
+	_update_touch_layer()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_VISIBILITY_CHANGED:
+		_update_touch_layer()
+
+
+## A hidden control takes no pointer or gaze ray either, so the cabin of
+## the vehicle not flown, which shares the render origin with the one
+## flown, can't stop a ray on its way to a control that shows.
+func _update_touch_layer() -> void:
+	if _touch:
+		_touch.collision_layer = _touch_layer if is_visible_in_tree() else 0
 
 
 func _on_area_entered(area: Area3D) -> void:

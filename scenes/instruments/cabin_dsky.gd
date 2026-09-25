@@ -1,10 +1,12 @@
 ## The cabin DSKY on the main display console: the Block II DSKY's status
 ## and caution lamps, its electroluminescent display and its 19 keys.
 ## The display reads the channels the CMC publishes under [member channel]
-## (prog, verb, noun, r1-r3, flash, comp_acty, lamp.<name>). Each key is the
+## (prog, verb, noun, r1-r3, flash, comp_acty, lamp.<name>), or those the
+## LGC publishes under lm.dsky on Eagle's panel 4. Each key is the
 ## pushbutton prefab; its activated signal calls Dsky.press(), the call the
 ## 2D DskyPanel and the tests make. The lamp order and the keys' staggered
-## columns follow the Block II DSKY; every dimension is [estimated].
+## columns follow the Block II DSKY; the LGC's adds ALT and VEL below
+## TRACKER, as the LM's did. Every dimension is [estimated].
 class_name CabinDsky
 extends Node3D
 
@@ -23,6 +25,15 @@ const KEY_PITCH := Vector2(0.027, 0.024)
 const KEY_TOP := -0.046
 const LAMP_PITCH := Vector2(0.028, 0.022)
 const LAMP_TOP := 0.098
+## The LGC's lamps below the CMC's, in the right-hand column: its seven
+## rows take the height of the CMC's five, with smaller lamps.
+const LGC_LAMP_ROWS := [["", "alt"], ["", "vel"]]
+const LGC_LAMP_AMBER := ["alt", "vel"]
+const LGC_LAMP_PITCH_Y := 0.0155
+const LGC_LAMP_TOP := 0.1005
+## The lamps' scale, and the lettering's capital height on them (m).
+const LAMP_SCALE := {"cmc": 0.85, "lgc": 0.6}
+const LAMP_LEGEND := 0.0028 * 0.85
 const EL_GREEN := Color(0.45, 1.0, 0.55)
 const STATUS_WHITE := Color(1.0, 0.97, 0.9)
 const CAUTION_AMBER := Color(1.0, 0.62, 0.12)
@@ -34,8 +45,10 @@ const SIZE := Vector2(0.20, 0.24)
 const BLINK_PERIOD := 1.2
 const BLINK_ON := 0.8
 
-## Channel prefix the CMC publishes the display under.
+## Channel prefix the computer publishes the display under.
 @export var channel: String = "dsky"
+## Whose lamp panel: "cmc", or "lgc" with the LGC's ALT and VEL lamps.
+@export var lamp_set: String = "cmc"
 
 ## The CMC's keyboard (CmCabin.connect_runtime sets it).
 var dsky: Dsky
@@ -71,30 +84,46 @@ func _ready() -> void:
 	Bus.subscribe(channel + ".comp_acty", _on_comp_acty)
 
 
-## Every channel the DSKY reads under [param prefix].
-static func channels_read(prefix: String) -> PackedStringArray:
+## The lamp panel's rows for [param p_lamp_set], left and right column; ""
+## is a blank.
+static func lamp_rows(p_lamp_set: String) -> Array:
+	return DskyPanel.LAMP_ROWS + (LGC_LAMP_ROWS if p_lamp_set == "lgc" else [])
+
+
+## Every channel the DSKY reads under [param prefix], with the lamps of
+## [param p_lamp_set].
+static func channels_read(prefix: String, p_lamp_set: String = "cmc") -> PackedStringArray:
 	var out := PackedStringArray()
 	for f in FIELDS + ["flash", "comp_acty"]:
 		out.append(prefix + "." + f)
-	for row in DskyPanel.LAMP_ROWS:
+	for row in lamp_rows(p_lamp_set):
 		for lamp_name in row:
-			out.append(prefix + ".lamp." + lamp_name)
+			if lamp_name != "":
+				out.append(prefix + ".lamp." + lamp_name)
 	return out
 
 
 func _build_lamps() -> void:
-	for row in DskyPanel.LAMP_ROWS.size():
+	var rows := lamp_rows(lamp_set)
+	var s: float = LAMP_SCALE.get(lamp_set, 0.85)
+	var top := LGC_LAMP_TOP if lamp_set == "lgc" else LAMP_TOP
+	var pitch := LGC_LAMP_PITCH_Y if lamp_set == "lgc" else LAMP_PITCH.y
+	for row in rows.size():
 		for col in 2:
-			var lamp_name: String = DskyPanel.LAMP_ROWS[row][col]
+			var lamp_name: String = rows[row][col]
+			if lamp_name == "":
+				continue
+			var amber: bool = lamp_name in DskyPanel.LAMP_AMBER or lamp_name in LGC_LAMP_AMBER
 			var l: Node3D = LAMP.instantiate()
 			l.name = "Lamp_" + lamp_name
 			l.set("channel", channel + ".lamp." + lamp_name)
 			l.set("test_channel", "")
-			l.set("colour", CAUTION_AMBER if lamp_name in DskyPanel.LAMP_AMBER else STATUS_WHITE)
-			l.scale = Vector3.ONE * 0.85
-			l.position = Vector3(-0.072 + col * LAMP_PITCH.x, LAMP_TOP - row * LAMP_PITCH.y, 0.004)
+			l.set("colour", CAUTION_AMBER if amber else STATUS_WHITE)
+			l.scale = Vector3.ONE * s
+			l.position = Vector3(-0.072 + col * LAMP_PITCH.x, top - row * pitch, 0.004)
 			add_child(l)
-			_text(l, "Legend", lamp_name.to_upper().replace("_", "\n"), Vector3(0, 0, 0.0095), 0.0028,
+			# The legend keeps its size on the smaller lamps.
+			_text(l, "Legend", lamp_name.to_upper().replace("_", "\n"), Vector3(0, 0, 0.0095), LAMP_LEGEND / s,
 				Color(0.08, 0.08, 0.08), true)
 			lamps[lamp_name] = l
 

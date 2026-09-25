@@ -131,6 +131,44 @@ func test_every_step_names_a_cabin_control_or_one_writes_its_check() -> void:
 	assert_eq(framed, 19, "nineteen steps point at a cabin control")
 
 
+func test_every_eagle_step_names_one_of_its_controls_or_one_writes_its_check() -> void:
+	var cabin := LmCabin.create()
+	add_child_autofree(cabin)
+	var framed := 0
+	for c in ChecklistBook.load_lm().lists:
+		for s in c.steps:
+			if s.has("control"):
+				assert_true(cabin.items.has(s["control"]), "%s: control %s is in lm_controls.csv" % [s["text"], s["control"]])
+			var channel := str(s.get("check", {}).get("channel", ""))
+			var id := ChecklistHighlight.resolve(cabin, {"control": str(s.get("control", "")), "channel": channel})
+			if channel.begins_with("ctl.lm."):
+				assert_ne(id, "", "%s: a control in Eagle's cabin writes %s" % [s["text"], channel])
+			if id != "":
+				framed += 1
+	assert_eq(framed, 57, "57 of Eagle's steps point at a control in its cabin")
+
+
+func test_the_highlight_follows_the_player_into_eagle() -> void:
+	var cm := _cabin()
+	var lm := LmCabin.create()
+	add_child_autofree(lm)
+	var lm_book := ChecklistBook.load_lm()
+	lm_book.select_for_phase("lunar_descent")
+	var hl := ChecklistHighlight.new()
+	hl.follow(cm, book)
+	hl.follow(lm, lm_book)
+	assert_eq(hl.get_parent(), lm, "into Eagle's cabin")
+	Bus.set_value("mission.event.pad_pdi", 1)
+	lm_book.update()
+	hl.update()
+	assert_eq(hl.target_id, "P4_DSKY", "V37E 63E is typed on Eagle's DSKY")
+	Bus.set_value("lm.guid.program", 63)
+	Bus.set_value("lm.guid.step", "v50n18")
+	lm_book.update()
+	hl.update()
+	assert_eq(hl.target_id, "P3_LGC_MODE", "LGC MODE - AUTO: the switch that writes ctl.lm.mode")
+
+
 func test_the_highlight_frames_the_current_steps_control() -> void:
 	var cabin := _cabin()
 	book.select_for_phase("translunar_coast")

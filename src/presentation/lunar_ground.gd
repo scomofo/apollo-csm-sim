@@ -13,7 +13,8 @@
 ## one is drawn, in its place on the Moon, until the new one is ready. A
 ## new one is built when the LM has moved a quarter of its height on from
 ## above the grid's centre, or its height has changed by half. place()
-## puts it in the view at the Moon's render scale. [simplified: the ground
+## puts it in the view about the eye at a render scale: the Moon's, or, in
+## Eagle's cabin, one that keeps it outside the cabin. [simplified: the ground
 ## is flat between the grid's points, which past the first rings are
 ## farther apart than the maps' posts, so relief away from the LM is
 ## smoothed, and it shifts a little as each new grid replaces the last.]
@@ -67,9 +68,9 @@ func has_grid() -> bool:
 
 ## Keep a grid for the eye at [param eye_mf] (Moon-fixed, m), [param h] m
 ## above the ground, and place it: [param mf_to_view] turns Moon-fixed
-## axes into the view's, and [param s] is the Moon's render scale. Returns
-## whether a grid is drawn.
-func follow(eye_mf: PackedFloat64Array, h: float, mf_to_view: Basis, s: float) -> bool:
+## axes into the view's, [param s] is the render scale and [param at] is
+## where the eye is in the view. Returns whether a grid is drawn.
+func follow(eye_mf: PackedFloat64Array, h: float, mf_to_view: Basis, s: float, at: Vector3 = Vector3.ZERO) -> bool:
 	if _task >= 0 and WorkerThreadPool.is_task_completed(_task):
 		WorkerThreadPool.wait_for_task_completion(_task)
 		_task = -1
@@ -84,14 +85,15 @@ func follow(eye_mf: PackedFloat64Array, h: float, mf_to_view: Basis, s: float) -
 			_apply(build(up, h))
 	visible = has_grid()
 	if visible:
-		place(eye_mf, mf_to_view, s)
+		place(eye_mf, mf_to_view, s, at)
 	return visible
 
 
 ## Put the grid in the view for the eye at [param eye_mf] (Moon-fixed, m):
-## the eye at the origin, Moon-fixed axes turned into the view's by
-## [param mf_to_view], and every length scaled by [param s].
-func place(eye_mf: PackedFloat64Array, mf_to_view: Basis, s: float) -> void:
+## the eye at [param at] (the origin, or the eye in a cabin), Moon-fixed
+## axes turned into the view's by [param mf_to_view], and every length
+## from the eye scaled by [param s].
+func place(eye_mf: PackedFloat64Array, mf_to_view: Basis, s: float, at: Vector3 = Vector3.ZERO) -> void:
 	var r := Bodies.R_MOON
 	# The eye from the reference sphere's point below the grid's centre,
 	# in doubles until it is small, then in the grid's axes.
@@ -99,7 +101,7 @@ func place(eye_mf: PackedFloat64Array, mf_to_view: Basis, s: float) -> void:
 		eye_mf[2] - centre[2] * r)
 	var e := frame.transposed() * d
 	var b := mf_to_view * frame
-	transform = Transform3D(b * s, -(b * e) * s)
+	transform = Transform3D(b * s, at - (b * e) * s)
 
 
 func _stale(eye_mf: PackedFloat64Array, h: float) -> bool:

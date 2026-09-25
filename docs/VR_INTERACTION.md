@@ -1,10 +1,10 @@
 # VR interaction
 
-How the player works the CM cabin in a headset and on the desktop. This
-describes what is built; milestone 2 of `ROADMAP.md` plans the rest.
-`HEADSET_RUN.md` runs a headset session and `VR_ACCEPTANCE.md` checks it.
-Adapted from gemini-capsule's `docs/VR_INTERACTION.md`; README.md lists
-the files taken from it.
+How the player works the CM's and the LM's cabins in a headset and on
+the desktop. This describes what is built; milestone 2 of `ROADMAP.md`
+plans the rest. `HEADSET_RUN.md` runs a headset session and
+`VR_ACCEPTANCE.md` checks it. Adapted from gemini-capsule's
+`docs/VR_INTERACTION.md`; README.md lists the files taken from it.
 
 ## 1. Platform
 
@@ -24,7 +24,9 @@ the files taken from it.
 - **Seated.** The tracking origin is the `Local` reference space
   (`xr/openxr/reference_space=0`). Recentring moves the rig's origin so
   that the head sits on the design eye point of the couch the player is
-  in, facing the console. It happens on session start, on the runtime's
+  in, facing the console, or in Eagle of the station the player stands
+  at, facing the window. Eagle's crew stood, so a seated player's head
+  goes to a standing eye. It happens on session start, on the runtime's
   own recentre, on B or Y of either controller and on the wrist menu's
   RECENTRE. EYE +1cm and EYE -1cm move that point up or down, by up to
   15 cm, for the player's seated height. The cabin never moves: its
@@ -66,15 +68,18 @@ the control's own axes decides what happens.
 
 | Control | In the cabin | Fingertip | Desktop pointer |
 |---|---|---|---|
-| Toggle switch, two or three positions | CMC MODE, ELS LOGIC, ELS AUTO, RCS QUAD A to D, FC 1 to 3, BATT TO BUS | One position per crossing: up through the lever moves it up, down moves it down | A click cycles the positions; the scroll wheel moves it up or down |
+| Toggle switch, two or three positions | CMC MODE, ELS LOGIC, ELS AUTO, RCS QUAD A to D, FC 1 to 3, BATT TO BUS; in Eagle, LGC MODE, RCS SYS A and B, and DES RATE, which springs back to the middle | One position per crossing: up through the lever moves it up, down moves it down | A click cycles the positions; the scroll wheel moves it up or down |
+| Lever-locked toggle switch | ENG ARM, in Eagle | The first crossing pulls the lever out for 1.5 s, and a crossing within that time moves it | A click or a scroll pulls it out, and the next within 1.5 s moves it |
 | Guarded toggle switch | DELTA-V THRUST A and B | The first upward crossing lifts the guard and the next flips the lever. A downward crossing at OFF closes the guard | A click lifts the guard, then cycles the lever; scrolling down at OFF closes the guard |
 | Rotary switch | ATT SOURCE | One detent per crossing: left to right steps clockwise, right to left anticlockwise | A click steps clockwise and wraps round; the scroll wheel steps either way |
-| Pushbutton | SPS THRUST ON, UNDOCK, CSM/LV SEP, LM JETT, CM/SM SEP, DROGUE DEPLOY, MAIN DEPLOY | Pressed by a fingertip pushed into its face; pulling back out doesn't press it | A click |
-| DSKY key | The 19 keys of the cabin DSKY | Like a pushbutton. The touch volumes are shallow, so a finger coming in at an angle presses the key it is on, not the next one | A click |
+| Pushbutton | SPS THRUST ON, UNDOCK, CSM/LV SEP, LM JETT, CM/SM SEP, DROGUE DEPLOY, MAIN DEPLOY; in Eagle, ABORT STAGE, ENGINE STOP and ENGINE START | Pressed by a fingertip pushed into its face; pulling back out doesn't press it | A click |
+| DSKY key | The 19 keys of each cabin's DSKY | Like a pushbutton. The touch volumes are shallow, so a finger coming in at an angle presses the key it is on, not the next one | A click |
 | Wrist-menu button | §5 | Like a pushbutton | A click |
 
 The FDAI, the mission timer, the main bus voltmeters, the master alarm
-and the DSKY's display show their Bus channels and take no input.
+and the DSKY's display show their Bus channels and take no input, and so
+do Eagle's range, range rate and thrust readouts and LUNAR CONTACT
+lamps.
 
 Rules:
 
@@ -88,23 +93,27 @@ Rules:
   of fingertip reach can't be worked from that couch. The cabin geometry
   is the reference: seated height is fixed by recentring and the eye
   height, never by moving or scaling the cabin. A control out of reach is
-  a layout finding for `data/cockpit/controls.csv`, where every position
-  is estimated (confidence D).
+  a layout finding for `data/cockpit/controls.csv` or
+  `data/cockpit/lm_controls.csv`, where every position is estimated
+  (confidence D).
 - **Legibility.** Every control is captioned, and switch positions are
   lettered beside each lever and around each knob.
 - **Not built:** switch sounds, haptic pulses, a hand mesh that turns
-  translucent inside a panel. The prefabs have lever-lock switches and
-  circuit breakers, but no Apollo panel row uses them yet.
+  translucent inside a panel. The prefabs have circuit breakers, but no
+  Apollo panel row uses them yet.
 
 ## 4. Comfort
 
 The CM can turn at several degrees per second while the player sits
-still. The aids are in `src/presentation/comfort.gd`, on the camera.
+still, and so can Eagle. The aids are in `src/presentation/comfort.gd`,
+on the camera, and read the rates and attitude of the vehicle flown.
 
 - **The cabin is the fixed frame.** The cabin sits at the render origin,
   and the Earth, Moon, Sun and stars turn around it by the inverse of the
   attitude (`src/presentation/space_view.gd`). Nothing but the headset
-  moves the camera.
+  moves the camera. In Eagle the render origin is its centre of mass,
+  and near the surface the ground is drawn about the eye, below the
+  floor.
 - **Vignette**, on by default. It narrows the view from 3 deg/s of body
   rate, and is full at 12 deg/s. The CMC holds attitude at 2 deg/s, so
   ordinary maneuvers leave the view alone. In entry it narrows from 2 g,
@@ -129,10 +138,12 @@ still. The aids are in `src/presentation/comfort.gd`, on the camera.
   it stays closed until the palm turns away and back. The other hand's
   fingertip presses its buttons:
   - MCC, LOI-1, LOI-2 and TEI ask Mission Control for a PAD
-    (`ctl.ground.pad_request`, as the HUD does).
+    (`ctl.ground.pad_request`, as the HUD does). In Eagle they're DOI,
+    PDI, ASCENT and CSI.
   - RATE -, RATE + and PAUSE set the clock.
   - RECENTRE, EYE +1cm and EYE -1cm set the eye point (§1).
-  - SEAT moves between the commander's couch and the centre couch.
+  - SEAT moves between the commander's couch and the centre couch, and
+    in Eagle between the commander's station and the LM pilot's.
   - HIDE closes the menu.
   - CHECKLIST turns to the next checklist where it was left (a finished
     one starts again), NEXT STEP goes past a step without its check, and
@@ -157,7 +168,13 @@ still. The aids are in `src/presentation/comfort.gd`, on the camera.
 - **Seats.** The commander's (left) couch, and the centre couch, where
   the command module pilot worked the DSKY and it is within reach. SEAT
   moves the player and the card, never the cabin. The right couch isn't
-  a seat yet.
+  a seat yet. In Eagle the crew stood: the commander on the left and the
+  LM pilot on the right, each 1.6 m above the floor.
+- **Changing vehicles.** As the LM undocks the rig goes to Eagle's
+  commander's station, with the card, the highlight and the wrist menu,
+  and back to the CM's couch it left as the two dock. The tracking
+  origin goes with it, so no recentre is needed. On the desktop, L
+  changes vehicles while the LM flies free.
 - **Acceptance recorder** (`src/presentation/vr_acceptance_recorder.gd`).
   In a headset it writes the evidence for `VR_ACCEPTANCE.md` to
   `user://vr_acceptance/` when the session stops or the window closes.

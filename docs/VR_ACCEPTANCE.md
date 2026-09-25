@@ -54,6 +54,18 @@ Index, Vive, Vive Focus 3, WMR, Pico and others).
 | C5 | Ten minutes of lunar-orbit coast at 1x; record comfort and symptoms | | |
 | pacing | Frames over 1.5x the headset's frame budget | | |
 
+## Eagle's cabin
+
+A second run, from `--phase=lunar_descent` (`HEADSET_RUN.md`).
+
+| # | Check | Pass? | Notes |
+|---|---|---|---|
+| E1 | Aboard Eagle, recentre puts the head on the commander's standing eye; nothing clips the headset | | |
+| E2 | From the commander's station, panels 1, 3, 4 and 5 are in fingertip reach; SEAT goes to the LM pilot's station and back | | |
+| E3 | A verb and noun typed on Eagle's DSKY by fingertip, and shown | | |
+| E4 | ENG ARM: the first crossing pulls the lever out, the second moves it | | |
+| E5 | The LPD's marks sit on the commander's window | | |
+
 Also record the commit, headset, controllers, OpenXR runtime, refresh rate
 and date, and one photo or capture from the couch. Any Fail row becomes
 its own issue.
@@ -83,6 +95,15 @@ its own issue.
   - The panel layout is estimated (confidence D in
     `data/cockpit/controls.csv`). A reach failure is a layout finding to
     fix in the data, not by scaling the cabin.
+- **Eagle's cabin.** The LM's crew stood. The commander's station is on
+  the left and the LM pilot's on the right, and SEAT moves between them.
+  From the commander's station, panels 1, 3, 4 (the DSKY) and 5 should be
+  in reach; panel 2 is the LM pilot's. Every position in
+  `data/cockpit/lm_controls.csv` is estimated too. The recorder notes
+  which vehicle each recentre was in (E1), what was typed on Eagle's DSKY
+  (E3), and how often Eagle's switches were touched (E2, E4). The LPD's
+  marks are drawn for the commander's design eye, so they read true with
+  the head there.
 - **Comfort.** Nothing moves the camera but the headset. The vignette
   starts at 3 deg/s of body rate (full at 12 deg/s), above the CMC's
   2 deg/s hold rate, and in entry deceleration from 2 g. The horizon ring

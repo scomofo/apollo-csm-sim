@@ -4,8 +4,8 @@
 ## CSM when it docks again or is jettisoned (docs/ROADMAP.md, milestone 3,
 ## "Who flies what"). While the LM flies free, toggle() switches between
 ## the two. Presentation state: checkpoints don't save it, and after a
-## checkpoint load the docking state decides it again. With csm_only (in a
-## headset, where the LM has no cabin yet) the player stays in the CSM.
+## checkpoint load the docking state decides it again. The player boards
+## the vehicle's cabin in a headset as on the desktop.
 ##
 ## Reads:  dock.state
 ## Writes: player.vehicle
@@ -20,8 +20,6 @@ signal changed(vehicle: String)
 signal boarded(vehicle: String)
 
 var vehicle: String = ""
-## Keep the player in the CSM.
-var csm_only: bool = false
 var _dock_was: String = ""
 
 
@@ -49,7 +47,7 @@ func update() -> void:
 
 ## Change vehicles while the LM flies free. Returns whether it did.
 func toggle() -> bool:
-	if _dock() != "free" or csm_only:
+	if _dock() != "free":
 		return false
 	_choose("csm" if vehicle == "lm" else "lm")
 	return true
@@ -60,8 +58,6 @@ func _dock() -> String:
 
 
 func _choose(v: String) -> void:
-	if csm_only:
-		v = "csm"
 	Bus.set_value("player.vehicle", v)
 	if v != vehicle:
 		vehicle = v

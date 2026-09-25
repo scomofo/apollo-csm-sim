@@ -6,10 +6,12 @@
 ## Adapted from gemini-capsule's src/presentation/comfort.gd at 40e449c
 ## (README.md lists the port): the body rate comes from dyn.omega, entry
 ## from dyn.g_load and the horizon from guid.indicator.attitude, in place
-## of Gemini's guid.rate.*, dynamic pressure and guid.att.lvlh. Presentation
-## only.
+## of Gemini's guid.rate.*, dynamic pressure and guid.att.lvlh. In Eagle
+## ([member vehicle] "lm") they are Eagle's: lm.dyn.omega and the LGC's
+## lm.guid.indicator.attitude, with no entry. Presentation only.
 ##
-## Reads:  dyn.omega, dyn.g_load, guid.indicator.attitude
+## Reads:  dyn.omega, dyn.g_load, guid.indicator.attitude, or in Eagle
+##         lm.dyn.omega, lm.guid.indicator.attitude
 ## Writes: present.comfort.vignette (0..1), present.comfort.horizon (bool),
 ##         present.comfort.authentic (bool)
 class_name Comfort
@@ -29,6 +31,8 @@ extends Node3D
 @export var horizon_aid: bool = false
 ## Authentic mode turns every aid off whatever the settings above say.
 @export var authentic: bool = false
+## The vehicle flown: "csm" or "lm".
+var vehicle: String = "csm"
 
 var vignette: float = 0.0
 var _quad: MeshInstance3D
@@ -85,11 +89,13 @@ func _process(_delta: float) -> void:
 
 ## Pure update, so tests can drive it without frames.
 func update_from_bus() -> void:
-	var omega: Vector3 = Bus.get_value("dyn.omega", Vector3.ZERO)
+	var p := "lm." if vehicle == "lm" else ""
+	var omega: Vector3 = Bus.get_value(p + "dyn.omega", Vector3.ZERO)
 	var rate := rad_to_deg(omega.length())
 	var v := clampf(inverse_lerp(vignette_start_deg_s, vignette_full_deg_s, rate), 0.0, 1.0)
-	var g := float(Bus.get_value("dyn.g_load", 0.0))
-	v = maxf(v, clampf(inverse_lerp(entry_start_g, entry_full_g, g), 0.0, 1.0) * 0.6)
+	if vehicle != "lm":
+		var g := float(Bus.get_value("dyn.g_load", 0.0))
+		v = maxf(v, clampf(inverse_lerp(entry_start_g, entry_full_g, g), 0.0, 1.0) * 0.6)
 	if authentic or not vignette_enabled:
 		v = 0.0
 	vignette = v
@@ -99,12 +105,12 @@ func update_from_bus() -> void:
 	_ring.visible = horizon
 	if horizon:
 		# guid.indicator.attitude turns LVLH-aligned body axes into the actual
-		# ones; its inverse, in render axes, is the LVLH frame seen from the
-		# cabin. The ring's axis is render +Y, body -Z: the local up.
-		var q = Bus.get_value("guid.indicator.attitude", null)
+		# ones; taken from the vehicle's level attitude (Frames.level_turn),
+		# its inverse in render axes is the LVLH frame seen from the cabin.
+		# The ring's axis is render +Y: the local up.
+		var q = Bus.get_value(p + "guid.indicator.attitude", null)
 		if q is Quaternion:
-			var b := Frames.BODY_TO_GODOT
-			_ring.global_basis = (b * Basis(q as Quaternion) * b.inverse()).inverse()
+			_ring.global_basis = Frames.level_turn(q as Quaternion, vehicle).inverse()
 	Bus.set_value("present.comfort.vignette", v)
 	Bus.set_value("present.comfort.horizon", horizon)
 	Bus.set_value("present.comfort.authentic", authentic)

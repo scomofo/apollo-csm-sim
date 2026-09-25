@@ -15,14 +15,17 @@
 ## (docs/HEADSET_RUN.md) come up on both rigs; the recorder writes its
 ## record only in a headset.
 ##
-## On the desktop the player moves to the LM as it undocks (VehicleSwitch),
-## and L changes vehicles while it flies free: the HUD, the space view, the
-## hand controllers and the DSKY keys follow, and C cycles the LM's window
-## and chase views. In a headset the player stays in the CM's cabin
-## [simplified: the LM has no cabin yet]. Each vehicle has its checklists
-## (the HUD shows those of the vehicle flown): at the start both open the
-## one for the flight phase (mission.phase), and as the docking state moves
-## the player aboard one, the HUD opens its one for the phase then.
+## The player moves to the LM as it undocks (VehicleSwitch), and L changes
+## vehicles while it flies free: the HUD, the space view, the hand
+## controllers and the DSKY keys follow, and so do the rig, which goes to
+## the vehicle's cabin (Eagle's is src/cabin/lm_cabin.gd), and the card,
+## the highlight and the wrist menu, which work that vehicle's checklists
+## and ask for its PADs. C cycles the LM's window, chase and cabin views;
+## in a headset the player stands in Eagle's cabin. Each vehicle has its
+## checklists (the HUD shows those of the vehicle flown): at the start both
+## open the one for the flight phase (mission.phase), and as the docking
+## state moves the player aboard one, the HUD opens its one for the phase
+## then.
 ##
 ## Writes: player.rig ("xr" or "desktop"), player.xr_session,
 ##         player.xr_focus, player.xr_refresh_hz
@@ -43,17 +46,21 @@ const VIEW_CABIN := 2
 
 var rt: SimRuntime
 var view: Node3D
+## Columbia's cabin, and Eagle's.
 var cabin: CmCabin
-## The desktop rig, or the XR rig in a headset; a child of the cabin's
-## PlayerAnchor.
+var lm_cabin: LmCabin
+## The desktop rig, or the XR rig in a headset; a child of the PlayerAnchor
+## of the cabin of the vehicle flown.
 var rig: Node3D
 var xr: bool = false
 var hud: Hud
 ## Which vehicle the player flies (player.vehicle).
 var vehicles: VehicleSwitch
-## The checklists and which one is open: the HUD, the card, the highlight
-## and the wrist menu share it.
+## Columbia's checklists and which one is open, and Eagle's: the HUD, the
+## card, the highlight and the wrist menu share the book of the vehicle
+## flown.
 var book: ChecklistBook
+var lm_book: ChecklistBook
 var card: ChecklistCard
 var highlight: ChecklistHighlight
 var menu: WristMenu
@@ -81,18 +88,22 @@ func _ready() -> void:
 	cabin = CmCabin.create()
 	add_child(cabin)
 	cabin.connect_runtime(rt)
+	lm_cabin = LmCabin.create()
+	lm_cabin.visible = false
+	add_child(lm_cabin)
+	lm_cabin.connect_runtime(rt)
 	_place_rig()
 	book = ChecklistBook.load_default()
+	lm_book = ChecklistBook.load_lm()
 	card = ChecklistCard.new()
 	card.name = "ChecklistCard"
 	card.book = book
 	cabin.card_mount.add_child(card)
 	highlight = ChecklistHighlight.new()
 	highlight.name = "ChecklistHighlight"
-	highlight.cabin = cabin
-	highlight.book = book
-	cabin.add_child(highlight)
+	highlight.follow(cabin, book)
 	var cam: Camera3D = rig.get_node("XRCamera3D") if xr else rig.get_node("Camera3D")
+	view.eye_camera = cam
 	comfort = Comfort.new()
 	comfort.name = "Comfort"
 	cam.add_child(comfort)
@@ -119,11 +130,11 @@ func _ready() -> void:
 	hud = Hud.new()
 	hud.name = "Hud"
 	add_child(hud)
-	hud.setup(rt, book)
+	hud.setup(rt, book, lm_book)
 	# Both vehicles' checklists open for the phase the flight starts in.
 	var phase := str(Bus.get_value("mission.phase", start_phase))
 	book.select_for_phase(phase)
-	hud.lm_book.select_for_phase(phase)
+	lm_book.select_for_phase(phase)
 	# In a headset the thumbsticks fly the hand controllers too.
 	var hci := HandControllerInput.for_xr_rig(rig) if xr else HandControllerInput.new()
 	hci.name = "HandControllerInput"
@@ -131,19 +142,35 @@ func _ready() -> void:
 	set_view(VIEW_CABIN if xr else 0)
 	vehicles = VehicleSwitch.new()
 	vehicles.name = "VehicleSwitch"
-	vehicles.csm_only = xr
 	vehicles.changed.connect(_on_vehicle)
 	vehicles.boarded.connect(_on_boarded)
 	add_child(vehicles)
 
 
-## The player moved to [param v]: the HUD and the view follow. The LM has
-## window and chase views, and no cabin.
+## The cabin of vehicle [param v]: Eagle's for "lm", Columbia's otherwise.
+func cabin_for(v: String) -> Cabin:
+	return lm_cabin if v == "lm" else cabin
+
+
+## The player moved to [param v]: the HUD and the view follow, and the rig
+## goes to the vehicle's cabin, at the seat it was left at, with the card,
+## the highlight and the wrist menu, which work the vehicle's checklists
+## and ask for its PADs.
 func _on_vehicle(v: String) -> void:
 	hud.set_vehicle(v)
 	view.vehicle = v
-	if v == "lm" and view.view_mode == VIEW_CABIN:
-		set_view(0)
+	var c := cabin_for(v)
+	var b := lm_book if v == "lm" else book
+	rig.reparent(c.anchor, false)
+	card.reparent(c.card_mount, false)
+	card.set_book(b)
+	highlight.follow(c, b)
+	menu.cabin = c
+	menu.book = b
+	menu.set_vehicle(v)
+	comfort.vehicle = v
+	c.set_seat(c.seat)
+	set_view(view.view_mode)
 
 
 ## The player went aboard [param _v], whose checklists the HUD now shows:
@@ -200,13 +227,16 @@ func _on_xr_session_stopping() -> void:
 	Bus.set_value("player.xr_focus", false)
 
 
-## 0 window, 1 chase, 2 cabin. A headset has only the cabin.
+## 0 window, 1 chase, 2 cabin: the cabin of the vehicle flown. A headset
+## has only the cabin.
 func set_view(mode: int) -> void:
 	if xr:
 		mode = VIEW_CABIN
 	var in_cabin := mode == VIEW_CABIN
+	var lm := vehicles != null and vehicles.vehicle == "lm"
 	view.view_mode = mode
-	cabin.visible = in_cabin
+	cabin.visible = in_cabin and not lm
+	lm_cabin.visible = in_cabin and lm
 	hud.set_cabin_view(in_cabin)
 	if xr:
 		(rig.get_node("XRCamera3D") as Camera3D).make_current()
@@ -257,7 +287,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_BRACKETLEFT: SimClock.slower()
 			KEY_BRACKETRIGHT: SimClock.faster()
 			KEY_P: SimClock.paused = not SimClock.paused
-			KEY_C: set_view((view.view_mode + 1) % (2 if vehicles.vehicle == "lm" else 3))
+			KEY_C: set_view((view.view_mode + 1) % 3)
 			KEY_L: vehicles.toggle()
 			KEY_H: hud.toggle_help()
 			KEY_F5:

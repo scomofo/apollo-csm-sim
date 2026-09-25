@@ -1,9 +1,10 @@
 ## The cabin's checklist card (docs/ROADMAP.md, slice 2d): the open
 ## checklist around its current step, the last PAD Mission Control uplinked
 ## and the CAPCOM log, printed on a card by the commander's left shoulder
-## and readable from the couch. It renders the shared ChecklistBook and
-## reads mission.pad_text and mission.capcom from the Bus. Presentation
-## only; the wrist menu's CHECKLIST and NEXT STEP buttons drive the book.
+## and readable from the couch. It renders the shared ChecklistBook of the
+## vehicle the player is in (set_book()) and reads mission.pad_text and
+## mission.capcom from the Bus. Presentation only; the wrist menu's
+## CHECKLIST and NEXT STEP buttons drive the book.
 class_name ChecklistCard
 extends Node3D
 
@@ -81,6 +82,14 @@ func _text(node_name: String, height: float) -> Label3D:
 	l.position.z = 0.0008
 	add_child(l)
 	return l
+
+
+## Show [param b]'s open checklist: the book of the vehicle the player is
+## in.
+func set_book(b: ChecklistBook) -> void:
+	book = b
+	if title_label != null:
+		_layout()
 
 
 func _on_pad(v: Variant) -> void:

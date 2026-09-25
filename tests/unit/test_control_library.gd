@@ -79,6 +79,53 @@ func test_touch_direction_defaults_to_vertical_crossing() -> void:
 	assert_eq(sw._touch_direction(Vector3(0, -1, 0)), -1)
 
 
+func test_a_hidden_control_lets_the_pointer_and_the_gaze_through() -> void:
+	var cabin := Node3D.new()
+	add_child_autofree(cabin)
+	var sw := TOGGLE.instantiate()
+	cabin.add_child(sw)
+	var touch: Area3D = sw.get_node("Touch")
+	assert_ne(touch.collision_layer, 0, "shown, it stops a ray")
+	cabin.visible = false
+	assert_eq(touch.collision_layer, 0, "hidden with its cabin, it lets rays through")
+	cabin.visible = true
+	assert_ne(touch.collision_layer, 0, "shown again, it stops them")
+	var hidden := Node3D.new()
+	hidden.visible = false
+	add_child_autofree(hidden)
+	var built := TOGGLE.instantiate()
+	hidden.add_child(built)
+	assert_eq((built.get_node("Touch") as Area3D).collision_layer, 0, "built into a hidden cabin")
+
+
+func test_a_toggle_publishes_its_positions_values() -> void:
+	# Eagle's ENG ARM: DES down, OFF in the middle, ASC up, on a channel
+	# whose values are 0 OFF, 1 ASC, 2 DES.
+	Bus.set_value("arm", 0)
+	var sw := _add(TOGGLE, {"channel": "arm", "positions": 3, "values": PackedInt32Array([2, 0, 1])})
+	assert_eq(sw.position_index, 1, "starts from the Bus: OFF, in the middle")
+	sw.actuate(1)
+	assert_eq(Bus.get_value("arm"), 1, "up: ASC")
+	sw.actuate(-1)
+	sw.actuate(-1)
+	assert_eq(Bus.get_value("arm"), 2, "down: DES")
+	Bus.set_value("arm", 0)
+	assert_eq(sw.position_index, 1, "follows the Bus through its values")
+	Bus.set_value("arm", 7)
+	assert_eq(sw.position_index, 1, "a value it doesn't have leaves the lever where it is")
+	assert_eq(Bus.get_value("arm"), 7, "and doesn't publish over it")
+	# The rate of descent switch: -1, 0, +1, springing back to 0.
+	var rod := _add(TOGGLE, {"channel": "rod", "positions": 3, "values": PackedInt32Array([-1, 0, 1]),
+		"initial_position": 1, "rest_position": 1, "momentary_positions": PackedInt32Array([0, 2])})
+	assert_eq(Bus.get_value("rod"), 0)
+	rod.actuate(-1)
+	assert_eq(Bus.get_value("rod"), -1, "a click down")
+	rod.release()
+	assert_eq(Bus.get_value("rod"), 0, "back to the middle")
+	rod.actuate(0)
+	assert_eq(Bus.get_value("rod"), 1, "a left click cycles it up")
+
+
 # --- rotary ---
 
 func test_rotary_steps_and_clamps() -> void:

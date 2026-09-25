@@ -1,7 +1,9 @@
 ## Checklist highlight: a pulsing frame around the cabin control the open
 ## checklist's current step is done on. The step's "control" names it (an
-## id in data/cockpit/controls.csv); without one, it is the control that
-## writes the step's check channel. The wrist menu's HILITE button turns it
+## id in the cabin's controls file); without one, it is the control that
+## writes the step's check channel. It frames Columbia's controls for
+## Columbia's checklists or, following the player (follow()), Eagle's for
+## Eagle's. The wrist menu's HILITE button turns it
 ## off. Adapted from gemini-capsule's src/presentation/checklist_highlight.gd
 ## at 40e449c (README.md lists the port): Gemini's checklist assist names
 ## the control, and its frame is a fixed ring; here the frame fits the
@@ -19,7 +21,7 @@ const MARGIN := 0.006
 const BAR := 0.003
 const COLOUR := Color(0.4, 0.95, 0.5)
 
-var cabin: CmCabin
+var cabin: Cabin
 var book: ChecklistBook
 var target_id: String = ""
 var _frame: Node3D
@@ -47,9 +49,21 @@ func _ready() -> void:
 		_bars.append(bar)
 
 
+## Frame [param c]'s controls for the steps of [param b]: the cabin the
+## player is in and its vehicle's checklists. The highlight moves into it.
+func follow(c: Cabin, b: ChecklistBook) -> void:
+	cabin = c
+	book = b
+	target_id = ""
+	if get_parent() == null:
+		c.add_child(self)
+	elif get_parent() != c:
+		reparent(c, false)
+
+
 ## The id of the cabin control [param target] (ChecklistBook.target()) is
 ## done on, or "".
-static func resolve(cabin_node: CmCabin, target: Dictionary) -> String:
+static func resolve(cabin_node: Cabin, target: Dictionary) -> String:
 	var id := str(target.get("control", ""))
 	if id != "":
 		return id if cabin_node.items.has(id) else ""

@@ -32,18 +32,25 @@ picture).
 - **Start phases stay consistent.** A new `--phase` is built the way the
   existing ones are, from the RTCC's own solutions, so it continues the
   mission it claims to.
-- **CI stays fast.** The suite takes about two and a half minutes. Keep
-  it under ten: start a long scenario from a phase or checkpoint instead
-  of flying the whole mission.
+- **CI stays fast.** The suite runs in three jobs side by side: the unit
+  tests, and the scenario tests in two parts. Keep each job under ten
+  minutes: start a long scenario from a phase or checkpoint instead of
+  flying the whole mission, and give the scenarios another part when
+  theirs grow past that.
 
 ## 1. CI green
 
 **Status: CI passes on every push and pull request. What's left is
 protecting `main`.**
 
-`.github/workflows/ci.yml` runs two jobs. `test` downloads Godot 4.4.1
-(cached), imports the project and runs GUT headless. `lint` runs gdlint,
-advisory for now, and checks the data files, which blocks.
+`.github/workflows/ci.yml` runs the GUT suite headless in three jobs
+side by side, each downloading Godot 4.4.1 (cached) and importing the
+project: the unit tests, and the scenario tests dealt out over two jobs
+in file-name order, so a new scenario file joins one by itself. The
+`test` job passes only when all three have. `lint` runs gdlint, advisory
+for now, and checks the data files, which blocks. The suite ran as one
+job until slice 3f's cabin flights took it to 15 min 55 s of its
+20-minute limit.
 
 From 02:38 to 15:20 UTC on 2026-09-23 every run ended in
 `startup_failure` before any job started, as gemini-capsule's did.
@@ -297,14 +304,15 @@ The 2D HUD stays as the desktop fallback.
 
 ## 3. The LM and a lunar landing
 
-**Status: slices 3a to 3e done: the LM undocks, flies free and docks
-again, flies DOI on its own computer, lands at Tranquility Base, lifts
-off to orbit at the time the RTCC gives, and flies the rendezvous back
-to Columbia, which docks with it. Slice 3f has given Mission Control its
+**Status: done. The LM undocks, flies free and docks again, flies DOI on
+its own computer, lands at Tranquility Base, lifts off to orbit at the
+time the RTCC gives, and flies the rendezvous back to Columbia, which
+docks with it (slices 3a to 3e). Slice 3f has given Mission Control its
 timeline from undocking to TEI, the LM its start phases `lunar_descent`,
 `lunar_surface` and `lunar_ascent`, and the player Eagle's cockpit on the
-desktop and its checklists, each flown from there. Eagle's cabin is still
-to come.**
+desktop, Eagle's checklists and Eagle's cabin, each checklist flown from
+the HUD and from the cabin. Flying Eagle in a headset waits on the
+headset run, with milestone 2's (slice 2e).**
 Before 3a the LM was only mass: 15,103 kg added in the `csm_lm`
 configuration (`data/spacecraft.json`) and dropped at LM JETT before TEI.
 
@@ -620,15 +628,16 @@ Slice 3f's second part puts the player in Eagle:
   commander, and back to the CSM when the two dock or the LM is
   jettisoned (`src/presentation/vehicle_switch.gd`). While the LM flies
   free, L changes vehicles on the desktop. The vehicle left behind flies
-  on as its computer and switches have it. In a headset the player stays
-  in the CM until the LM has a cabin.
-- **The LM's cockpit** is a desktop overlay for now. In Eagle the HUD
-  shows the LGC's DSKY, which the keys type into, and the LM's switches:
-  the LGC's mode, ENGINE ARM, ABORT STAGE, ENGINE START and STOP, the RCS
-  systems and the ROD switch. It also shows the LM's flight data and
-  systems, and Mission Control's LM PADs. The FDAI shows Eagle's attitude
-  and rates and its LGC's errors. The hand controllers fly its ACA and
-  TTCA, about and along its axes.
+  on as its computer and switches have it. In a headset the player stayed
+  in the CM until the fourth part, below, gave the LM its cabin.
+- **The LM's cockpit** came first as a desktop overlay (the fourth part,
+  below, added its cabin). In Eagle the HUD shows the LGC's DSKY, which
+  the keys type into, and the LM's switches: the LGC's mode, ENGINE ARM,
+  ABORT STAGE, ENGINE START and STOP, the RCS systems and the ROD
+  switch. It also shows the LM's flight data and systems, and Mission
+  Control's LM PADs. The FDAI shows Eagle's attitude and rates and its
+  LGC's errors. The hand controllers fly its ACA and TTCA, about and
+  along its axes.
 - **The view from Eagle** is out of its forward windows, or a chase view
   above 40 km. Near the Moon the ground below the LM, drawn from the
   height maps (`src/presentation/lunar_ground.gd`), takes the place of
@@ -693,8 +702,84 @@ can fly them yourself:
   at the computer's next step, 20 ms on; only a program change goes at
   once. The test gives each typed sequence that step.
 
-Still to come in 3f: Eagle's cabin, from milestone 2's prefabs, so the LM
-can be flown in a headset.
+Slice 3f's fourth part puts the player in Eagle's cabin, from milestone
+2's prefabs, so the LM can be flown in a headset:
+
+- **The cabin** (`src/cabin/lm_cabin.gd`). A blockout of the ascent
+  stage's crew compartment, a cylinder 92 in across and 42 in deep lying
+  fore and aft, and the midsection behind it under the docking tunnel. It
+  has the two triangular forward windows, the overhead docking window and
+  the forward hatch. The commander stands on the left and the LM pilot on
+  the right, 1.6 m above the floor, each with an ACA at the right hand
+  and a TTCA at the left. Panels 1 to 5 are where the LM's panel
+  descriptions put them, at estimated positions. The cabin is built from
+  the docking port, in the LM's body axes, and stays about the centre of
+  mass as the LM stages. CmCabin and LmCabin now share `src/cabin/cabin.gd`
+  (the anchor, the seats, the card's mount and the panels).
+- **Its controls** (`data/cockpit/lm_controls.csv`, checked by the same
+  CockpitLayout against `channels.csv`):
+  - Panel 1: the mission timer, the rendezvous radar's range and range
+    rate, the descent engine's thrust, the FDAI on the LGC's attitude,
+    LUNAR CONTACT, ENG ARM (lever-locked) and ABORT STAGE.
+  - Panel 2: the LM pilot's FDAI and LUNAR CONTACT, and RCS SYS A and B.
+  - Panel 3: LGC MODE.
+  - Panel 4: the LGC's DSKY, with its ALT and VEL lamps below TRACKER.
+  - Panel 5: ENGINE STOP and START and the DES RATE switch.
+  
+  Every switch on Eagle's HUD has a cabin control. A toggle can now
+  publish a value for each position, which ENG ARM (DES, OFF, ASC) and
+  DES RATE (−1, 0, +1) need. Eagle's checklist steps name the control
+  they're done on, 57 of them in all.
+- **The landing point designator.** Its marks on the commander's window
+  are every 5° from 0 to 65° below the LM's +Z, as seen from the
+  commander's eye, the angle the LGC's N64 gives. The window is square to
+  +Z, so a mark's height holds whatever the landing point's azimuth.
+- **The view from inside.** The rig moves to the cabin of the vehicle
+  flown, with the checklist card, the highlight and the wrist menu, whose
+  PAD buttons ask for Eagle's PADs (DOI, PDI, ASCENT and CSI). SEAT goes
+  to the LM pilot's station. C cycles Eagle's window, chase and cabin
+  views, and a headset boards Eagle as the desktop does. In the cabin the
+  eye is 1 to 2 m from the centre of mass, and the space view draws the
+  ground about it. Near the surface the ground's scale keeps it 2.2 m
+  below the eye, under the floor, and Columbia is drawn no nearer than
+  2.8 m, outside the cabin. The comfort aids read Eagle's rates and
+  attitude. Both cabins sit at the render origin, so a hidden control
+  now takes no pointer or gaze ray, and the cabin of the vehicle not
+  flown can't stop one meant for the other.
+- **The headset run.** `HEADSET_RUN.md` gains a short second run in
+  Eagle, from `lunar_descent`, and `VR_ACCEPTANCE.md` rows E1 to E5. The
+  recorder fills in their evidence: the recentres made aboard Eagle, a
+  verb and noun typed on the LGC's DSKY, and the touches on Eagle's
+  switches.
+
+The checks:
+- `tests/unit/test_lm_cabin.gd`:
+  - The commander's eye and panels, and the shell's areas less its
+    openings.
+  - The LPD marks, the two stations and their reach.
+  - The cabin kept about the centre of mass as the LM stages.
+- `tests/unit/test_cockpit_layout.gd`: Eagle's layout validates and
+  round-trips, and the desktop rig reaches each of its controls.
+- `tests/unit/test_space_view.gd`: the ground and Columbia drawn outside
+  the cabin on the surface.
+- `tests/unit/test_main_scene_xr.gd`: a headset boarding Eagle.
+- `tests/scenarios/test_vr_acceptance_recorder.gd`: aboard Eagle, a
+  recentre, V16N43 on its DSKY and ENG ARM count as Eagle's rows.
+- `tests/scenarios/test_lm_cabin_checklists.gd` flies Eagle's four
+  checklists from the cabin, through the desktop rig. The flights are the
+  HUD's own (`tests/lm_checklist_flights.gd`), and they come out as they
+  do from the HUD, number for number. At high gate the landing site is
+  32.7° down the commander's window, and N64 shows 33.
+
+Writing it showed three things:
+- **The ground in the cabin.** At the Moon sphere's scale the ground under
+  a landed Eagle would be drawn 4 mm below its centre of mass, inside the
+  cabin, 1.9 m below the eye.
+- **Shadows.** The cabin's shell, at true scale, cast a shadow that
+  wasn't Eagle's on that scaled ground. So in the cabin the Sun shadows
+  only the cabin, within 3 m of the eye.
+- **Cracks.** The bulkheads' chords sat inside the wall's, and the Sun
+  showed through the cracks. The bulkheads now reach into the wall.
 
 ### What changes underneath
 
@@ -733,8 +818,8 @@ can be flown in a headset.
 One person can't fly both vehicles. At undocking the player moves to
 the LM, as its commander, and the CSM flies on as its computer and
 switches have it. At docking, or when the LM is jettisoned, the player
-returns to the CSM. On the desktop, L changes vehicles while the LM
-flies free (slice 3f).
+returns to the CSM. L changes vehicles while the LM flies free, and the
+player goes with it to the other vehicle's cabin (slice 3f).
 
 ### Slices
 
@@ -745,7 +830,7 @@ flies free (slice 3f).
 | 3c (done) | Moon-fixed frame, landing site, LOI over the site, P63, P64, P66, P68, touchdown | Test: automatic guidance from PDI to touchdown lands within 500 m of the site at under 1 m/s vertical and 0.5 m/s horizontal speed. A second run flies P66 with scripted hand-controller inputs |
 | 3d (done) | Lunar liftoff time from the RTCC, P12 | Test: liftoff to insertion, within set limits of the target orbit |
 | 3e (done) | P20, P32 to P35, braking, docking | Test: insertion to docking capture, with total ΔV within a set margin of the RTCC plan |
-| 3f (in progress) | Undocking-to-TEI timeline in `mission.json`; start phases `lunar_descent`, `lunar_surface` and `lunar_ascent`; checklists; CAPCOM; an LM cockpit (desktop overlay first, then cabin prefabs from milestone 2) | The new start phases are built from the earlier ones; every LM checklist is flown from the desktop HUD; and the full suite passes |
+| 3f (done) | Undocking-to-TEI timeline in `mission.json`; start phases `lunar_descent`, `lunar_surface` and `lunar_ascent`; checklists; CAPCOM; an LM cockpit (desktop overlay first, then cabin prefabs from milestone 2) | The new start phases are built from the earlier ones; every LM checklist is flown from the desktop HUD and from Eagle's cabin; and the full suite passes |
 
 **Done when** `--phase=lunar_descent` lands at Tranquility Base and
 `--phase=lunar_ascent` docks with Columbia. The README's Fidelity table

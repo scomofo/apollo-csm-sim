@@ -126,9 +126,9 @@ func test_the_lm_phases_start_in_the_lm_and_l_changes_vehicles() -> void:
 	assert_eq(main.rt.lgc().dsky.verb, "16", "the keys reach the LGC")
 	assert_eq(main.rt.lgc().dsky.noun, "68")
 	assert_ne(main.rt.agc().dsky.noun, "68", "not the CMC")
-	for mode in [1, 0]:
+	for mode in [1, 2, 0]:
 		_press(main, [KEY_C])
-		assert_eq(main.view.view_mode, mode, "C: the LM's window and chase views")
+		assert_eq(main.view.view_mode, mode, "C: the LM's window, chase and cabin views")
 	var arm: OptionButton = main.hud._options["ctl.lm.engine_arm"]
 	arm.item_selected.emit(2)
 	assert_eq(Bus.get_value("ctl.lm.engine_arm"), 2, "ENG ARM DES")
@@ -147,10 +147,26 @@ func test_the_lm_phases_start_in_the_lm_and_l_changes_vehicles() -> void:
 	assert_eq(main.rt.lgc().dsky.noun, "68", "the LGC keeps its display")
 	_press(main, [KEY_C, KEY_C])
 	assert_eq(main.view.view_mode, 2, "the CM's cabin")
+	assert_eq(main.rig.get_parent(), main.cabin.anchor, "the rig in Columbia's cabin")
+	# L in the cabin view: into Eagle's cabin, with the card, the highlight
+	# and the wrist menu.
 	_press(main, [KEY_L])
-	assert_eq(main.view.view_mode, 0, "the LM has no cabin: out of its window")
-	assert_false(main.cabin.visible)
-	assert_true(main.view.camera.current)
+	assert_eq(main.view.view_mode, 2, "still the cabin view")
+	assert_true(main.lm_cabin.visible, "Eagle's cabin")
+	assert_false(main.cabin.visible, "not Columbia's")
+	assert_eq((main.cabin.items["P1_CMC_MODE"].get_node("Touch") as Area3D).collision_layer, 0,
+		"Columbia's hidden controls let the pointer through to Eagle's")
+	assert_ne((main.lm_cabin.items["P1_ENG_ARM"].get_node("Touch") as Area3D).collision_layer, 0)
+	assert_eq(main.rig.get_parent(), main.lm_cabin.anchor, "the rig at Eagle's commander's station")
+	assert_true((main.rig.get_node("Camera3D") as Camera3D).current)
+	assert_eq(main.card.get_parent(), main.lm_cabin.card_mount)
+	assert_eq(main.card.book, main.lm_book, "the card shows Eagle's checklists")
+	assert_eq(main.highlight.get_parent(), main.lm_cabin)
+	assert_eq(main.menu.cabin, main.lm_cabin, "SEAT moves between Eagle's stations")
+	assert_eq(main.menu.book, main.lm_book)
+	assert_not_null(main.menu.button("pdi"), "the wrist menu asks for Eagle's PADs")
+	assert_eq(main.comfort.vehicle, "lm")
+	assert_false(main.hud.lgc_panel.visible, "the LGC's 2D DSKY steps aside for the cabin's")
 	main.rt.free_nodes()
 
 

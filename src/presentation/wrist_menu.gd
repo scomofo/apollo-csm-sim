@@ -9,8 +9,10 @@
 ## (README.md lists the port): its guide and new-flight buttons stay
 ## behind, SEAT is new, it doesn't save settings yet, and the PAD buttons
 ## write ctl.ground.pad_request, the channel the HUD's Mission Control
-## buttons write. The buttons are presentation controls, so they work
-## while time acceleration locks the panels.
+## buttons write. They ask for the PADs of the vehicle flown (set_vehicle):
+## Columbia's MCC, LOI-1, LOI-2 and TEI, or Eagle's DOI, PDI, ASCENT and
+## CSI. The buttons are presentation controls, so they work while time
+## acceleration locks the panels.
 ##
 ## Reads:  perf.frame_ms_max
 ## Writes: ctl.ground.pad_request, present.menu.visible,
@@ -29,8 +31,15 @@ const BUTTONS := [
 	["checklist", "CHECKLIST"], ["next", "NEXT STEP"], ["highlight", "HILITE"], ["vignette", "VIGNETTE"],
 	["horizon", "HORIZON"], ["authentic", "AUTHENTIC"],
 ]
-## The PAD request each Mission Control button makes (MissionSequencer.request_pad).
+## The PAD request each Mission Control button makes (MissionSequencer.request_pad),
+## in Columbia: the first four buttons' ids.
 const PAD_REQUESTS := ["mcc", "loi", "circ", "tei"]
+## The four PAD buttons' [request, label] for each vehicle, as the HUD's
+## Mission Control buttons.
+const PADS := {
+	"csm": [["mcc", "MCC"], ["loi", "LOI-1"], ["circ", "LOI-2"], ["tei", "TEI"]],
+	"lm": [["doi", "DOI"], ["pdi", "PDI"], ["ascent", "ASCENT"], ["csi", "CSI"]],
+}
 const COLS := 4
 const PITCH := Vector2(0.042, 0.034)
 ## Controller action that shows or hides the menu.
@@ -52,10 +61,14 @@ var book: ChecklistBook
 ## Optional: the comfort aids its VIGNETTE, HORIZON and AUTHENTIC buttons
 ## switch, and the cabin whose seat SEAT changes.
 var comfort: Comfort
-var cabin: CmCabin
+var cabin: Cabin
+## The vehicle flown, whose PADs the PAD buttons ask for: "csm" or "lm".
+var vehicle: String = "csm"
 var status_label: Label3D
 var _buttons: Dictionary = {}
 var _touch_layers: Dictionary = {}
+## The four PAD buttons, in order.
+var _pad_buttons: Array[Node3D] = []
 var _shown := false
 ## Shown by the key or the controller button rather than the palm.
 var _pinned := false
@@ -110,11 +123,17 @@ func _ready() -> void:
 		l.modulate = CabinMaterials.lettering_colour()
 		l.position = Vector3(0, 0.0145, 0.001)
 		b.add_child(l)
-		b.connect("activated", _on_button.bind(id))
+		# A PAD button asks for whatever its vehicle's PAD is at the press.
+		if i < PAD_REQUESTS.size():
+			b.connect("activated", _on_pad.bind(i))
+			_pad_buttons.append(b)
+		else:
+			b.connect("activated", _on_button.bind(id))
 		add_child(b)
 		_buttons[id] = b
 		_touch_layers[id] = touch.collision_layer
 	_set_shown(false)
+	set_vehicle(vehicle)
 
 
 ## Wire the menu to what it drives. [param hand_node] null means the
@@ -203,13 +222,41 @@ func button(id: String) -> ControlBase:
 	return _buttons.get(id)
 
 
+## Ask for [param v]'s PADs ("csm" or "lm") on the PAD buttons: each takes
+## that vehicle's request as its id and its name as its legend.
+func set_vehicle(v: String) -> void:
+	vehicle = v
+	var pads: Array = PADS[v]
+	for i in _pad_buttons.size():
+		var b := _pad_buttons[i]
+		var old := str(b.name)
+		var id: String = pads[i][0]
+		var layer: int = _touch_layers[old]
+		_buttons.erase(old)
+		_touch_layers.erase(old)
+		b.name = id
+		b.set("label", pads[i][1])
+		(b.get_node("Legend") as Label3D).text = pads[i][1]
+		_buttons[id] = b
+		_touch_layers[id] = layer
+
+
+## The PAD requests the PAD buttons make now.
+func pad_requests() -> Array:
+	return (PADS[vehicle] as Array).map(func(p: Array) -> String: return p[0])
+
+
 ## Act on a button by id, as its press does.
 func activate(id: String) -> void:
 	_on_button(id)
 
 
+func _on_pad(i: int) -> void:
+	Bus.set_value("ctl.ground.pad_request", PADS[vehicle][i][0])
+
+
 func _on_button(id: String) -> void:
-	if id in PAD_REQUESTS:
+	if id in pad_requests():
 		Bus.set_value("ctl.ground.pad_request", id)
 		return
 	match id:
@@ -232,7 +279,7 @@ func _on_button(id: String) -> void:
 					rig.call("recenter")
 		"seat":
 			if cabin:
-				cabin.set_seat("CMP" if cabin.seat == "CDR" else "CDR")
+				cabin.next_seat()
 		"highlight":
 			Bus.set_value("present.checklist.highlight_enabled",
 				not bool(Bus.get_value("present.checklist.highlight_enabled", true)))

@@ -3,8 +3,9 @@
 ## CabinMaterials
 ## (https://github.com/scomofo/gemini-capsule/blob/40e449cfb8c35111de47a33bd351b2d945e6fa52/src/presentation/cabin_materials.gd),
 ## so the control and instrument prefabs taken from it work unchanged.
-## The prefabs use "bezel"; the CM cabin (src/cabin/cm_cabin.gd) and its
-## DSKY use the rest. Every look here is [estimated].
+## The prefabs use "bezel"; the CM and LM cabins (src/cabin/) and their
+## DSKYs use the rest, Eagle's in the CM's looks until its own are sourced.
+## Every look here is [estimated].
 class_name CabinMaterials
 extends RefCounted
 
@@ -16,6 +17,7 @@ const PROVENANCE := {
 	"panel_face": {"basis": "Medium-grey main display console faces with light legends: a general impression, not yet matched to photographs", "confidence": "estimated"},
 	"couch": {"basis": "Pale couch pads: a general impression, not yet matched to photographs", "confidence": "estimated"},
 	"dsky_case": {"basis": "Dark grey DSKY case and keys: a general impression, not yet matched to photographs", "confidence": "estimated"},
+	"lpd": {"basis": "Landing point designator marks on the commander's window, drawn bright red-orange so they read against the ground; the flown scale's colour is not sourced", "confidence": "estimated"},
 }
 
 static var _cache: Dictionary = {}
@@ -49,6 +51,11 @@ static func _built(role: String) -> Material:
 			return _plain(Color(0.86, 0.84, 0.78), 0.9)
 		"dsky_case":
 			return _plain(Color(0.2, 0.21, 0.22), 0.5)
+		"lpd":
+			var m := StandardMaterial3D.new()
+			m.albedo_color = lpd_colour()
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			return m
 	# Unknown role: magenta, obvious in any capture.
 	var unknown := StandardMaterial3D.new()
 	unknown.albedo_color = Color(1, 0, 1)
@@ -69,3 +76,8 @@ static func _plain(c: Color, roughness: float, both_sides: bool = false) -> Stan
 ## Lettering colour for panel labels and instrument scales [estimated].
 static func lettering_colour() -> Color:
 	return Color(0.96, 0.94, 0.88)
+
+
+## The landing point designator's marks and figures [estimated].
+static func lpd_colour() -> Color:
+	return Color(1.0, 0.42, 0.22)

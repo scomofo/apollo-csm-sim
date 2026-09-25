@@ -277,6 +277,67 @@ func test_from_eagle_on_the_moon_the_ground_takes_the_spheres_place() -> void:
 	assert_gt(csm_at.normalized().y, 0.999, "straight overhead")
 
 
+func test_from_eagles_cabin_the_ground_and_columbia_are_drawn_outside_it() -> void:
+	# Eagle on its gear at Tranquility Base, facing north; Columbia
+	# straight overhead. The commander's eye in Eagle's cabin.
+	var lat := 0.67416
+	var lon := 23.47314
+	var cm := Dynamics.lm_cm_height("lm")
+	var site := Bodies.selenographic_to_fixed(lat, lon, Bodies.R_MOON + Terrain.height(lat, lon) + cm)
+	var mf := Bodies.moon_fixed(0.0)
+	var r := mf * site
+	var up := r.normalized()
+	var north := (mf.z - up * up.dot(mf.z)).normalized()
+	var csm_r := up * (Bodies.R_MOON + 111000.0)
+	Bus.set_value("dyn.primary", "moon")
+	Bus.set_value("dyn.r_m", [csm_r.x, csm_r.y, csm_r.z])
+	Bus.set_value("dyn.att_q", Quaternion.IDENTITY)
+	Bus.set_value("dock.state", "free")
+	Bus.set_value("lm.dyn.primary", "moon")
+	Bus.set_value("lm.dyn.config", "lm")
+	Bus.set_value("lm.dyn.r_m", [r.x, r.y, r.z])
+	Bus.set_value("lm.dyn.landed", true)
+	Bus.set_value("lm.dyn.landed_pos_m", [site.x, site.y, site.z])
+	Bus.set_value("lm.dyn.att_q", Basis(up, north.cross(up), north).get_rotation_quaternion())
+	var cabin := LmCabin.new()
+	add_child_autofree(cabin)
+	var eye := Node3D.new()
+	add_child_autofree(eye)
+	eye.global_position = cabin.anchor.global_position
+	view.eye_camera = eye
+	view.ground.threaded = false
+	view.vehicle = "lm"
+	view.view_mode = 2
+	view._process(0.0)
+	assert_true(view.ground.visible, "the ground below Eagle")
+	assert_false(view.moon.visible, "in place of the sphere")
+	assert_false(view.lm_free.visible, "inside Eagle, its model isn't drawn")
+	assert_eq(view.sun.directional_shadow_max_distance, SpaceView.CABIN_SHADOW_M, "the Sun shadows only the cabin")
+	# The eye about 5.5 m above the ground (3.6 m of gear to the centre of
+	# mass, 1.9 m on to the eye, and the site's slope between them): the
+	# ground drawn below it at the cabin's clearance, beneath its floor.
+	var agl := LmCabin.EYE_CDR.x + Docking.lm_port_m("lm") + cm
+	assert_almost_eq(SpaceView.CABIN_GROUND_M / view.ground_scale, agl, 0.3, "the scale for the eye's height")
+	var below: Vector3 = view.ground.global_transform * view.ground.points[0]
+	assert_almost_eq(below, eye.global_position + Vector3(0, -SpaceView.CABIN_GROUND_M, 0), Vector3.ONE * 0.02,
+		"straight below the eye, as far down as the cabin allows")
+	var floor_y := (cabin.global_transform * Vector3(LmCabin.FLOOR_X, 0, 0)).y
+	assert_lt(below.y, floor_y - 0.5, "below the cabin's floor")
+	# Columbia overhead, drawn about the eye beyond the cabin's walls.
+	var cg := Vector3(SpaceView.CSM_PORT_X - float(Docking.params()["csm_port_m"]), 0, 0)
+	var csm_at: Vector3 = view.csm.global_transform * cg - eye.global_position
+	assert_almost_eq(csm_at.length(), SpaceView.CABIN_CSM_M, 1e-3, "at the cabin's clearance")
+	assert_gt(csm_at.normalized().y, 0.999, "straight overhead")
+	# The window view is from the centre of mass, as before.
+	view.view_mode = 0
+	view._process(0.0)
+	var s := SpaceView.RENDER_DIST / r.length()
+	assert_almost_eq(view.ground_scale, s, 1e-9, "at the Moon's scale")
+	assert_almost_eq(view.ground.global_transform * view.ground.points[0], Vector3(0, -cm * s, 0), Vector3.ONE * 2e-4,
+		"below the centre of mass")
+	assert_eq(view.sun.directional_shadow_max_distance, SpaceView.SHADOW_M)
+
+
 ## The LM model's placement relative to the CSM model's.
 func _csm_to_lm() -> Transform3D:
 	return view.csm.global_transform.affine_inverse() * view.lm_free.global_transform

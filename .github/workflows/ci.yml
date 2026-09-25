@@ -12,11 +12,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
-    # The GUT suite includes full mission-segment scenarios; it runs in
-    # about 3 minutes.
+  suite:
+    # The GUT suite in parts that run side by side: the unit tests, and
+    # the scenario tests, which fly whole mission segments, dealt out in
+    # turn over the scenario parts in file-name order. A new scenario file
+    # joins a part by itself.
+    name: test (${{ matrix.part }})
     timeout-minutes: 20
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [unit, scenarios 1 of 2, scenarios 2 of 2]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -41,8 +48,40 @@ jobs:
       - name: Import project
         run: timeout 300 ~/godot/godot --headless --path . --import
 
-      - name: Run unit and scenario tests
-        run: ~/godot/godot --headless --path . -s addons/gut/gut_cmdln.gd -gexit
+      - name: Run the ${{ matrix.part }} tests
+        env:
+          PART: ${{ matrix.part }}
+        run: |
+          if [ "$PART" = unit ]; then
+            args=(-gdir=res://tests/unit/)
+          else
+            # "scenarios K of N": every Nth scenario file in name order,
+            # starting from the Kth. -gdir= drops .gutconfig.json's
+            # directories, so only the files listed run.
+            read -r _ k _ n <<< "$PART"
+            mapfile -t files < <(find tests/scenarios -name 'test_*.gd' | LC_ALL=C sort)
+            list=()
+            for i in "${!files[@]}"; do
+              if (( i % n == k - 1 )); then list+=("res://${files[$i]}"); fi
+            done
+            if (( ${#list[@]} == 0 )); then
+              echo "No scenario files for $PART"
+              exit 1
+            fi
+            args=(-gdir= "-gtest=$(IFS=,; echo "${list[*]}")")
+          fi
+          ~/godot/godot --headless --path . -s addons/gut/gut_cmdln.gd "${args[@]}" -gexit
+
+  test:
+    # The check to require on main: it passes only when every part of the
+    # suite passed, and fails when one failed or was cancelled.
+    if: always()
+    needs: suite
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every part of the suite passed
+        run: test "${{ needs.suite.result }}" = success
 
   lint:
     # Static checks that need no Godot binary. gdlint is advisory

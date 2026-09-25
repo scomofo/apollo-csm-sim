@@ -11,12 +11,14 @@
 ## panel switch, a DSKY verb and noun and a wrist-menu button worked by
 ## fingertip; the rotation controller on the thumbsticks; the vignette,
 ## the horizon aid's default and the time-rate lock. They replace Gemini's
-## ACE POWER and RATE CMD rows. The seated reference space is 0 (Local)
-## here. Presentation only: it writes nothing to the Bus.
+## ACE POWER and RATE CMD rows. Eagle's rows, from a second run aboard the
+## LM, take the recentres made there, a verb and noun typed on the LGC's
+## DSKY and the touches on its switches. The seated reference space is 0
+## (Local) here. Presentation only: it writes nothing to the Bus.
 ##
 ## Reads:  player.*, ctl.rhc, dyn.omega, dsky.verb, dsky.noun,
-##         present.comfort.vignette, present.comfort.horizon,
-##         present.menu.visible, perf.*
+##         lm.dsky.verb, lm.dsky.noun, present.comfort.vignette,
+##         present.comfort.horizon, present.menu.visible, perf.*
 class_name VrAcceptanceRecorder
 extends Node
 
@@ -51,6 +53,7 @@ var record := {
 	"touch": {"count": 0, "channels": {}, "labels": []},
 	"switch_by_touch": {"channel": "", "label": "", "at_s": -1.0},
 	"dsky_by_touch": {"typed": "", "verb": "", "noun": "", "at_s": -1.0, "shown": false},
+	"lgc_dsky_by_touch": {"typed": "", "verb": "", "noun": "", "at_s": -1.0, "shown": false},
 	"menu_by_touch": {"label": "", "at_s": -1.0},
 	"sticks": {"max_pitch": 0.0, "max_pitch_rate_deg_s": 0.0, "max_roll": 0.0, "max_roll_rate_deg_s": 0.0,
 		"locked_seen": false, "max_while_locked": 0.0},
@@ -78,6 +81,8 @@ func _ready() -> void:
 	record["reference_space"] = int(ProjectSettings.get_setting("xr/openxr/reference_space", -1))
 	for b in WristMenu.BUTTONS:
 		_menu_labels[b[1]] = true
+	for pad in WristMenu.PADS["lm"]:
+		_menu_labels[pad[1]] = true
 	Bus.subscribe("player.rig", func(v: Variant) -> void: record["rig"] = str(v))
 	Bus.subscribe("player.xr_session", _on_session)
 	Bus.subscribe("player.xr_focus", func(v: Variant) -> void:
@@ -133,11 +138,12 @@ func _on_recenter(count: Variant) -> void:
 		_last_origin = rig.position
 	_ignore_origin_until_ms = Time.get_ticks_msec() + 500
 	record["recenters"].append({"n": int(count), "at_s": _elapsed_s(), "head_offset_m": head_offset,
-		"target_height_m": target_height, "residual_m": residual})
+		"target_height_m": target_height, "residual_m": residual,
+		"vehicle": str(Bus.get_value("player.vehicle", "csm"))})
 
 
-## A1, A2, A7: what a fingertip crossing actuated. ControlBase names the
-## control and its channel before it counts the crossing.
+## A1, A2, A7, E2 to E4: what a fingertip crossing actuated. ControlBase
+## names the control and its channel before it counts the crossing.
 func _on_touch(_count: Variant) -> void:
 	var label := str(Bus.get_value("player.last_touch_label", ""))
 	var channel := str(Bus.get_value("player.last_touch_channel", ""))
@@ -156,16 +162,18 @@ func _on_touch(_count: Variant) -> void:
 		_typed = (_typed + str(DSKY_LETTERS.get(label, label))).right(24)
 		var re := RegEx.create_from_string("V(\\d\\d)N(\\d\\d)E$")
 		var m := re.search(_typed)
-		if m and float(record["dsky_by_touch"]["at_s"]) < 0.0:
-			record["dsky_by_touch"] = {"typed": m.get_string(0), "verb": m.get_string(1), "noun": m.get_string(2),
+		# The CMC's DSKY, or aboard Eagle the LGC's.
+		var key := "lgc_dsky_by_touch" if str(Bus.get_value("player.vehicle", "csm")) == "lm" else "dsky_by_touch"
+		if m and float(record[key]["at_s"]) < 0.0:
+			record[key] = {"typed": m.get_string(0), "verb": m.get_string(1), "noun": m.get_string(2),
 				"at_s": _elapsed_s(), "shown": false}
 
 
 func _process(delta: float) -> void:
-	# A2: the CMC took the verb and noun typed by fingertip.
-	var d: Dictionary = record["dsky_by_touch"]
-	if float(d["at_s"]) >= 0.0 and not bool(d["shown"]):
-		d["shown"] = str(Bus.get_value("dsky.verb", "")) == d["verb"] and str(Bus.get_value("dsky.noun", "")) == d["noun"]
+	# A2, E3: the CMC, and the LGC, took the verb and noun typed by
+	# fingertip.
+	_check_shown(record["dsky_by_touch"], "dsky")
+	_check_shown(record["lgc_dsky_by_touch"], "lm.dsky")
 	# A3, A4, C4: the thumbsticks on the rotation controller, and the lock.
 	var rhc: Vector3 = Bus.get_value("ctl.rhc", Vector3.ZERO)
 	var omega: Vector3 = Bus.get_value("dyn.omega", Vector3.ZERO)
@@ -194,6 +202,13 @@ func _process(delta: float) -> void:
 	fr["worst_ms"] = maxf(fr["worst_ms"], ms)
 	if ms > budget_ms * DROP_FACTOR:
 		fr["dropped"] = int(fr["dropped"]) + 1
+
+
+## Whether the DSKY publishing on [param prefix] shows the verb and noun
+## typed in [param d].
+func _check_shown(d: Dictionary, prefix: String) -> void:
+	if float(d["at_s"]) >= 0.0 and not bool(d["shown"]):
+		d["shown"] = str(Bus.get_value(prefix + ".verb", "")) == d["verb"] and str(Bus.get_value(prefix + ".noun", "")) == d["noun"]
 
 
 func _on_session_stopping() -> void:
@@ -307,4 +322,23 @@ func markdown() -> String:
 	lines.append("| C5 | Ten minutes of lunar-orbit coast at 1x; record comfort and symptoms | | tester |")
 	lines.append("| pacing | Frames over %.1fx the %.1f ms budget | | %d of %d frames (%.1f %%), worst %.1f ms |" % [
 		DROP_FACTOR, fr["budget_ms"], fr["dropped"], fr["count"], drop_pct, fr["worst_ms"]])
+	var eagle_rec: Array = rec.filter(func(e: Dictionary) -> bool: return e.get("vehicle", "") == "lm")
+	var eagle_res := float(eagle_rec[eagle_rec.size() - 1]["residual_m"]) if eagle_rec.size() > 0 else -1.0
+	var lk: Dictionary = r["lgc_dsky_by_touch"]
+	var eagle_touches := 0
+	for c in ch:
+		if str(c).begins_with("ctl.lm."):
+			eagle_touches += int(ch[c])
+	lines.append("")
+	lines.append("## Eagle's cabin")
+	lines.append("| # | Check | Pass? | Notes |")
+	lines.append("|---|---|---|---|")
+	lines.append("| E1 | Aboard Eagle, recentre puts the head on the commander's standing eye; nothing clips the headset | | %s: %d recentres aboard Eagle, calibration residual %.3f m; the clipping check is the tester's |" % [
+		_yn(eagle_rec.size() > 0 and eagle_res >= 0.0 and eagle_res < 0.02), eagle_rec.size(), eagle_res])
+	lines.append("| E2 | From the commander's station, panels 1, 3, 4 and 5 are in fingertip reach; SEAT goes to the LM pilot's station and back | | tester; seats used: %s; Eagle's switches touched %d times |" % [
+		", ".join(PackedStringArray(r["seats"])), eagle_touches])
+	lines.append("| E3 | A verb and noun typed on Eagle's DSKY by fingertip, and shown | | %s: %s |" % [_yn(float(lk["at_s"]) >= 0.0 and bool(lk["shown"])),
+		("`%s` by touch at %.1f s, %s on the LGC's DSKY" % [lk["typed"], lk["at_s"], "shown" if lk["shown"] else "NOT shown"]) if float(lk["at_s"]) >= 0.0 else "no VxxNxxE typed by touch aboard Eagle"])
+	lines.append("| E4 | ENG ARM: the first crossing pulls the lever out, the second moves it | | tester; `ctl.lm.engine_arm` touched %d times |" % int(ch.get("ctl.lm.engine_arm", 0)))
+	lines.append("| E5 | The LPD's marks sit on the commander's window | | tester |")
 	return "\n".join(lines) + "\n"
