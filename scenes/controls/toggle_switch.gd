@@ -1,5 +1,6 @@
 ## Two- or three-position toggle switch. Position 0 is lever down.
-## Publishes the integer position on [member channel].
+## Publishes the integer position on [member channel], or the position's
+## entry in [member values].
 ##
 ## Variants (gemini-capsule's docs/VR_INTERACTION.md §3):
 ##  - guarded: a hinged guard covers the lever; the first push lifts the
@@ -10,7 +11,8 @@
 ## Adapted from gemini-capsule at 40e449c (README.md lists the port): it
 ## starts from the position the Bus already holds (the simulation's state, a
 ## checkpoint, the HUD) instead of publishing initial_position over it, and
-## follows later changes; publish_bool suits on/off channels.
+## follows later changes; publish_bool suits on/off channels, and values
+## channels whose values aren't the positions in lever order.
 extends ControlBase
 
 @export var positions: int = 2
@@ -26,6 +28,11 @@ extends ControlBase
 ## Publish a bool (position 1 = true) instead of the position, for on/off
 ## channels that the HUD also writes as bool. Two-position switches only.
 @export var publish_bool: bool = false
+## The value each position publishes, lever down first, when it isn't the
+## position itself: Eagle's ENG ARM is DES, OFF, ASC (2, 0, 1) and its rate
+## of descent switch -1, 0, +1. A value outside the list on the channel
+## leaves the lever where it is.
+@export var values: PackedInt32Array = []
 
 var position_index: int = 0:
 	set = set_position_index
@@ -50,7 +57,17 @@ func _ready() -> void:
 
 
 func _index_of(v: Variant) -> int:
-	return (1 if v else 0) if v is bool else int(v)
+	if v is bool:
+		return 1 if v else 0
+	if values.is_empty():
+		return int(v)
+	var i := values.find(int(v))
+	return i if i >= 0 else position_index
+
+
+## The value position [param i] publishes.
+func value_at(i: int) -> int:
+	return values[i] if i < values.size() else i
 
 
 func _on_channel(v: Variant) -> void:
@@ -64,7 +81,7 @@ func set_position_index(i: int) -> void:
 		var t := 0.0 if positions == 1 else float(position_index) / float(positions - 1)
 		_lever.rotation.x = deg_to_rad(lerpf(throw_deg, -throw_deg, t))
 	if channel != "":
-		Bus.set_value(channel, position_index == 1 if publish_bool else position_index)
+		Bus.set_value(channel, position_index == 1 if publish_bool else value_at(position_index))
 
 
 func set_guard_open(open: bool) -> void:

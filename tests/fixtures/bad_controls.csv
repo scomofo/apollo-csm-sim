@@ -21,3 +21,6 @@ BAD_COLUMNS,MDC2,toggle,stray comma,240,-200,0,ctl.rcs.quad_a,,estimated,D,imple
 BAD_SCALE,MDC1,toggle,scaled control,-250,-150,0,ctl.rcs.quad_b,scale=2,estimated,D,implemented,proxy
 BAD_X,MDC1,toggle,not a number,-180,abc,0,ctl.rcs.quad_c,,estimated,D,implemented,proxy
 BAD_SOURCE,MDC1,toggle,no source,-110,-200,0,ctl.rcs.quad_d,,,D,implemented,proxy
+BAD_VALUES_N,MDC1,toggle,values short,150,150,0,ctl.cmc.mode,positions=3;labels=A|B|C;values=1|2,estimated,D,implemented,proxy
+BAD_VALUES_DUP,MDC1,toggle,values repeat,230,150,0,ctl.cmc.mode,positions=3;labels=A|B|C;values=1|1|2,estimated,D,implemented,proxy
+BAD_VALUES_BOOL,MDC1,toggle,values on a bool,150,-150,0,ctl.eps.fc1,values=0|1,estimated,D,implemented,proxy

@@ -37,7 +37,6 @@ func test_every_lm_step_checks_itself_off() -> void:
 		assert_false(c.phases.is_empty(), "%s: its phases" % c.title)
 		for s in c.steps:
 			assert_true(s.has("check"), "%s: \"%s\" has a check" % [c.title, s["text"]])
-			assert_false(s.has("control"), "Eagle has no cabin controls yet")
 
 
 func _titles(hud: Hud) -> Array:

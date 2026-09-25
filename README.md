@@ -20,6 +20,8 @@ executed through the Apollo Guidance Computer's DSKY.
 
 ![The checklist card with the TEI PAD and CAPCOM, and the wrist menu](docs/images/cabin_checklist.png)
 
+![Eagle's cabin on the descent orbit: the landing point designator on the commander's window, panel 1 with the FDAI, and the LGC's DSKY on panel 4](docs/images/eagle_cabin.png)
+
 The project used
 [scomofo/gemini-capsule](https://github.com/scomofo/gemini-capsule) as its
 template and began as the `apollo/` directory of that repository. It now
@@ -50,13 +52,14 @@ from there (below), with you in Eagle. Starting in any phase after
 trajectory.
 
 `godot --path . --xr-mode on` starts OpenXR, which is off by default, and
-puts you in the commander's couch in a headset. No headset run has been
-recorded yet ([docs/ROADMAP.md](docs/ROADMAP.md), slice 2e).
+puts you in the commander's couch in a headset, or, once Eagle undocks
+and in its start phases, at Eagle's commander's station. No headset run
+has been recorded yet ([docs/ROADMAP.md](docs/ROADMAP.md), slice 2e).
 [docs/HEADSET_RUN.md](docs/HEADSET_RUN.md) walks through one, including
 the PC VR exports in `export_presets.cfg`;
 [docs/VR_ACCEPTANCE.md](docs/VR_ACCEPTANCE.md) is its checklist, and
-[docs/VR_INTERACTION.md](docs/VR_INTERACTION.md) describes how the cabin
-works in a headset.
+[docs/VR_INTERACTION.md](docs/VR_INTERACTION.md) describes how the cabins
+work in a headset.
 
 | Input | Action |
 |---|---|
@@ -69,7 +72,7 @@ works in a headset.
 | T (hold) | SPS THRUST ON, the manual backup (in Columbia) |
 | L | Fly Eagle or Columbia, while Eagle flies free |
 | `[` `]`, P | Time rate slower/faster (1× to 10,000×), pause |
-| C | Window, chase or cabin view (in Eagle, window or chase) |
+| C | Window, chase or cabin view (Columbia's or Eagle's) |
 | Right-drag | Look around (window and chase views) |
 | In the cabin view: click, scroll | Work the control under the cursor: a click cycles a switch or presses a key, scrolling moves a switch up or down |
 | In the cabin view: right-click, Z, Home | Mouse look on and off; inspect the control under the cursor; recentre |
@@ -78,7 +81,8 @@ works in a headset.
 | H | Key help |
 
 Every DSKY key and cockpit switch is also clickable on screen, in the HUD
-or on the CM's main display console in the cabin view. Above 100× the
+or, in the cabin view, on Columbia's main display console or Eagle's
+panels. Above 100× the
 cabin's switches lock, and its DSKY keys still work. Time acceleration
 drops back to 10× by itself when an engine lights, at each scheduled
 event (TLI, TIG−60 s, V99, and Mission Control's calls and PADs from
@@ -229,7 +233,28 @@ flies free, **L** changes vehicles. The HUD becomes Eagle's:
 The hand controllers fly its ACA and TTCA. The view is out of its
 forward windows, or a chase view above 40 km, and near the Moon the
 ground below Eagle is drawn from the same height maps its gear lands on.
-In a headset you stay in Columbia's cabin, since Eagle has none yet.
+
+**Eagle's cabin.** C's third view, and the only view in a headset, puts
+you standing at the commander's station in Eagle's cabin
+(`src/cabin/lm_cabin.gd`), at its window. Panels 1 to 5 carry every
+switch of Eagle's HUD and its displays (`data/cockpit/lm_controls.csv`):
+- Panel 1, to your right: the mission timer, the rendezvous radar's range
+  and range rate, the descent engine's thrust, the FDAI, LUNAR CONTACT,
+  ENG ARM and ABORT STAGE. ENG ARM is lever-locked: the first push pulls
+  the lever out, the second moves it.
+- Panel 2, the LM pilot's: its own FDAI and LUNAR CONTACT, and RCS SYS A
+  and B.
+- Panel 3, between you: LGC MODE.
+- Panel 4, below it: the LGC's DSKY, with its ALT and VEL lamps.
+- Panel 5, by your left hand: ENGINE STOP and START and DES RATE, the
+  rate of descent switch. Scroll it up for +1 FPS and down for −1 FPS.
+
+The landing point designator's scale is on your window: a mark every 5°
+down to 65°. In P64 the landing point sits on the mark N64 gives. The
+checklist card is by your left shoulder, and the wrist menu's PAD buttons
+ask for Eagle's PADs. L takes you to the other vehicle's cabin while
+Eagle flies free, and you go aboard with the docking state as on the
+HUD.
 
 The on-screen checklist follows along. Steps with a check mark complete
 themselves when the Bus shows the action was done. Columbia and Eagle
@@ -247,7 +272,7 @@ check. CHECKLIST turns to the next checklist where it was left, so you
 can fly a burn down the SPS burn checklist and come back to the phase's;
 a finished checklist starts again. SEAT moves you to the
 centre couch, where the DSKY is straight ahead and, in a headset, within
-reach.
+reach, or in Eagle to the LM pilot's station.
 
 To reproduce the Apollo 13 failure, set `failures.o2_tank_2_get_s` in
 `data/missions/apollo_11/mission.json` (the flown time was 55:54:53 =
@@ -306,29 +331,31 @@ The VR cockpit ([docs/ROADMAP.md](docs/ROADMAP.md), milestone 2) reuses
 gemini-capsule's interaction layer, rigs, panel prefabs and data-driven
 panel layout. They were taken later than the rest, at commit
 [`40e449c`](https://github.com/scomofo/gemini-capsule/tree/40e449cfb8c35111de47a33bd351b2d945e6fa52).
-The CM cabin (`src/cabin/cm_cabin.gd`) and the cabin DSKY
+The CM cabin (`src/cabin/cm_cabin.gd`), Eagle's (`src/cabin/lm_cabin.gd`,
+milestone 3), what they share (`src/cabin/cabin.gd`) and the cabin DSKY
 (`scenes/instruments/cabin_dsky.gd`) are new. Every row of
 `data/cockpit/controls.csv` places one control or display on the main
-display console, at estimated positions (confidence D) until the panel
-drawings are transcribed.
+display console, and every row of `lm_controls.csv` one on Eagle's
+panels, at estimated positions (confidence D) until the panel drawings
+are transcribed.
 
 | Gemini capsule | Apollo CSM | Changes |
 |---|---|---|
-| [`src/interaction/control_base.gd`][v-control-base], [`interactor.gd`][v-interactor] | same paths | One addition to `control_base.gd`: a fingertip crossing names the control on `player.last_touch_label` before it counts, so the headset recorder can tell DSKY keys and menu buttons apart |
-| [`scenes/controls/`][v-controls]: toggle, rotary, pushbutton | same paths | They start from the value the Bus already holds (the simulation's state, a checkpoint, the HUD) instead of publishing their initial position over it, and the toggle and rotary follow later changes. A two-position toggle can publish a bool, as the HUD does |
+| [`src/interaction/control_base.gd`][v-control-base], [`interactor.gd`][v-interactor] | same paths | Two additions to `control_base.gd`: a fingertip crossing names the control on `player.last_touch_label` before it counts, so the headset recorder can tell DSKY keys and menu buttons apart; and a hidden control takes no pointer or gaze ray, since Eagle's cabin and Columbia's share the render origin |
+| [`scenes/controls/`][v-controls]: toggle, rotary, pushbutton | same paths | They start from the value the Bus already holds (the simulation's state, a checkpoint, the HUD) instead of publishing their initial position over it, and the toggle and rotary follow later changes. A two-position toggle can publish a bool, as the HUD does, and a toggle a value for each position (Eagle's ENG ARM and DES RATE) |
 | [`scenes/controls/circuit_breaker.gd`][v-breaker] | same path | Gemini's overhead face style, drawn for its SC-4 overhead panel, is left out |
 | [`scenes/instruments/`][v-instruments]: lamp, numeric display, clock, flag, round gauge | same paths | None. `Units.convert()` and a minimal `src/presentation/cabin_materials.gd` exist for them, and `src/core/frames.gd` for the FDAI |
-| [`scenes/instruments/fdai.gd`][v-fdai] | same path | Shows the view from inside the ball, like the flown instrument: Gemini's ball reads pitch and yaw reversed. The ball also turns relative to its case, so a tilted panel doesn't tilt the horizon |
+| [`scenes/instruments/fdai.gd`][v-fdai] | same path | Shows the view from inside the ball, like the flown instrument: Gemini's ball reads pitch and yaw reversed. The ball also turns relative to its case, so a tilted panel doesn't tilt the horizon. On Eagle's panels it reads the LGC's attitude, level with the windows forward and the LM's +X up |
 | [`scenes/player/xr_rig.tscn`][v-xr-rig], [`openxr_action_map.tres`][v-action-map] | same paths | Each fingertip has its own collision shape and a small green marker, so the player can see it. OpenXR is off in `project.godot` until `--xr-mode on`, with the seated Local reference space (Gemini's `project.godot` sets Stage) |
 | [`scenes/player/desktop_rig.gd`][v-desktop-rig] | same path | No keyboard head movement, because W/A/S/D/Q/E fly the RHC here. Recentre is the `recenter` action on Home, because R is the THC's +X |
 | [`src/interaction/hand_controller_input.gd`][v-hci] | same path | Writes `ctl.rhc` and `ctl.thc` from the keys and the thumbsticks; holding the left grip switches the sticks to the THC. `for_xr_rig()` reads a headset's hands, and each stick axis has a 15 % deadzone, for the RHC's breakout detents |
-| [`src/presentation/wrist_menu.gd`][v-wrist-menu] | same path | Apollo's buttons: the PAD requests (writing `ctl.ground.pad_request`, as the HUD does), time rate, pause, recentre, eye height, SEAT, CHECKLIST, NEXT STEP, HILITE, VIGNETTE, HORIZON and AUTHENTIC. Gemini's guide and new-flight buttons stay behind, and settings aren't saved yet |
-| [`src/presentation/comfort.gd`][v-comfort] | same path | Reads `dyn.omega`, `dyn.g_load` and `guid.indicator.attitude` in place of Gemini's `guid.rate.*`, dynamic pressure and `guid.att.lvlh`: the vignette starts at 3 deg/s of body rate and 2 g in entry |
+| [`src/presentation/wrist_menu.gd`][v-wrist-menu] | same path | Apollo's buttons: the PAD requests (writing `ctl.ground.pad_request`, as the HUD does), time rate, pause, recentre, eye height, SEAT, CHECKLIST, NEXT STEP, HILITE, VIGNETTE, HORIZON and AUTHENTIC. In Eagle the PAD buttons ask for DOI, PDI, ASCENT and CSI, and SEAT goes to the LM pilot's station. Gemini's guide and new-flight buttons stay behind, and settings aren't saved yet |
+| [`src/presentation/comfort.gd`][v-comfort] | same path | Reads `dyn.omega`, `dyn.g_load` and `guid.indicator.attitude` in place of Gemini's `guid.rate.*`, dynamic pressure and `guid.att.lvlh`: the vignette starts at 3 deg/s of body rate and 2 g in entry. In Eagle it reads Eagle's rates and the LGC's attitude |
 | [`src/presentation/gaze_tooltip.gd`][v-tooltip], [`perf_monitor.gd`][v-perf] | same paths | None. The frame budget follows the headset's refresh at session start |
-| [`src/presentation/vr_acceptance_recorder.gd`][v-recorder] | same path | Apollo's rows: a panel switch, a DSKY verb and noun and a wrist-menu button worked by fingertip, the thumbsticks on the rotation controller, the vignette, the horizon aid's default and the lock above 100×, in place of Gemini's ACE POWER and RATE CMD. A later session stop rewrites the record, so a headset taken off mid-run doesn't cut it short |
-| [`docs/VR_INTERACTION.md`, `HEADSET_RUN.md`, `VR_ACCEPTANCE.md`][v-vr-docs], [`export_presets.cfg`][v-export] | same paths | Rewritten for the CM. The PC VR presets (Windows, Linux) leave out `tests/`, `tools/` and GUT; Gemini's Quest preset stays behind |
+| [`src/presentation/vr_acceptance_recorder.gd`][v-recorder] | same path | Apollo's rows: a panel switch, a DSKY verb and noun and a wrist-menu button worked by fingertip, the thumbsticks on the rotation controller, the vignette, the horizon aid's default and the lock above 100×, in place of Gemini's ACE POWER and RATE CMD. Eagle's rows: recentres at its station, a verb and noun on its DSKY and its switches touched. A later session stop rewrites the record, so a headset taken off mid-run doesn't cut it short |
+| [`docs/VR_INTERACTION.md`, `HEADSET_RUN.md`, `VR_ACCEPTANCE.md`][v-vr-docs], [`export_presets.cfg`][v-export] | same paths | Rewritten for the CM, with Eagle's cabin added. The PC VR presets (Windows, Linux) leave out `tests/`, `tools/` and GUT; Gemini's Quest preset stays behind |
 | [`src/presentation/checklist_highlight.gd`][v-highlight] | same path | Finds the control from the step's `control` or its check channel, and the frame fits the control's footprint, DSKY included. Off with HILITE or in authentic mode |
-| [`src/cabin/cockpit_layout.gd`][v-layout], [`controls.csv`, `channels.csv`][v-cockpit-data] | `src/cabin/cockpit_layout.gd`, `data/cockpit/` | Rows are checked against `CmCabin`'s panels and the channel types in `channels.csv`, and for overlaps. No `spec_id` column until a CM cockpit spec exists. A switch on a bool channel publishes a bool; switch positions are lettered beside the lever and around the knob |
+| [`src/cabin/cockpit_layout.gd`][v-layout], [`controls.csv`, `channels.csv`][v-cockpit-data] | `src/cabin/cockpit_layout.gd`, `data/cockpit/` | Rows are checked against their cabin's panels (`CmCabin`'s, or `LmCabin`'s for `lm_controls.csv`) and the channel types in `channels.csv`, and for overlaps. No `spec_id` column until a CM or LM cockpit spec exists. A switch on a bool channel publishes a bool; switch positions are lettered beside the lever and around the knob |
 | [`tests/unit/`][v-tests]: `test_control_library`, `test_xr_rig`, `test_openxr_action_map`, `test_desktop_inspection`, `test_gauge_linear_face` | same paths | Gemini-only cases dropped or replaced |
 
 [v-control-base]: https://github.com/scomofo/gemini-capsule/blob/40e449cfb8c35111de47a33bd351b2d945e6fa52/src/interaction/control_base.gd
@@ -429,12 +456,22 @@ ones:
   insertion is estimated from Apollo 11's rendezvous. P12's steering
   takes the engine's nominal thrust for its acceleration, not the
   measured one.
-- **Eagle's cockpit.** It is a desktop overlay, not Eagle's panels: the
-  LGC's DSKY and the switches the LM's burns and landing need, with no
-  abort guidance section. The view from Eagle is from its centre of
-  mass, and its chase view gives way to the window view below 40 km,
-  where a camera beside it would see the scaled Moon from the wrong
-  place. In a headset you stay in Columbia.
+- **Eagle's cockpit.** On the HUD it is a desktop overlay, not Eagle's
+  panels: the LGC's DSKY and the switches the LM's burns and landing
+  need, with no abort guidance section. The window view from Eagle is
+  from its centre of mass, and its chase view gives way to the window
+  view below 40 km, where a camera beside it would see the scaled Moon
+  from the wrong place.
+- **Eagle's cabin.** It is a blockout, like the CM's: the shell and the
+  stations follow the LM in outline, and every panel position is
+  estimated. The panels carry only the controls and displays the
+  simulator models. LGC MODE stands in for the PGNS mode control, ABORT
+  STAGE and ENGINE STOP are momentary, and a number stands in for each
+  tape meter. The LPD's scale is for the commander's design eye. Seen
+  from the cabin, the ground is drawn about the eye, at a scale that
+  keeps it below the floor, and Columbia no nearer than 2.8 m. Eagle
+  casts no shadow on the ground, and the descent stage can't be seen
+  from inside.
 - **The LM's start phases.** Columbia drifts in CMC MODE FREE while
   Eagle flies. The start phases fly DOI as the RTCC models P40's burn,
   and set Eagle down on the site at the time DOI planned for. They leave
@@ -503,9 +540,8 @@ The unit tests cover:
   the thumbstick deadzone, and in Eagle its ACA and TTCA about its own
   axes, as its FDAI reads them
 - Which vehicle you fly: Eagle from undocking, Columbia again at docking
-  or jettison, L between them while Eagle flies free, and Columbia only
-  in a headset. Boarding, not L, opens the vehicle's checklist for the
-  phase
+  or jettison, and L between them while Eagle flies free. Boarding, not
+  L, opens the vehicle's checklist for the phase
 - Columbia's and Eagle's checklists: each opens the one its phases name,
   and the HUD shows the checklists of the vehicle flown, both keeping up
   with the Bus whichever shows
@@ -514,30 +550,45 @@ The unit tests cover:
   undocks, is drawn where it flies and turned as it is. From Eagle, the
   two vehicles are drawn as they are to each other, and on the surface
   the ground takes the sphere's place, 3.6 m below its centre of mass,
-  with Columbia drawn nearer than the ground
+  with Columbia drawn nearer than the ground. From Eagle's cabin the
+  ground is drawn about the commander's eye, 2.2 m below it, beneath the
+  cabin's floor, and Columbia outside the cabin, 2.8 m out
 - The ground below Eagle: the maps' heights on its grid, placed at the
   Moon's scale with the eye at the origin, a new grid as Eagle moves on
   or comes down, and the last one drawn while a worker builds the next
+- Eagle's cabin (`tests/unit/test_lm_cabin.gd`):
+  - The commander stands at the window, 1.6 m above the floor.
+  - Each panel faces the crew member who works it, inside the shell.
+  - The bulkheads are whole but for the windows and the way aft.
+  - The LPD marks are where the commander looks at their angles.
+  - The DSKY is within reach of both stations, and SEAT goes between
+    them.
+  - The cabin stays about the centre of mass as Eagle stages
 - The cabin controls and instruments, the XR and desktop rigs and the
   OpenXR action map taken from gemini-capsule
-- The cockpit layout: `controls.csv` validates, malformed rows are
-  reported, and every row round-trips between its node and the Bus. Every
-  HUD switch has a cabin control, the cabin DSKY types into the CMC, and
-  the desktop rig can click every control from the commander's couch
+- The cockpit layouts: `controls.csv` and `lm_controls.csv` validate,
+  malformed rows are reported, and every row round-trips between its node
+  and the Bus, a toggle's through its values. Every switch on Columbia's
+  and Eagle's HUDs has a cabin control, each cabin DSKY types into its
+  computer (Eagle's with its ALT and VEL lamps), and the desktop rig can
+  click every control from the commander's couch or station
 - What the cabin shows and sets on the Bus: the DSKY display, the FDAI
   attitude, and switches that follow the HUD and checkpoints
 - The checklists in the cabin: one book shared by the HUD and the card,
   the card's checklist, PAD and CAPCOM, and the highlight on the control
-  each step names or whose channel it checks
-- The wrist menu: its PAD, clock, recentre, eye-height and checklist
-  buttons, M and the controller button, the palm gesture, and buttons
-  that work while the panels are locked
-- The headset aids: the vignette and horizon ring, authentic mode, the
-  gaze tooltip, the frame-time monitor, and the seat switch that brings
-  the DSKY within reach
+  each step names or whose channel it checks, in Columbia's cabin or,
+  following the player, Eagle's
+- The wrist menu: its PAD buttons, Columbia's or Eagle's, its clock,
+  recentre, eye-height and checklist buttons, M and the controller
+  button, the palm gesture, and buttons that work while the panels are
+  locked
+- The headset aids: the vignette and horizon ring, Columbia's or
+  Eagle's, authentic mode, the gaze tooltip, the frame-time monitor, and
+  the seat switch that brings the DSKY within reach
 - The main scene's headset branch, run against a stand-in for the OpenXR
   interface: the XR rig and its camera, hands and menu, frame pacing to
-  the headset's refresh, and one record across a restarted session
+  the headset's refresh, one record across a restarted session, and the
+  player boarding Eagle's cabin as it undocks
 
 The scenario tests fly real segments through the crew interface:
 
@@ -552,8 +603,8 @@ The scenario tests fly real segments through the crew interface:
   checklist worked on from the menu and the DSKY
 - The headset acceptance recorder on the desktop rig: fingertip crossings
   on a switch, the DSKY and the menu (a click doesn't count), the
-  thumbsticks' pitch and roll response, the lock above 100× and the
-  record it writes
+  thumbsticks' pitch and roll response, the lock above 100×, and aboard
+  Eagle a recentre, its DSKY and ENG ARM, and the record it writes
 - Every checklist worked from the commander's couch through the desktop
   rig until the card shows it complete: parking orbit and TLI, LOI-1,
   LOI-2 and TEI each down the SPS burn checklist on P40 with a residual
@@ -624,16 +675,22 @@ The scenario tests fly real segments through the crew interface:
   PAD in. A checkpoint taken mid-timeline carries on as the uninterrupted
   run does
 - Eagle's checklists from its desktop HUD
-  (`tests/scenarios/test_lm_checklists.gd`), slice 3f's check. The main
+  (`tests/scenarios/test_lm_checklists.gd`) and from its cabin
+  (`test_lm_cabin_checklists.gd`), slice 3f's checks. The two fly the
+  same flights (`tests/lm_checklist_flights.gd`). The main
   scene runs in a viewport of its own, worked as a player at the desktop
   works it: the DSKY on the keys through the scene's input, the HUD's
   buttons clicked where they show and its switches set, and the braking
-  and the docking on the hand controllers' keys. Each of Eagle's four
-  checklists is flown from its phase's start until the HUD shows it
-  complete:
+  and the docking on the hand controllers' keys. In the cabin the rig
+  clicks each control, the DSKY is typed on panel 4's keys, the steps are
+  read off the card and the checklists turned with the wrist menu. Each
+  of Eagle's four checklists is flown from its phase's start until the
+  HUD, or the card, shows it complete, with the same numbers from both:
   - From `lunar_orbit`: UNDOCK in Columbia at GO for undocking, and DOI
     to a pericynthion 15,286 m above the site.
   - From `lunar_descent`: P63 to P68, and a landing 140 m from the site.
+    At high gate the site is 32.7° down the commander's window, and N64
+    shows 33.
   - From `lunar_surface`: STAY for T3, the ascent PAD, and P12 to a
     9.0 × 45.0 nmi orbit.
   - From `lunar_ascent`: the liftoff, then P20, CSI (52.3 ft/s), CDH,
@@ -662,6 +719,7 @@ godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=1 --undock=40
 godot --path . tools/screenshot.tscn -- --phase=lunar_descent --view=0 --out=res://docs/images/eagle_descent_orbit.png
 godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=2 --yaw=-0.3 --pitch=-0.12 --hud=0 --out=res://docs/images/cabin_lunar_orbit.png
 godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=2 --yaw=0.55 --pitch=-0.08 --hud=0 --menu=1 --pad=tei --out=res://docs/images/cabin_checklist.png
+godot --path . tools/screenshot.tscn -- --phase=lunar_descent --view=2 --yaw=-0.75 --pitch=-0.75 --hud=0 --out=res://docs/images/eagle_cabin.png
 ```
 
 ## Roadmap
@@ -674,6 +732,7 @@ free and docks again (slice 3a), flies DOI on its own computer (slice
 RTCC's time (slice 3d), and flies the rendezvous back to Columbia, which
 docks with it (slice 3e). Slice 3f has given Mission Control its
 timeline from undocking to TEI, the LM its start phases, and you Eagle's
-cockpit, as a desktop overlay, the view out of its windows, and its
-checklists, each flown from the desktop HUD. Eagle's cabin is still to
-come.
+cockpit, as a desktop overlay, the view out of its windows, its
+checklists, and its cabin, each checklist flown from the HUD and from the
+cabin. That finishes the LM milestone; flying Eagle in a headset waits on
+the headset run, with the VR cockpit's. Navigation realism is next.

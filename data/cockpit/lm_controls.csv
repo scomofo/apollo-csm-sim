@@ -1,0 +1,35 @@
+# Eagle's cabin controls and displays: one row per item on the LM's
+# panels, built by src/cabin/cockpit_layout.gd (load_lm()) onto the panels
+# of src/cabin/lm_cabin.gd, with the columns of controls.csv. x_mm/y_mm are
+# the item's centre on the panel face, right and up as the crew member who
+# works it sees it. Which panel an item is on follows the LM's panel
+# descriptions (retrieved 2026-09-25 from
+# https://apollo11guide.com/Apollo11ManualFree/LunarLander/Lunar_Module_Control_Panel_1.htm):
+# panel 1 the commander's flight displays (mission timer, range and range
+# rate, thrust, FDAI), a LUNAR CONTACT light, ENG ARM and ABORT STAGE;
+# panel 2 the LM pilot's, with the RCS main shutoff valves; panel 3 the
+# guidance mode control; panel 4 the LGC's DSKY; panel 5 ENGINE START and
+# STOP and the rate of descent switch (DES RATE). Every placement
+# on its panel is confidence D (estimated). role: historical = the control
+# or display exists in the LM as modelled; proxy = stands in for different
+# LM hardware (LGC MODE for the PGNS mode control's OFF, ATT HOLD and AUTO;
+# a momentary pushbutton for a guarded or latching one; a system's switch
+# for its valves; a number for a tape meter).
+id,panel,type,label,x_mm,y_mm,rot_deg,channel,params,source,confidence,status,role
+P1_MISSION_TIMER,P1,clock,MISSION TIMER,-40,160,0,time.get_s,,estimated,D,implemented,historical
+P1_RANGE,P1,numeric,RANGE NMI,85,158,0,lm.rr.range_m,converter=m_to_nmi;format=%6.2f;valid_channel=lm.rr.data_good;blank_text=------,estimated,D,implemented,proxy
+P1_RANGE_RATE,P1,numeric,RANGE RATE FT/S,85,122,0,lm.rr.range_rate_mps,converter=mps_to_fps;format=%+6.1f;valid_channel=lm.rr.data_good;blank_text=------,estimated,D,implemented,proxy
+P1_LUNAR_CONTACT,P1,lamp,LUNAR CONTACT,-110,115,0,lm.contact_light,colour=4da6ff,estimated,D,implemented,historical
+P1_FDAI,P1,fdai,FDAI,-20,20,0,lm.guid.indicator.attitude,scale=1.4;vehicle=lm,estimated,D,implemented,historical
+P1_THRUST,P1,numeric,THRUST PCT,105,20,0,lm.dps.throttle_pct,format=%3.0f;blank_text=---,estimated,D,implemented,proxy
+P1_ENG_ARM,P1,toggle,ENG ARM,-85,-120,0,ctl.lm.engine_arm,positions=3;labels=DES|OFF|ASC;values=2|0|1;lever_lock=true,estimated,D,implemented,historical
+P1_ABORT_STAGE,P1,pushbutton,ABORT STAGE,55,-115,0,ctl.lm.stage,,estimated,D,implemented,proxy
+P2_LUNAR_CONTACT,P2,lamp,LUNAR CONTACT,110,115,0,lm.contact_light,colour=4da6ff,estimated,D,implemented,historical
+P2_FDAI,P2,fdai,FDAI,20,20,0,lm.guid.indicator.attitude,scale=1.4;vehicle=lm,estimated,D,implemented,historical
+P2_RCS_SYS_A,P2,toggle,RCS SYS A,-50,-120,0,ctl.lm.rcs.sys_a,labels=CLOSE|OPEN,estimated,D,implemented,proxy
+P2_RCS_SYS_B,P2,toggle,RCS SYS B,40,-120,0,ctl.lm.rcs.sys_b,labels=CLOSE|OPEN,estimated,D,implemented,proxy
+P3_LGC_MODE,P3,toggle,LGC MODE,-150,-15,0,ctl.lm.mode,positions=3;labels=FREE|HOLD|AUTO,estimated,D,implemented,proxy
+P4_DSKY,P4,dsky,DSKY,0,0,0,lm.dsky,lamp_set=lgc,estimated,D,implemented,historical
+P5_ENGINE_STOP,P5,pushbutton,ENGINE STOP,-75,35,0,ctl.lm.eng_stop,,estimated,D,implemented,proxy
+P5_ENGINE_START,P5,pushbutton,ENGINE START,-15,35,0,ctl.lm.eng_start,,estimated,D,implemented,historical
+P5_DES_RATE,P5,toggle,DES RATE,65,-5,0,ctl.lm.rod,positions=3;labels=-1 FPS||+1 FPS;values=-1|0|1;rest_position=1;momentary_positions=0|2,estimated,D,implemented,historical

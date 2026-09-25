@@ -2,8 +2,9 @@
 ## desktop rig too, so its record and objective rows are checked here
 ## without hardware. The desktop rig reads as S1 FAIL, and a pointer click
 ## is not a touch. Fingertip crossings on CMC MODE, the DSKY and the wrist
-## menu are. The thumbsticks' pitch and roll response is measured, the
-## lock above 100x holds, and the tables are written.
+## menu are, and aboard Eagle a recentre, its DSKY and ENG ARM count as
+## Eagle's. The thumbsticks' pitch and roll response is measured, the lock
+## above 100x holds, and the tables are written.
 ## Adapted from gemini-capsule's tests/scenarios/test_vr_acceptance_recorder.gd
 ## at 40e449c.
 extends GutTest
@@ -82,6 +83,41 @@ func test_fingertip_crossings_on_a_switch_the_dsky_and_the_menu_count_as_touch()
 		assert_string_contains(line, "evidence: pass", row)
 
 
+func test_aboard_eagle_a_recentre_its_dsky_and_eng_arm_are_eagles() -> void:
+	Bus.set_value("ctl.seq.undock", true)
+	SimClock.advance(0.1)
+	Bus.set_value("ctl.seq.undock", false)
+	SimClock.advance(60.0)
+	await get_tree().process_frame
+	assert_eq(Bus.get_value("player.vehicle"), "lm", "aboard Eagle as it undocks")
+	Bus.set_value("player.recenter_count", 1)
+	var recs: Array = _rec.record["recenters"]
+	assert_eq(recs[recs.size() - 1]["vehicle"], "lm", "recentred at Eagle's station")
+	var dsky: CabinDsky = _main.lm_cabin.items["P4_DSKY"]
+	for k in ["VERB", "1", "6", "NOUN", "4", "3", "ENTR"]:
+		_touch(dsky.keys[k], Vector3(0.0, 0.0, -0.5))
+	var typed: Dictionary = _rec.record["lgc_dsky_by_touch"]
+	assert_eq([typed["typed"], typed["verb"], typed["noun"]], ["V16N43E", "16", "43"])
+	assert_lt(float(_rec.record["dsky_by_touch"]["at_s"]), 0.0, "not the CMC's")
+	SimClock.advance(0.1)
+	await get_tree().process_frame
+	assert_true(typed["shown"], "the LGC shows V16N43")
+	var arm: ControlBase = _main.lm_cabin.items["P1_ENG_ARM"]
+	_touch(arm, Vector3(0.0, -0.5, 0.0))
+	assert_eq(Bus.get_value("ctl.lm.engine_arm"), 0, "the first crossing pulls the lever out")
+	await wait_seconds(arm.retrigger_s + 0.05)
+	_touch(arm, Vector3(0.0, -0.5, 0.0))
+	assert_eq(Bus.get_value("ctl.lm.engine_arm"), 2, "the second moves it to DES")
+	var md := _rec.markdown()
+	var line := func(row: String) -> String:
+		return Array(md.split("\n")).filter(func(l: String) -> bool: return l.begins_with(row))[0]
+	for row in ["| E1 |", "| E3 |"]:
+		assert_string_contains(line.call(row), "evidence: pass", row)
+	assert_string_contains(line.call("| E2 |"), "Eagle's switches touched 2 times")
+	assert_string_contains(line.call("| E4 |"), "`ctl.lm.engine_arm` touched 2 times")
+	assert_string_contains(line.call("| A2 |"), "no VxxNxxE typed by touch", "nothing typed on the CMC's")
+
+
 func test_thumbstick_response_and_the_time_rate_lock_are_measured() -> void:
 	var hci: Node = _main.get_node("HandControllerInput")
 	hci.set_process(false)
@@ -116,10 +152,10 @@ func test_the_record_is_written_as_json_and_tables() -> void:
 	assert_eq(d["rig"], "desktop")
 	assert_gt(int(d["frames"]["count"]), 0)
 	var md := FileAccess.get_file_as_string(base + ".md")
-	for heading in ["## Session", "## Reach and cabin", "## Actuation", "## Comfort and pacing"]:
+	for heading in ["## Session", "## Reach and cabin", "## Actuation", "## Comfort and pacing", "## Eagle's cabin"]:
 		assert_string_contains(md, heading)
 	for row in ["S1", "S2", "S3", "S4", "S5", "S6", "R1", "R2", "R3", "R4", "A1", "A2", "A3", "A4", "A5", "A6", "A7",
-			"C1", "C2", "C3", "C4", "C5"]:
+			"C1", "C2", "C3", "C4", "C5", "E1", "E2", "E3", "E4", "E5"]:
 		assert_string_contains(md, "| %s |" % row)
 	Bus.set_value("player.seat", "CMP")
 	assert_eq(_rec.write(), base, "a later write rewrites the same record")

@@ -1,6 +1,7 @@
 ## Which vehicle the player flies (VehicleSwitch): into the LM as it
 ## undocks, back to the CSM as it docks or is jettisoned, and L between the
-## two while the LM flies free.
+## two while the LM flies free. A headset boards Eagle too
+## (test_main_scene_xr.gd).
 extends GutTest
 
 var vs: VehicleSwitch
@@ -58,17 +59,3 @@ func test_a_start_with_the_lm_free_starts_in_it() -> void:
 	var other := VehicleSwitch.new()
 	add_child_autofree(other)
 	assert_eq(other.vehicle, "lm")
-
-
-func test_in_a_headset_the_player_stays_in_the_csm() -> void:
-	var other := VehicleSwitch.new()
-	other.csm_only = true
-	var aboard: Array = []
-	other.boarded.connect(func(v: String) -> void: aboard.append(v))
-	add_child_autofree(other)
-	Bus.set_value("dock.state", "free")
-	other.update()
-	assert_eq(other.vehicle, "csm")
-	assert_false(other.toggle())
-	assert_eq(Bus.get_value("player.vehicle"), "csm")
-	assert_eq(aboard, ["csm"], "aboard Columbia from the start, and still")

@@ -87,6 +87,30 @@ func test_pad_buttons_ask_mission_control() -> void:
 	assert_eq(asked, ["mcc", "loi", "circ", "tei"], "the requests the HUD's Mission Control buttons make")
 
 
+func test_in_eagle_the_pad_buttons_ask_for_eagles_pads() -> void:
+	_menu.set_vehicle("lm")
+	_menu._set_shown(true)
+	var asked: Array = []
+	var record := func(ch: String, v: Variant) -> void:
+		if ch == "ctl.ground.pad_request":
+			asked.append(v)
+	Bus.value_changed.connect(record)
+	for pad in WristMenu.PADS["lm"]:
+		var b := _menu.button(pad[0])
+		assert_not_null(b, "a %s button" % pad[1])
+		assert_eq(b.label, pad[1])
+		assert_eq((b.get_node("Legend") as Label3D).text, pad[1], "lettered %s" % pad[1])
+		b.actuate_far(0)
+		b.release()
+	Bus.value_changed.disconnect(record)
+	assert_eq(asked, ["doi", "pdi", "ascent", "csi"], "the requests Eagle's HUD makes")
+	assert_null(_menu.button("mcc"), "not Columbia's")
+	assert_eq(_menu.pad_requests(), ["doi", "pdi", "ascent", "csi"])
+	_menu.set_vehicle("csm")
+	assert_eq(_menu.button("mcc").label, "MCC", "Columbia's again")
+	assert_eq(_menu.pad_requests(), WristMenu.PAD_REQUESTS)
+
+
 func test_clock_buttons() -> void:
 	_menu.activate("faster")
 	assert_eq(SimClock.rate, 10.0)

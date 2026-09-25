@@ -23,7 +23,12 @@
 ## hide the CSM. Below CHASE_MIN_ALT_M the chase view gives way to the
 ## window view [simplified: a camera beside the LM would see the scaled
 ## Moon from far to one side of the LM, and near the surface from inside
-## it].
+## it]. In Eagle's cabin view (src/cabin/lm_cabin.gd) the player's eye
+## (eye_camera) is 1 to 2 m from the centre of mass, and the cabin is
+## drawn at true scale around it: the ground is drawn about the eye at the
+## sphere's scale or, lower down, one that keeps it CABIN_GROUND_M below
+## the eye, beneath the cabin's floor, and the CSM about the eye, no
+## nearer than CABIN_CSM_M, outside the cabin, and nearer than the ground.
 extends Node3D
 
 const RENDER_DIST := 2000.0
@@ -37,7 +42,7 @@ const CSM_PORT_X := 3.5
 const LM_RENDER_MAX := 1000.0
 ## The LM's body axes in the render axes: +X (up) is +Y, +Y (right) is +X
 ## and +Z (forward, out of the windows) is -Z.
-const LM_BODY_TO_GODOT: Basis = Basis(Vector3(0, 1, 0), Vector3(1, 0, 0), Vector3(0, 0, -1))
+const LM_BODY_TO_GODOT: Basis = Frames.LM_BODY_TO_GODOT
 ## Below this height the LM's chase view gives way to its window view.
 const CHASE_MIN_ALT_M := 40000.0
 ## Below this height the LM's view draws the ground (LunarGround).
@@ -46,6 +51,16 @@ const GROUND_MAX_ALT_M := 400000.0
 ## far in it may come toward the ground below the LM.
 const NEAR := 0.05
 const NEAR_MIN := 0.0005
+## In Eagle's cabin, how near the eye the ground below it may be drawn (m):
+## below the floor, 1.6 m under the eye; and how near the CSM may be:
+## beyond the cabin's farthest wall, 2.7 m from the eye.
+const CABIN_GROUND_M := 2.2
+const CABIN_CSM_M := 2.8
+## How far from the camera the Sun casts shadows (m): in Eagle's cabin only
+## the cabin itself, so its shell, at true scale, casts none on the ground
+## drawn at another [simplified: Eagle casts no shadow on the ground].
+const SHADOW_M := 100.0
+const CABIN_SHADOW_M := 3.0
 
 var camera: Camera3D
 var earth: MeshInstance3D
@@ -58,10 +73,15 @@ var lm_free: Node3D
 ## The ground below the LM, drawn from it near the Moon.
 var ground: LunarGround
 ## 0 window, 1 chase, 2 cabin: the CM cabin (src/cabin/cm_cabin.gd) is
-## drawn in place of the CM, and the player's rig has the camera.
+## drawn in place of the CM, or Eagle's in place of the LM, and the
+## player's rig has the camera.
 var view_mode: int = 0
 ## The vehicle the view is from: "csm", or "lm" while it flies free.
 var vehicle: String = "csm"
+## The player's eye in the cabin view: the rig's camera (main.gd sets it).
+var eye_camera: Node3D
+## The ground's render scale in the last frame.
+var ground_scale: float = 0.0
 var look_yaw: float = 0.0
 var look_pitch: float = 0.0
 var chase_yaw: float = 0.6
@@ -276,9 +296,10 @@ func _place_lm_free(q: Quaternion) -> void:
 
 
 ## Seen from the free LM: the CSM where it flies relative to the LM, and
-## turned as it is, in the render axes. Farther than [param far] it is
-## drawn at that distance, scaled to keep its apparent size.
-func _place_csm_from_lm(far: float) -> void:
+## turned as it is, in the render axes. Farther than [param far] from
+## [param eye] it is drawn at that distance from it, scaled to keep its
+## apparent size.
+func _place_csm_from_lm(far: float, eye: Vector3 = Vector3.ZERO) -> void:
 	var r: Array = Bus.get_value("dyn.r_m", [0.0, 0.0, 0.0])
 	var rl: Array = Bus.get_value("lm.dyn.r_m", r)
 	var rel := Vector3(r[0] - rl[0], r[1] - rl[1], r[2] - rl[2])
@@ -286,7 +307,7 @@ func _place_csm_from_lm(far: float) -> void:
 	if str(Bus.get_value("dyn.primary", primary)) != primary:
 		var m := Bodies.moon_state(float(Bus.get_value("time.get_s", 0.0)))
 		rel += Vector3(m[0], m[1], m[2]) * (1.0 if primary == "earth" else -1.0)
-	var at := eci_to_cabin * rel
+	var at := eci_to_cabin * rel - eye
 	var turn := eci_to_cabin * Basis(Bus.get_value("dyn.att_q", Quaternion.IDENTITY) as Quaternion)
 	var d := at.length()
 	if d > far:
@@ -295,7 +316,7 @@ func _place_csm_from_lm(far: float) -> void:
 	# The model's origin is the CM/SM interface; the centre of mass is along
 	# +X from it.
 	var cg := Vector3(CSM_PORT_X - float(Docking.params()["csm_port_m"]), 0, 0)
-	csm.transform = Transform3D(turn, at) * Transform3D(Basis.IDENTITY, -cg)
+	csm.transform = Transform3D(turn, eye + at) * Transform3D(Basis.IDENTITY, -cg)
 
 
 func _chutes(parent: Node3D, n: int, r: float, dist: float, c: Color) -> Node3D:
@@ -344,19 +365,31 @@ func _process(_delta: float) -> void:
 	eci_to_cabin = body * Basis(q).inverse()
 	_place(earth, eci_to_cabin * to_earth, Bodies.R_EARTH)
 	_place(earth_glow, eci_to_cabin * to_earth, Bodies.R_EARTH * 1.025)
-	# From the LM near the Moon: its height over the ground below it, the
-	# sphere through that ground, and the ground itself in its place.
+	# In Eagle's cabin the eye is the player's, off the centre of mass.
+	var cabin_view := from_lm and view_mode == 2
+	var eye_at := eye_camera.global_position if cabin_view and eye_camera != null else Vector3.ZERO
+	sun.directional_shadow_max_distance = CABIN_SHADOW_M if cabin_view else SHADOW_M
+	# From the LM near the Moon: the eye's height over the ground below it,
+	# the sphere through that ground, and the ground itself in its place.
 	var near_moon := from_lm and primary == "moon"
 	var agl := INF
 	var s_moon := RENDER_DIST / to_moon.length()
 	var drawn := false
+	ground_scale = s_moon
 	if near_moon:
+		var mf_to_view := eci_to_cabin * Bodies.moon_fixed(t)
 		var eye := LunarGround.lm_moon_fixed()
+		var off := mf_to_view.inverse() * eye_at
+		eye = PackedFloat64Array([eye[0] + off.x, eye[1] + off.y, eye[2] + off.z])
 		agl = LunarGround.height_over_ground(eye)
 		var ground_r := sqrt(eye[0] * eye[0] + eye[1] * eye[1] + eye[2] * eye[2]) - agl
 		_place(moon, eci_to_cabin * to_moon, ground_r)
-		var mf_to_view := eci_to_cabin * Bodies.moon_fixed(t)
-		drawn = agl < GROUND_MAX_ALT_M and ground.follow(eye, agl, mf_to_view, s_moon)
+		if cabin_view:
+			ground_scale = maxf(s_moon, CABIN_GROUND_M / maxf(agl, 1.0))
+			# Low down, the sphere at its scale would come into the cabin.
+			if agl * s_moon < CABIN_GROUND_M:
+				moon.visible = false
+		drawn = agl < GROUND_MAX_ALT_M and ground.follow(eye, agl, mf_to_view, ground_scale, eye_at)
 	else:
 		_place(moon, eci_to_cabin * to_moon, Bodies.R_MOON)
 	ground.visible = drawn
@@ -390,9 +423,11 @@ func _process(_delta: float) -> void:
 	lm_free.visible = str(Bus.get_value("dock.state", "")) == "free"
 	if from_lm:
 		var far := LM_RENDER_MAX
-		if near_moon:
+		if cabin_view:
+			far = clampf(0.5 * agl * ground_scale, CABIN_CSM_M, LM_RENDER_MAX) if near_moon else LM_RENDER_MAX
+		elif near_moon:
 			far = clampf(0.5 * agl * s_moon, 2.0 * camera.near, LM_RENDER_MAX)
-		_place_csm_from_lm(far)
+		_place_csm_from_lm(far, eye_at)
 		var lm_cfg := str(Bus.get_value("lm.dyn.config", "lm"))
 		lm_free.transform = Transform3D(body, Vector3.ZERO) * _lm_docked(lm_cfg).affine_inverse()
 	elif lm_free.visible:
@@ -405,7 +440,11 @@ func _process(_delta: float) -> void:
 	_parts["main_chutes"].scale = Vector3.ONE * lerpf(0.3, 1.0, float(Bus.get_value("els.main_fraction", 1.0)))
 	_parts["cm"].visible = view_mode != 2 or from_lm
 	# Camera, in body axes too, so only the crew's own look turns it.
-	if from_lm:
+	if cabin_view:
+		# Inside Eagle: its cabin in place of its model, the rig's camera.
+		csm.visible = true
+		lm_free.visible = false
+	elif from_lm:
 		_lm_camera(body)
 	elif view_mode == 2:
 		csm.visible = true

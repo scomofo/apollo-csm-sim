@@ -91,6 +91,30 @@ func test_the_headset_branch_puts_the_xr_rig_at_the_commanders_eye() -> void:
 	assert_true(cam.current)
 
 
+func test_in_a_headset_the_player_boards_eagles_cabin() -> void:
+	var rig: Node3D = _main.rig
+	assert_eq(rig.get_parent(), _main.cabin.anchor, "docked: in Columbia's cabin")
+	var origin: Transform3D = rig.transform
+	Bus.set_value("ctl.seq.undock", true)
+	SimClock.advance(0.1)
+	Bus.set_value("ctl.seq.undock", false)
+	SimClock.advance(60.0)
+	await get_tree().process_frame
+	assert_eq(str(Bus.get_value("dock.state")), "free")
+	assert_eq(Bus.get_value("player.vehicle"), "lm", "aboard Eagle as it undocks")
+	assert_eq(rig.get_parent(), _main.lm_cabin.anchor, "standing at its commander's station")
+	assert_true(rig.transform.is_equal_approx(origin), "the tracking origin kept: no recentre needed")
+	assert_true(_main.lm_cabin.visible, "Eagle's cabin")
+	assert_false(_main.cabin.visible)
+	assert_eq(_main.view.view_mode, 2, "the cabin is still the only view")
+	assert_eq(_main.view.eye_camera, rig.get_node("XRCamera3D"), "the world drawn about the headset's eye")
+	assert_true((rig.get_node("XRCamera3D") as Camera3D).current)
+	assert_eq(_main.menu.hand, rig.get_node("LeftHand"), "the wrist menu still on the left hand")
+	assert_eq(_main.menu.vehicle, "lm", "asking for Eagle's PADs")
+	assert_eq(Bus.get_value("player.seat"), "CDR")
+	assert_eq(_main.lm_cabin.items["P4_DSKY"].dsky, _main.rt.lgc().dsky, "panel 4's DSKY types into the LGC")
+
+
 func test_the_session_paces_frames_and_the_record_covers_a_restart() -> void:
 	_xr.session_begun.emit()
 	assert_eq(Engine.max_fps, 72, "frames paced to the headset's 72 Hz")

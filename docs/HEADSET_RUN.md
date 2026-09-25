@@ -2,8 +2,8 @@
 
 How to run the headset pass in `VR_ACCEPTANCE.md` (slice 2e in
 `ROADMAP.md`) and get a record to paste into the pull request or issue.
-One sitting, about thirty minutes. Adapted from gemini-capsule's
-`docs/HEADSET_RUN.md`.
+One sitting, about thirty minutes in Columbia's cabin and ten in Eagle's.
+Adapted from gemini-capsule's `docs/HEADSET_RUN.md`.
 
 ## Before you sit down
 
@@ -78,7 +78,8 @@ shoulder opens at *Lunar orbit and TEI*.
 A thumbstick axis does nothing within 15 % of centre, so a stick that
 rests off centre doesn't turn the spacecraft.
 
-The wrist menu has the PAD requests (MCC, LOI-1, LOI-2, TEI), time rate,
+The wrist menu has the PAD requests (MCC, LOI-1, LOI-2, TEI; in Eagle,
+DOI, PDI, ASCENT and CSI), time rate,
 pause, recentre, eye height ±1 cm, SEAT, CHECKLIST, NEXT STEP, HILITE,
 VIGNETTE, HORIZON and AUTHENTIC. Its top line shows GET, the time rate, the
 worst recent frame time and your seat.
@@ -139,6 +140,52 @@ Work through these in order. The recorder notes the objective rows itself.
     pacing.
 14. **S5.** Take the headset off and put it back on, then quit normally.
 
+## Eagle's cabin
+
+A second run checks the LM's cabin (the E rows). It starts in Eagle on
+the descent orbit, 20 minutes before PDI:
+
+```
+godot --path . --xr-mode on -- --phase=lunar_descent
+```
+
+Eagle's crew flew standing, so you stand at the commander's station, on
+the left, at its triangular window. Press B or Y to recentre: your head
+goes to the commander's eye, 1.6 m above the floor, whatever your seated
+height. EYE +1cm and EYE -1cm still adjust it. The wrist menu's PAD
+buttons are Eagle's: DOI, PDI, ASCENT and CSI.
+
+1. **E1.** Recentre and look around. Nothing should clip the headset.
+   - The window is at your face, and the docking window is overhead.
+   - Panel 1 is to your right, with the FDAI, ENG ARM and ABORT STAGE.
+   - Panels 3 and 4 (LGC MODE and the DSKY) are below it, between the
+     stations.
+   - Panel 5 is by your left hand, with ENGINE STOP, ENGINE START and
+     DES RATE.
+2. **E2.** From the commander's station, reach each of those controls.
+   Note any you can't reach.
+   - Press SEAT on the wrist menu: you're at the LM pilot's station, with
+     panel 2 to your left.
+   - Press SEAT again to go back.
+3. **E3.** Type **V16N43E** on Eagle's DSKY: VERB 1 6, NOUN 4 3, ENTR.
+   The display shows verb 16, noun 43 and Eagle's latitude, longitude
+   and altitude.
+4. **E4.** ENG ARM is lever-locked, and starts at OFF.
+   - Push down through the lever. Nothing moves, but the lever is pulled
+     out for 1.5 s.
+   - Push down again within that time: DES.
+   - Push up twice the same way to finish at OFF.
+5. **E5.** The landing point designator's scale is on your window: a
+   mark every 5°, from 0 at the top to 65°, with figures every 10°. It
+   should sit on the glass, not in front of it or behind it.
+6. Quit normally.
+
+If you have time before quitting, fly PDI from the checklist card, which
+takes about 25 minutes. RATE + to 10x shortens the coast; go back to 1x
+at TIG-10 min, when the card asks for P63. The highlight frames each
+step's control. At high gate the landing site sits on the mark N64
+gives.
+
 ## Get the record
 
 When the session stops or the window closes, the simulator writes:
@@ -150,7 +197,8 @@ user://vr_acceptance/<utc-timestamp>.md
 
 If the runtime stops the session when the headset comes off and starts
 it again when it goes back on, the later stop and the close rewrite the
-same two files, so one record covers the whole run.
+same two files, so one record covers the whole run. Eagle's run writes a
+record of its own, whose E rows are the ones to fill in.
 
 `user://` is:
 - Windows: `%APPDATA%\Godot\app_userdata\Apollo CSM Simulator\`
@@ -165,6 +213,8 @@ evidence is filled in from the Bus:
 - the stick deflection and body-rate response
 - the vignette and horizon states, the lock above 100x
 - frame pacing against the headset refresh
+- in Eagle, the recentres at its station, the sequence typed on its DSKY
+  and the switches a fingertip worked
 
 Rows marked `tester` are yours. Fill in the Pass column, add the headset,
 runtime and date at the top, and paste it into the pull request or issue.

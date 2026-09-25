@@ -1,6 +1,6 @@
-# Bus channels the cabin's controls publish and its displays read
-# (src/cabin/cockpit_layout.gd checks every controls.csv row against this
-# file). type: bool, int, float, string, quat or group (a prefix whose own
+# Bus channels the cabins' controls publish and their displays read
+# (src/cabin/cockpit_layout.gd checks every row of controls.csv and
+# lm_controls.csv against this file). type: bool, int, float, string, quat or group (a prefix whose own
 # channels follow). A * matches one path segment.
 channel,type,units,writer,description
 ctl.sps.arm_a,bool,,crew,DELTA-V THRUST A: SPS pilot valve bank A armed
@@ -39,3 +39,27 @@ dsky.r3,string,,agc,DSKY register 3
 dsky.flash,bool,,agc,VERB and NOUN flash: the computer is asking
 dsky.comp_acty,bool,,agc,COMP ACTY light
 dsky.lamp.*,bool,,agc,DSKY status and caution lamps
+ctl.lm.mode,int,,crew,LGC MODE (for the PGNS mode control): 0 FREE 1 HOLD 2 AUTO
+ctl.lm.engine_arm,int,,crew,ENG ARM: 0 OFF 1 ASC 2 DES
+ctl.lm.stage,bool,,crew,ABORT STAGE: stage the LM (momentary)
+ctl.lm.eng_start,bool,,crew,ENGINE START pushbutton (momentary)
+ctl.lm.eng_stop,bool,,crew,ENGINE STOP pushbutton (momentary)
+ctl.lm.rcs.sys_a,bool,,crew,LM RCS system A open
+ctl.lm.rcs.sys_b,bool,,crew,LM RCS system B open
+ctl.lm.rod,int,,crew,Rate of descent switch: +1 up (1 ft/s less descent) or -1 down (momentary)
+lm.guid.indicator.attitude,quat,,lgc,Eagle's FDAI attitude: body relative to LVLH
+lm.contact_light,bool,,dynamics,LUNAR CONTACT: a landing probe touches the surface
+lm.dps.throttle_pct,float,%,dps,Descent engine thrust
+lm.rr.range_m,float,m,rr,Rendezvous radar range to Columbia
+lm.rr.range_rate_mps,float,m/s,rr,Rendezvous radar range rate (positive opening)
+lm.rr.data_good,bool,,rr,Rendezvous radar has Columbia
+lm.dsky,group,,lgc,The LGC's DSKY display channels below
+lm.dsky.prog,string,,lgc,LGC DSKY PROG digits
+lm.dsky.verb,string,,lgc,LGC DSKY VERB digits
+lm.dsky.noun,string,,lgc,LGC DSKY NOUN digits
+lm.dsky.r1,string,,lgc,LGC DSKY register 1
+lm.dsky.r2,string,,lgc,LGC DSKY register 2
+lm.dsky.r3,string,,lgc,LGC DSKY register 3
+lm.dsky.flash,bool,,lgc,LGC VERB and NOUN flash: the computer is asking
+lm.dsky.comp_acty,bool,,lgc,LGC COMP ACTY light
+lm.dsky.lamp.*,bool,,lgc,LGC DSKY status and caution lamps (with ALT and VEL)

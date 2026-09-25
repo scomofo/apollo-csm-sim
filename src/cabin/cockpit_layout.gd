@@ -1,17 +1,20 @@
-## Data-driven cockpit: loads data/cockpit/controls.csv and channels.csv,
-## validates every row, and builds each one onto its CmCabin panel with its
-## lettering. Nothing on a panel is placed by hand.
+## Data-driven cockpit: loads a cabin's controls file and
+## data/cockpit/channels.csv, validates every row, and builds each one onto
+## its panel with its lettering. Nothing on a panel is placed by hand.
+## Columbia's rows are in data/cockpit/controls.csv, on CmCabin's panels
+## (load_default()); Eagle's in lm_controls.csv, on LmCabin's (load_lm()).
 ## Adapted from gemini-capsule's src/cabin/cockpit_layout.gd at 40e449c
-## (README.md lists the port). Rows are checked against CmCabin's panels
+## (README.md lists the port). Rows are checked against the cabin's panels
 ## and against the channel types in channels.csv, in place of Gemini's
-## cabin datum and cockpit spec: no CM panel drawings are transcribed yet,
-## so there is no spec_id column. A control on a bool channel publishes a
-## bool, as the HUD does. Switch positions are lettered above and below the
-## lever and around the knob.
+## cabin datum and cockpit spec: no CM or LM panel drawings are transcribed
+## yet, so there is no spec_id column. A control on a bool channel
+## publishes a bool, as the HUD does. Switch positions are lettered above
+## and below the lever and around the knob.
 class_name CockpitLayout
 extends RefCounted
 
 const CONTROLS_PATH := "res://data/cockpit/controls.csv"
+const LM_CONTROLS_PATH := "res://data/cockpit/lm_controls.csv"
 const CHANNELS_PATH := "res://data/cockpit/channels.csv"
 
 const COLUMNS := ["id", "panel", "type", "label", "x_mm", "y_mm", "rot_deg", "channel", "params", "source", "confidence", "status", "role"]
@@ -42,14 +45,31 @@ const LEGEND_HEIGHT := 0.0042
 var rows: Array[Dictionary] = []
 ## channel (or pattern) -> its channels.csv row.
 var channels: Dictionary = {}
+## The panels the rows go on: a cabin's PANELS (name -> centre and size),
+## the CM's unless load_lm() says otherwise.
+var panels: Dictionary = {}
 var errors: PackedStringArray = []
 var _channel_rows: Array[Dictionary] = []
 
 
+func _init() -> void:
+	panels = CmCabin.PANELS
+
+
+## Columbia's layout, on the CM's main display console.
 static func load_default() -> CockpitLayout:
 	var l := CockpitLayout.new()
 	l.load_channels(CHANNELS_PATH)
 	l.load_controls(CONTROLS_PATH)
+	return l
+
+
+## Eagle's layout, on the LM's panels.
+static func load_lm() -> CockpitLayout:
+	var l := CockpitLayout.new()
+	l.panels = LmCabin.PANELS
+	l.load_channels(CHANNELS_PATH)
+	l.load_controls(LM_CONTROLS_PATH)
 	return l
 
 
@@ -150,7 +170,7 @@ func _validate_row(r: Dictionary, where: String, seen: Dictionary) -> void:
 		errors.append("%s: duplicate id" % where)
 	seen[id] = true
 	var panel: String = r.get("panel", "")
-	if not CmCabin.PANELS.has(panel):
+	if not panels.has(panel):
 		errors.append("%s: unknown panel '%s'" % [where, panel])
 	var type: String = r.get("type", "")
 	if not TYPES.has(type):
@@ -165,7 +185,8 @@ func _validate_row(r: Dictionary, where: String, seen: Dictionary) -> void:
 			and (not ch.begins_with("ctl.") or channel_writer(ch) != "crew"):
 		errors.append("%s: a control publishes a crew ctl.* channel, not %s" % [where, ch])
 	if type == "dsky" and ctype == "group":
-		for c in CabinDsky.channels_read(ch):
+		var lamp_set := str(parse_params(r.get("params", "")).get("lamp_set", "cmc"))
+		for c in CabinDsky.channels_read(ch, lamp_set):
 			if channel_type(c) == "":
 				errors.append("%s: the DSKY reads %s, which channels.csv doesn't list" % [where, c])
 	for c in ["x_mm", "y_mm", "rot_deg"]:
@@ -173,8 +194,8 @@ func _validate_row(r: Dictionary, where: String, seen: Dictionary) -> void:
 			errors.append("%s: %s must be a number" % [where, c])
 	if TYPES.has(type):
 		_validate_params(r, where, type, ctype)
-		if CmCabin.PANELS.has(panel):
-			var half: Vector2 = CmCabin.PANELS[panel]["size"] * 500.0
+		if panels.has(panel):
+			var half: Vector2 = panels[panel]["size"] * 500.0
 			var at := Vector2(float(r.get("x_mm", "0")), float(r.get("y_mm", "0")))
 			var reach := footprint_mm(r)
 			if absf(at.x) + reach.x > half.x or absf(at.y) + reach.y > half.y:
@@ -220,6 +241,17 @@ func _validate_params(r: Dictionary, where: String, type: String, ctype: String)
 			errors.append("%s: a rotary needs its position labels" % where)
 		if ctype == "bool" and n != 2:
 			errors.append("%s: a %d-position switch can't publish a bool" % [where, n])
+		if params.has("values"):
+			var vals: PackedInt32Array = probe.get("values")
+			var seen := {}
+			for v in vals:
+				seen[v] = true
+			if ctype == "bool":
+				errors.append("%s: a switch on a bool channel publishes a bool, not values" % where)
+			elif vals.size() != n:
+				errors.append("%s: values must give all %d positions a value" % [where, n])
+			elif seen.size() != n:
+				errors.append("%s: two positions publish the same value" % where)
 	probe.free()
 
 
@@ -299,7 +331,7 @@ static func coerce(node: Object, prop: String, text: String) -> Variant:
 
 ## Build every row onto its panel; returns id -> node. Rows with an unknown
 ## panel or type are left out (validate() reports them).
-func build(cabin: CmCabin) -> Dictionary:
+func build(cabin: Cabin) -> Dictionary:
 	var made := {}
 	for r in rows:
 		var panel := cabin.panel_node(r.get("panel", ""))

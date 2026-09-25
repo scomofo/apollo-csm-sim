@@ -60,6 +60,46 @@ func test_the_horizon_ring_stays_level_with_the_local_horizontal() -> void:
 	assert_almost_eq(ring.global_position, c.global_position, Vector3.ONE * 1e-9, "round the head")
 
 
+func test_in_eagle_the_aids_follow_eagle() -> void:
+	var c: Comfort = add_child_autofree(Comfort.new())
+	c.vehicle = "lm"
+	Bus.set_value("dyn.omega", Vector3(0.0, deg_to_rad(20.0), 0.0))
+	Bus.set_value("dyn.g_load", 5.0)
+	c.update_from_bus()
+	assert_eq(Bus.get_value("present.comfort.vignette"), 0.0, "Columbia's rates and load are not Eagle's")
+	Bus.set_value("lm.dyn.omega", Vector3(deg_to_rad(7.5), 0.0, 0.0))
+	c.update_from_bus()
+	assert_almost_eq(float(Bus.get_value("present.comfort.vignette")), 0.5, 1e-6, "Eagle's own rate")
+	c.horizon_aid = true
+	var ring: Node3D = c.get_node("HorizonRing")
+	Bus.set_value("lm.guid.indicator.attitude", Frames.LM_LEVEL.get_rotation_quaternion())
+	c.update_from_bus()
+	assert_almost_eq(ring.global_basis.y, Vector3.UP, Vector3.ONE * 1e-6, "flying level: level with Eagle's cabin")
+	# Windows 20 deg up (about Eagle's +Y): the local up leans 20 deg
+	# toward the windows (render -Z).
+	var up20 := Frames.LM_LEVEL * Basis(Vector3(0, 1, 0), deg_to_rad(20.0))
+	Bus.set_value("lm.guid.indicator.attitude", up20.get_rotation_quaternion())
+	c.update_from_bus()
+	assert_almost_eq(ring.global_basis.y, Vector3(0.0, cos(deg_to_rad(20.0)), -sin(deg_to_rad(20.0))), Vector3.ONE * 1e-6)
+
+
+func test_seat_moves_between_eagles_stations() -> void:
+	var cabin := LmCabin.create()
+	add_child_autofree(cabin)
+	var rig: Node3D = DESKTOP_RIG.instantiate()
+	cabin.anchor.add_child(rig)
+	var cam: Node3D = rig.get_node("Camera3D")
+	var menu := WristMenu.new()
+	menu.cabin = cabin
+	menu.setup(rig, cam, null, ChecklistBook.load_lm())
+	menu.activate("seat")
+	assert_eq(cabin.seat, "LMP", "to the LM pilot's station")
+	assert_eq(Bus.get_value("player.seat"), "LMP")
+	assert_almost_eq(cabin.anchor.position, LmCabin.EYE_LMP, Vector3.ONE * 1e-9)
+	menu.activate("seat")
+	assert_eq(cabin.seat, "CDR", "and back")
+
+
 func test_the_gaze_tooltip_names_a_cabin_control_and_its_position() -> void:
 	var cabin := CmCabin.create()
 	add_child_autofree(cabin)

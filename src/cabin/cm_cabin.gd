@@ -10,7 +10,7 @@
 ## [estimated]: the shapes follow the CM in outline only, until its
 ## drawings are transcribed.
 class_name CmCabin
-extends Node3D
+extends Cabin
 
 ## Commander's (left couch) design eye point, m.
 const EYE_CDR := Vector3(0.75, -0.62, -0.30)
@@ -60,18 +60,6 @@ const COUCH_Y := [-0.62, 0.0, 0.62]
 const WALL_STEPS := 41
 const AROUND_STEPS := 144
 
-## Where the player's rig goes: the seat's eye, looking along +X with the
-## crew's up. Its global basis is the identity in the space view.
-var anchor: Node3D
-## The seat the anchor is at (a SEATS key).
-var seat: String = "CDR"
-## Where the checklist card goes: +Z faces the commander's eye, +Y is the
-## crew's up.
-var card_mount: Node3D
-## CockpitLayout.build() output: row id -> node.
-var items: Dictionary = {}
-var _panels: Dictionary = {}
-
 
 func _init() -> void:
 	name = "CmCabin"
@@ -80,14 +68,7 @@ func _init() -> void:
 	_build_couches()
 	_build_panels()
 	_build_lights()
-	anchor = Node3D.new()
-	anchor.name = "PlayerAnchor"
-	anchor.transform = Transform3D(FACE_BASIS, EYE_CDR)
-	add_child(anchor)
-	card_mount = Node3D.new()
-	card_mount.name = "CardMount"
-	add_child(card_mount)
-	set_seat("CDR")
+	_build_anchor()
 
 
 ## A cabin with the shipped layout built onto its panels. Layout errors are
@@ -102,30 +83,26 @@ static func create() -> CmCabin:
 	return cabin
 
 
-## Move the player's anchor to [param seat_name]'s eye, and the checklist
-## card with it, so the card sits by that seat's left shoulder. The rig
-## rides on the anchor, so the player moves too; the cabin never does.
-func set_seat(seat_name: String) -> void:
-	if not SEATS.has(seat_name):
-		return
-	seat = seat_name
-	var eye: Vector3 = SEATS[seat_name]
-	anchor.position = eye
-	card_mount.transform = Transform3D(Basis.looking_at(CARD_CENTRE - EYE_CDR, Vector3(0, 0, -1)), eye + CARD_CENTRE - EYE_CDR)
-	Bus.set_value("player.seat", seat_name)
+## The main display console's three panels, facing the crew.
+func panels() -> Dictionary:
+	var out := {}
+	for p in PANELS:
+		out[p] = PANELS[p].merged({"basis": FACE_BASIS})
+	return out
 
 
-## Hand the cabin DSKY the CMC's keyboard.
-func connect_runtime(rt: SimRuntime) -> void:
-	for id in items:
-		if items[id] is CabinDsky:
-			(items[id] as CabinDsky).dsky = rt.agc().dsky
+func seats() -> Dictionary:
+	return SEATS
 
 
-## The attachment frame of a panel face: x/y are panel coordinates (m) and
-## +Z faces the crew.
-func panel_node(panel_name: String) -> Node3D:
-	return _panels.get(panel_name)
+func eye_basis() -> Basis:
+	return FACE_BASIS
+
+
+## By the seat's left shoulder: the card keeps its place from the eye as
+## the seat moves.
+func card_centre(seat_name: String) -> Vector3:
+	return SEATS[seat_name] + CARD_CENTRE - EYE_CDR
 
 
 ## The inner wall radius at station x.
@@ -234,29 +211,6 @@ func _slab(parent: Node3D, node_name: String, a: Vector3, b: Vector3, width: flo
 	mi.transform = Transform3D(Basis(y.cross(z), y, z), (a + b) * 0.5)
 	parent.add_child(mi)
 	return mi
-
-
-func _build_panels() -> void:
-	var root := Node3D.new()
-	root.name = "Panels"
-	add_child(root)
-	for panel_name in PANELS:
-		var p: Dictionary = PANELS[panel_name]
-		var size: Vector2 = p["size"]
-		var mount := Node3D.new()
-		mount.name = panel_name
-		mount.transform = Transform3D(FACE_BASIS, p["centre"])
-		mount.set_meta("size_m", size)
-		root.add_child(mount)
-		var plate := MeshInstance3D.new()
-		plate.name = "Plate"
-		var mesh := BoxMesh.new()
-		mesh.size = Vector3(size.x, size.y, 0.02)
-		plate.mesh = mesh
-		plate.position.z = -0.01
-		plate.material_override = CabinMaterials.get_material("panel_face")
-		mount.add_child(plate)
-		_panels[panel_name] = mount
 
 
 ## Floodlights between the crew and the console, so the panel faces and
