@@ -18,6 +18,11 @@ func before_each() -> void:
 	add_child_autofree(lr)
 
 
+func after_all() -> void:
+	# Back to the mission's own Moon for the tests after these.
+	Mission.load_default()
+
+
 ## Put the LM [param height] m over the ground at Tranquility Base,
 ## [param east] m east of it, turned [param q] (LM axes to inertial), moving
 ## [param v_rel] over the surface (inertial). Returns the ground's radius
@@ -27,7 +32,7 @@ func _place(height: float, q: Quaternion, v_rel: Vector3 = Vector3.ZERO, east: f
 	var lon := 23.473 + east / (Bodies.R_MOON * PI / 180.0)
 	var ground := Bodies.R_MOON + Terrain.height(0.674, lon)
 	var r := mf * Bodies.selenographic_to_fixed(0.674, lon, ground + height)
-	var v := v_rel + Bodies.moon_omega().cross(r)
+	var v := v_rel + Bodies.moon_omega(T).cross(r)
 	Bus.set_value("lm.dyn.r_m", [r.x, r.y, r.z])
 	Bus.set_value("lm.dyn.v_mps", [v.x, v.y, v.z])
 	Bus.set_value("lm.dyn.att_q", q)
@@ -112,7 +117,7 @@ func test_the_beam_meets_the_real_ground() -> void:
 	var p := mf * Bodies.selenographic_to_fixed(lat, lon, 1.0)
 	var r := p * (Bodies.R_MOON - 1927.5 + 300.0)
 	Bus.set_value("lm.dyn.r_m", [r.x, r.y, r.z])
-	var v := Bodies.moon_omega().cross(r)
+	var v := Bodies.moon_omega(T).cross(r)
 	Bus.set_value("lm.dyn.v_mps", [v.x, v.y, v.z])
 	var east := (mf * Vector3(0, 0, 1)).cross(p).normalized()
 	Bus.set_value("lm.dyn.att_q", Basis(p, east.cross(p), east).get_rotation_quaternion())

@@ -14,6 +14,11 @@ func before_each() -> void:
 	Bodies.configure(28.5, 0.0, 3.3, -20.0)
 
 
+func after_all() -> void:
+	# Back to the mission's own Moon for the tests after these.
+	Mission.load_default()
+
+
 func test_leo_orbit_closes_after_one_period() -> void:
 	var tr := _circular("earth", 185000.0)
 	var p0 := tr.pos()

@@ -409,7 +409,7 @@ func _lm_flight_text() -> String:
 	var vh := 0.0
 	if str(Bus.get_value("lm.dyn.primary", "moon")) == "moon":
 		agl = LunarGround.height_over_ground(LunarGround.lm_moon_fixed())
-		var rel := Vector3(va[0], va[1], va[2]) - Bodies.moon_omega().cross(r)
+		var rel := Vector3(va[0], va[1], va[2]) - Bodies.moon_omega(SimClock.get_seconds).cross(r)
 		vh = (rel - r.normalized() * rel.dot(r.normalized())).length()
 	var apo := float(Bus.get_value("lm.dyn.apo_alt_m", 0.0))
 	var landed := bool(Bus.get_value("lm.dyn.landed", false))

@@ -88,6 +88,9 @@ func _exit_tree() -> void:
 
 # --- start states ------------------------------------------------------------
 
+## The parking orbit at insertion: circular, in the plane the mission gives
+## (inclination and ascending node in ECI), or without one in the lunar
+## orbit plane, at the given argument of latitude.
 func _parking_orbit_traj() -> Trajectory:
 	var po := mission.section("parking_orbit")
 	var r := Bodies.R_EARTH + float(po["alt_km"]) * 1000.0
@@ -95,6 +98,11 @@ func _parking_orbit_traj() -> Trajectory:
 	var pl := Bodies.moon_plane()
 	var p := Vector3(pl[0], pl[1], pl[2])
 	var q := Vector3(pl[3], pl[4], pl[5])
+	if po.has("raan_deg"):
+		var i := deg_to_rad(float(po["inclination_deg"]))
+		var o := deg_to_rad(float(po["raan_deg"]))
+		p = Vector3(cos(o), sin(o), 0.0)
+		q = Vector3(-sin(o) * cos(i), cos(o) * cos(i), sin(i))
 	var u := deg_to_rad(float(po.get("arg_lat_deg", 0.0)))
 	var tr := Trajectory.new()
 	tr.set_state("earth", float(po["insertion_get_s"]), (p * cos(u) + q * sin(u)) * r, (-p * sin(u) + q * cos(u)) * v)
@@ -111,7 +119,7 @@ func _plan_tli(tr: Trajectory) -> Dictionary:
 	var t := mission.section("tli")
 	return Rtcc.plan_tli(tr, _stack_mass(), float(Bus.get_value("sivb.prop_kg", 75000.0)),
 		float(t["energy_j_per_kg"]), float(t["pericynthion_alt_km"]) * 1000.0,
-		maxf(float(t["earliest_get_s"]), tr.t + 600.0))
+		maxf(float(t["earliest_get_s"]), tr.t + 600.0), landing_site(), float(mission.section("landing")["get_s"]))
 
 
 ## Put the vehicle in the requested phase. Later phases are produced by
@@ -139,7 +147,7 @@ func start(p_phase: String) -> void:
 		var pad := _plan_tli(tr)
 		assert(not pad.is_empty(), "no TLI solution")
 		tr.coast_to(float(pad["tig"]), 30.0)
-		sivb_prop = Sivb.simulate_burn(tr, _stack_mass(), sivb_prop, float(pad["energy"]))
+		sivb_prop = Sivb.simulate_burn(tr, _stack_mass(), sivb_prop, float(pad["energy"]), float(pad["yaw"]))
 		tr.coast_to(tr.t + float(mission.data.get("tde_delay_s", 3600.0)), 60.0)
 		cfg = "csm_lm"
 	if p_phase in ["lunar_orbit", "transearth_coast", "entry"] + LM_PHASES:
@@ -147,14 +155,26 @@ func start(p_phase: String) -> void:
 		cfg = "csm_lm"
 		var r := Bodies.R_MOON + 111000.0
 		var v := sqrt(Bodies.MU_MOON / r)
-		var pl := Bodies.moon_plane()
+		var t0 := 75.0 * 3600.0 + 50.0 * 60.0
+		var t_land := float(mission.section("landing")["get_s"])
 		# Retrograde, in the plane LOI puts it in: over the landing site at
 		# the landing time, the site at the ground track's northernmost
-		# point, the vehicle nearest where it was in the lunar orbit plane.
-		var h := Rtcc.site_orbit_normal(landing_site(), float(mission.section("landing")["get_s"]))
-		var p0 := Vector3(pl[0], pl[1], pl[2])
-		var at := (p0 - h * p0.dot(h)).normalized()
-		tr.set_state("moon", 75.0 * 3600.0 + 50.0 * 60.0, at * r, h.cross(at) * v)
+		# point. And phased so the flown timeline (undocking, DOI and PDI)
+		# lands at the landing time: Eagle lands a descent after PDI, at its
+		# descent orbit's pericynthion, pdi_range short of the site, and
+		# reaches it ahead of Columbia by the difference of their half
+		# periods, so Columbia passes over the site that much sooner.
+		var g := SpacecraftData.section("descent_guidance")
+		var n := v / r
+		var peri := landing_site().length() + float(mission.section("doi")["pericynthion_alt_km"]) * 1000.0
+		var a_lm := (r + peri) / 2.0
+		var lead := PI / n - PI * sqrt(a_lm * a_lm * a_lm / Bodies.MU_MOON)
+		var t_over := t_land - float(g["descent_s"]) + float(g["pdi_range_m"]) / Bodies.R_MOON / n + lead
+		var h := Rtcc.site_orbit_normal(landing_site(), t_land)
+		var over := Rtcc.site_at(landing_site(), t_over).normalized()
+		over = (over - h * over.dot(h)).normalized()
+		var at := over.rotated(h, -fposmod(n * (t_over - t0), TAU))
+		tr.set_state("moon", t0, at * r, h.cross(at) * v)
 		var mass := SpacecraftData.total_mass("csm_lm", sps_prop, 560.0, 110.0, 0.0)
 		sps_prop -= mass * (1.0 - exp(-900.0 / (float(SpacecraftData.section("sps")["isp_s"]) * Units.G0)))
 	if p_phase in LM_PHASES:
@@ -195,7 +215,7 @@ func start(p_phase: String) -> void:
 	if cfg == "stack":
 		tli_pad = _plan_tli(dynamics.traj)
 		if not tli_pad.is_empty():
-			systems["sivb"].arm_tli(float(tli_pad["tig"]), float(tli_pad["energy"]))
+			systems["sivb"].arm_tli(float(tli_pad["tig"]), float(tli_pad["energy"]), float(tli_pad["yaw"]))
 			Bus.set_value("mission.tli_tig", float(tli_pad["tig"]))
 			_say("Apollo 11, Houston. You are GO for TLI. TIG %s, ΔV %.0f ft/s." % [
 				Units.hms(float(tli_pad["tig"])), float(tli_pad["dv"]) / Units.FT])
@@ -429,7 +449,8 @@ func request_pad(kind: String, earliest: float = -1.0) -> Dictionary:
 			var tig := now + 900.0
 			if phase == "translunar_coast":
 				var target := -(Bodies.R_MOON + float(mission.section("tli")["pericynthion_alt_km"]) * 1000.0)
-				pad = Rtcc.plan_mcc(tr, mass, tig, "moon", target, now + 5.0 * 86400.0)
+				pad = Rtcc.plan_mcc(tr, mass, tig, "moon", target, now + 5.0 * 86400.0,
+					landing_site(), float(mission.section("landing")["get_s"]))
 			elif phase == "transearth_coast":
 				var probe := tr.clone()
 				var er := Rtcc.earth_return(probe, now + 5.0 * 86400.0)
@@ -774,7 +795,7 @@ func _set_lm_landed(t: float) -> void:
 	var site := landing_site()
 	var up := Rtcc.site_at(site, t).normalized()
 	var pos := up * (site.length() + cm)
-	lm.traj.set_state("moon", t, pos, Bodies.moon_omega().cross(pos))
+	lm.traj.set_state("moon", t, pos, Bodies.moon_omega(t).cross(pos))
 	var tr := dynamics.traj
 	var fwd := tr.pos().cross(tr.vel()).normalized().cross(up).normalized()
 	lm.attitude.q = Basis(up, fwd.cross(up), fwd).get_rotation_quaternion()

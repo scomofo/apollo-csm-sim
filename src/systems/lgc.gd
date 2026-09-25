@@ -361,7 +361,7 @@ func _navigate() -> void:
 		if nav_landed_mf == Vector3.ZERO:
 			nav_landed_mf = Bodies.moon_fixed(nav.t).transposed() * nav.pos()
 		var r := Bodies.moon_fixed(now) * nav_landed_mf
-		nav.set_state("moon", now, r, Bodies.moon_omega().cross(r))
+		nav.set_state("moon", now, r, Bodies.moon_omega(now).cross(r))
 		return
 	nav_landed_mf = Vector3.ZERO
 	var h := now - nav.t
@@ -405,7 +405,7 @@ func _landing_radar(dt: float) -> void:
 			for i in 3:
 				nav.s[i] += up[i] * k
 	if vel_good and lr_update:
-		var v_meas := att * (Bus.get_value("lm.lr.vel_body", Vector3.ZERO) as Vector3) + Bodies.moon_omega().cross(r)
+		var v_meas := att * (Bus.get_value("lm.lr.vel_body", Vector3.ZERO) as Vector3) + Bodies.moon_omega(nav.t).cross(r)
 		var dv := (v_meas - nav.vel()) * float(d["vel_weight"])
 		for i in 3:
 			nav.s[3 + i] += dv[i]
@@ -530,7 +530,7 @@ func proceed() -> void:
 			"tig":
 				# Maneuver to thrust against the velocity over the surface at TIG.
 				var at := predict(pdi_tig)
-				var rel := at.vel() - Bodies.moon_omega().cross(at.pos())
+				var rel := at.vel() - Bodies.moon_omega(at.t).cross(at.pos())
 				auto_target = _descent_attitude(-rel, Bodies.moon_fixed(pdi_tig) * guidance_frame)
 				desired_q = auto_target
 				step_name = "v50n18"
@@ -702,7 +702,7 @@ func _descent_state() -> Dictionary:
 	var gi := g.transposed()
 	var tr := current_traj()
 	var r := tr.pos()
-	var rel := tr.vel() - Bodies.moon_omega().cross(r)
+	var rel := tr.vel() - Bodies.moon_omega(tr.t).cross(r)
 	var rg := gi * (r - mf * landing_site)
 	var vg := gi * rel
 	var rl := r.length()

@@ -58,9 +58,9 @@ func step(dt: float, force_body: Vector3 = Vector3.ZERO, torque_body: Vector3 = 
 func hold_on_surface(t: float) -> void:
 	var mf := Bodies.moon_fixed(t)
 	var r := mf * landed_pos
-	traj.set_state("moon", t, r, Bodies.moon_omega().cross(r))
+	traj.set_state("moon", t, r, Bodies.moon_omega(t).cross(r))
 	attitude.q = (Quaternion(mf) * landed_q).normalized()
-	attitude.omega = Basis(attitude.q).inverse() * Bodies.moon_omega()
+	attitude.omega = Basis(attitude.q).inverse() * Bodies.moon_omega(t)
 	dv_step = Vector3.ZERO
 	coasting = true
 

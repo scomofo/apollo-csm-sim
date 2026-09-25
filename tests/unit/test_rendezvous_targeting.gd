@@ -17,6 +17,11 @@ func before_each() -> void:
 	Bodies.configure(28.5, 0.0, 3.3, -20.0)
 
 
+func after_all() -> void:
+	# Back to the mission's own Moon for the tests after these.
+	Mission.load_default()
+
+
 ## A state at GET T0, radius [param r] at [param lon_deg] from +X, moving
 ## at [param vh] horizontally and [param vr] up.
 func _state(r: float, lon_deg: float, vh: float, vr: float = 0.0) -> Trajectory:
