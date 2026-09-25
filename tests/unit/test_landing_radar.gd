@@ -18,6 +18,11 @@ func before_each() -> void:
 	add_child_autofree(lr)
 
 
+func after_all() -> void:
+	# Back to the mission's own Moon for the tests after these.
+	Mission.load_default()
+
+
 ## Put the LM [param height] m over the ground at Tranquility Base,
 ## [param east] m east of it, turned [param q] (LM axes to inertial), moving
 ## [param v_rel] over the surface (inertial). Returns the ground's radius

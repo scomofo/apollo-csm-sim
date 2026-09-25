@@ -79,11 +79,15 @@ func test_world_directions_follow_the_attitude() -> void:
 	assert_almost_eq(glow_sun, eci_to_cabin * Bodies.sun_direction(0.0), Vector3.ONE * 1e-5, "the glow is lit from the Sun")
 	var sky: Basis = view.sky_material.get_shader_parameter("cabin_to_eci")
 	assert_true(sky.is_equal_approx(eci_to_cabin.inverse()), "the stars stay fixed in ECI")
-	# Body orientations: the Earth's pole is ECI +Z, the Moon faces the Earth,
-	# and the faceted glow sphere keeps its ECI orientation.
+	# Body orientations: the Earth's pole is ECI +Z, the Moon turns with its
+	# Moon-fixed frame, its 0° N, 0° E facing the Earth to within its
+	# libration (which reaches about 10°), and the faceted glow sphere keeps
+	# its ECI orientation.
 	assert_almost_eq(view.earth.basis.orthonormalized() * Vector3(0, 0, 1), eci_to_cabin * Vector3(0, 0, 1), Vector3.ONE * 1e-5)
+	var mf := Bodies.moon_fixed(0.0)
+	assert_almost_eq(view.moon.basis.orthonormalized() * Vector3(0, 0, 1), eci_to_cabin * mf.x, Vector3.ONE * 1e-5)
 	var moon_to_earth := (to_earth - to_moon).normalized()
-	assert_almost_eq(view.moon.basis.orthonormalized() * Vector3(0, 0, 1), eci_to_cabin * moon_to_earth, Vector3.ONE * 1e-5)
+	assert_lt(rad_to_deg(mf.x.angle_to(moon_to_earth)), 11.0, "the Moon's near side faces the Earth")
 	assert_true(view.earth_glow.basis.orthonormalized().is_equal_approx(eci_to_cabin))
 
 

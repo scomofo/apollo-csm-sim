@@ -128,6 +128,10 @@ func _fly_burn(short: float = 0.0) -> float:
 	await expect_step("Monitor V16N40")
 	assert_eq([dsky.fields["verb"].text, dsky.fields["noun"].text], ["16", "40"], "V16N40 through the burn")
 	assert_true(await fly_until(func() -> bool: return agc.step_name == "post", 2000.0, 5.0, false), "SPS cutoff")
+	# The CMC goes to post-burn as the chamber pressure falls; the thrust
+	# dies away over the next second, and the crew trims after that.
+	assert_true(await fly_until(func() -> bool: return float(Bus.get_value("sps.thrust_n", 0.0)) == 0.0, 5.0, 0.5, false),
+		"the SPS's tail-off over")
 	if short > 0.0:
 		_cut_off_short(short)
 	var dv := agc.dv_accum

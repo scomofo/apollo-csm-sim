@@ -5,9 +5,10 @@
 ## is "stack"). For TLI it ignites the J-2 at the TIG it was given
 ## (arm_tli), thrusts along the Earth-relative velocity turned by a yaw out
 ## of the orbit plane, and cuts off when the Earth-relative specific orbital
-## energy reaches the target. The yaw turns the trajectory's plane onto the
-## Moon's. The RTCC uses the very same law (simulate_burn) when it computes
-## the TIG and the yaw, so the flown burn reproduces the planned one
+## energy reaches the target. The yaw turns the trajectory's plane to pass
+## the Moon where the RTCC aims (Rtcc.plan_tli()). The RTCC uses the very
+## same law (simulate_burn) when it computes the TIG and the yaw, so the
+## flown burn reproduces the planned one
 ## [simplified: the real IU used iterative guidance; the energy-cutoff law
 ## at a fixed yaw is its cheap stand-in].
 ##

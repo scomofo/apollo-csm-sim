@@ -107,7 +107,7 @@ undocking to TEI) and at entry.
      V16N40.
    - After cutoff, trim the V16N85 residuals with the THC, then press PRO.
 4. **LOI.** About 8 h before pericynthion, press **LOI-1** and fly it
-   (~850 m/s, 6 min, 60 × 170 nmi). Two revs later, fly **LOI-2** to
+   (~875 m/s, 6 min, 54 × 170 nmi). Two revs later, fly **LOI-2** to
    circularize.
 5. **TEI.** Press **LM JETT**, then **TEI**, and fly it. Then fly one or two
    transearth **MCC**s until the vacuum perigee is about 37 km (20 nmi).
@@ -199,13 +199,13 @@ keeps Apollo 11's timeline (mission.json "lunar_timeline"):
 - **Powered descent.** The PDI PAD's state vector comes 15 minutes before
   PDI, and GO for powered descent 5 minutes before it.
 - **On the surface.** CAPCOM gives STAY for T2 and T3. The ascent PAD comes
-  at 122:22, for the liftoff window nearest Apollo 11's 124:22, and
-  "cleared for takeoff" 5 minutes before liftoff.
+  at 122:22, for the liftoff window nearest Apollo 11's 124:22 (here
+  124:25:40), and "cleared for takeoff" 5 minutes before liftoff.
 - **Rendezvous.** The CSI PAD comes 5 minutes after insertion, and GO for
   CSI 13 minutes before the burn.
 - **Jettison and TEI.** GO for jettison comes two hours after docking.
   After LM JETT, the TEI PAD comes at 134:01, for the opportunity nearest
-  Apollo 11's 135:23:42.
+  Apollo 11's 135:23:42 (here 135:20:40).
 
 Each PAD comes only when the vehicles can use it, and not while the
 ground's last PAD of its kind is still to be flown. An undocking a day
@@ -401,39 +401,46 @@ A flown Apollo 11 profile in the simulator reproduces these values:
 
 | Quantity | Simulator | Apollo 11 |
 |---|---|---|
-| TLI | GET 2:44:30, 3,071 m/s | 2:44:16, ~3,180 m/s |
-| Translunar coast | ~73 h | ~73 h |
-| LOI-1 | 856 m/s, 6.0 min, 54 × 170 nmi | 889 m/s, 5.95 min, 61 × 169 nmi |
-| TEI | 1,000 m/s | 1,001 m/s |
-| DOI | 73.0 ft/s, 30 s | ~76 ft/s, ~30 s |
-| Powered descent | 12 min 6 s, touchdown 140 m from the target (the LGC's crossrange error, which the radar can't see) | 12 min 35 s, about 6 km past the target |
-| Ascent, liftoff to cutoff | 7 min 8 s, then 60,054 ft and 32.1 ft/s up, 9.0 × 45.1 nmi | 7 min 17 s, then 60,666 ft and 32.8 ft/s up, 9.5 × 47.3 nmi |
-| CSI | 52.3 ft/s, 50 min 50 s after insertion | 51.5 ft/s, 50 min 18 s after insertion |
-| TPI | 24.0 ft/s, 2 h 34 min 17 s after insertion | ~25 ft/s, 2 h 34 min 35 s after insertion |
-| Midcourse corrections | 0.1 ft/s and less | ~1 ft/s each |
+| TLI | GET 2:44:48, 3,273 m/s, the plane turned 5.0° | 2:44:16, ~3,180 m/s, 1.3° |
+| Translunar coast | 73.0 h | 73.0 h |
+| LOI-1 | GET 75:49:51, 875 m/s, 6.1 min, 54 × 170 nmi | 75:49:50, 889 m/s, 5.95 min, 61 × 169 nmi |
+| TEI | GET 135:20:40, 1,000 m/s | 135:23:42, 1,001 m/s |
+| DOI | GET 101:36:14, 73.1 ft/s, 30 s | 101:36:14, ~76 ft/s, ~30 s |
+| Powered descent | 12 min 6 s, touchdown at 102:45:39, 140 m from the target (the LGC's crossrange error, which the radar can't see) | 12 min 35 s, touchdown at 102:45:40, about 6 km past the target |
+| The Sun at touchdown | 10.7° up | 10.8° up |
+| Ascent, liftoff to cutoff | GET 124:25:40, 7 min 8 s, then 60,054 ft and 32.1 ft/s up, 9.0 × 45.1 nmi | 124:22:00, 7 min 17 s, then 60,666 ft and 32.8 ft/s up, 9.5 × 47.3 nmi |
+| CSI | 52.4 ft/s, 50 min 50 s after insertion | 51.5 ft/s, 50 min 18 s after insertion |
+| TPI | 24.0 ft/s, 2 h 34 min 20 s after insertion | ~25 ft/s, 2 h 34 min 35 s after insertion |
+| Midcourse corrections | 0.2 and 0.1 ft/s | ~1 ft/s each |
 | Braking, then station-keeping | 15 min 25 s, station-keeping 45 min after TPI | 15 min 8 s, station-keeping 48 min after TPI |
-| Docking | 50 min after TPI | 59 min after TPI |
-| Entry peak load | 6.9 g | ~6.5 g |
+| Docking | GET 127:57:24, 50 min after TPI | 128:03:00, 59 min after TPI |
+| Entry peak load | 7.1 g | ~6.5 g |
 | Splashdown | 8.6 m/s | — |
 
 Deliberate simplifications are tagged `[simplified]` in the code. The main
 ones:
 
-- **Moon's orbit.** The Moon moves on a circular orbit, and the Sun direction
-  is fixed.
+- **Gravity.** The Earth and the Moon pull as points, where JPL's
+  ephemeris (DE441) has them on Apollo 11's dates, and the Moon turns by
+  the IAU's rotation model. The Sun's gravity, the Earth's oblateness and
+  the Moon's mascons are left out. In flight the oblateness turned the
+  parking orbit's plane 0.8° west before TLI.
 - **Navigation.** The CMC's is ideal: no P52 alignments, and its state
   vector is truth. The LGC keeps its own state vector, with the ground's
   tracking error, but on an ideal IMU.
-- **S-IVB guidance.** It uses a prograde energy-cutoff law instead of
-  iterative guidance.
+- **S-IVB guidance.** It thrusts along the velocity, turned out of the
+  plane by a fixed yaw, and cuts off on energy, instead of flying
+  iterative guidance. Apollo 11's TLI takes a yaw of 14.5° and turns the
+  plane 5.0°, where the IU turned it 1.3°: a fixed yaw does less for the
+  aim than the IU's steering, and the parking orbit hasn't turned with
+  the oblateness. So TLI costs 3,273 m/s, against Apollo 11's ~3,180.
 - **P40 steering.** P40 holds the N81 direction in the rotating LVLH frame,
   standing in for cross-product steering.
 - **Entry guidance.** It is a constant-drag bank controller without range
   targeting.
 - **Atmosphere.** Earth rotation and winds are ignored.
 - **Launch.** There is no launch phase.
-- **The landing.** The Moon turns synchronously, its pole on the normal
-  of its orbit. The surface is NASA's elevation maps, smooth between their
+- **The landing.** The surface is NASA's elevation maps, smooth between their
   posts: 4 m at the site, so no smaller rocks, and the gear meets the
   ground level, straight below the centre of mass. The descent's guidance
   targets are this simulator's own, designed after Klumpp's Apollo
@@ -515,8 +522,16 @@ The unit tests cover:
 - The Bus
 - The propagator: orbit closure, step independence, SOI re-basing, lunar
   orbit stability
-- The Moon-fixed frame: the Moon keeps a face to the Earth and turns once
-  a sidereal month, and selenographic coordinates round-trip
+- The Moon-fixed frame on the circular model: the Moon keeps a face to
+  the Earth and turns once a sidereal month, and selenographic
+  coordinates round-trip
+- The ephemeris (`tests/unit/test_ephemeris.gd`): the fitted series
+  against JPL's values held out of the fit, the Moon-fixed frame against
+  Horizons' sub-Earth point and the libration's limits, smooth joins
+  between segments, the Moon's spin as its frame turns, the Sun 10.7°
+  over Tranquility Base at touchdown (the mission report has 10.8°), the
+  Moon's pole 6.7° from its orbit's normal, a sidereal month of 27.32
+  days, and the mission choosing the model
 - The terrain: Tranquility Base 1,927 m below the reference sphere, West
   crater 30 m deep east of the LM, and the maps blending without steps
 - The landing radar: its slant range to the ground in both antenna
@@ -538,7 +553,7 @@ The unit tests cover:
   autopilot, the coast-step policy
 - Checkpoint round-trip, with a map of vehicles, each with its own
   systems, the LGC's rendezvous state and Mission Control's planned
-  times and timeline (schema 4). Older checkpoints
+  times and timeline (schema 5). Older checkpoints
   are rejected
 - The main scene, and in Eagle from `lunar_descent`: its HUD, the keys on
   its LGC, its two views, its checklist for the phase, and L between the
@@ -629,7 +644,7 @@ The scenario tests fly real segments through the crew interface:
   undocks, Mission Control uplinks a DOI PAD to the LGC, and P40 flies it
   on the descent engine, at 10 % and then 40 % throttle. Half a
   revolution later Eagle passes its pericynthion within 250 m of the
-  PAD's 50,000 ft above the site (15,205 m against 15,239 m), while
+  PAD's 50,000 ft above the site (15,217 m against 15,239 m), while
   Columbia's orbit stays as it was
 - The landing at Tranquility Base (`tests/scenarios/test_landing.gd`),
   slice 3c's check, and slice 3f's for the `lunar_descent` start phase.
@@ -638,7 +653,7 @@ The scenario tests fly real segments through the crew interface:
   state vector off by the tracking error at PDI. From a checkpoint before
   PDI:
   - The automatic landing. The crew keys V57 when the radar's altitude
-    comes good, with ΔH at −954 m, and ΔH is −22 m by high gate. P63,
+    comes good, with ΔH at −948 m, and ΔH is −22 m by high gate. P63,
     P64 and P65 land Eagle 140 m from the site at 0.8 m/s down and none
     across.
   - Without V57, Eagle hits the ground 4 km short at 24 m/s.
@@ -652,25 +667,26 @@ The scenario tests fly real segments through the crew interface:
   is set down at the site. The RTCC times the liftoff for Columbia to
   lead by 16.4° at insertion. P12 lifts off at that time, rises for 8 s,
   and cuts off 7 min 8 s after liftoff. It inserts at 60,054 ft and
-  32.1 ft/s up into a 9.0 × 45.1 nmi orbit, 0.001° from Columbia's
+  32.1 ft/s up into a 9.0 × 45.1 nmi orbit, within 0.001° of Columbia's
   plane, with Columbia 16.42° ahead and 167 kg of propellant left. A
   checkpoint taken mid-ascent flies on to the same insertion
 - The rendezvous (`tests/scenarios/test_rendezvous.gd`), slice 3e's
   check, and slice 3f's for the `lunar_ascent` start phase. From that
-  phase, P12 lifts Eagle off at the ascent PAD's time, 123:51:27.
+  phase, P12 lifts Eagle off at the ascent PAD's time, 124:25:40
+  (Apollo 11: 124:22:00).
   - Five minutes after insertion the timeline's CSI PAD plans CSI at
     52.3 ft/s (Apollo 11: 51.5), 15 nmi below Columbia, and TPI at
-    24.0 ft/s.
+    24.1 ft/s.
   - Columbia's uplinked state vector is 914 m off, and after 12 marks
     P20 has it within 0.2 m relative to Eagle.
   - The LGC flies the sequence: CDH 2.1 ft/s onto 14.7 nmi below, TPI
-    18 s before the plan's time, and midcourse corrections of 0.1 ft/s
-    and less.
+    15 s before the plan's time, and midcourse corrections of 0.2 and
+    0.1 ft/s.
   - The commander brakes by the gates and stops 40 m out, and Collins
-    docks at 0.33 ft/s. Eagle's ΔV, 113.7 ft/s, is 4 % over the RTCC's
+    docks at 0.33 ft/s. Eagle's ΔV, 115.5 ft/s, is 6 % over the RTCC's
     plan (the check allows 20 %).
   - GO for jettison comes 2 h 5 min after docking. After LM JETT, the TEI
-    PAD plans TEI at 134:41:44, the opportunity nearest Apollo 11's
+    PAD plans TEI at 135:20:40, the opportunity nearest Apollo 11's
     135:23:42
 - Mission Control's timeline (`tests/scenarios/test_lunar_timeline.gd`),
   slice 3f. From `lunar_orbit`: GO for undocking at 100:00, the DOI PAD
@@ -694,13 +710,13 @@ The scenario tests fly real segments through the crew interface:
   of Eagle's four checklists is flown from its phase's start until the
   HUD, or the card, shows it complete, with the same numbers from both:
   - From `lunar_orbit`: UNDOCK in Columbia at GO for undocking, and DOI
-    to a pericynthion 15,286 m above the site.
+    to a pericynthion 15,278 m above the site.
   - From `lunar_descent`: P63 to P68, and a landing 140 m from the site.
-    At high gate the site is 32.7° down the commander's window, and N64
-    shows 33.
+    At high gate the site is 33.9° down the commander's window, and N64
+    shows 34.
   - From `lunar_surface`: STAY for T3, the ascent PAD, and P12 to a
     9.0 × 45.0 nmi orbit.
-  - From `lunar_ascent`: the liftoff, then P20, CSI (52.3 ft/s), CDH,
+  - From `lunar_ascent`: the liftoff, then P20, CSI (52.4 ft/s), CDH,
     TPI (24.0 ft/s) and the two midcourse corrections on P41, braking by
     the gates on the TTCA's keys in 15 min 23 s, and, after L, Columbia
     flown into the drogue on the THC's keys, capturing at 0.33 ft/s.

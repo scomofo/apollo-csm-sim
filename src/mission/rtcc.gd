@@ -245,8 +245,11 @@ static func bplane_target(bp: Dictionary, rp: float, site_mf: Vector3, t_land: f
 ## how far out of it. [param traj] is the parking-orbit state (Earth
 ## primary), not modified.
 ## [simplified: Apollo 11's IU shaped the transfer with iterative guidance
-## and turned its plane 1.3 degrees at TLI; the energy-cutoff law turns it
-## with a fixed yaw, some degrees more.]
+## and turned its plane 1.3 degrees at TLI. The energy-cutoff law turns it
+## with a fixed yaw, 5.0 degrees for Apollo 11: a yaw held through the
+## burn does less for the aim than the IU's steering, and with no Earth
+## oblateness the parking orbit has not turned the 0.8 degrees west it did
+## in flight before TLI, which puts the Moon 0.9 degrees out of its plane.]
 static func plan_tli(traj: Trajectory, stack_mass: float, sivb_prop: float, energy: float,
 		pericynthion_alt: float, earliest: float, site_mf: Vector3 = Vector3.ZERO, t_land: float = 0.0) -> Dictionary:
 	var rp := Bodies.R_MOON + pericynthion_alt

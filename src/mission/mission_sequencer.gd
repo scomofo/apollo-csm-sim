@@ -155,14 +155,26 @@ func start(p_phase: String) -> void:
 		cfg = "csm_lm"
 		var r := Bodies.R_MOON + 111000.0
 		var v := sqrt(Bodies.MU_MOON / r)
-		var pl := Bodies.moon_plane()
+		var t0 := 75.0 * 3600.0 + 50.0 * 60.0
+		var t_land := float(mission.section("landing")["get_s"])
 		# Retrograde, in the plane LOI puts it in: over the landing site at
 		# the landing time, the site at the ground track's northernmost
-		# point, the vehicle nearest where it was in the lunar orbit plane.
-		var h := Rtcc.site_orbit_normal(landing_site(), float(mission.section("landing")["get_s"]))
-		var p0 := Vector3(pl[0], pl[1], pl[2])
-		var at := (p0 - h * p0.dot(h)).normalized()
-		tr.set_state("moon", 75.0 * 3600.0 + 50.0 * 60.0, at * r, h.cross(at) * v)
+		# point. And phased so the flown timeline (undocking, DOI and PDI)
+		# lands at the landing time: Eagle lands a descent after PDI, at its
+		# descent orbit's pericynthion, pdi_range short of the site, and
+		# reaches it ahead of Columbia by the difference of their half
+		# periods, so Columbia passes over the site that much sooner.
+		var g := SpacecraftData.section("descent_guidance")
+		var n := v / r
+		var peri := landing_site().length() + float(mission.section("doi")["pericynthion_alt_km"]) * 1000.0
+		var a_lm := (r + peri) / 2.0
+		var lead := PI / n - PI * sqrt(a_lm * a_lm * a_lm / Bodies.MU_MOON)
+		var t_over := t_land - float(g["descent_s"]) + float(g["pdi_range_m"]) / Bodies.R_MOON / n + lead
+		var h := Rtcc.site_orbit_normal(landing_site(), t_land)
+		var over := Rtcc.site_at(landing_site(), t_over).normalized()
+		over = (over - h * over.dot(h)).normalized()
+		var at := over.rotated(h, -fposmod(n * (t_over - t0), TAU))
+		tr.set_state("moon", t0, at * r, h.cross(at) * v)
 		var mass := SpacecraftData.total_mass("csm_lm", sps_prop, 560.0, 110.0, 0.0)
 		sps_prop -= mass * (1.0 - exp(-900.0 / (float(SpacecraftData.section("sps")["isp_s"]) * Units.G0)))
 	if p_phase in LM_PHASES:

@@ -7,6 +7,11 @@ func before_each() -> void:
 	Bodies.configure(28.5, 0.0, 3.3, -20.0)
 
 
+func after_all() -> void:
+	# Back to the mission's own Moon for the tests after these.
+	Mission.load_default()
+
+
 func test_the_moon_keeps_its_0_0_point_facing_the_earth() -> void:
 	for t in [0.0, 75.0 * 3600.0, 102.76 * 3600.0, 200.0 * 3600.0]:
 		var mf := Bodies.moon_fixed(t)
