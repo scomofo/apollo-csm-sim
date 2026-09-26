@@ -1039,9 +1039,10 @@ Slice 4d lets the CMC navigate on its own sightings:
   ones; V93 starts it again at the next mark.
 - **The DSKY.** V01 shows a noun's first register alone, as P52's V01N70
   always did, now that N70 has three.
-- **Checkpoints** stay schema 7: the filter, P22's and P23's step and a
-  mark waiting at N49 are new keys, and a checkpoint from 4c restores
-  with the filter starting again.
+- **Checkpoints** are schema 8: the filter, P22's and P23's step and a
+  mark waiting at N49. 4d first kept schema 7, letting a 4c checkpoint
+  restore with the filter starting again; the ground rules ask for the
+  bump, which came with 5a's pull request.
 - **What it does in flight.** A TEI flown on a platform 0.5° off leaves
   a vacuum perigee of −115 km and the CMC's state vector 1.1 km and
   8.9 m/s off. With no uplink, ten P23 sessions of six marks and two

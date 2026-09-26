@@ -13,7 +13,8 @@ extends RefCounted
 ##    dispersions' seed and draws (slice 4b).
 ## 7: the CMC's IMU (REFSMMAT, the platform, its drift) and alignment
 ##    programs, and the optics (slice 4c).
-const SCHEMA_VERSION := 7
+## 8: the CMC's navigation filter, and P22's and P23's sightings (slice 4d).
+const SCHEMA_VERSION := 8
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],

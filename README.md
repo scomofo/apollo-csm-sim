@@ -687,8 +687,7 @@ The unit tests cover:
   and timeline, the CMC's state vector, the CSM's unmodelled forces and
   where MSFN's draws have got to, the CMC's IMU and a P52 between its
   marks, and its navigation filter and a P23 mark waiting at N49
-  (schema 7). A checkpoint from before the filter restores, with the
-  filter starting again; older schemas are rejected
+  (schema 8). Older checkpoints are rejected
 - The main scene, and in Eagle from `lunar_descent`: its HUD, the keys on
   its LGC, its two views, its checklist for the phase, and L between the
   vehicles
