@@ -53,6 +53,13 @@ func test_v16n62_monitors_velocity_altitude() -> void:
 	assert_false(dsky.lamps["opr_err"])
 
 
+func test_v01_shows_the_first_component_alone() -> void:
+	dsky.show(1, 62)
+	assert_eq(dsky.r, ["+25591", "", ""], "V01: R1 alone")
+	dsky.show(6, 62)
+	assert_eq(dsky.r, ["+25591", "+00005", "+01000"], "V06: all three")
+
+
 func test_unknown_noun_lights_opr_err_and_rset_clears() -> void:
 	_keys(["VERB", "0", "6", "NOUN", "7", "7", "ENTR"])
 	assert_true(dsky.lamps["opr_err"])

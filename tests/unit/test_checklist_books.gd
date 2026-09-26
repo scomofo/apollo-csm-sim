@@ -64,7 +64,7 @@ func test_the_hud_shows_the_checklists_of_the_vehicle_flown() -> void:
 	# Back in Columbia, its checklists where they stood, and Eagle's go on.
 	hud.set_vehicle("csm")
 	assert_eq(hud.book, csm)
-	assert_eq(_titles(hud), ["Parking orbit and TLI", "SPS burn (P30 / P40)", "Lunar orbit and TEI", "Entry"])
+	assert_eq(_titles(hud), ["Parking orbit and TLI", "SPS burn (P30 / P40)", "Lunar orbit and TEI", "Entry", "IMU realign (P52)"])
 	assert_eq(hud._check_title.selected, 0)
 	Bus.set_value("mission.event.pad_pdi", SimClock.get_seconds)
 	hud._process(0.0)

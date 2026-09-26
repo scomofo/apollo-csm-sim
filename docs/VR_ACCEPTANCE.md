@@ -30,6 +30,7 @@ Index, Vive, Vive Focus 3, WMR, Pico and others).
 | R2 | From the centre couch (SEAT), the DSKY is in fingertip reach | | |
 | R3 | Windows sit where the eyes expect them; nothing clips the headset | | |
 | R4 | The checklist card and the DSKY display read from the couch | | |
+| R5 | At the lower equipment bay (SEAT), the optics' eyepieces read, the right stick moves the optics, and MARK and the second DSKY are in reach | | |
 
 ## Actuation
 
@@ -92,6 +93,10 @@ its own issue.
   - Nothing on MDC3 (the EPS switches) is expected in reach from the left
     couch. The headset has no far-field pointer yet, so record which
     controls you couldn't reach rather than leaning across.
+  - SEAT's third station is the lower equipment bay, facing the optics'
+    eyepieces, MARK and the second DSKY; there the right stick moves the
+    optics. The recorder notes whether it was used, how far the optics
+    turned by hand and MARK's touches (R5).
   - The panel layout is estimated (confidence D in
     `data/cockpit/controls.csv`). A reach failure is a layout finding to
     fix in the data, not by scaling the cabin.

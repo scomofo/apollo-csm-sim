@@ -49,11 +49,11 @@ func test_the_horizon_ring_stays_level_with_the_local_horizontal() -> void:
 	var c: Comfort = add_child_autofree(Comfort.new())
 	c.horizon_aid = true
 	var ring: Node3D = c.get_node("HorizonRing")
-	Bus.set_value("guid.indicator.attitude", Quaternion.IDENTITY)
+	Bus.set_value("guid.indicator.lvlh", Quaternion.IDENTITY)
 	c.update_from_bus()
 	assert_almost_eq(ring.global_basis.y, Vector3.UP, Vector3.ONE * 1e-6, "LVLH attitude: level with the cabin")
 	# Nose 20 deg up: the local up leans 20 deg toward the nose (render -Z).
-	Bus.set_value("guid.indicator.attitude", Quaternion(Vector3(0, 1, 0), deg_to_rad(20.0)))
+	Bus.set_value("guid.indicator.lvlh", Quaternion(Vector3(0, 1, 0), deg_to_rad(20.0)))
 	c.update_from_bus()
 	var up := Vector3(0.0, cos(deg_to_rad(20.0)), -sin(deg_to_rad(20.0)))
 	assert_almost_eq(ring.global_basis.y, up, Vector3.ONE * 1e-6)
@@ -72,13 +72,13 @@ func test_in_eagle_the_aids_follow_eagle() -> void:
 	assert_almost_eq(float(Bus.get_value("present.comfort.vignette")), 0.5, 1e-6, "Eagle's own rate")
 	c.horizon_aid = true
 	var ring: Node3D = c.get_node("HorizonRing")
-	Bus.set_value("lm.guid.indicator.attitude", Frames.LM_LEVEL.get_rotation_quaternion())
+	Bus.set_value("lm.guid.indicator.lvlh", Frames.LM_LEVEL.get_rotation_quaternion())
 	c.update_from_bus()
 	assert_almost_eq(ring.global_basis.y, Vector3.UP, Vector3.ONE * 1e-6, "flying level: level with Eagle's cabin")
 	# Windows 20 deg up (about Eagle's +Y): the local up leans 20 deg
 	# toward the windows (render -Z).
 	var up20 := Frames.LM_LEVEL * Basis(Vector3(0, 1, 0), deg_to_rad(20.0))
-	Bus.set_value("lm.guid.indicator.attitude", up20.get_rotation_quaternion())
+	Bus.set_value("lm.guid.indicator.lvlh", up20.get_rotation_quaternion())
 	c.update_from_bus()
 	assert_almost_eq(ring.global_basis.y, Vector3(0.0, cos(deg_to_rad(20.0)), -sin(deg_to_rad(20.0))), Vector3.ONE * 1e-6)
 
@@ -167,7 +167,11 @@ func test_wrist_menu_seat_and_comfort_buttons() -> void:
 	assert_eq(cabin.seat, "CMP")
 	assert_eq(rig.get_parent(), cabin.anchor, "the rig rides the anchor to the new seat")
 	menu.activate("seat")
+	assert_eq(cabin.seat, "LEB", "to the lower equipment bay, away from the couch")
+	assert_true(cabin.anchor.basis.is_equal_approx(CmCabin.LEB_BASIS), "facing its panel")
+	menu.activate("seat")
 	assert_eq(cabin.seat, "CDR")
+	assert_true(cabin.anchor.basis.is_equal_approx(CmCabin.FACE_BASIS), "back facing the console")
 	menu.activate("vignette")
 	assert_false(comfort.vignette_enabled)
 	menu.activate("horizon")

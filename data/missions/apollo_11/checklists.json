@@ -13,6 +13,7 @@
       {"text": "UP TLM CM - BLOCK", "control": "P2_UP_TLM_CM", "check": {"channel": "ctl.cmc.up_tlm", "op": "eq", "value": false}},
       {"text": "V37E 30E - P30 External Delta-V", "control": "P2_DSKY", "check": {"channel": "guid.program", "op": "eq", "value": 30}},
       {"text": "Verify TIG (N33), PRO; verify N81 DV, PRO; check N42, PRO", "control": "P2_DSKY", "check": {"channel": "guid.maneuver_valid", "op": "eq", "value": true}},
+      {"text": "P52 option 1, the preferred REFSMMAT (IMU realign)", "check": {"channel": "imu.preferred", "op": "eq", "value": true}},
       {"text": "CMC MODE - AUTO", "check": {"channel": "ctl.cmc.mode", "op": "eq", "value": 2}},
       {"text": "V37E 40E - P40 SPS Thrusting", "control": "P2_DSKY", "check": {"channel": "guid.program", "op": "eq", "value": 40}},
       {"text": "V50N18 flashing: PRO to maneuver to burn attitude", "control": "P2_DSKY", "check": {"channel": "guid.step", "op": "ne", "value": "v50n18"}},
@@ -42,6 +43,18 @@
       {"text": "Drogues at 24,000 ft", "check": {"channel": "els.drogue", "op": "eq", "value": true}},
       {"text": "Mains at 10,000 ft", "check": {"channel": "els.mains", "op": "eq", "value": true}},
       {"text": "Splashdown", "check": {"channel": "mission.phase", "op": "eq", "value": "splashdown"}}
+    ]},
+    {"title": "IMU realign (P52)", "phases": [], "steps": [
+      {"text": "At the LEB (SEAT): OPTICS ZERO - OFF, MODE - CMC", "control": "LEB_OPTICS_MODE", "check": {"channel": "ctl.optics.mode", "op": "eq", "value": 1}},
+      {"text": "V37E 52E - P52 IMU realign", "control": "LEB_DSKY", "check": {"channel": "guid.program", "op": "eq", "value": 52}},
+      {"text": "V04N06: V22E option E (1 PREF 2 NOM 3 REFS 4 LS); PRO", "control": "LEB_DSKY", "check": {"channel": "guid.step", "op": "ne", "value": "option"}},
+      {"text": "V06N22 new gimbal angles, MG under 70: PRO, coarse align", "control": "LEB_DSKY", "check": {"channel": "guid.step", "op": "ne", "value": "n22"}},
+      {"text": "V50N25 00015: PRO for two stars (00405: roll heads down)", "control": "LEB_DSKY", "check": {"channel": "guid.align_star", "op": "gt", "value": 0}},
+      {"text": "Star 1: PRO at V01N70; OPTICS MAN, centre it, MARK", "control": "LEB_MARK", "check": {"channel": "guid.align_marks", "op": "ge", "value": 1}},
+      {"text": "Star 2: OPTICS CMC, PRO at V01N70; MAN, centre, MARK", "control": "LEB_MARK", "check": {"channel": "guid.align_marks", "op": "ge", "value": 2}},
+      {"text": "V06N05 star angle difference under 0.02: PRO", "control": "LEB_DSKY", "check": {"channel": "guid.step", "op": "ne", "value": "n05"}},
+      {"text": "V06N93 torquing angles: PRO to torque the gyros", "control": "LEB_DSKY", "check": {"channel": "guid.step", "op": "eq", "value": "check"}},
+      {"text": "V50N25 00014: V37E 00E; OPTICS MODE - CMC", "control": "LEB_DSKY", "check": {"channel": "guid.program", "op": "eq", "value": 0}}
     ]}
   ]
 }

@@ -14,6 +14,9 @@ const CSM_JETS := Vector3(4, 2, 2)
 
 var rt: SimRuntime
 var _held_keys: Array[Key] = []
+## fly_pad()'s last burn: the truth (Trajectory) at V99 ("before") and once
+## the engine has stopped ("after").
+var burn_log: Dictionary = {}
 
 
 ## A test that stopped with a key down leaves Input clean for the next.
@@ -109,20 +112,216 @@ func keys(seq: String, computer: AgcCore = null) -> void:
 			_: dsky.press(ch)
 
 
-## Fly an uplinked PAD the way the crew does: P30 accept; a quarter of an
-## hour before TIG, CMC MODE AUTO and P40 (SPS) or, below 10 ft/s, P41
-## (RCS) with auto maneuver; SPS armed, PRO at V99, PRO after residuals.
-## The spacecraft drifts in CMC MODE FREE until P40 and after the burn:
-## P40's steering, or an attitude hold, keeps the clock to fixed steps.
-## Returns the maneuver's sensed ΔV (m/s).
-func fly_pad() -> float:
+## The CSM's optics.
+func optics() -> Optics:
+	return rt.systems["optics"]
+
+
+## The CMC's IMU misalignment, deg: how far its reference is turned from
+## ECI.
+func misalignment_deg() -> float:
+	return rad_to_deg(rt.agc().imu.misalignment().length())
+
+
+## Centre star [param code] in the sextant, as the crew does in MANUAL:
+## on the star's true direction.
+func centre_star(code: int) -> void:
+	Bus.set_value("ctl.optics.mode", 0)
+	optics().aim(Basis(rt.dynamics.attitude.q).inverse() * Stars.direction(code))
+
+
+## Press MARK and let it go.
+func mark() -> void:
+	Bus.set_value("ctl.optics.mark", true)
+	run(SimClock.FIXED_DT, false)
+	Bus.set_value("ctl.optics.mark", false)
+	run(SimClock.FIXED_DT, false)
+
+
+## Lay star [param code]'s image on [param body]'s ("earth" or "moon")
+## horizon in the sextant, as the crew does in MANUAL for a P23 mark: the
+## trunnion at the true angle between them, off by [param err_deg]
+## [simplified: the crew's trims of the attitude and the shaft, which put
+## the horizon under the star, aren't flown].
+func superimpose(code: int, body: String, err_deg: float = 0.0) -> void:
+	Bus.set_value("ctl.optics.mode", 0)
+	var m := NavFilter.star_horizon(rt.dynamics.traj, Stars.direction(code), body)
+	optics().trunnion_deg = rad_to_deg(float(m["q"])) + err_deg
+	run(SimClock.FIXED_DT, false)
+
+
+## One P23 mark as the crew makes it, from V05N70: star [param code] on
+## [param horizon]'s horizon (1 the Earth's, 2 the Moon's) loaded; PRO for
+## the sighting attitude, and in CMC MODE AUTO PRO for the maneuver; at V51
+## the star laid on the horizon, off by [param err_deg], and marked; PRO at
+## N49 takes it in; then OPTICS MODE CMC again. Returns N49's ΔR (m) and
+## ΔV (m/s).
+func p23_mark(code: int, horizon: int, err_deg: float = 0.0) -> Vector2:
+	var agc := rt.agc()
+	assert_eq(agc.step_name, "n70", "V05N70")
+	keys("V21E%dE" % code)
+	keys("V23E%dE" % horizon)
+	keys("P")
+	assert_eq(agc.step_name, "v50n18", "V50N18: the sighting attitude")
+	Bus.set_value("ctl.cmc.mode", 2)
+	keys("P")
+	var there := run_until(func() -> bool: return agc.step_name == "mark", 900.0, 1.0, false)
+	assert_true(there, "V51 at the sighting attitude")
+	superimpose(code, "earth" if horizon == 1 else "moon", err_deg)
+	mark()
+	assert_eq(agc.step_name, "n49", "V06N49")
+	var dx: PackedFloat64Array = agc.sight_pending.get("dx", PackedFloat64Array([0, 0, 0, 0, 0, 0]))
+	keys("P")
+	Bus.set_value("ctl.optics.mode", 1)
+	return Vector2(Vector3(dx[0], dx[1], dx[2]).length(), Vector3(dx[3], dx[4], dx[5]).length())
+
+
+## Centre P22's landmark in the sextant, as the crew does in MANUAL: on its
+## true line of sight, off by [param err_deg] across it.
+func centre_landmark(err_deg: float = 0.0) -> void:
+	var m := NavFilter.landmark_los(rt.dynamics.traj, rt.agc().sight_landmark_mf)
+	var d := (m["los"] as Vector3).rotated(m["e1"], deg_to_rad(err_deg))
+	Bus.set_value("ctl.optics.mode", 0)
+	optics().aim(Basis(rt.dynamics.attitude.q).inverse() * d)
+
+
+## P37 as the crew runs it: V37E37E, PRO at N33 (TIG half an hour on) for
+## the correction, PRO at N81 and N42 to store it. Returns the ΔV (LVLH,
+## m/s).
+func p37() -> Vector3:
+	var agc := rt.agc()
+	keys("V37E37E")
+	assert_eq(agc.step_name, "n33", "V06N33: TIG")
+	keys("P")
+	assert_eq(agc.step_name, "n81", "V06N81: the correction")
+	var dv := agc.dv_lvlh_load
+	keys("PP")
+	assert_eq(agc.program, 0, "stored; P00")
+	return dv
+
+
+## Roll the CSM half a turn about its X axis on the DAP (CMC MODE AUTO),
+## as the crew turns the optics, on the CM's +Z side, away from the Moon or
+## the Earth; then back to the mode it was in, holding.
+func roll_over() -> void:
+	var agc := rt.agc()
+	var was := int(Bus.get_value("ctl.cmc.mode", 1))
+	agc.auto_target = agc._att() * Quaternion(Vector3(1, 0, 0), PI)
+	agc._plan_via()
+	agc.auto_active = true
+	Bus.set_value("ctl.cmc.mode", 2)
+	var done := run_until(func() -> bool: return agc._att_error(agc.auto_target) < deg_to_rad(1.0) \
+		and rt.dynamics.attitude.omega.length() < deg_to_rad(0.05), 600.0, 1.0, false)
+	assert_true(done, "rolled over")
+	agc.auto_active = false
+	agc.hold_q = agc._att()
+	Bus.set_value("ctl.cmc.mode", was)
+
+
+## Turn the CSM clear of gimbal lock on the platform as it stands and on
+## the new orientation N22 shows (P52's alarm 00401), on the CMC's auto
+## maneuver in CMC MODE AUTO: the thrust axis (body X) across both stable
+## members' Y axes, where both middle gimbals read zero.
+func turn_for_new_orientation() -> void:
+	var agc := rt.agc()
+	var y_old := Imu.axis(agc.imu.refsmmat, 1)
+	var y_new := Imu.axis(agc.align_refsmmat, 1)
+	var q := agc._att()
+	var x := Basis(q) * Vector3.RIGHT
+	var to := y_old.cross(y_new)
+	if to.length() < 1e-3:
+		to = x - y_old * x.dot(y_old)
+	to = to.normalized() * signf(to.dot(x) + 1e-9)
+	var was := int(Bus.get_value("ctl.cmc.mode", 1))
+	agc.auto_target = (Quaternion(x, to) * q).normalized()
+	agc._plan_via()
+	agc.auto_active = true
+	Bus.set_value("ctl.cmc.mode", 2)
+	var done := run_until(func() -> bool: return agc._att_error(agc.auto_target) < deg_to_rad(1.0) \
+		and rt.dynamics.attitude.omega.length() < deg_to_rad(0.05), 900.0, 1.0, false)
+	assert_true(done, "turned clear of gimbal lock")
+	agc.auto_active = false
+	agc.hold_q = agc._att()
+	Bus.set_value("ctl.cmc.mode", was)
+
+
+## Realign the IMU with P52 [param option] as the crew does: the option
+## (V22), PRO; for a new orientation PRO at N22 and the coarse align; PRO
+## for the CMC's stars (rolling over first if the optics can reach none);
+## for each, PRO at N70, the optics driven to it, the star centred in
+## MANUAL and marked; PRO at N05, PRO at N93 to torque;
+## then P00. N22's alarm 00401 (the new orientation in gimbal lock where
+## the CSM is) is cleared by turn_for_new_orientation(). OPTICS MODE goes
+## back to CMC. Returns {"sad": N05 (deg),
+## "torque": N93 (deg), "stars": the two codes}.
+func realign(option: int = 3) -> Dictionary:
+	var agc := rt.agc()
+	keys("V37E52E")
+	assert_eq(agc.program, 52, "P52 selected")
+	keys("V22E%dEP" % option)
+	if option != 3:
+		assert_eq(agc.step_name, "n22", "N22: the new orientation's gimbal angles")
+		keys("P")
+		if agc.step_name == "n22" and agc.alarm_code == 401:
+			keys("R")
+			turn_for_new_orientation()
+			keys("P")
+		var aligned := run_until(func() -> bool: return agc.step_name == "acquire", 120.0, 1.0, false)
+		assert_true(aligned, "the coarse align finished")
+	assert_eq(agc.step_name, "acquire", "V50N25 00015")
+	keys("P")
+	if agc.step_name == "acquire" and agc.alarm_code == 405:
+		# No stars the optics can reach: the Moon or the Earth fills their
+		# side of the sky. Roll heads down and try again.
+		keys("R")
+		roll_over()
+		keys("P")
+	assert_eq(agc.step_name, "star", "the CMC picked two stars")
+	var stars: Array = agc.align_stars.duplicate()
+	for i in 2:
+		keys("P")
+		run(2.0, false)
+		centre_star(stars[i])
+		mark()
+	assert_eq(agc.step_name, "n05", "both marked")
+	var sad := agc.align_sad_deg
+	keys("P")
+	var torque := agc.align_torque * (180.0 / PI)
+	keys("P")
+	assert_true(agc.imu.aligned, "aligned")
+	keys("V37E00E")
+	Bus.set_value("ctl.optics.mode", 1)
+	return {"sad": sad, "torque": torque, "stars": stars}
+
+
+## Fly an uplinked PAD the way the crew does: P30 accept; P52 with
+## [param p52_option] (1, the preferred orientation P30 worked out; 0 for
+## none) 25 minutes before TIG; a quarter of an hour before TIG, CMC MODE
+## AUTO and P40 (SPS) or, below 10 ft/s, P41 (RCS) with auto maneuver; SPS
+## armed, PRO at V99, PRO after residuals. The spacecraft drifts in CMC
+## MODE FREE until P40 and after the burn: P40's steering, or an attitude
+## hold, keeps the clock to fixed steps. Returns the maneuver's sensed ΔV
+## (m/s); burn_log has the truth at V99 and at the residuals.
+func fly_pad(p52_option: int = 1) -> float:
 	var agc := rt.agc()
 	keys("V37E30E")
 	assert_eq(agc.program, 30, "P30 selected")
 	keys("PPP")
 	assert_true(agc.maneuver_valid, "maneuver stored")
+	return fly_stored(p52_option)
+
+
+## Fly the maneuver the CMC has stored (P30's or P37's) from P52 on, as
+## fly_pad() does.
+func fly_stored(p52_option: int = 1) -> float:
+	var agc := rt.agc()
 	var tig := agc.maneuver_tig
 	Bus.set_value("ctl.cmc.mode", 0)
+	if p52_option > 0:
+		run(maxf(tig - 1500.0 - SimClock.get_seconds, 0.0))
+		Bus.set_value("ctl.cmc.mode", 1)
+		realign(p52_option)
+		Bus.set_value("ctl.cmc.mode", 0)
 	run(maxf(tig - 900.0 - SimClock.get_seconds, 0.0))
 	Bus.set_value("ctl.cmc.mode", 2)
 	var prog := 41 if agc.dv_lvlh_load.length() < 10.0 * Units.FT else 40
@@ -135,9 +334,11 @@ func fly_pad() -> float:
 	run(maxf(tig - 12.0 - SimClock.get_seconds, 0.0))
 	var ok := run_until(func() -> bool: return agc.step_name == "v99", 20.0, 1.0, false)
 	assert_true(ok, "reached V99 before TIG")
+	burn_log = {"before": rt.dynamics.traj.clone()}
 	keys("P")
 	ok = run_until(func() -> bool: return agc.step_name == "post", 2000.0, 1.0, false)
 	assert_true(ok, "burn completed")
+	burn_log["after"] = rt.dynamics.traj.clone()
 	var dv := agc.dv_accum
 	keys("P")
 	Bus.set_value("ctl.sps.arm_a", false)

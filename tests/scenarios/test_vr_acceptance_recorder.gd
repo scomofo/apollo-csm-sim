@@ -3,7 +3,8 @@
 ## without hardware. The desktop rig reads as S1 FAIL, and a pointer click
 ## is not a touch. Fingertip crossings on CMC MODE, the DSKY and the wrist
 ## menu are, and aboard Eagle a recentre, its DSKY and ENG ARM count as
-## Eagle's. The thumbsticks' pitch and roll response is measured, the lock
+## Eagle's. At the lower equipment bay the optics turned by hand and MARK
+## count. The thumbsticks' pitch and roll response is measured, the lock
 ## above 100x holds, and the tables are written.
 ## Adapted from gemini-capsule's tests/scenarios/test_vr_acceptance_recorder.gd
 ## at 40e449c.
@@ -118,6 +119,25 @@ func test_aboard_eagle_a_recentre_its_dsky_and_eng_arm_are_eagles() -> void:
 	assert_string_contains(line.call("| A2 |"), "no VxxNxxE typed by touch", "nothing typed on the CMC's")
 
 
+func test_at_the_lower_equipment_bay_the_optics_turned_by_hand_and_mark_count() -> void:
+	_main.cabin.set_seat("LEB")
+	var hci: Node = _main.get_node("HandControllerInput")
+	hci.set_process(false)
+	_touch(_main.cabin.items["LEB_OPTICS_MODE"], Vector3(0.0, -0.5, 0.0))
+	assert_eq(Bus.get_value("ctl.optics.mode"), 0, "OPTICS MODE pushed down to MAN")
+	Bus.set_value("ctl.optics.hc", Vector3(1.0, 1.0, 0.0))
+	for i in 3:
+		SimClock.advance(1.0)
+		await get_tree().process_frame
+	Bus.set_value("ctl.optics.hc", Vector3.ZERO)
+	hci.set_process(true)
+	_touch(_main.cabin.items["LEB_MARK"], Vector3(0.0, 0.0, -0.5))
+	var turned := float(_rec.record["optics"]["manual_travel_deg"])
+	assert_almost_eq(turned, 3.0, 0.6, "the shaft and the trunnion 0.5 deg/s each for 3 s")
+	var line: String = Array(_rec.markdown().split("\n")).filter(func(l: String) -> bool: return l.begins_with("| R5 |"))[0]
+	assert_string_contains(line, "tester; at the lower equipment bay; the optics turned %.1f° by hand; `ctl.optics.mark` touched 1 times" % turned)
+
+
 func test_thumbstick_response_and_the_time_rate_lock_are_measured() -> void:
 	var hci: Node = _main.get_node("HandControllerInput")
 	hci.set_process(false)
@@ -154,7 +174,7 @@ func test_the_record_is_written_as_json_and_tables() -> void:
 	var md := FileAccess.get_file_as_string(base + ".md")
 	for heading in ["## Session", "## Reach and cabin", "## Actuation", "## Comfort and pacing", "## Eagle's cabin"]:
 		assert_string_contains(md, heading)
-	for row in ["S1", "S2", "S3", "S4", "S5", "S6", "R1", "R2", "R3", "R4", "A1", "A2", "A3", "A4", "A5", "A6", "A7",
+	for row in ["S1", "S2", "S3", "S4", "S5", "S6", "R1", "R2", "R3", "R4", "R5", "A1", "A2", "A3", "A4", "A5", "A6", "A7",
 			"C1", "C2", "C3", "C4", "C5", "E1", "E2", "E3", "E4", "E5"]:
 		assert_string_contains(md, "| %s |" % row)
 	Bus.set_value("player.seat", "CMP")

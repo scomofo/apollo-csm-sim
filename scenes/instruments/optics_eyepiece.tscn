@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/instruments/optics_eyepiece.gd" id="1_eye"]
+
+[node name="OpticsEyepiece" type="Node3D"]
+script = ExtResource("1_eye")

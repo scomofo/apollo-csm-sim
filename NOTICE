@@ -51,6 +51,17 @@ the values held out of the fit:
   Ancillary Information Facility.
 - TAI - UTC for 1969 from the US Naval Observatory's tai-utc.dat.
 
+Navigation stars
+----------------
+data/stars/navigation_stars.json holds the positions of the Apollo
+guidance computers' 37 navigation stars, taken by
+tools/stars/navigation_stars.py from the Hipparcos catalogue's new
+reduction (van Leeuwen, 2007, Astron. Astrophys. 474:653; CDS catalogue
+I/311) through the VizieR service (Ochsenbein et al., 2000, Astron.
+Astrophys. Suppl. 143:23), and carried by their proper motions to
+Apollo 11's launch day. Credit: ESA, the Hipparcos mission; CDS,
+Strasbourg.
+
 Vendored software
 -----------------
 addons/gut/ is GUT (Godot Unit Test) 9.4.0 by Tom "Butch" Wesley,

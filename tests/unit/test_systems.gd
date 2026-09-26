@@ -74,9 +74,10 @@ func test_cmc_hold_keeps_attitude_and_auto_maneuvers() -> void:
 	run(120.0, false)
 	var err := rad_to_deg((q0.inverse() * rt.dynamics.attitude.q).get_angle())
 	assert_lt(err, 3.0, "HOLD pulls the attitude back after a disturbance")
-	# AUTO maneuver: 90° yaw.
+	# AUTO maneuver: 90° pitch, about the landing site REFSMMAT's Y axis (a
+	# 90° yaw would turn the middle gimbal to 90°: gimbal lock).
 	var agc := rt.agc()
-	var target := q0 * Quaternion(Vector3(0, 0, 1), PI / 2.0)
+	var target := q0 * Quaternion(Vector3(0, 1, 0), PI / 2.0)
 	agc.auto_target = target
 	agc.auto_active = true
 	Bus.set_value("ctl.cmc.mode", 2)

@@ -54,6 +54,7 @@ func setup_cabin(phase: String = "") -> void:
 	highlight.book = book
 	cabin.add_child(highlight)
 	menu = WristMenu.new()
+	menu.cabin = cabin
 	menu.setup(rig, camera, null, book)
 	hands = HandControllerInput.new()
 	add_child_autofree(hands)
@@ -133,14 +134,88 @@ func slow_down() -> void:
 	assert_false(SimClock.controls_locked(), "RATE - unlocked the panels")
 
 
-## Type on the cabin DSKY, "V37E30E" style, as SimTest.keys(). A key is
-## held for a moment after a click, so typing waits for it to let go only
-## when it comes round again.
+## The DSKY at the player's station: the lower equipment bay's there, the
+## main display console's elsewhere.
+func station_dsky() -> CabinDsky:
+	return cabin.items["LEB_DSKY"] if cabin.seat == "LEB" else dsky
+
+
+## Type on the cabin DSKY at the player's station, "V37E30E" style, as
+## SimTest.keys(). A key is held for a moment after a click, so typing
+## waits for it to let go only when it comes round again.
 func type(seq: String) -> void:
+	var d := station_dsky()
 	for ch in seq:
-		var key: ControlBase = dsky.keys[KEY_NAMES.get(ch, ch)]
+		var key: ControlBase = d.keys[KEY_NAMES.get(ch, ch)]
 		await let_go(key)
 		await click(key, 0.0, false)
+
+
+## SEAT on the wrist menu until the player is at [param seat_name].
+func go_to_seat(seat_name: String) -> void:
+	for i in cabin.seats().size():
+		if cabin.seat == seat_name:
+			return
+		await click_menu("seat")
+	assert_eq(cabin.seat, seat_name, "SEAT to %s" % seat_name)
+
+
+## Fly the IMU realign checklist at the lower equipment bay: SEAT to the
+## bay, OPTICS MODE CMC, P52 with [param option] on its DSKY, each star
+## the CMC drives the optics to centred in MANUAL (the crew's hand on the
+## optics hand controller: centre_star()) and MARK clicked, N05, N93 and
+## the torquing; then P00, back to the commander's couch and to the
+## checklist that was open. If the Moon or the Earth fills the optics
+## (alarm 00405), the commander rolls heads down (roll_over()).
+func realign_at_the_leb(option: int = 1) -> Dictionary:
+	var agc := rt.agc()
+	var was := book.list().title
+	await open_checklist("IMU realign (P52)")
+	await go_to_seat("LEB")
+	await slow_down()
+	if current_step().begins_with("At the LEB"):
+		# In MANUAL since the last realign.
+		await switch_to("LEB_OPTICS_MODE", 1)
+	await expect_step("V37E 52E")
+	await type("V37E52E")
+	await expect_step("V04N06")
+	await type("V22E%dEP" % option)
+	if option != 3:
+		await expect_step("V06N22")
+		await type("P")
+		if agc.step_name == "n22" and agc.alarm_code == 401:
+			# The new orientation in gimbal lock here: the commander turns.
+			await type("R")
+			turn_for_new_orientation()
+			await type("P")
+		assert_true(await fly_until(func() -> bool: return agc.step_name == "acquire", 120.0, 1.0, false), "coarse aligned")
+	await expect_step("V50N25 00015")
+	await type("P")
+	if agc.step_name == "acquire" and agc.alarm_code == 405:
+		await type("R")
+		roll_over()
+		await type("P")
+	for i in 2:
+		await expect_step("Star %d" % (i + 1))
+		await switch_to("LEB_OPTICS_MODE", 1)
+		await type("P")
+		await fly(2.0, 0.5, false)
+		await switch_to("LEB_OPTICS_MODE", 0)
+		centre_star(agc.align_stars[i])
+		await click(cabin.items["LEB_MARK"], 0.1)
+	await expect_step("V06N05")
+	var sad := agc.align_sad_deg
+	await type("P")
+	await expect_step("V06N93")
+	var torque := agc.align_torque * (180.0 / PI)
+	await type("P")
+	await expect_step("V50N25 00014")
+	await switch_to("LEB_OPTICS_MODE", 1)
+	await type("V37E00E")
+	await expect_complete("IMU realign (P52)")
+	await go_to_seat("CDR")
+	await open_checklist(was)
+	return {"sad": sad, "torque": torque, "stars": agc.align_stars.duplicate()}
 
 
 ## Click a switch until it reads [param position]; a guarded switch's

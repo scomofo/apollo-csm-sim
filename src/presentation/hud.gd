@@ -23,6 +23,8 @@ L             fly the LM / the CSM, while the LM flies free
 C             window / chase / cabin view   (right-drag: look)
 Cabin view    click a control, scroll to move it; right-click: mouse look,
               Z: inspect, Home: recentre, M: wrist menu
+O             the optics (sextant and telescope): W/S A/D move them,
+              X MARK, Y MARK REJECT
 F5 / F9       save / load checkpoint
 H             this help"""
 
@@ -54,6 +56,9 @@ var _mcc: PanelContainer
 var _lm_mcc: PanelContainer
 var _flight_panel: PanelContainer
 var _systems_panel: PanelContainer
+## The optics: their view and their controls (toggle_optics()).
+var _optics: PanelContainer
+var optics_view: OpticsView
 var _in_cabin: bool = false
 var _toggles: Dictionary = {}
 var _options: Dictionary = {}
@@ -120,6 +125,15 @@ func setup(p_rt: SimRuntime, p_book: ChecklistBook = null, p_lm_book: ChecklistB
 	right.add_child(_mcc)
 	_lm_mcc = _mcc_panel([["DOI", "doi"], ["PDI", "pdi"], ["ASCENT", "ascent"], ["CSI", "csi"]])
 	right.add_child(_lm_mcc)
+	# The optics, over the middle of the screen when opened.
+	_optics = _optics_panel()
+	_optics.anchor_left = 0.5
+	_optics.anchor_right = 0.5
+	_optics.offset_left = -290
+	_optics.offset_right = 290
+	_optics.offset_top = 34
+	_optics.visible = false
+	root.add_child(_optics)
 	# CAPCOM strip along the bottom.
 	var cp := PanelContainer.new()
 	_style(cp)
@@ -167,6 +181,47 @@ func toggle_help() -> void:
 	_help.visible = not _help.visible
 
 
+## Open or close the optics: while they are open the rotation keys move
+## them (player.optics, src/interaction/hand_controller_input.gd). Only
+## from Columbia.
+func toggle_optics(on: Variant = null) -> void:
+	var want: bool = (not _optics.visible) if on == null else bool(on)
+	_optics.visible = want and vehicle != "lm"
+	Bus.set_value("player.optics", _optics.visible)
+
+
+func optics_open() -> bool:
+	return _optics.visible
+
+
+## The sextant and telescope's view, their mode, zero and speed switches,
+## and MARK and MARK REJECT.
+func _optics_panel() -> PanelContainer:
+	var p := PanelContainer.new()
+	_style(p)
+	var v := VBoxContainer.new()
+	p.add_child(v)
+	optics_view = OpticsView.new()
+	optics_view.font = mono
+	optics_view.custom_minimum_size = Vector2(560, 300)
+	v.add_child(optics_view)
+	var h := HBoxContainer.new()
+	v.add_child(h)
+	_option(h, "OPTICS MODE", "ctl.optics.mode", ["MANUAL", "CMC"])
+	_toggle(h, "ZERO", "ctl.optics.zero")
+	_option(h, "SPEED", "ctl.optics.speed", ["LO", "MED", "HI"])
+	_momentary(h, "MARK", "ctl.optics.mark")
+	_momentary(h, "MARK REJECT", "ctl.optics.mark_reject")
+	var names := CheckButton.new()
+	names.text = "NAMES"
+	names.focus_mode = Control.FOCUS_NONE
+	names.add_theme_font_size_override("font_size", 11)
+	names.button_pressed = optics_view.names
+	names.toggled.connect(func(on: bool) -> void: optics_view.names = on)
+	h.add_child(names)
+	return p
+
+
 ## The cabin view has its own DSKY, FDAI, switches and readouts: the 2D
 ## panels step aside, and the checklist, Mission Control and CAPCOM stay
 ## until they move to the wrist menu (docs/ROADMAP.md, slice 2d).
@@ -194,6 +249,8 @@ func _show_panels() -> void:
 	_lm_switches.visible = lm and not _in_cabin
 	_mcc.visible = not lm
 	_lm_mcc.visible = lm
+	if lm and _optics.visible:
+		toggle_optics(false)
 
 
 func _style(p: PanelContainer) -> void:
@@ -509,8 +566,7 @@ func _process(_delta: float) -> void:
 	var nm := Units.NMI
 	var ft := Units.FT
 	var apo := float(Bus.get_value("dyn.apo_alt_m", 0.0))
-	var q: Quaternion = Bus.get_value("dyn.att_q", Quaternion.IDENTITY)
-	var gim := Agc.gimbal_angles(q)
+	var gim: Vector3 = Bus.get_value("imu.icdu_deg", Vector3.ZERO)
 	var w: Vector3 = Bus.get_value("dyn.omega", Vector3.ZERO)
 	_flight.text = """REF %s   CONFIG %s
 ALT     %9.1f nmi
