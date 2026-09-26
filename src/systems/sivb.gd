@@ -5,7 +5,7 @@
 ## is "stack"). For TLI it ignites the J-2 at the TIG it was given
 ## (arm_tli), thrusts along the Earth-relative velocity turned by a yaw out
 ## of the orbit plane, and cuts off when the Earth-relative specific orbital
-## energy reaches the target. The yaw turns the trajectory's plane to pass
+## energy (energy_of()) reaches the target. The yaw turns the trajectory's plane to pass
 ## the Moon where the RTCC aims (Rtcc.plan_tli()). The RTCC uses the very
 ## same law (simulate_burn) when it computes the TIG and the yaw, so the
 ## flown burn reproduces the planned one
@@ -45,10 +45,15 @@ func arm_tli(p_tig: float, p_energy: float, p_yaw: float = 0.0) -> void:
 	Bus.set_value("seq.next_event_get_s", tig)
 
 
+## The specific orbital energy about the Earth, J/kg, counting the oblate
+## Earth's potential where the propagator does: the energy the stack
+## carries on out to the Moon [estimated: the flown C3 read so brings the
+## Moon at the flown 73 hours after TLI; read as a two-body energy at the
+## cutoff, some 28 kJ/kg less once away from the Earth, 1.6 hours late].
 static func energy_of(st: PackedFloat64Array) -> float:
 	var v2 := st[3] * st[3] + st[4] * st[4] + st[5] * st[5]
 	var r := sqrt(st[0] * st[0] + st[1] * st[1] + st[2] * st[2])
-	return v2 / 2.0 - Bodies.MU_EARTH / r
+	return v2 / 2.0 - Bodies.MU_EARTH / r + Bodies.zonal_energy(st[0], st[1], st[2])
 
 
 ## The thrust direction as an inertial unit vector: prograde (the

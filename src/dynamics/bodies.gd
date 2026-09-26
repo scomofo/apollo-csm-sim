@@ -10,7 +10,10 @@
 ##   of fixed inclination to the ECI equator, turning with its pole on that
 ##   plane's normal, and a fixed Sun [simplified]. The propagator's analytic
 ##   checks fly on it.
-## Spacecraft motion itself is three-body (Earth + Moon) in either.
+## Spacecraft motion is three-body (Earth + Moon) in either. With JPL's, the
+## Earth is oblate (zonal harmonics J2 to J4, about its mean pole of the
+## ephemeris's date) and the Sun pulls too (perturbed); the circular model
+## keeps the two points alone.
 class_name Bodies
 extends RefCounted
 
@@ -18,6 +21,12 @@ const MU_EARTH: float = 3.986004418e14   ## m³/s²
 const R_EARTH: float = 6378137.0         ## m
 const MU_MOON: float = 4.9048695e12      ## m³/s²
 const R_MOON: float = 1737400.0          ## m
+const MU_SUN: float = 1.32712440018e20   ## m³/s²
+## The Earth's zonal harmonics J2, J3 and J4, unnormalised, about R_EARTH
+## [published: EGM96].
+const EARTH_J2: float = 1.08262668e-3
+const EARTH_J3: float = -2.53265649e-6
+const EARTH_J4: float = -1.61962159e-6
 const MOON_DIST: float = 384400000.0     ## m, mean distance [simplified: circular]
 ## Laplace sphere of influence of the Moon, m.
 const MOON_SOI: float = 66100000.0
@@ -28,6 +37,13 @@ const ENTRY_INTERFACE_ALT: float = 121920.0
 ## The JPL ephemeris the Moon and the Sun follow, or null for the circular
 ## model below.
 static var ephemeris: Ephemeris = null
+## Gravity beyond the Earth's and the Moon's point masses: the Earth's
+## zonal harmonics and the Sun. On with JPL's ephemeris.
+static var perturbed: bool = false
+## The Earth's pole, a unit vector in ECI: the mean pole of the
+## ephemeris's date (IAU 1976 precession from J2000) [simplified: nutation,
+## some 0.003 degrees, left out]; the circular model's ECI Z.
+static var earth_pole: PackedFloat64Array = PackedFloat64Array([0.0, 0.0, 1.0])
 ## The circular model's lunar orbit plane: inclination to the ECI equator
 ## and node longitude.
 static var moon_inclination: float = deg_to_rad(28.5)
@@ -51,15 +67,48 @@ static func moon_mean_motion() -> float:
 ## Fly on the circular model.
 static func configure(inclination_deg: float, raan_deg: float, phase0_deg: float, sun_phase_deg: float = -20.0) -> void:
 	ephemeris = null
+	perturbed = false
+	earth_pole = PackedFloat64Array([0.0, 0.0, 1.0])
 	sun_phase = deg_to_rad(sun_phase_deg)
 	moon_inclination = deg_to_rad(inclination_deg)
 	moon_raan = deg_to_rad(raan_deg)
 	moon_phase0 = deg_to_rad(phase0_deg)
 
 
-## Fly on JPL's ephemeris [param e].
+## Fly on JPL's ephemeris [param e], with the Earth oblate about its pole
+## of the ephemeris's date and the Sun pulling.
 static func use_ephemeris(e: Ephemeris) -> void:
 	ephemeris = e
+	perturbed = true
+	earth_pole = pole_of_date(e.epoch_jd_utc)
+
+
+## The Earth's mean pole at Julian Date [param jd] in the J2000 frame (the
+## ICRF, to 0.01 arc seconds), by the IAU 1976 precession, as
+## tools/ephemeris/parking_orbit.py takes the parking orbit's plane
+## [simplified: TT as UTC, 40 s apart].
+static func pole_of_date(jd: float) -> PackedFloat64Array:
+	var t := (jd - 2451545.0) / 36525.0
+	var arcsec := PI / 180.0 / 3600.0
+	var zeta := (2306.2181 * t + 0.30188 * t * t + 0.017998 * t * t * t) * arcsec
+	var theta := (2004.3109 * t - 0.42665 * t * t - 0.041833 * t * t * t) * arcsec
+	return PackedFloat64Array([sin(theta) * cos(zeta), -sin(theta) * sin(zeta), cos(theta)])
+
+
+## The Earth's zonal harmonics' part of the specific potential energy at
+## (x, y, z) relative to it, J/kg: mu/r sum J_n (R/r)^n P_n(u), u the sine
+## of the latitude; nil unless perturbed. Some -28 kJ/kg at 300 km over
+## the tropics.
+static func zonal_energy(x: float, y: float, z: float) -> float:
+	if not perturbed:
+		return 0.0
+	var p := earth_pole
+	var r := sqrt(x * x + y * y + z * z)
+	var u := (x * p[0] + y * p[1] + z * p[2]) / r
+	var q := R_EARTH / r
+	return MU_EARTH / r * (EARTH_J2 * q * q * (3.0 * u * u - 1.0) / 2.0
+		+ EARTH_J3 * q * q * q * (5.0 * u * u * u - 3.0 * u) / 2.0
+		+ EARTH_J4 * q * q * q * q * (35.0 * u * u * u * u - 30.0 * u * u + 3.0) / 8.0)
 
 
 ## Unit vectors P (node direction) and Q (90° ahead in the orbit plane) of
@@ -187,6 +236,15 @@ static func selenographic_to_fixed(lat_deg: float, lon_deg: float, radius: float
 static func fixed_to_selenographic(p: Vector3) -> Vector3:
 	var r := p.length()
 	return Vector3(rad_to_deg(asin(clampf(p.z / maxf(r, 1e-9), -1.0, 1.0))), rad_to_deg(atan2(p.y, p.x)), r)
+
+
+## The Sun's position relative to the Earth at GET [param t], m: the
+## ephemeris's, or the circular model's direction at a mean distance.
+static func sun_position(t: float) -> PackedFloat64Array:
+	if ephemeris:
+		return ephemeris.sun_position(t)
+	var d := sun_direction(t) * 1.495978707e11
+	return PackedFloat64Array([d.x, d.y, d.z])
 
 
 ## Unit vector from the Earth toward the Sun in ECI at GET [param t]. With

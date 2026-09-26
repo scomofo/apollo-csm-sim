@@ -4,9 +4,12 @@
 ## "moon") in a non-rotating frame aligned with ECI, in double precision
 ## (PackedFloat64Array, not float32 Vector3). The equations of motion are
 ## always three-body: central gravity of the primary plus the third-body
-## perturbation of the other body (direct and indirect terms). Crossing the
-## lunar sphere of influence re-bases the state onto the other body, which
-## keeps precision near the Moon without changing the physics.
+## perturbation of the other body (direct and indirect terms). With
+## Bodies.perturbed the Sun pulls as a third body too, and about the Earth
+## its zonal harmonics (J2 to J4) act [simplified: not about the Moon,
+## where they come to under 1e-9 m/s²]. Crossing the lunar sphere of
+## influence re-bases the state onto the other body, which keeps precision
+## near the Moon without changing the physics.
 class_name Trajectory
 extends RefCounted
 
@@ -132,8 +135,10 @@ func coast_dt() -> float:
 # --- equations of motion ---------------------------------------------------
 
 ## Acceleration at relative position (x, y, z) and time [param tt], plus a
-## constant external acceleration [param ext] (inertial m/s², may be empty).
-func _accel(tt: float, x: float, y: float, z: float, ext: PackedFloat64Array) -> PackedFloat64Array:
+## constant external acceleration [param ext] (inertial m/s², may be empty),
+## and the Sun's pull from [param sun], its position relative to the
+## primary (empty for none).
+func _accel(tt: float, x: float, y: float, z: float, ext: PackedFloat64Array, sun: PackedFloat64Array) -> PackedFloat64Array:
 	var mu_p: float
 	var mu_q: float
 	var qx: float
@@ -165,23 +170,65 @@ func _accel(tt: float, x: float, y: float, z: float, ext: PackedFloat64Array) ->
 	ax += mu_q * (dx / d3 - qx / q3)
 	ay += mu_q * (dy / d3 - qy / q3)
 	az += mu_q * (dz / d3 - qz / q3)
+	if sun.size() == 3:
+		var sx := sun[0] - x
+		var sy := sun[1] - y
+		var sz := sun[2] - z
+		var s2 := sx * sx + sy * sy + sz * sz
+		var s3 := s2 * sqrt(s2)
+		var p2 := sun[0] * sun[0] + sun[1] * sun[1] + sun[2] * sun[2]
+		var p3 := p2 * sqrt(p2)
+		ax += Bodies.MU_SUN * (sx / s3 - sun[0] / p3)
+		ay += Bodies.MU_SUN * (sy / s3 - sun[1] / p3)
+		az += Bodies.MU_SUN * (sz / s3 - sun[2] / p3)
+	if Bodies.perturbed and primary == "earth":
+		var zon := _zonal(x, y, z, r2)
+		ax += zon[0]; ay += zon[1]; az += zon[2]
 	if ext.size() == 3:
 		ax += ext[0]; ay += ext[1]; az += ext[2]
 	return PackedFloat64Array([ax, ay, az])
 
 
+## The Earth's zonal harmonics' acceleration (J2 to J4) at (x, y, z)
+## relative to it, [param r2] its squared radius: for each degree n,
+## mu J_n R^n / r^(n+2) [((n+1) P_n(u) + u P_n'(u)) r_hat - P_n'(u) pole],
+## u the sine of the latitude.
+static func _zonal(x: float, y: float, z: float, r2: float) -> PackedFloat64Array:
+	var p := Bodies.earth_pole
+	var r := sqrt(r2)
+	var u := (x * p[0] + y * p[1] + z * p[2]) / r
+	var u2 := u * u
+	var q := Bodies.R_EARTH / r
+	var q2 := q * q
+	var g := Bodies.MU_EARTH / r2
+	var j2 := Bodies.EARTH_J2 * q2
+	var j3 := Bodies.EARTH_J3 * q2 * q
+	var j4 := Bodies.EARTH_J4 * q2 * q2
+	var fr := g * (j2 * 1.5 * (5.0 * u2 - 1.0) + j3 * 0.5 * u * (35.0 * u2 - 15.0)
+		+ j4 * (315.0 * u2 * u2 - 210.0 * u2 + 15.0) / 8.0) / r
+	var fp := g * (j2 * 3.0 * u + j3 * 0.5 * (15.0 * u2 - 3.0) + j4 * 0.5 * u * (35.0 * u2 - 15.0))
+	return PackedFloat64Array([fr * x - fp * p[0], fr * y - fp * p[1], fr * z - fp * p[2]])
+
+
 ## One RK4 step of [param dt] seconds. [param ext] is an inertial
-## acceleration (thrust, drag) held constant over the step.
+## acceleration (thrust, drag) held constant over the step. The Sun, some
+## 1e-5 rad on in a minute, is taken where it is at the step's middle.
 func step(dt: float, ext: PackedFloat64Array = PackedFloat64Array()) -> void:
 	var x := s[0]; var y := s[1]; var z := s[2]
 	var vx := s[3]; var vy := s[4]; var vz := s[5]
 	var h := dt / 2.0
-	var a1 := _accel(t, x, y, z, ext)
-	var a2 := _accel(t + h, x + vx * h, y + vy * h, z + vz * h, ext)
+	var sun := PackedFloat64Array()
+	if Bodies.perturbed:
+		sun = Bodies.sun_position(t + h)
+		if primary == "moon":
+			var mp := Bodies.moon_position(t + h)
+			sun[0] -= mp[0]; sun[1] -= mp[1]; sun[2] -= mp[2]
+	var a1 := _accel(t, x, y, z, ext, sun)
+	var a2 := _accel(t + h, x + vx * h, y + vy * h, z + vz * h, ext, sun)
 	var v2x := vx + a1[0] * h; var v2y := vy + a1[1] * h; var v2z := vz + a1[2] * h
-	var a3 := _accel(t + h, x + v2x * h, y + v2y * h, z + v2z * h, ext)
+	var a3 := _accel(t + h, x + v2x * h, y + v2y * h, z + v2z * h, ext, sun)
 	var v3x := vx + a2[0] * h; var v3y := vy + a2[1] * h; var v3z := vz + a2[2] * h
-	var a4 := _accel(t + dt, x + v3x * dt, y + v3y * dt, z + v3z * dt, ext)
+	var a4 := _accel(t + dt, x + v3x * dt, y + v3y * dt, z + v3z * dt, ext, sun)
 	var v4x := vx + a3[0] * dt; var v4y := vy + a3[1] * dt; var v4z := vz + a3[2] * dt
 	var k := dt / 6.0
 	s[0] = x + k * (vx + 2.0 * v2x + 2.0 * v3x + v4x)

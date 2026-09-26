@@ -14,16 +14,16 @@ concurrency:
 jobs:
   suite:
     # The GUT suite in parts that run side by side: the unit tests, and
-    # the scenario tests, which fly whole mission segments, dealt out in
-    # turn over the scenario parts in file-name order. A new scenario file
-    # joins a part by itself.
+    # the scenario tests, which fly whole mission segments, dealt out
+    # over the scenario parts by their time on the runners. A new
+    # scenario file joins a part by itself.
     name: test (${{ matrix.part }})
     timeout-minutes: 20
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        part: [unit, scenarios 1 of 2, scenarios 2 of 2]
+        part: [unit, scenarios 1 of 3, scenarios 2 of 3, scenarios 3 of 3]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -55,15 +55,34 @@ jobs:
           if [ "$PART" = unit ]; then
             args=(-gdir=res://tests/unit/)
           else
-            # "scenarios K of N": every Nth scenario file in name order,
-            # starting from the Kth. -gdir= drops .gutconfig.json's
-            # directories, so only the files listed run.
+            # "scenarios K of N": the scenario files dealt out over the N
+            # parts by their seconds in .github/scenario_seconds.txt (60
+            # for a file not listed), the longest first, each to the part
+            # with the fewest so far; every part deals alike and runs the
+            # Kth share. -gdir= drops .gutconfig.json's directories, so
+            # only the files listed run.
             read -r _ k _ n <<< "$PART"
-            mapfile -t files < <(find tests/scenarios -name 'test_*.gd' | LC_ALL=C sort)
+            declare -A secs
+            while read -r name s; do
+              secs[$name]=$s
+            done < <(grep -E '^test_' .github/scenario_seconds.txt)
+            mapfile -t files < <(
+              find tests/scenarios -name 'test_*.gd' | while read -r f; do
+                echo "${secs[$(basename "$f")]:-60} $f"
+              done | LC_ALL=C sort -k1,1nr -k2,2)
+            load=()
+            for (( p = 0; p < n; p++ )); do load[p]=0; done
             list=()
-            for i in "${!files[@]}"; do
-              if (( i % n == k - 1 )); then list+=("res://${files[$i]}"); fi
+            for line in "${files[@]}"; do
+              read -r s f <<< "$line"
+              best=0
+              for (( p = 1; p < n; p++ )); do
+                if (( load[p] < load[best] )); then best=$p; fi
+              done
+              load[best]=$(( load[best] + s ))
+              if (( best == k - 1 )); then list+=("res://$f"); fi
             done
+            echo "$PART: ${list[*]} (${load[k - 1]} s recorded)"
             if (( ${#list[@]} == 0 )); then
               echo "No scenario files for $PART"
               exit 1
