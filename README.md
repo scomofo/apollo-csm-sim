@@ -548,10 +548,12 @@ ones:
   update the CSM's state vector only.
 - **S-IVB guidance.** It thrusts along the velocity, turned out of the
   plane by a fixed yaw, and cuts off on energy, instead of flying
-  iterative guidance. Apollo 11's TLI takes a yaw of 14.5° and turns the
-  plane 5.0°, where the IU turned it 1.3°: a fixed yaw does less for the
-  aim than the IU's steering, and the parking orbit hasn't turned with
-  the oblateness. So TLI costs 3,273 m/s, against Apollo 11's ~3,180.
+  iterative guidance. The energy counts the oblate Earth's potential: the
+  flown C3 read that way brings the Moon at the flown 73 hours, and read
+  as a two-body energy at the cutoff it would bring it 1.6 hours late.
+  Apollo 11's TLI takes a yaw of 5.6° and turns the plane 1.9°, where the
+  IU turned it 1.3°: a fixed yaw does less for the aim than the IU's
+  steering.
 - **P40 steering.** P40 holds the N81 direction in the rotating LVLH frame,
   standing in for cross-product steering.
 - **Entry guidance.** It is a constant-drag bank controller without range

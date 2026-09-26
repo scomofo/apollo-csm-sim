@@ -95,6 +95,22 @@ static func pole_of_date(jd: float) -> PackedFloat64Array:
 	return PackedFloat64Array([sin(theta) * cos(zeta), -sin(theta) * sin(zeta), cos(theta)])
 
 
+## The Earth's zonal harmonics' part of the specific potential energy at
+## (x, y, z) relative to it, J/kg: mu/r sum J_n (R/r)^n P_n(u), u the sine
+## of the latitude; nil unless perturbed. Some -28 kJ/kg at 300 km over
+## the tropics.
+static func zonal_energy(x: float, y: float, z: float) -> float:
+	if not perturbed:
+		return 0.0
+	var p := earth_pole
+	var r := sqrt(x * x + y * y + z * z)
+	var u := (x * p[0] + y * p[1] + z * p[2]) / r
+	var q := R_EARTH / r
+	return MU_EARTH / r * (EARTH_J2 * q * q * (3.0 * u * u - 1.0) / 2.0
+		+ EARTH_J3 * q * q * q * (5.0 * u * u * u - 3.0 * u) / 2.0
+		+ EARTH_J4 * q * q * q * q * (35.0 * u * u * u * u - 30.0 * u * u + 3.0) / 8.0)
+
+
 ## Unit vectors P (node direction) and Q (90° ahead in the orbit plane) of
 ## the lunar orbit, and its normal W. Returned as PackedFloat64Array(9).
 ## With the ephemeris, the osculating orbit's at GET 0.

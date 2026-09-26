@@ -49,6 +49,34 @@ func test_the_zonal_acceleration_is_its_potentials_gradient() -> void:
 	assert_almost_eq(eq[0], -1.5 * Bodies.EARTH_J2 * g + 1.875 * Bodies.EARTH_J4 * g, 1e-9, "at the equator")
 
 
+func test_the_zonal_energy_is_conserved_with_the_orbits() -> void:
+	# The zonal harmonics' potential energy is the negative of the potential
+	# the acceleration is the gradient of, and nil without them.
+	var pt := Vector3(6.1e6, -1.5e6, 2.8e6)
+	assert_eq(Bodies.zonal_energy(pt.x, pt.y, pt.z), 0.0, "nil on the circular model")
+	Bodies.perturbed = true
+	assert_almost_eq(Bodies.zonal_energy(pt.x, pt.y, pt.z), -_zonal_potential(pt.x, pt.y, pt.z), 1e-6)
+	# Round a parking orbit, the two-body energy swings by kilojoules and the
+	# energy counting the oblate potential holds (the Moon's and the Sun's
+	# tides aside).
+	var r := Bodies.R_EARTH + 185200.0
+	var v := sqrt(Bodies.MU_EARTH / r)
+	var inc := deg_to_rad(32.5)
+	var tr := Trajectory.new()
+	tr.set_state("earth", 0.0, Vector3(r, 0.0, 0.0), Vector3(0.0, v * cos(inc), v * sin(inc)))
+	var two_body := []
+	var full := []
+	for i in 12:
+		tr.coast_to(tr.t + 450.0, 30.0)
+		two_body.append(Sivb.energy_of(tr.s) - Bodies.zonal_energy(tr.s[0], tr.s[1], tr.s[2]))
+		full.append(Sivb.energy_of(tr.s))
+	var swing: float = two_body.max() - two_body.min()
+	var held: float = full.max() - full.min()
+	gut.p("round an orbit the two-body energy swings %.0f J/kg, the full one %.2f J/kg" % [swing, held])
+	assert_gt(swing, 1000.0, "the two-body energy swings")
+	assert_lt(held, swing / 1000.0, "the energy with the oblate potential holds")
+
+
 func test_a_parking_orbits_plane_turns_west_at_j2s_rate() -> void:
 	Bodies.perturbed = true
 	# A circular 100 nmi orbit at 32.5 degrees, as Apollo 11's.
