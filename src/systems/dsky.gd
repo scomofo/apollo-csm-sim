@@ -11,7 +11,8 @@
 ##
 ## Display: PROG, VERB, NOUN (two digits each), R1-R3 (sign + five digits),
 ## the verb/noun flash that means "the computer is asking", and the caution
-## and status lamps. Registers are formatted per noun (see NOUNS).
+## and status lamps. Registers are formatted per noun (see NOUNS); V01 shows
+## the noun's first component alone, in R1.
 class_name Dsky
 extends RefCounted
 
@@ -173,7 +174,7 @@ func _fill_registers(n: int) -> void:
 	if vals == null:
 		return
 	var comps: Array = nouns[n]["c"]
-	for i in 3:
+	for i in (1 if verb == "01" else 3):
 		if i < comps.size() and i < vals.size():
 			r[i] = format_value(float(vals[i]), comps[i][1], comps[i][2])
 
@@ -387,11 +388,11 @@ func _execute(v: int, n: int) -> void:
 			_load_noun = n
 			_load_regs = _load_indices(v)
 			_load_values = []
+			verb = "%02d" % v
 			_fill_registers(n)
 			for i in _load_regs:
 				r[i] = ""
 			mode = "data"
-			verb = "%02d" % v
 			noun = "%02d" % n
 			flashing = true
 		35:

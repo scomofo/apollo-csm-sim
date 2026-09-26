@@ -855,21 +855,21 @@ Mission Report, and "no LM landing" leaves its list of simplifications.
 
 ## 4. Navigation realism
 
-**Status: slices 4a, 4b and 4c are done. Apollo 11 flies on JPL's
-ephemeris, and the CMC flies on its own state vector, which the ground's
-uplinks correct, and on its own IMU, which drifts and which P52 realigns
-on the stars; the LGC has flown on its own state vector since 3c, and
-its landing radar updates it (part of 4d). 4d, the stretch, is not
-started.** The milestone began as the README's first two
-simplifications. 4a took the first, a Moon on a circular orbit and a Sun
-whose direction was fixed, 4b the state vector's half of the second, and
-4c the IMU's half, for the CMC: its attitude, its sensed ΔV and its
-alignments. The LGC's IMU stays ideal, its alignments with the AOT (P52,
-P57) left for later.
+**Status: done. Apollo 11 flies on JPL's ephemeris, and the CMC flies
+on its own state vector, which the ground's uplinks correct, on its own
+IMU, which drifts and which P52 realigns on the stars, and on its own
+sightings: P23's marks keep the entry corridor without an uplink, and
+P22 marks landmarks in lunar orbit. The LGC has flown on its own state
+vector since 3c, and its landing radar updates it (part of 4d).** The
+milestone began as the README's first two simplifications. 4a took the
+first, a Moon on a circular orbit and a Sun whose direction was fixed,
+4b the state vector's half of the second, and 4c the IMU's half, for the
+CMC: its attitude, its sensed ΔV and its alignments. The LGC's IMU stays
+ideal, its alignments with the AOT (P52, P57) left for later.
 
 Much of the crew's flown work between burns was navigation: platform
 alignments, sightings and accepting uplinks. 4b gave them the uplinks,
-and 4c the alignments.
+4c the alignments, and 4d the sightings.
 
 Slice 4a puts the flight under the real sky:
 
@@ -996,6 +996,55 @@ Slice 4c gives the CMC its IMU:
   goes 8.59 m/s off the aligned flight, where the misalignment predicts
   8.56 m/s, 0.28° apart; that moves the Earth return's perigee 71 km.
 
+Slice 4d lets the CMC navigate on its own sightings:
+
+- **The filter** (`src/systems/nav_filter.gd`). The state vector's error
+  covariance, 6 × 6 in ECI axes, where Colossus kept its square root, the
+  W matrix. It is carried from one mark to the next by the trajectory's
+  own transition matrix, found by coasting the state with each
+  component nudged, so the Earth's and the Moon's pulls both shape it,
+  and it grows with the vents' unmodelled push. Each mark is weighted in
+  a scalar at a time (Joseph form). It starts from RMS errors (30 km,
+  10 m/s) at the first mark after a start phase, an uplink, V93 or a
+  burn of more than 50 m/s; a smaller burn's execution error is added.
+- **The sextant's landmark line.** It looks along the shaft axis, and its
+  image lies over the star line's: the star line's image is the landmark
+  line's turned about the trunnion axis by the trunnion angle. With a
+  star laid on a horizon, the trunnion angle is the angle between them,
+  however the CSM points, and P23 reads it to 0.002°. The optics view
+  shows the landmark line's Earth and Moon, fainter, in the sextant.
+- **P23.** V05N70 (the star, the landmark 0, the horizon: 1 the
+  Earth's, 2 the Moon's); the attitude that lays the landmark line on
+  the horizon under the star, turned about it to keep the middle gimbal
+  clear (V50N18, alarm 00404 when the star can't be laid on the
+  horizon); the auto maneuver; V51 with the optics on the star; the mark
+  against the star-horizon angle from the state vector (the solid limb);
+  V06N49's ΔR and ΔV; PRO takes it in, V32 marks again.
+- **P37.** The correction at TIG (N33, half an hour on) that brings the
+  vacuum perigee to 37 km, worked out from the CMC's own state vector by
+  the RTCC's targeting (N81, N42), and stored for P40 or P41 as P30
+  stores a PAD.
+- **P22.** A landmark, the landing site unless the crew loads another
+  (N89); the next pass over it from the state vector; the attitude that
+  points the landmark line at it there; the optics driven to it while
+  the trunnion reaches it; each mark's line of sight, from the optics,
+  the gimbals and REFSMMAT, against the state vector's, each way across
+  it. The optics view rings the landmark, and the clock stops ten
+  minutes before the pass.
+- **V67 and V93.** V67 shows the filter's RMS errors (N99) and takes new
+  ones; V93 starts it again at the next mark.
+- **The DSKY.** V01 shows a noun's first register alone, as P52's V01N70
+  always did, now that N70 has three.
+- **Checkpoints** stay schema 7: the filter, P22's and P23's step and a
+  mark waiting at N49 are new keys, and a checkpoint from 4c restores
+  with the filter starting again.
+- **What it does in flight.** A TEI flown on a platform 0.5° off leaves
+  a vacuum perigee of −115 km and the CMC's state vector 1.1 km and
+  8.9 m/s off. With no uplink, ten P23 sessions of six marks and two
+  P37s (4.0 and 0.3 m/s) leave 37.9 km; P37 from the unmarked state would
+  have left −41 km. In lunar orbit, five P22 marks through one pass bring
+  the state vector from 2.2 km off to 53 m (`test_onboard_navigation.gd`).
+
 ### Slices
 
 | Slice | Work | Check |
@@ -1003,7 +1052,7 @@ Slice 4c gives the CMC its IMU:
 | 4a (done) Ephemeris | Real Moon and Sun positions for the mission dates, in a dated inertial frame. The Moon-fixed frame from 3c gets a real rotation model. Recommended: Chebyshev coefficients fitted to JPL ephemeris vectors, generated by a script in `tools/`, stored under `data/`, with their provenance in NOTICE | Error against held-out reference vectors stays under 1 km for the Moon's position and 0.01° for the Sun's direction. The scenario suite passes, re-tuned only where the flight really changed. Re-measure the Fidelity table |
 | 4b (done) Onboard state | The AGC keeps its own state vectors (the CSM's; the LGC's has done so since 3c, `Lgc.nav`, and it has held the CSM's as the ground uplinks it since 3d, `Lgc.csm_nav`, which it coasts and P20's radar marks update since 3e): it coasts them with its own integration and updates them from sensed ΔV while thrusting (`AgcCore.sense()` already integrates `dyn.dv_step`, and the LGC's `lm.dyn.dv_step`). Every program and noun uses them, never truth. Truth gains small forces the AGC doesn't model (vents, unbalanced attitude jets), with seeded dispersions whose seed is in the checkpoint. The RTCC plans from a tracked state with tracking error. The crew accepts state-vector uplinks through P27 (V71) | Test: after a long coast, the onboard state has drifted from truth by a bounded amount, and an uplink replaces it with the tracked state. The MCC and LOI scenarios pass with an uplink step |
 | 4c (done) IMU and P52 | REFSMMATs (launch pad, preferred for each burn, landing site), gyro drift, and ICDU angles and the FDAI relative to REFSMMAT. Gimbal lock costs the alignment instead of only lighting the lamp. An optics view (sextant and scanning telescope) with the 37 Apollo navigation stars; P51, P52, V41 N20 coarse align, N05 star angle difference, N93 torquing angles. Desktop first; in the cabin the optics sit at the lower equipment bay, away from the couch | Test: drift for 12 h, realign with P52 and two star marks, and the residual misalignment is under a set limit. A burn flown on a misaligned platform misses by the amount the misalignment predicts |
-| 4d Onboard navigation (stretch) | P23 cislunar sightings and P22 landmark tracking. (In the LM, the landing radar has updated the LGC's altitude and velocity since 3c) | Test: P23 marks alone keep the entry corridor within limits without an uplink |
+| 4d (done) Onboard navigation (stretch) | P23 cislunar sightings and P22 landmark tracking. (In the LM, the landing radar has updated the LGC's altitude and velocity since 3c) | Test: P23 marks alone keep the entry corridor within limits without an uplink |
 
 ### What 4a changed elsewhere
 
@@ -1052,6 +1101,18 @@ Slice 4c gives the CMC its IMU:
   comes to rest inside 0.05° and nulls the rate before it leaves the jets
   off: 16 h in HOLD costs 0.15 kg, a correction every three hours or so
   (`test_imu_alignment.gd`).
+
+### What 4d changed elsewhere
+
+- **The test helpers.** `fly_pad()` accepts a PAD with P30 and then
+  flies it with `fly_stored()`, which flies P37's too. New helpers make
+  P23's marks (`p23_mark()`, `superimpose()`), P22's (`centre_landmark()`)
+  and run P37 (`p37()`).
+- **The DAP after P22 and P23.** It holds the sighting attitude when they
+  end, where it would have gone back to the attitude it held before
+  their maneuvers.
+- **`tools/screenshot.tscn`** takes `--p23=<code>`, which renders P23's
+  mark (the README's image).
 
 ### Order
 

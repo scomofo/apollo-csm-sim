@@ -249,3 +249,49 @@ func test_the_imu_and_a_p52_between_its_marks_come_back_from_a_checkpoint() -> v
 	keys("PP")
 	assert_true(agc.imu.aligned)
 	assert_lt(misalignment_deg(), 0.02, "realigned after the restore")
+
+
+func test_the_navigation_filter_and_a_p23_mark_at_n49_come_back_from_a_checkpoint() -> void:
+	build("transearth_coast")
+	run(3600.0)
+	var agc := rt.agc()
+	var star := 0
+	for c in Stars.codes():
+		var m := NavFilter.star_horizon(rt.dynamics.traj, Stars.direction(c), "earth")
+		if not m.is_empty() and rad_to_deg(float(m["q"])) > 15.0 and rad_to_deg(float(m["q"])) < 50.0:
+			star = c
+			break
+	keys("V37E23E")
+	p23_mark(star, 1)
+	# The second mark, waiting at N49.
+	keys("PP")
+	assert_true(run_until(func() -> bool: return agc.step_name == "mark", 600.0, 1.0, false), "V51")
+	superimpose(star, "earth")
+	mark()
+	assert_eq(agc.step_name, "n49")
+	var text := JSON.stringify(rt.snapshot())
+	var p: PackedFloat64Array = agc.nav_filter.p.duplicate()
+	var dx: PackedFloat64Array = agc.sight_pending["dx"]
+	build("")
+	assert_eq(rt.restore(JSON.parse_string(text)), "")
+	agc = rt.agc()
+	assert_eq([agc.program, agc.step_name], [23, "n49"], "P23 at N49")
+	assert_eq([Bus.get_value("dsky.verb"), Bus.get_value("dsky.noun"), Bus.get_value("dsky.flash")], ["06", "49", true], "V06N49")
+	assert_eq([agc.sight_star, agc.sight_horizon, agc.sight_marks], [star, 1, 1])
+	assert_false(agc.nav_filter.stale, "the filter as it was")
+	for i in 36:
+		assert_almost_eq(agc.nav_filter.p[i], p[i], absf(p[i]) * 1e-12 + 1e-12, "P[%d]" % i)
+	for i in 6:
+		assert_almost_eq((agc.sight_pending["dx"] as PackedFloat64Array)[i], dx[i], absf(dx[i]) * 1e-12 + 1e-12, "the update [%d]" % i)
+	keys("P")
+	assert_eq([agc.step_name, agc.sight_marks], ["n70", 2], "taken in after the restore")
+	# A checkpoint from before the filter (slice 4c's) still restores: the
+	# filter starts again at the next mark.
+	var snap: Dictionary = JSON.parse_string(text)
+	snap["vehicles"]["csm"]["systems"]["agc"].erase("nav_filter")
+	snap["vehicles"]["csm"]["systems"]["agc"].erase("sight")
+	snap["vehicles"]["csm"]["systems"]["agc"]["program"] = 0
+	snap["vehicles"]["csm"]["systems"]["agc"]["step"] = ""
+	build("")
+	assert_eq(rt.restore(snap), "")
+	assert_true(rt.agc().nav_filter.stale, "the filter starts again")
