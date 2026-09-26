@@ -40,6 +40,12 @@ func eye_basis() -> Basis:
 	return Basis.IDENTITY
 
 
+## The anchor's axes at [param seat_name]: eye_basis(), unless a station
+## faces elsewhere.
+func seat_basis(_seat_name: String) -> Basis:
+	return eye_basis()
+
+
 ## Where the checklist card's centre is (body, m) for [param seat_name].
 func card_centre(_seat_name: String) -> Vector3:
 	return Vector3.ZERO
@@ -73,9 +79,9 @@ func set_seat(seat_name: String) -> void:
 		return
 	seat = seat_name
 	var eye: Vector3 = s[seat_name]
-	anchor.position = eye
+	anchor.transform = Transform3D(seat_basis(seat_name), eye)
 	var at := card_centre(seat_name)
-	card_mount.transform = Transform3D(Basis.looking_at(at - eye, eye_basis().y), at)
+	card_mount.transform = Transform3D(Basis.looking_at(at - eye, seat_basis(seat_name).y), at)
 	Bus.set_value("player.seat", seat_name)
 
 

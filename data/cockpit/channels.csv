@@ -9,6 +9,15 @@ ctl.sps.thrust_on,bool,,crew,SPS THRUST ON pushbutton (manual backup)
 ctl.scs.att_source,int,,crew,Attitude control source: 0 CMC 1 SCS 2 DIRECT
 ctl.cmc.mode,int,,crew,CMC MODE: 0 FREE 1 HOLD 2 AUTO
 ctl.cmc.up_tlm,bool,,crew,UP TLM CM: ACCEPT (true) takes the ground's uplinks to the CMC (P27); BLOCK refuses them
+ctl.optics.zero,bool,,crew,OPTICS ZERO: ZERO drives the shaft and trunnion to zero
+ctl.optics.mode,int,,crew,OPTICS MODE: 0 MANUAL (the optics hand controller) 1 CMC (the computer drives them)
+ctl.optics.speed,int,,crew,OPTICS SPEED: 0 LO 1 MED 2 HI
+ctl.optics.mark,bool,,crew,MARK: the CMC takes the optics' line of sight and the ICDU angles (P51 and P52)
+ctl.optics.mark_reject,bool,,crew,MARK REJECT: the CMC drops the last mark
+optics,group,,optics,The optics' channels below
+optics.shaft_deg,float,deg,optics,The shaft angle
+optics.trunnion_deg,float,deg,optics,The trunnion angle
+optics.mode,string,,optics,zero manual or cmc
 ctl.rcs.quad_a,bool,,crew,SM RCS quad A enabled
 ctl.rcs.quad_b,bool,,crew,SM RCS quad B enabled
 ctl.rcs.quad_c,bool,,crew,SM RCS quad C enabled

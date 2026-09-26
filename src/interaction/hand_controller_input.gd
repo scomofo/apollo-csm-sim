@@ -17,6 +17,13 @@
 ##   command runs from 0 to 1.
 ## Above the interactive time-rate limit both controllers read zero.
 ##
+## At the optics (player.optics: the desktop's optics view is open; or
+## player.seat LEB: at the cabin's lower equipment bay) the rotation commands
+## drive the optics hand controller instead (ctl.optics.hc): yaw right
+## (D, the right stick right) turns the shaft right, pitch down (W, the
+## right stick forward) raises the trunnion. Neither vehicle's controllers
+## move meanwhile.
+##
 ## Flying the LM (player.vehicle "lm", src/presentation/vehicle_switch.gd)
 ## the same commands go to its ACA and TTCA (ctl.lm.rhc, ctl.lm.thc),
 ## about and along the LM's axes (X up, Y right, Z forward): roll is about
@@ -26,8 +33,8 @@
 ## Adapted from gemini-capsule at 40e449c (README.md lists the port), which
 ## writes scalar ctl.hand_controller.* channels for Gemini's single
 ## attitude controller.
-## Reads:  player.vehicle
-## Writes: ctl.rhc, ctl.thc, ctl.lm.rhc, ctl.lm.thc
+## Reads:  player.vehicle, player.optics, player.seat
+## Writes: ctl.rhc, ctl.thc, ctl.lm.rhc, ctl.lm.thc, ctl.optics.hc
 class_name HandControllerInput
 extends Node
 
@@ -64,12 +71,24 @@ func _process(_delta: float) -> void:
 		var sticks := stick_commands(_stick(_left), _stick(_right), _grip(_left))
 		rhc = (keys[0] + sticks[0]).clamp(-Vector3.ONE, Vector3.ONE)
 		thc = (keys[1] + sticks[1]).clamp(-Vector3.ONE, Vector3.ONE)
+	var optics := bool(Bus.get_value("player.optics", false)) or str(Bus.get_value("player.seat", "")) == "LEB"
+	Bus.set_value("ctl.optics.hc", optics_command(rhc) if optics else Vector3.ZERO)
+	if optics:
+		rhc = Vector3.ZERO
+		thc = Vector3.ZERO
 	var lm := str(Bus.get_value("player.vehicle", "csm")) == "lm"
 	var lm_cmd := lm_commands(rhc, thc)
 	Bus.set_value("ctl.rhc", Vector3.ZERO if lm else rhc)
 	Bus.set_value("ctl.thc", Vector3.ZERO if lm else thc)
 	Bus.set_value("ctl.lm.rhc", lm_cmd[0] if lm else Vector3.ZERO)
 	Bus.set_value("ctl.lm.thc", lm_cmd[1] if lm else Vector3.ZERO)
+
+
+## The optics hand controller (x the shaft, y the trunnion) for the
+## rotation command [param rhc]: yaw right turns the shaft right, pitch
+## down raises the trunnion.
+static func optics_command(rhc: Vector3) -> Vector3:
+	return Vector3(rhc.z, -rhc.y, 0.0)
 
 
 ## [rhc, thc] from the keyboard. [param pressed] is Callable(Key) -> bool.

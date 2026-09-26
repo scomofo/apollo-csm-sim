@@ -32,9 +32,10 @@ const LM_LEVEL: Basis = Basis(Vector3(0, 0, -1), Vector3(0, 1, 0), Vector3(1, 0,
 
 
 ## How [param vehicle] ("csm" or "lm") is turned from flying level, for an
-## attitude [param q] relative to LVLH (its computer's
-## guid.indicator.attitude), as a rotation in Godot axes: the turn the
-## FDAI ball and the horizon ring take back out.
+## attitude [param q] relative to its reference (its computer's
+## guid.indicator.attitude for the FDAI ball: the CSM's stable member, or
+## LVLH for the LM; guid.indicator.lvlh for the horizon ring), as a
+## rotation in Godot axes: the turn the ball and the ring take back out.
 static func level_turn(q: Quaternion, vehicle: String) -> Basis:
 	var b := LM_BODY_TO_GODOT if vehicle == "lm" else BODY_TO_GODOT
 	var level := LM_LEVEL if vehicle == "lm" else Basis.IDENTITY

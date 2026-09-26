@@ -11,9 +11,12 @@
 ## error drawn for each request (tracked_state()). The RTCC plans the
 ## CSM's PADs from that state, and uplinks it with them to the CMC (P27),
 ## which takes it in P00 with UP TLM CM in ACCEPT; otherwise CAPCOM reads
-## the PAD up by voice. The flight's dispersions, those errors and the
-## CSM's unmodelled forces (Dynamics.disperse()), come from the mission's
-## seed (mission.json "dispersions").
+## the PAD up by voice. The flight's dispersions, those errors, the CSM's
+## unmodelled forces (Dynamics.disperse()) and its IMU's gyro drift, come
+## from the mission's seed (mission.json "dispersions").
+##
+## Each start phase starts the CMC's IMU freshly aligned to the REFSMMAT
+## the crew would have had then (start_refsmmat()).
 ##
 ## In lunar orbit the flight phase follows the LM: lunar_descent from DOI
 ## (the LM's perilune brought low) to touchdown, lunar_surface while it is
@@ -225,9 +228,14 @@ func start(p_phase: String) -> void:
 	_timeline_pass_by(SimClock.get_seconds)
 	phase = ""
 	_update_phase()
-	# The CMC starts on the state the ground last tracked.
+	# The CMC starts on the state the ground last tracked, its IMU aligned,
+	# and with the landing site P52's option 4 aligns to.
 	if systems.has("agc"):
-		systems["agc"].init_nav(tracked_state(dynamics.traj))
+		var agc: Agc = systems["agc"]
+		agc.init_nav(tracked_state(dynamics.traj))
+		agc.imu.align(start_refsmmat(p_phase))
+		agc.landing_site_mf = landing_site()
+		agc.landing_get = float(mission.section("landing")["get_s"])
 	if cfg == "stack":
 		tli_pad = _plan_tli(dynamics.traj)
 		if not tli_pad.is_empty():
@@ -555,6 +563,30 @@ func _disperse() -> void:
 	dispersion_seed = int(mission.section("dispersions").get("seed", 0))
 	dynamics.disperse(dispersion_seed)
 	_rng.seed = dispersion_seed + 1
+	if systems.has("agc"):
+		var imu := SpacecraftData.section("imu")
+		systems["agc"].imu.disperse(dispersion_seed + 2, float(imu["drift_deg_per_h"]), float(imu["coarse_align_deg"]))
+
+
+## The REFSMMAT a start phase's IMU is aligned to: the launch pad's until
+## the lunar orbit (mission.json "launch_refsmmat"), the landing site's
+## there and while Eagle flies, and on the way home the local vertical at
+## the start (P52's nominal orientation).
+func start_refsmmat(p_phase: String) -> Basis:
+	var tr := dynamics.traj
+	if p_phase in ["lunar_orbit"] + LM_PHASES:
+		return landing_site_refsmmat(tr)
+	if p_phase in ["transearth_coast", "entry"]:
+		return Imu.nominal(tr.pos(), tr.vel())
+	var m := mission.section("launch_refsmmat")
+	return Imu.from_axes(_v3(m["x"]), _v3(m["y"]), _v3(m["z"]))
+
+
+## The landing site REFSMMAT for the CSM's lunar orbit [param tr]: X up
+## through the site at the landing time, Z downrange (P52 option 4).
+func landing_site_refsmmat(tr: Trajectory) -> Basis:
+	var t_land := float(mission.section("landing")["get_s"])
+	return Imu.landing_site(Rtcc.site_at(landing_site(), t_land), tr.pos().cross(tr.vel()))
 
 
 ## The PDI PAD, after DOI: the ground predicts PDI with the LGC's own

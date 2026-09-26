@@ -1,9 +1,11 @@
 ## Simplified Flight Director Attitude Indicator: an attitude "ball" drawn
-## relative to the local horizontal (LVLH), with body-rate needles on the
-## edges and the computer's attitude-error needles across the face. It
-## shows the CSM (vehicle "csm": nose along body X, crew's down along Z) or
-## the LM ("lm": windows along body Z, crew's down along -X), each with
-## its own computer's errors.
+## relative to the computer's reference (guid.indicator.attitude: the
+## CMC's stable member, so total attitude against REFSMMAT, or LVLH for the
+## LGC), with body-rate needles on the edges and the computer's
+## attitude-error needles across the face. It shows the CSM (vehicle
+## "csm": nose along body X, crew's down along Z) or the LM ("lm": windows
+## along body Z, crew's down along -X), each with its own computer's
+## errors.
 class_name Fdai
 extends Control
 
@@ -27,15 +29,13 @@ func _draw() -> void:
 	var c := size / 2.0
 	var rad := minf(size.x, size.y) / 2.0 - 12.0
 	draw_circle(c, rad + 2.0, Color(0.05, 0.05, 0.05))
-	var q: Quaternion = Bus.get_value(p + "dyn.att_q", Quaternion.IDENTITY)
-	var r: Array = Bus.get_value(p + "dyn.r_m", [1.0, 0.0, 0.0])
-	var v: Array = Bus.get_value(p + "dyn.v_mps", [0.0, 1.0, 0.0])
-	var lv := Trajectory.lvlh_basis(Vector3(r[0], r[1], r[2]), Vector3(v[0], v[1], v[2]))
-	var b := Basis(q)
+	# The body's attitude in the reference's axes (X forward, Y right, Z
+	# down on the ball).
+	var b := Basis(Bus.get_value(p + "guid.indicator.attitude", Quaternion.IDENTITY) as Quaternion)
 	var lm := vehicle == "lm"
-	var fwd := lv.inverse() * (b * (Vector3(0, 0, 1) if lm else Vector3(1, 0, 0)))   # nose in LVLH
-	var down_body := lv.inverse() * (b * (Vector3(-1, 0, 0) if lm else Vector3(0, 0, 1)))
-	var pitch := asin(clampf(-fwd.z, -1.0, 1.0))          # nose above horizon
+	var fwd := b * (Vector3(0, 0, 1) if lm else Vector3(1, 0, 0))   # nose
+	var down_body := b * (Vector3(-1, 0, 0) if lm else Vector3(0, 0, 1))
+	var pitch := asin(clampf(-fwd.z, -1.0, 1.0))          # nose above the ball's horizon
 	var roll := atan2(down_body.y, down_body.z)
 	# Horizon: sky (light) above, ground (dark) below, filled as wedges.
 	var off := pitch / (PI / 2.0) * rad

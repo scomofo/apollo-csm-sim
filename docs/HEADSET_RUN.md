@@ -85,8 +85,9 @@ VIGNETTE, HORIZON and AUTHENTIC. Its top line shows GET, the time rate, the
 worst recent frame time and your seat.
 
 There's no far-field pointer in the headset yet. You can only work what
-you can reach. SEAT moves you between the commander's couch (left) and the
-centre couch, where the DSKY is straight ahead.
+you can reach. SEAT moves you between the commander's couch (left), the
+centre couch, where the DSKY is straight ahead, and the lower equipment
+bay beyond the couches' feet, where the optics are.
 
 ## Work the checklist
 
@@ -121,7 +122,12 @@ Work through these in order. The recorder notes the objective rows itself.
      ENTR.
    - The display shows verb 16, noun 62 and the velocity, altitude rate
      and altitude.
-   - Press SEAT again to go back.
+   - **R5.** Press SEAT again: you're at the lower equipment bay, facing
+     its panel. Read the optics' eyepieces (the telescope left, the
+     sextant right). Set OPTICS MODE to MAN and move the optics with the
+     right stick: the stars move across both views. Press MARK and MARK
+     REJECT, and reach the second DSKY. Set OPTICS MODE back to CMC.
+   - Press SEAT once more to go back to the commander's couch.
 9. **A7.** Press NEXT STEP on the wrist menu with a fingertip. The
    checklist card moves on a step.
 10. **A3, A4.** With CMC MODE at HOLD, push the right stick forward for a

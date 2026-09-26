@@ -74,6 +74,8 @@ var recorder: VrAcceptanceRecorder
 var xr_interface: XRInterface
 var _looking: bool = false
 var _t_held: bool = false
+var _mark_held: bool = false
+var _reject_held: bool = false
 
 
 func _ready() -> void:
@@ -259,6 +261,16 @@ func _process(_delta: float) -> void:
 	if t != _t_held:
 		_t_held = t
 		Bus.set_value("ctl.sps.thrust_on", t)
+	# At the optics: X is MARK, Y MARK REJECT, held like the buttons.
+	var at_optics := hud.optics_open()
+	var mark := Input.is_key_pressed(KEY_X) and at_optics
+	if mark != _mark_held:
+		_mark_held = mark
+		Bus.set_value("ctl.optics.mark", mark)
+	var reject := Input.is_key_pressed(KEY_Y) and at_optics
+	if reject != _reject_held:
+		_reject_held = reject
+		Bus.set_value("ctl.optics.mark_reject", reject)
 
 
 const DSKY_KEYS := {
@@ -290,6 +302,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_C: set_view((view.view_mode + 1) % 3)
 			KEY_L: vehicles.toggle()
 			KEY_H: hud.toggle_help()
+			KEY_O: hud.toggle_optics()
 			KEY_F5:
 				var err := rt.save_file(CHECKPOINT_PATH)
 				print("checkpoint saved" if err == OK else "checkpoint save failed: %s" % err)

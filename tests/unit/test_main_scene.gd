@@ -180,7 +180,7 @@ func _press(main: Node, keys: Array) -> void:
 
 func test_checklists_load_and_auto_advance() -> void:
 	var lists := Checklist.load_all("res://data/missions/apollo_11/checklists.json")
-	assert_eq(lists.size(), 4)
+	assert_eq(lists.size(), 5)
 	var burn := lists[1]
 	Bus.set_value("ctl.cmc.up_tlm", true)
 	burn.update()

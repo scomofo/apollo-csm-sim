@@ -37,7 +37,7 @@ func test_restore_rejects_foreign_checkpoints() -> void:
 func test_a_checkpoint_keeps_each_vehicle_under_its_name() -> void:
 	build("lunar_orbit")
 	var snap := rt.snapshot()
-	assert_eq(snap["schema_version"], 6)
+	assert_eq(snap["schema_version"], 7)
 	assert_eq(snap["vehicles"].keys(), ["csm"], "docked, the LM is part of the CSM's csm_lm")
 	assert_eq(snap["vehicles"]["csm"]["dynamics"]["config"], "csm_lm")
 	assert_has(snap["vehicles"]["csm"]["systems"], "agc")
@@ -56,7 +56,7 @@ func test_a_checkpoint_from_before_the_vehicles_map_is_rejected() -> void:
 	snap["dynamics"] = snap["vehicles"]["csm"]["dynamics"]
 	snap["systems"] = snap["vehicles"]["csm"]["systems"]
 	snap.erase("vehicles")
-	assert_eq(rt.restore(snap), "checkpoint schema 1, expected 6")
+	assert_eq(rt.restore(snap), "checkpoint schema 1, expected 7")
 
 
 func test_a_checkpoint_from_before_the_rendezvous_is_rejected() -> void:
@@ -65,7 +65,7 @@ func test_a_checkpoint_from_before_the_rendezvous_is_rejected() -> void:
 	# Schema 2's LGC had no rendezvous state.
 	snap["schema_version"] = 2
 	snap["vehicles"]["csm"]["systems"]["lgc"].erase("rendezvous")
-	assert_eq(rt.restore(snap), "checkpoint schema 2, expected 6")
+	assert_eq(rt.restore(snap), "checkpoint schema 2, expected 7")
 
 
 func test_a_checkpoint_from_before_the_timeline_is_rejected() -> void:
@@ -75,7 +75,7 @@ func test_a_checkpoint_from_before_the_timeline_is_rejected() -> void:
 	snap["schema_version"] = 3
 	snap["mission"].erase("plan")
 	snap["mission"].erase("timeline_done")
-	assert_eq(rt.restore(snap), "checkpoint schema 3, expected 6")
+	assert_eq(rt.restore(snap), "checkpoint schema 3, expected 7")
 
 
 func test_the_lms_systems_come_back_with_it() -> void:
@@ -171,7 +171,7 @@ func test_a_checkpoint_from_the_circular_moon_is_rejected() -> void:
 	var snap := rt.snapshot()
 	# Schema 4's states were in the circular model's ECI, not the ICRF.
 	snap["schema_version"] = 4
-	assert_eq(rt.restore(snap), "checkpoint schema 4, expected 6")
+	assert_eq(rt.restore(snap), "checkpoint schema 4, expected 7")
 
 
 func test_a_checkpoint_from_before_the_cmcs_own_state_vector_is_rejected() -> void:
@@ -179,7 +179,15 @@ func test_a_checkpoint_from_before_the_cmcs_own_state_vector_is_rejected() -> vo
 	var snap := rt.snapshot()
 	# Schema 5's CMC read truth, and the flight had no dispersions.
 	snap["schema_version"] = 5
-	assert_eq(rt.restore(snap), "checkpoint schema 5, expected 6")
+	assert_eq(rt.restore(snap), "checkpoint schema 5, expected 7")
+
+
+func test_a_checkpoint_from_before_the_imu_is_rejected() -> void:
+	build("lunar_orbit")
+	var snap := rt.snapshot()
+	# Schema 6's CMC read its attitude and sensed ΔV straight, on no platform.
+	snap["schema_version"] = 6
+	assert_eq(rt.restore(snap), "checkpoint schema 6, expected 7")
 
 
 func test_the_cmcs_state_vector_and_the_dispersions_come_back_from_a_checkpoint() -> void:
@@ -208,3 +216,36 @@ func test_the_cmcs_state_vector_and_the_dispersions_come_back_from_a_checkpoint(
 
 func _error(tracked: Trajectory, truth: Trajectory) -> Vector3:
 	return tracked.pos() - truth.pos()
+
+
+func test_the_imu_and_a_p52_between_its_marks_come_back_from_a_checkpoint() -> void:
+	build("translunar_coast")
+	run(3600.0)
+	var agc := rt.agc()
+	keys("V37E52EV22E3EPP")
+	assert_eq(agc.step_name, "star", "P52 option 3 has its stars")
+	keys("P")
+	centre_star(agc.align_stars[0])
+	mark()
+	assert_eq(agc.align_marks.size(), 1, "the first star marked")
+	var text := JSON.stringify(rt.snapshot())
+	var off := agc.imu.misalignment()
+	var stars: Array = agc.align_stars.duplicate()
+	var first: Vector3 = agc.align_marks[0]
+	var shaft := optics().shaft_deg
+	build("")
+	assert_eq(rt.restore(JSON.parse_string(text)), "")
+	agc = rt.agc()
+	assert_eq([agc.program, agc.step_name], [52, "star"], "P52 at the second star")
+	assert_eq([Bus.get_value("dsky.verb"), Bus.get_value("dsky.noun")], ["01", "70"], "V01N70 on the DSKY")
+	assert_eq(agc.align_stars, stars)
+	assert_almost_eq(agc.align_marks[0], first, Vector3.ONE * 1e-6, "the first mark")
+	assert_almost_eq(agc.imu.misalignment(), off, Vector3.ONE * 1e-9, "the platform where it was")
+	assert_almost_eq(optics().shaft_deg, shaft, 1e-9, "and the optics")
+	# It carries on: the second star, N05, N93 and the torquing.
+	keys("P")
+	centre_star(stars[1])
+	mark()
+	keys("PP")
+	assert_true(agc.imu.aligned)
+	assert_lt(misalignment_deg(), 0.02, "realigned after the restore")

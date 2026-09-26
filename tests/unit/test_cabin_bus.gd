@@ -42,19 +42,35 @@ func test_dsky_display_blanks_without_power() -> void:
 	assert_eq(Bus.get_value("dsky.verb"), "16", "the display returns with power")
 
 
-func test_fdai_attitude_is_relative_to_the_local_vertical() -> void:
+func test_fdai_attitude_is_relative_to_refsmmat_and_the_horizon_to_lvlh() -> void:
 	build("lunar_orbit")
+	var agc := rt.agc()
+	Bus.set_value("ctl.cmc.mode", 0)
+	# REFSMMAT at the CSM's attitude: the ball reads zero.
+	agc.imu.align(Basis(rt.dynamics.attitude.q).transposed())
 	run(SimClock.FIXED_DT, false)
 	var q: Quaternion = Bus.get_value("guid.indicator.attitude")
-	assert_almost_eq(q.get_angle(), 0.0, 1e-3, "the start attitude is LVLH-aligned")
-	var tr := rt.agc().current_traj()
+	assert_almost_eq(q.get_angle(), 0.0, 1e-5, "at REFSMMAT: zero on the ball")
+	var lv: Quaternion = Bus.get_value("guid.indicator.lvlh")
+	assert_almost_eq(lv.get_angle(), 0.0, 1e-3, "the start attitude is LVLH-aligned")
+	assert_almost_eq(Bus.get_value("imu.icdu_deg"), Vector3.ZERO, Vector3.ONE * 1e-3, "and zero on the ICDUs")
+	var tr := agc.current_traj()
 	var lvlh := Trajectory.lvlh_basis(tr.pos(), tr.vel()).get_rotation_quaternion()
 	rt.dynamics.attitude.q = lvlh * Quaternion(Vector3(0, 1, 0), deg_to_rad(20.0))
 	rt.dynamics.publish_state()
 	run(SimClock.FIXED_DT, false)
+	for ch in ["guid.indicator.attitude", "guid.indicator.lvlh"]:
+		q = Bus.get_value(ch)
+		assert_almost_eq(rad_to_deg(q.get_angle()), 20.0, 0.05, "%s: 20 deg nose up" % ch)
+		assert_almost_eq(q.get_axis().dot(Vector3(0, 1, 0)), 1.0, 1e-4, "%s: about body +Y" % ch)
+	assert_almost_eq(float((Bus.get_value("imu.icdu_deg") as Vector3).y), 20.0, 0.05, "the inner gimbal")
+	# The ball follows the platform, not the local vertical: a quarter
+	# orbit on, drifting in FREE, the horizon has turned and the ball not.
+	run(1800.0)
 	q = Bus.get_value("guid.indicator.attitude")
-	assert_almost_eq(rad_to_deg(q.get_angle()), 20.0, 0.01, "20 deg nose up")
-	assert_almost_eq(q.get_axis().dot(Vector3(0, 1, 0)), 1.0, 1e-4, "about body +Y")
+	assert_almost_eq(rad_to_deg(q.get_angle()), 20.0, 0.2, "inertial hold: the ball stays")
+	lv = Bus.get_value("guid.indicator.lvlh")
+	assert_gt(rad_to_deg(lv.get_angle()), 60.0, "the local vertical has turned away")
 
 
 func test_switches_start_from_the_bus_and_follow_it() -> void:

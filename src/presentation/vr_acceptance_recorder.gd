@@ -13,11 +13,14 @@
 ## the horizon aid's default and the time-rate lock. They replace Gemini's
 ## ACE POWER and RATE CMD rows. Eagle's rows, from a second run aboard the
 ## LM, take the recentres made there, a verb and noun typed on the LGC's
-## DSKY and the touches on its switches. The seated reference space is 0
-## (Local) here. Presentation only: it writes nothing to the Bus.
+## DSKY and the touches on its switches. R5's, at the lower equipment bay,
+## take the seat, how far the right stick turned the optics and the
+## touches on MARK. The seated reference space is 0 (Local) here.
+## Presentation only: it writes nothing to the Bus.
 ##
 ## Reads:  player.*, ctl.rhc, dyn.omega, dsky.verb, dsky.noun,
-##         lm.dsky.verb, lm.dsky.noun, present.comfort.vignette,
+##         lm.dsky.verb, lm.dsky.noun, optics.mode, optics.shaft_deg,
+##         optics.trunnion_deg, present.comfort.vignette,
 ##         present.comfort.horizon, present.menu.visible, perf.*
 class_name VrAcceptanceRecorder
 extends Node
@@ -57,6 +60,7 @@ var record := {
 	"menu_by_touch": {"label": "", "at_s": -1.0},
 	"sticks": {"max_pitch": 0.0, "max_pitch_rate_deg_s": 0.0, "max_roll": 0.0, "max_roll_rate_deg_s": 0.0,
 		"locked_seen": false, "max_while_locked": 0.0},
+	"optics": {"manual_travel_deg": 0.0},
 	"comfort": {"horizon_at_start": null, "max_vignette": 0.0},
 	"frames": {"count": 0, "dropped": 0, "worst_ms": 0.0, "budget_ms": 0.0},
 	"clean_stop": false,
@@ -71,6 +75,7 @@ var _last_origin := Vector3.INF
 var _ignore_origin_until_ms := 0
 var _typed := ""
 var _menu_labels := {}
+var _optics_was := Vector2.INF
 ## The written files' path without the extension, set by the first write.
 var _base := ""
 
@@ -187,6 +192,12 @@ func _process(delta: float) -> void:
 		s["max_pitch_rate_deg_s"] = maxf(s["max_pitch_rate_deg_s"], absf(rad_to_deg(omega.y)))
 		s["max_roll_rate_deg_s"] = maxf(s["max_roll_rate_deg_s"], absf(rad_to_deg(omega.x)))
 	record["comfort"]["max_vignette"] = maxf(record["comfort"]["max_vignette"], float(Bus.get_value("present.comfort.vignette", 0.0)))
+	# R5: the optics turned by hand (OPTICS MODE at MAN, the right stick).
+	var optics := Vector2(float(Bus.get_value("optics.shaft_deg", 0.0)), float(Bus.get_value("optics.trunnion_deg", 0.0)))
+	if str(Bus.get_value("optics.mode", "")) == "manual" and _optics_was != Vector2.INF:
+		var turned := Vector2(absf(wrapf(optics.x - _optics_was.x, -180.0, 180.0)), absf(optics.y - _optics_was.y))
+		record["optics"]["manual_travel_deg"] = float(record["optics"]["manual_travel_deg"]) + turned.x + turned.y
+	_optics_was = optics
 	# A4, S4: the origin moves only on a recenter.
 	if rig and Time.get_ticks_msec() > _ignore_origin_until_ms:
 		if _last_origin != Vector3.INF and rig.position.distance_to(_last_origin) > 0.01:
@@ -292,6 +303,9 @@ func markdown() -> String:
 	lines.append("| R2 | From the centre couch (SEAT), the DSKY is in fingertip reach | | tester; seats used: %s |" % ", ".join(PackedStringArray(r["seats"])))
 	lines.append("| R3 | Windows sit where the eyes expect them; nothing clips the headset | | tester |")
 	lines.append("| R4 | The checklist card and the DSKY display read from the couch | | tester |")
+	lines.append("| R5 | At the lower equipment bay (SEAT), the optics' eyepieces read, the right stick moves the optics, and MARK and the second DSKY are in reach | | tester; %s; the optics turned %.1f° by hand; `ctl.optics.mark` touched %d times |" % [
+		"at the lower equipment bay" if "LEB" in r["seats"] else "never at the lower equipment bay",
+		float(r["optics"]["manual_travel_deg"]), int(ch.get("ctl.optics.mark", 0))])
 	lines.append("")
 	lines.append("## Actuation")
 	lines.append("| # | Check | Pass? | Notes |")

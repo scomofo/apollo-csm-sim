@@ -1,7 +1,9 @@
 ## The CM cabin blockout (docs/ROADMAP.md, slice 2c): the pressure vessel
-## with its five windows, the three couches, the hand controllers and the
-## three panels of the main display console, which CockpitLayout fills from
-## data/cockpit/controls.csv.
+## with its five windows, the three couches, the hand controllers, the
+## three panels of the main display console, and the lower equipment bay's
+## guidance and navigation panel beyond the couches' feet, with the optics'
+## eyepieces, their switches and the second DSKY (slice 4c), which
+## CockpitLayout fills from data/cockpit/controls.csv.
 ##
 ## Built in body axes (+X toward the apex, +Y right, +Z toward the crew's
 ## feet) with x = 0 at the heat-shield base, as in the space view's CSM
@@ -17,16 +19,24 @@ const EYE_CDR := Vector3(0.75, -0.62, -0.30)
 ## Centre couch design eye point, m: the command module pilot's seat for
 ## launch and entry, and where the main DSKY is straight ahead.
 const EYE_CMP := Vector3(0.75, 0.0, -0.30)
-## Where the player can sit.
-const SEATS := {"CDR": EYE_CDR, "CMP": EYE_CMP}
+## At the lower equipment bay, m: the command module pilot beyond the
+## couches' feet, head toward the apex, facing the navigation panel, away
+## from the couch.
+const EYE_LEB := Vector3(1.05, 0.0, 0.72)
+## Where the player can be.
+const SEATS := {"CDR": EYE_CDR, "CMP": EYE_CMP, "LEB": EYE_LEB}
 ## Axes of a panel face and of the player anchor, in body axes: +X to the
 ## crew's right, +Y the crew's up (body -Z), +Z toward the crew (body -X).
 const FACE_BASIS := Basis(Vector3(0, 1, 0), Vector3(0, 0, -1), Vector3(-1, 0, 0))
+## The same at the lower equipment bay: the right is body +Y, the up body
+## +X (the apex) and toward the crew body -Z.
+const LEB_BASIS := Basis(Vector3(0, 1, 0), Vector3(1, 0, 0), Vector3(0, 0, -1))
 ## Main display console: face centre (m, body) and face size (m).
 const PANELS := {
 	"MDC1": {"centre": Vector3(1.35, -0.66, -0.30), "size": Vector2(0.60, 0.50)},
 	"MDC2": {"centre": Vector3(1.37, 0.0, -0.30), "size": Vector2(0.62, 0.56)},
 	"MDC3": {"centre": Vector3(1.35, 0.66, -0.30), "size": Vector2(0.60, 0.50)},
+	"LEB": {"centre": Vector3(0.95, 0.0, 1.20), "size": Vector2(0.80, 0.52), "basis": LEB_BASIS},
 }
 ## Pressure vessel: inner radius VESSEL_R0 - VESSEL_SLOPE * x between the
 ## aft bulkhead and the forward bulkhead, then the tunnel to the forward
@@ -83,7 +93,8 @@ static func create() -> CmCabin:
 	return cabin
 
 
-## The main display console's three panels, facing the crew.
+## The main display console's three panels, facing the crew, and the
+## lower equipment bay's, facing its station.
 func panels() -> Dictionary:
 	var out := {}
 	for p in PANELS:
@@ -99,10 +110,15 @@ func eye_basis() -> Basis:
 	return FACE_BASIS
 
 
+func seat_basis(seat_name: String) -> Basis:
+	return LEB_BASIS if seat_name == "LEB" else FACE_BASIS
+
+
 ## By the seat's left shoulder: the card keeps its place from the eye as
-## the seat moves.
+## the seat moves, and at the lower equipment bay it turns with the eye.
 func card_centre(seat_name: String) -> Vector3:
-	return SEATS[seat_name] + CARD_CENTRE - EYE_CDR
+	var off := FACE_BASIS.inverse() * (CARD_CENTRE - EYE_CDR)
+	return SEATS[seat_name] + seat_basis(seat_name) * off
 
 
 ## The inner wall radius at station x.

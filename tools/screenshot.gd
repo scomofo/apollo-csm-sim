@@ -7,6 +7,11 @@
 ## --undock=<s> undocks the LM and lets it drift for that many seconds.
 ## --vehicle=csm or lm: the vehicle seen from while the LM flies free (the
 ## player moves to the LM as it undocks, and its start phases start in it).
+## --optics=<code> opens the optics on navigation star <code> (octal, as
+## the DSKY shows it), or on the CMC's first P52 star with 0. --seat=<name>
+## moves the cabin view to that seat (CDR, CMP, LEB). --p52=<hours> coasts
+## that long in CMC MODE FREE, then starts P52 option 3 and shows the
+## optics as the CMC drives them to its first star.
 extends Node
 
 var _frames := 0
@@ -24,6 +29,9 @@ func _ready() -> void:
 	var pad := ""
 	var undock := 0.0
 	var vehicle := ""
+	var optics := -1
+	var seat := ""
+	var p52_hours := 0.0
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--phase="):
 			phase = a.trim_prefix("--phase=")
@@ -45,11 +53,19 @@ func _ready() -> void:
 			undock = float(a.trim_prefix("--undock="))
 		elif a.begins_with("--vehicle="):
 			vehicle = a.trim_prefix("--vehicle=")
+		elif a.begins_with("--optics="):
+			optics = int(a.trim_prefix("--optics="))
+		elif a.begins_with("--seat="):
+			seat = a.trim_prefix("--seat=")
+		elif a.begins_with("--p52="):
+			p52_hours = float(a.trim_prefix("--p52="))
 	SimClock.manual = true
 	_main = load("res://scenes/main.tscn").instantiate()
 	_main.start_phase = phase
 	add_child(_main)
 	_main.set_view(view_mode)
+	if seat != "":
+		_main.cabin.set_seat(seat)
 	if view_mode == 2:
 		(_main.rig.get_node("Camera3D") as Camera3D).rotation = Vector3(pitch, yaw, 0.0)
 	elif view_mode == 1:
@@ -76,6 +92,25 @@ func _ready() -> void:
 	for k in ["VERB", "1", "6", "NOUN", "6", "2", "ENTR"]:
 		computer.dsky.press(k)
 	SimClock.advance(1.0)
+	if p52_hours > 0.0:
+		Bus.set_value("ctl.cmc.mode", 0)
+		SimClock.rate = 1000.0
+		SimClock.advance(p52_hours * 3600.0)
+		SimClock.rate = 1.0
+		Bus.set_value("ctl.cmc.mode", 1)
+		for k in ["VERB", "3", "7", "ENTR", "5", "2", "ENTR", "VERB", "2", "2", "ENTR", "3", "ENTR", "PRO", "PRO", "PRO"]:
+			computer.dsky.press(k)
+		SimClock.advance(8.0)
+		_main.hud.toggle_optics(true)
+	if optics >= 0:
+		_main.hud.toggle_optics(true)
+		var agc: Agc = _main.rt.agc()
+		if optics == 0 and agc._select_stars():
+			optics = agc.align_stars[0]
+		if Stars.has(optics):
+			Bus.set_value("ctl.optics.mode", 0)
+			var dir := Basis(Bus.get_value("dyn.att_q") as Quaternion).inverse() * Stars.direction(optics)
+			(_main.rt.systems["optics"] as Optics).aim(dir)
 
 
 func _process(_d: float) -> void:

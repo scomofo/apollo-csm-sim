@@ -18,9 +18,11 @@ extends RefCounted
 signal changed
 
 ## Noun register formats. Each component: [label, format, scale].
-## format: "i" integer, "d1"/"d2" one/two decimals, "hms_h"/"hms_m"/"hms_s"
-## (hours, minutes, seconds of a time value), "mmss" (min + sec, blank
-## between), "blank". scale converts SI to the displayed unit.
+## format: "i" integer, "d1"/"d2"/"d3" one/two/three decimals,
+## "hms_h"/"hms_m"/"hms_s" (hours, minutes, seconds of a time value),
+## "mmss" (min + sec, blank between), "o" octal (five digits, no sign: the
+## value's decimal digits are the octal ones, as a star code is), "blank".
+## scale converts SI to the displayed unit.
 const FT := 0.3048
 const NMI := 1852.0
 const NOUNS := {
@@ -90,6 +92,10 @@ static func format_value(v: float, fmt: String, scale: float) -> String:
 			return sign + "%05d" % mini(int(round(a * 10.0)), 99999)
 		"d2":
 			return sign + "%05d" % mini(int(round(a * 100.0)), 99999)
+		"d3":
+			return sign + "%05d" % mini(int(round(a * 1000.0)), 99999)
+		"o":
+			return " %05d" % mini(int(round(a)), 77777)
 		"hms_h":
 			return sign + "%05d" % mini(int(floor(a / 3600.0)), 99999)
 		"hms_m":
@@ -113,6 +119,8 @@ static func parse_value(text: String, fmt: String, scale: float) -> float:
 			shown = digits / 10.0
 		"d2":
 			shown = digits / 100.0
+		"d3":
+			shown = digits / 1000.0
 		"hms_h":
 			return sign * digits * 3600.0
 		"hms_m":
@@ -250,7 +258,7 @@ func press(key: String) -> void:
 			lamps["prog"] = false
 			lamps["restart"] = false
 		"+", "-":
-			if mode == "data" and _buffer == "":
+			if mode == "data" and _buffer == "" and _load_format() != "o":
 				_buffer = key
 				r[_load_regs[0]] = _buffer
 			else:
@@ -277,6 +285,14 @@ func _digit(d: String) -> void:
 				_buffer += d
 				noun = _buffer
 		"data":
+			if _load_format() == "o":
+				# Octal: no sign, digits 0-7.
+				if d == "8" or d == "9" or _buffer.length() >= 5:
+					_opr_err()
+					return
+				_buffer += d
+				r[_load_regs[0]] = " " + _buffer
+				return
 			if _buffer == "":
 				_opr_err()   # sign first
 				return
@@ -292,11 +308,12 @@ func _enter() -> void:
 		return
 	match mode:
 		"data":
-			if _buffer.length() < 2:
+			var octal := _load_format() == "o"
+			if _buffer.length() < (1 if octal else 2):
 				_opr_err()
 				return
 			var comp: Array = nouns[_load_noun]["c"][_load_regs[0]]
-			var padded := _buffer[0] + _buffer.substr(1).lpad(5, "0")
+			var padded := " " + _buffer.lpad(5, "0") if octal else _buffer[0] + _buffer.substr(1).lpad(5, "0")
 			_load_values.append(parse_value(padded, comp[1], comp[2]))
 			r[_load_regs[0]] = padded
 			_load_regs.remove_at(0)
@@ -326,6 +343,24 @@ func _enter() -> void:
 			var v := verb.to_int() if verb != "" else -1
 			var n := noun.to_int() if noun != "" else -1
 			_execute(v, n)
+
+
+## The format of the register being loaded.
+func _load_format() -> String:
+	if mode != "data" or _load_regs.is_empty() or not nouns.has(_load_noun):
+		return ""
+	var comps: Array = nouns[_load_noun]["c"]
+	return str(comps[_load_regs[0]][1]) if _load_regs[0] < comps.size() else ""
+
+
+## The program asks the crew to load noun [param n] with verb [param v]
+## (21 to 25): the display flashes V[param v] N[param n], and the crew keys
+## the registers' values straight in, each with ENTR.
+func request_load(v: int, n: int) -> void:
+	_program_display = {}
+	lamps["key_rel"] = false
+	_execute(v, n)
+	changed.emit()
 
 
 static func _load_indices(v: int) -> Array[int]:

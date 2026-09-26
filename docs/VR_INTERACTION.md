@@ -47,6 +47,7 @@ plans the rest. `HEADSET_RUN.md` runs a headset session and
 | Right thumbstick (`primary`) | Rotation controller: pitch (forward = nose down) and yaw |
 | Left thumbstick, left and right | Roll |
 | Left grip (`grip`) held, with the thumbsticks | Translation controller: left stick ±Y and up/down, right stick forward/back (±X) |
+| Right thumbstick, at the lower equipment bay | The optics hand controller: right and left turn the shaft, forward and back raise and lower the trunnion |
 
 Each thumbstick axis reads zero within 15 % of centre
 (`HandControllerInput.STICK_DEADZONE`), as each RHC axis has a breakout
@@ -68,18 +69,20 @@ the control's own axes decides what happens.
 
 | Control | In the cabin | Fingertip | Desktop pointer |
 |---|---|---|---|
-| Toggle switch, two or three positions | CMC MODE, UP TLM CM, ELS LOGIC, ELS AUTO, RCS QUAD A to D, FC 1 to 3, BATT TO BUS; in Eagle, LGC MODE, RCS SYS A and B, and DES RATE, which springs back to the middle | One position per crossing: up through the lever moves it up, down moves it down | A click cycles the positions; the scroll wheel moves it up or down |
+| Toggle switch, two or three positions | CMC MODE, UP TLM CM, ELS LOGIC, ELS AUTO, RCS QUAD A to D, FC 1 to 3, BATT TO BUS, OPTICS ZERO and OPTICS MODE at the lower equipment bay; in Eagle, LGC MODE, RCS SYS A and B, and DES RATE, which springs back to the middle | One position per crossing: up through the lever moves it up, down moves it down | A click cycles the positions; the scroll wheel moves it up or down |
 | Lever-locked toggle switch | ENG ARM, in Eagle | The first crossing pulls the lever out for 1.5 s, and a crossing within that time moves it | A click or a scroll pulls it out, and the next within 1.5 s moves it |
 | Guarded toggle switch | DELTA-V THRUST A and B | The first upward crossing lifts the guard and the next flips the lever. A downward crossing at OFF closes the guard | A click lifts the guard, then cycles the lever; scrolling down at OFF closes the guard |
-| Rotary switch | ATT SOURCE | One detent per crossing: left to right steps clockwise, right to left anticlockwise | A click steps clockwise and wraps round; the scroll wheel steps either way |
-| Pushbutton | SPS THRUST ON, UNDOCK, CSM/LV SEP, LM JETT, CM/SM SEP, DROGUE DEPLOY, MAIN DEPLOY; in Eagle, ABORT STAGE, ENGINE STOP and ENGINE START | Pressed by a fingertip pushed into its face; pulling back out doesn't press it | A click |
-| DSKY key | The 19 keys of each cabin's DSKY | Like a pushbutton. The touch volumes are shallow, so a finger coming in at an angle presses the key it is on, not the next one | A click |
+| Rotary switch | ATT SOURCE, OPTICS SPEED | One detent per crossing: left to right steps clockwise, right to left anticlockwise | A click steps clockwise and wraps round; the scroll wheel steps either way |
+| Pushbutton | SPS THRUST ON, UNDOCK, CSM/LV SEP, LM JETT, CM/SM SEP, DROGUE DEPLOY, MAIN DEPLOY, and MARK and MARK REJECT at the lower equipment bay; in Eagle, ABORT STAGE, ENGINE STOP and ENGINE START | Pressed by a fingertip pushed into its face; pulling back out doesn't press it | A click |
+| DSKY key | The 19 keys of each DSKY: Columbia's two, on the main display console and at the lower equipment bay, and Eagle's | Like a pushbutton. The touch volumes are shallow, so a finger coming in at an angle presses the key it is on, not the next one | A click |
 | Wrist-menu button | §5 | Like a pushbutton | A click |
 
-The FDAI, the mission timer, the main bus voltmeters, the master alarm
-and the DSKY's display show their Bus channels and take no input, and so
-do Eagle's range, range rate and thrust readouts and LUNAR CONTACT
-lamps.
+The FDAI, the mission timer, the main bus voltmeters, the master alarm,
+the DSKY's display and the optics' eyepieces show their Bus channels and
+take no input, and so do Eagle's range, range rate and thrust readouts
+and LUNAR CONTACT lamps. The eyepieces are one screen on the lower
+equipment bay, the telescope's view beside the sextant's [simplified:
+the crew looked into two eyepieces].
 
 Rules:
 
@@ -142,8 +145,9 @@ on the camera, and read the rates and attitude of the vehicle flown.
     PDI, ASCENT and CSI.
   - RATE -, RATE + and PAUSE set the clock.
   - RECENTRE, EYE +1cm and EYE -1cm set the eye point (§1).
-  - SEAT moves between the commander's couch and the centre couch, and
-    in Eagle between the commander's station and the LM pilot's.
+  - SEAT moves between the commander's couch, the centre couch and the
+    lower equipment bay, and in Eagle between the commander's station and
+    the LM pilot's.
   - HIDE closes the menu.
   - CHECKLIST turns to the next checklist where it was left (a finished
     one starts again), NEXT STEP goes past a step without its check, and
@@ -166,10 +170,14 @@ on the camera, and read the rates and attitude of the vehicle flown.
   a headset the gaze is the head's forward axis; on the desktop it is the
   pointer's ray.
 - **Seats.** The commander's (left) couch, and the centre couch, where
-  the command module pilot worked the DSKY and it is within reach. SEAT
-  moves the player and the card, never the cabin. The right couch isn't
-  a seat yet. In Eagle the crew stood: the commander on the left and the
-  LM pilot on the right, each 1.6 m above the floor.
+  the command module pilot worked the DSKY and it is within reach. The
+  lower equipment bay, beyond the couches' feet, where the command module
+  pilot aligned the platform: facing its navigation panel, head toward the
+  apex, with the optics' eyepieces, their switches, MARK and the second
+  DSKY within reach, and the right stick on the optics. SEAT moves the
+  player and the card, never the cabin. The right couch isn't a seat yet.
+  In Eagle the crew stood: the commander on the left and the LM pilot on
+  the right, each 1.6 m above the floor.
 - **Changing vehicles.** As the LM undocks the rig goes to Eagle's
   commander's station, with the card, the highlight and the wrist menu,
   and back to the CM's couch it left as the two dock. The tracking

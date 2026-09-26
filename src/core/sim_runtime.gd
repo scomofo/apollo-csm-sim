@@ -11,7 +11,9 @@ extends RefCounted
 ## 5: ECI is the ICRF of JPL's ephemeris, and the S-IVB's TLI yaw (slice 4a).
 ## 6: the CMC's own state vector, the CSM's unmodelled forces and the
 ##    dispersions' seed and draws (slice 4b).
-const SCHEMA_VERSION := 6
+## 7: the CMC's IMU (REFSMMAT, the platform, its drift) and alignment
+##    programs, and the optics (slice 4c).
+const SCHEMA_VERSION := 7
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],
@@ -20,6 +22,7 @@ const SYSTEMS := [
 	["sps", "res://src/systems/sps.gd"],
 	["sivb", "res://src/systems/sivb.gd"],
 	["els", "res://src/systems/els.gd"],
+	["optics", "res://src/systems/optics.gd"],
 ]
 ## The LM's systems. They come after the CSM's, so in each clock stage
 ## they tick after the CSM's.
@@ -32,10 +35,12 @@ const LM_SYSTEMS := [
 	["rr", "res://src/systems/rendezvous_radar.gd"],
 ]
 ## Crew control defaults: CMC attitude source, HOLD, SPS disarmed, UP TLM
-## CM in ACCEPT; the LM's DAP in HOLD, its engines disarmed and both RCS
-## systems open.
+## CM in ACCEPT, the optics in CMC mode at MED speed; the LM's DAP in HOLD,
+## its engines disarmed and both RCS systems open.
 const CONTROL_DEFAULTS := {
 	"ctl.scs.att_source": 0, "ctl.cmc.mode": 1, "ctl.cmc.up_tlm": true,
+	"ctl.optics.zero": false, "ctl.optics.mode": 1, "ctl.optics.speed": 1, "ctl.optics.hc": Vector3.ZERO,
+	"ctl.optics.mark": false, "ctl.optics.mark_reject": false,
 	"ctl.sps.arm_a": false, "ctl.sps.arm_b": false, "ctl.sps.thrust_on": false,
 	"ctl.rhc": Vector3.ZERO, "ctl.thc": Vector3.ZERO,
 	"ctl.els.logic": false, "ctl.els.auto": false,
