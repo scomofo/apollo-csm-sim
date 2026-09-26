@@ -945,4 +945,7 @@ IMU, which drifts and which P52 realigns on the stars through the optics
 at the lower equipment bay (slice 4c), and on its own sightings: P23's
 stars on the horizons keep the entry corridor without an uplink, and
 P22 marks landmarks in lunar orbit (slice 4d). That finishes navigation
-realism.
+realism. Next come the flight's remaining simplifications (milestone
+5: gravity beyond two points, the S-IVB's iterative guidance, the
+launch, P40's cross-product steering and entry range targeting), sound
+(6) and the other missions (7).

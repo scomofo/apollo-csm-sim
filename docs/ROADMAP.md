@@ -1,8 +1,9 @@
 # Roadmap
 
 What comes next for the Apollo CSM simulator, in order of value. Written
-2026-09-23 against `main` at `23a6b54`. Update each status line as its
-milestone moves.
+2026-09-23 against `main` at `23a6b54`; milestones 5 to 7 added
+2026-09-26 against `d31d580`. Update each status line as its milestone
+moves.
 
 | # | Milestone | Why | Size | Needs |
 |---|---|---|---|---|
@@ -10,6 +11,9 @@ milestone moves.
 | 2 | [VR cockpit](#2-vr-cockpit) | Fly from the couch; gemini-capsule already has most of the parts | Medium, mostly porting | 1 |
 | 3 | [The LM and a lunar landing](#3-the-lm-and-a-lunar-landing) | The half of the mission the simulator leaves out | Largest | 1; 2 for the LM's own cockpit |
 | 4 | [Navigation realism](#4-navigation-realism) | The crew's work between burns, and the README's first two simplifications | Large | 1; slice 3b before 4b |
+| 5 | [The whole flight](#5-the-whole-flight) | The flight's remaining simplifications: no launch, the S-IVB's fixed yaw, gravity from two points, P40's LVLH steering, entry without an aim | Largest | 4 |
+| 6 | [Sound](#6-sound) | The cabin is silent; gemini-capsule synthesises its sounds already | Small, mostly porting | 1 |
+| 7 | [Other missions](#7-other-missions) | Only Apollo 11 flies; the others are data | Large, one mission a slice | 3; 5d for launches |
 
 Each milestone is cut into slices that land as separate pull requests.
 Every slice ends in a check: a GUT test wherever the behaviour runs
@@ -1120,24 +1124,89 @@ Slice 4d lets the CMC navigate on its own sightings:
 on the real Moon. 4b and 4c change every AGC program's inputs, so do
 them after the core split in 3b.
 
+## 5. The whole flight
+
+**Status: not started.** What the README still lists as simplifications
+of the flight itself: the missions start in parking orbit, the S-IVB
+flies TLI at a fixed yaw, the Earth and the Moon pull as points and the
+Sun not at all, P40 holds its ΔV direction in LVLH, and entry guidance
+has no aim.
+
+- **Gravity** first, since it moves every number the suite checks. The
+  Earth's oblateness turned Apollo 11's parking orbit 0.8° west before
+  TLI, about half the yaw the S-IVB takes here to reach the Moon's
+  plane. The Sun's tide, some 3 × 10⁻⁵ m/s² at the Moon's distance,
+  pulls a translunar coast hundreds of kilometres off in three days. The
+  Moon's mascons move a 60 nmi orbit's apsides by kilometres a day, and
+  they were why the ground's lunar orbit predictions went wrong on the
+  early flights.
+- **The S-IVB's iterative guidance** then flies TLI to its target as the
+  IU did, and **the launch** reuses it for the S-II and the S-IVB's
+  first burn. The launch brings the atmosphere turning with the Earth.
+- **P40's cross-product steering** is Colossus's, which a long burn like
+  LOI-1 needs.
+- **Entry range targeting** comes last, on the rotating Earth the launch
+  brings: Colossus's entry guidance, aimed at a splashdown point.
+
+The onboard computers keep models of their own, as the flown ones did:
+the CMC and the LGC integrate the Earth's oblateness but not the
+mascons, so in lunar orbit their state vectors drift from truth as the
+flown ones did, and the ground's tracking and P22 matter more.
+
+### Slices
+
+| Slice | Work | Check |
+|---|---|---|
+| 5a The Earth's oblateness and the Sun | The Earth's zonal harmonics (J2 to J4) about its pole of date, precessed from the ICRF, and the Sun's pull from the ephemeris, in the propagator: truth, the RTCC and the onboard computers alike. The suite gets a third scenario part if the step's cost takes a part past ten minutes | Test: the parking orbit's node moves west as flown before TLI (0.8°), and each new acceleration matches an independent evaluation. The suite passes, re-tuned only where the flight really changed; re-measure the Fidelity table |
+| 5b The Moon's mascons | The Moon's gravity field from GRAIL, truncated by a script in `tools/` to the degree a 60 nmi orbit feels, for truth and the RTCC; the CMC and the LGC keep the simpler lunar model their programs flew with, sourced in the slice. The step's cost is measured and budgeted | Test: a low lunar orbit's apsides move as an independent integration of the same field predicts, and the flown LOI-2 orbit's change by the landing is compared with the mission report's. The landing and the rendezvous pass, the onboard state vectors now drifting from truth |
+| 5c S-IVB iterative guidance | The IU's iterative guidance mode for TLI: steering to the target conic the RTCC plans (its energy, eccentricity and plane), the time to go iterated as it burns, cutoff on the target. The fixed yaw goes | Test: TLI hits the target within a set limit, with its ΔV and plane change near Apollo 11's (about 3,180 m/s and 1.3°) |
+| 5d The launch | Liftoff from Launch Complex 39A at 13:32:00 UTC: the S-IC's roll and tilt programs and its cutoffs, staging, the S-II and the S-IVB on iterative guidance, the launch escape tower's jettison, insertion. The atmosphere turns with the Earth. A start phase on the pad, and the cabin and the HUD through the ascent. Aborts are left for later | Test: insertion into Apollo 11's parking orbit (32.5°, about 100 nmi) at about 11:49 GET within set limits, each stage's burn near the flown times (the Saturn V flight evaluation report) |
+| 5e P40 cross-product steering | Colossus's cross-product steering in P40 and P41, in place of holding the ΔV's LVLH direction | Test: LOI-1 on cross-product steering leaves an orbit nearer the RTCC's plan than LVLH steering does, and short burns come out as they did |
+| 5f Entry range targeting | Colossus's entry guidance (P62 to P67): the range to a splashdown target on the rotating Earth, up-control for long ranges, the final phase along a reference trajectory, and lateral roll reversals. The target comes with the entry PAD | Test: from entry interface the CM splashes down within a set limit of the target, from a short and a long range alike |
+
+### Order
+
+5a first: its re-tune is the suite's, and every later check is measured
+on it. 5b can follow at once or wait; nothing else needs the mascons.
+5c before 5d, whose guidance it is; 5d before 5f, whose rotating Earth
+it brings. 5e stands alone.
+
+## 6. Sound
+
+**Status: not started.** The cabin is silent. gemini-capsule
+synthesises its cabin sounds from Bus events in
+`src/presentation/audio_director.gd`, with nothing recorded to license.
+
+| Slice | Work | Check |
+|---|---|---|
+| 6a The audio director | Port it: the SPS, the S-IVB and the attitude jets, the DSKY's keys, the master alarm, pyros, the parachutes and the cabin fans; in Eagle, its descent and ascent engines. On the desktop and in the headset alike | Test: Bus events start and stop the director's voices. A recorded listening pass |
+
+## 7. Other missions
+
+**Status: not started.** Only Apollo 11 flies. Each other mission is
+data under `data/missions/`, not a code branch: its ephemeris fit for
+its dates, its parking orbit and REFSMMATs, its landing site, Mission
+Control's timeline and its vehicles. What a mission needs that the
+simulator can't do yet comes in its slice, for every mission after it.
+
+| Slice | Work | Check |
+|---|---|---|
+| 7a Apollo 8 | No LM: the S-IVB carries a test article, and the CSM flies ten lunar orbits alone | Test: Apollo 8 flies from its data alone, parking orbit to splashdown, its Fidelity table within set limits of the flight |
+| 7b Apollo 10 | The LM's descent to 8 nmi over the landing site, staging and the rendezvous, without a landing | Test: as 7a, for Apollo 10 |
+| 7c Apollo 12 | A pinpoint landing beside Surveyor III, the landing site updated in P63 as the flown LGC's noun 69 did | Test: as 7a, and Intrepid lands within a set limit of the Surveyor |
+| 7d Apollo 13 | The service module's oxygen tank, the LM as a lifeboat and the free return | Test: as 7a, from the tank's failure to splashdown |
+
+Apollo 14 flies as 12 did; the J missions (15 to 17), with the rover and
+the SIM bay, are left for later.
+
 ## Later, not scheduled
 
-These simplifications stay after all four milestones:
+These simplifications stay after all seven milestones:
 
-- There's no launch; missions start in parking orbit.
-- The S-IVB cuts off TLI on energy, at a fixed yaw, instead of flying
-  iterative guidance.
-- The Earth and the Moon pull as points: no oblateness, no mascons, and
-  no Sun. The Earth's oblateness would turn the parking orbit's plane as
-  it turned in flight, and take about half the S-IVB's yaw away.
-- P40 holds the ΔV direction in LVLH instead of cross-product steering.
-- Entry guidance controls drag with bank angle and has no range
-  targeting. The atmosphere ignores Earth's rotation and winds.
-
-Also later:
-
-- **Sound.** gemini-capsule synthesises its cabin sounds from Bus
-  events in `src/presentation/audio_director.gd`.
-- **Other missions.** Apollo 8 flew without an LM, so it could come
-  first; Apollo 10 and 12 to 17 need milestone 3. Add them as data under
-  `data/missions/`, not as code branches.
+- The winds, at launch and at entry.
+- Aborts during the launch.
+- The LGC's IMU stays ideal: its alignments with the AOT (P52, P57) are
+  left out.
+- P23 marks the solid limb, on stars and horizons only, and P22 takes
+  its landmark's position as known.
+- The J missions (Apollo 15 to 17).
