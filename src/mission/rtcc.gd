@@ -126,9 +126,11 @@ static func lunar_approach(traj: Trajectory, t_max: float) -> Dictionary:
 	return {"t": traj.t, "rp": rp, "f": sgn * rp, "impact": rp < Bodies.R_MOON, "reached": reached}
 
 
-## Coast until Earth-relative distance falls below 100,000 km (then use the
-## conic perigee) or [param t_max]. Returns {"t", "rp", "f"} with f signed
-## by the sense of the Earth-relative orbit about the lunar orbit normal.
+## Coast until Earth-relative distance falls below 100,000 km or
+## [param t_max]; then the vacuum perigee: integrated on in vacuum where the
+## Earth is oblate (vacuum_perigee()), the conic's otherwise. Returns {"t"
+## (at 100,000 km), "rp", "f"} with f signed by the sense of the
+## Earth-relative orbit about the lunar orbit normal.
 static func earth_return(traj: Trajectory, t_max: float) -> Dictionary:
 	var near := func(tr: Trajectory) -> bool:
 		return tr.primary == "earth" and tr.radius() < 1.0e8
@@ -137,7 +139,33 @@ static func earth_return(traj: Trajectory, t_max: float) -> Dictionary:
 	var c := Trajectory.conic_of(st, Bodies.MU_EARTH)
 	var h: Vector3 = c["h"]
 	var sgn := -1.0 if h.dot(Bodies.moon_normal()) < 0.0 else 1.0
-	return {"t": traj.t, "rp": c["rp"], "f": sgn * float(c["rp"]), "reached": reached}
+	var rp: float = c["rp"]
+	if reached and Bodies.perturbed and rp > Bodies.R_EARTH:
+		rp = vacuum_perigee(traj, rp)
+	return {"t": traj.t, "rp": rp, "f": sgn * rp, "reached": reached}
+
+
+## The perigee radius an inbound [param traj] (Earth-relative) comes to in
+## vacuum, integrated on through the Earth's oblateness, whose pull on the
+## way in moves it kilometres from the conic's (4.7 km lower on Apollo
+## 11's return); [param rp_conic], the conic's, where it meets the surface
+## first. [param traj] is left where it was.
+static func vacuum_perigee(traj: Trajectory, rp_conic: float) -> float:
+	var tr := traj.clone()
+	var rr_was := tr.radial_rate()
+	while rr_was < 0.0:
+		var r_was := tr.radius()
+		var dt := clampf(FRAC * r_was / maxf(tr.speed(), 1.0), 0.5, MAX_DT)
+		tr.step(dt)
+		if tr.radius() < Bodies.R_EARTH:
+			return rp_conic
+		var rr := tr.radial_rate()
+		if rr >= 0.0:
+			# Through perigee within the step, where the radial rate runs
+			# near straight: the parabola's bottom.
+			return r_was - rr_was * rr_was * dt / (2.0 * (rr - rr_was))
+		rr_was = rr
+	return tr.radius()
 
 
 # --- root finding -------------------------------------------------------------

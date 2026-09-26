@@ -8,11 +8,24 @@ func test_saturn_iu_flies_tli_and_reaches_the_moon() -> void:
 	assert_false(seq.tli_pad.is_empty(), "RTCC found a TLI opportunity")
 	var tig := float(seq.tli_pad["tig"])
 	assert_between(tig / 3600.0, 2.3, 3.2, "TLI near the flown 2:44 GET")
-	assert_true(run_until(func() -> bool: return seq._has("tli_cutoff"), tig - SimClock.get_seconds + 600.0, 60.0))
+	run(tig - 30.0 - SimClock.get_seconds)
+	var h0 := _momentum(rt.dynamics.traj)
+	var m0 := float(Bus.get_value("dyn.mass_kg"))
+	var p0 := float(Bus.get_value("sivb.prop_kg"))
+	assert_true(run_until(func() -> bool: return seq._has("tli_cutoff"), 630.0, 60.0))
 	var ign: float = Bus.get_value("mission.event.tli_ignition")
 	assert_almost_eq(ign, tig, 0.05, "ignition on the planned TIG")
 	var burn := float(Bus.get_value("mission.event.tli_cutoff")) - ign
 	assert_between(burn, 250.0, 350.0, "J-2 burn duration")
+	# What the J-2 gave (the rocket equation on the propellant it burned)
+	# and how far it turned the plane.
+	var used := p0 - float(Bus.get_value("sivb.prop_kg"))
+	var dv := float(SpacecraftData.section("sivb")["isp_s"]) * Units.G0 * log(m0 / (m0 - used))
+	var h1 := _momentum(rt.dynamics.traj)
+	var turned := rad_to_deg(acos(clampf((h0[0] * h1[0] + h0[1] * h1[1] + h0[2] * h1[2])
+		/ sqrt((h0[0] * h0[0] + h0[1] * h0[1] + h0[2] * h0[2]) * (h1[0] * h1[0] + h1[1] * h1[1] + h1[2] * h1[2])), -1.0, 1.0)))
+	gut.p("TLI at %s: %.0f m/s from the J-2 in %.0f s, the plane turned %.2f deg (Apollo 11: 2:44:16, ~3,180 m/s, 1.3 deg)" % [
+		Units.hms(ign), dv, burn, turned])
 	assert_eq(seq.phase, "translunar_coast")
 	assert_gt(float(Bus.get_value("dyn.apo_alt_m")), 3.0e8, "apogee beyond the Moon's orbit")
 	# Crew separates, T&D.
@@ -52,6 +65,12 @@ func test_the_earths_oblateness_turns_the_parking_orbit_west() -> void:
 		turned, hours, rate, rate * hours, rate * 2.541, rad_to_deg(float(pad["yaw"])), float(pad["dv"])])
 	assert_almost_eq(turned, rate * hours, absf(rate * hours) * 0.05, "west at J2's rate")
 	assert_almost_eq(rate * 2.541, -0.80, 0.02, "0.8 deg by Apollo 11's TLI")
+
+
+## [param tr]'s angular momentum about the Earth, in doubles.
+static func _momentum(tr: Trajectory) -> PackedFloat64Array:
+	var s := tr.earth_state()
+	return PackedFloat64Array([s[1] * s[5] - s[2] * s[4], s[2] * s[3] - s[0] * s[5], s[0] * s[4] - s[1] * s[3]])
 
 
 ## The right ascension of [param tr]'s ascending node, degrees.

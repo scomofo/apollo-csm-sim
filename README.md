@@ -642,6 +642,11 @@ The unit tests cover:
 - The Bus
 - The propagator: orbit closure, step independence, SOI re-basing, lunar
   orbit stability
+- Gravity (`tests/unit/test_gravity.gd`): the Earth's zonal harmonics
+  against their potential's gradient, the energy counting them held round
+  an orbit, a parking orbit's node regressing at J2's rate, the Sun's pull
+  against its tide, the RTCC's vacuum perigee flown through the
+  oblateness, and the Earth's pole of 1969
 - The Moon-fixed frame on the circular model: the Moon keeps a face to
   the Earth and turns once a sidereal month, and selenographic
   coordinates round-trip
@@ -749,7 +754,10 @@ The unit tests cover:
 
 The scenario tests fly real segments through the crew interface:
 
-- S-IVB TLI to lunar arrival
+- S-IVB TLI to lunar arrival (`tests/scenarios/test_tli.gd`), and slice
+  5a's check: the parking orbit's node regresses at J2's rate, 0.8° by
+  the flown TLI, and TLI gives 3,182 m/s from the J-2 and turns the plane
+  1.9°
 - MCC, LOI-1 and LOI-2 into lunar orbit, each PAD uplinked with the
   state vector MSFN tracked (P27) and flown after a P52 to its preferred
   orientation, as every burn in the suite is. By the LOI PAD the CMC's

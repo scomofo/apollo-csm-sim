@@ -1127,11 +1127,11 @@ them after the core split in 3b.
 
 ## 5. The whole flight
 
-**Status: not started.** What the README still lists as simplifications
-of the flight itself: the missions start in parking orbit, the S-IVB
-flies TLI at a fixed yaw, the Earth and the Moon pull as points and the
-Sun not at all, P40 holds its ΔV direction in LVLH, and entry guidance
-has no aim.
+**Status: slice 5a is done: the Earth is oblate and the Sun pulls.** What
+the README still lists as simplifications of the flight itself: the
+missions start in parking orbit, the S-IVB flies TLI at a fixed yaw, the
+Moon pulls as a point, without its mascons, P40 holds its ΔV direction
+in LVLH, and entry guidance has no aim.
 
 - **Gravity** first, since it moves every number the suite checks. The
   Earth's oblateness turned Apollo 11's parking orbit 0.8° west before
@@ -1154,11 +1154,40 @@ the CMC and the LGC integrate the Earth's oblateness but not the
 mascons, so in lunar orbit their state vectors drift from truth as the
 flown ones did, and the ground's tracking and P22 matter more.
 
+Slice 5a gives the Earth its shape and the Sun its pull:
+
+- **The Earth's oblateness.** Its zonal harmonics, J2 to J4 (EGM96),
+  about its mean pole of the ephemeris's date: the IAU 1976 precession
+  from J2000, 0.17° from the ICRF's pole in 1969. Truth, the RTCC and
+  the onboard computers integrate it alike. The parking orbit's node
+  regresses 0.317°/h, J2's analytic rate within 1 %, and 0.8° by Apollo
+  11's TLI (`test_tli.gd`). Round an orbit the energy counting the
+  oblate potential holds to 7 J/kg, where the two-body energy swings
+  27 kJ/kg.
+- **The Sun's pull**, as a third body, where the ephemeris has it at
+  each step's middle. On the way out it moves the Moon's arrival by
+  seconds.
+- **TLI.** With the parking orbit turning toward the Moon's plane, the
+  fixed yaw drops from 14.5° to 5.6°: the plane turns 1.9°, where it
+  turned 5.0° (the IU turned it 1.3°), and the J-2 gives 3,182 m/s,
+  where it gave 3,278 (Apollo 11: ~3,180). The S-IVB cuts off on the
+  energy counting the oblate potential [estimated]. Read as a two-body
+  energy at the cutoff, 285 km up over 9° N where J2's potential is
+  −28 kJ/kg, the flown C3 leaves the stack 3.7 % more bound once away
+  from the Earth, and the Moon comes 1.6 h late.
+- **The vacuum perigee.** The RTCC integrates it through the
+  oblateness (`Rtcc.vacuum_perigee()`). On Apollo 11's return, J2 pulls
+  the perigee 4.7 km below the conic's at 100,000 km, which had steepened
+  the entry from 7.1 g to 7.6 g.
+- **CI** deals the scenario tests over three parts, 8:22, 9:25 and 2:03
+  on the runners.
+- **Checkpoints** are schema 8, bumped here for 4d's navigation state.
+
 ### Slices
 
 | Slice | Work | Check |
 |---|---|---|
-| 5a The Earth's oblateness and the Sun | The Earth's zonal harmonics (J2 to J4) about its pole of date, precessed from the ICRF, and the Sun's pull from the ephemeris, in the propagator: truth, the RTCC and the onboard computers alike. The suite gets a third scenario part if the step's cost takes a part past ten minutes | Test: the parking orbit's node moves west as flown before TLI (0.8°), and each new acceleration matches an independent evaluation. The suite passes, re-tuned only where the flight really changed; re-measure the Fidelity table |
+| 5a (done) The Earth's oblateness and the Sun | The Earth's zonal harmonics (J2 to J4) about its pole of date, precessed from the ICRF, and the Sun's pull from the ephemeris, in the propagator: truth, the RTCC and the onboard computers alike. The suite gets a third scenario part if the step's cost takes a part past ten minutes | Test: the parking orbit's node moves west as flown before TLI (0.8°), and each new acceleration matches an independent evaluation. The suite passes, re-tuned only where the flight really changed; re-measure the Fidelity table |
 | 5b The Moon's mascons | The Moon's gravity field from GRAIL, truncated by a script in `tools/` to the degree a 60 nmi orbit feels, for truth and the RTCC; the CMC and the LGC keep the simpler lunar model their programs flew with, sourced in the slice. The step's cost is measured and budgeted | Test: a low lunar orbit's apsides move as an independent integration of the same field predicts, and the flown LOI-2 orbit's change by the landing is compared with the mission report's. The landing and the rendezvous pass, the onboard state vectors now drifting from truth |
 | 5c S-IVB iterative guidance | The IU's iterative guidance mode for TLI: steering to the target conic the RTCC plans (its energy, eccentricity and plane), the time to go iterated as it burns, cutoff on the target. The fixed yaw goes | Test: TLI hits the target within a set limit, with its ΔV and plane change near Apollo 11's (about 3,180 m/s and 1.3°) |
 | 5d The launch | Liftoff from Launch Complex 39A at 13:32:00 UTC: the S-IC's roll and tilt programs and its cutoffs, staging, the S-II and the S-IVB on iterative guidance, the launch escape tower's jettison, insertion. The atmosphere turns with the Earth. A start phase on the pad, and the cabin and the HUD through the ascent. Aborts are left for later | Test: insertion into Apollo 11's parking orbit (32.5°, about 100 nmi) at about 11:49 GET within set limits, each stage's burn near the flown times (the Saturn V flight evaluation report) |
