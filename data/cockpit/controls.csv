@@ -1,5 +1,6 @@
 # Cabin controls and displays: one row per item on the main display
-# console, built by src/cabin/cockpit_layout.gd onto the panels of
+# console (plus the LEB-122 master alarm in the lower equipment bay),
+# built by src/cabin/cockpit_layout.gd onto the panels of
 # src/cabin/cm_cabin.gd. x_mm/y_mm are the item's centre on the panel face,
 # right and up as the commander sees it. Panels MDC1/MDC2/MDC3 are the AOH
 # Main Display Console Panels 1/2/3 (commander-left, centre, right); the
@@ -105,3 +106,4 @@ P2_EDS_LV_ENG_2,MDC2,lamp,LV ENG 2,254,-100,0,sys.eds.lv_eng_2,,AOH Fig 3-1 P2-B
 P2_EDS_LIFTOFF,MDC2,lamp,LIFT OFF,254,-120,0,sys.eds.liftoff,,AOH Fig 3-1 P2-B,D,implemented,historical
 P2_EDS_NO_AUTO_ABORT,MDC2,lamp,NO AUTO ABORT,254,-140,0,sys.eds.no_auto_abort,,AOH Fig 3-1 P2-B,D,implemented,historical
 P2_EDS_LES,MDC2,lamp,LES,254,-160,0,sys.eds.les,,AOH Fig 3-1 P2-B,D,implemented,historical
+LEB_MASTER_ALARM,LEB122,pushbutton,MASTER ALARM,0,0,0,ctl.cw.master_alarm_reset,,AOH C&W §2.10 (LEB-122 switchlight),D,implemented,historical
