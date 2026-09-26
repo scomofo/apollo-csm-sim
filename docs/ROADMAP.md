@@ -37,10 +37,11 @@ picture).
   existing ones are, from the RTCC's own solutions, so it continues the
   mission it claims to.
 - **CI stays fast.** The suite runs in four jobs side by side: the unit
-  tests, and the scenario tests in three parts. Keep each job under ten
-  minutes: start a long scenario from a phase or checkpoint instead of
-  flying the whole mission, and give the scenarios another part when
-  theirs grow past that.
+  tests, and the scenario tests in three parts, dealt out by each file's
+  time on the runners (`.github/scenario_seconds.txt`). Keep each job
+  under ten minutes: start a long scenario from a phase or checkpoint
+  instead of flying the whole mission, record a new scenario file's
+  time, and give the scenarios another part when theirs grow past that.
 
 ## 1. CI green
 
@@ -1175,12 +1176,26 @@ Slice 5a gives the Earth its shape and the Sun its pull:
   energy at the cutoff, 285 km up over 9° N where J2's potential is
   −28 kJ/kg, the flown C3 leaves the stack 3.7 % more bound once away
   from the Earth, and the Moon comes 1.6 h late.
-- **The vacuum perigee.** The RTCC integrates it through the
-  oblateness (`Rtcc.vacuum_perigee()`). On Apollo 11's return, J2 pulls
-  the perigee 4.7 km below the conic's at 100,000 km, which had steepened
-  the entry from 7.1 g to 7.6 g.
-- **CI** deals the scenario tests over three parts, 8:22, 9:25 and 2:03
-  on the runners.
+- **The vacuum perigee.** The RTCC took a return's vacuum perigee from
+  the conic at 100,000 km. It now integrates on to the perigee
+  (`Rtcc.vacuum_perigee()`), so TEI, the MCCs and P37 aim at the
+  perigee the CM reaches. On the entry start phase's return that
+  perigee is 4.7 km below the conic's: J2 pulls it 3.2 km lower on the
+  way in and the Moon 2.1 km, and the Sun lifts it 0.7 km. Aimed by the
+  conic, the entry peaked at 7.1 g before 5a, from the Moon's 2.1 km
+  alone, and at 7.6 g with the oblateness and the Sun. Aimed at the
+  true 37 km, it meets the atmosphere at −6.52° (−6.60° before 5a) and
+  peaks at 6.7 g (Apollo 11: about 6.5 g).
+- **What else it moves.** The rest of the flight moves by seconds and
+  tenths of a ft/s (the README's Fidelity table): about the Moon only
+  the Sun's tide is new, some 10⁻⁷ m/s². 4d's check holds: after
+  the misaligned TEI's −119 km (−115 before), P23's marks and two P37s
+  bring the vacuum perigee to 38.1 km (37.9).
+- **CI** deals the scenario files over its three parts by their time on
+  the runners, recorded in `.github/scenario_seconds.txt`, where it
+  dealt them in turn by name. By name, one run on this slice's gravity
+  took 8:15, 10:06 and 2:04; by the recorded times each part has about
+  6:45 of tests.
 - **Checkpoints** are schema 8, bumped here for 4d's navigation state.
 
 ### Slices

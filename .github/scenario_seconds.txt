@@ -1,0 +1,22 @@
+# Each scenario file's seconds on CI's runners, by which ci.yml deals the
+# scenario files out over its parts evenly: the longer of two runs on
+# 46d04f1. A file not listed counts 60 s. Add a new file's time once CI
+# has run it, and measure again when the parts drift apart.
+test_ascent.gd 43
+test_cabin_checklists.gd 98
+test_cabin_mcc.gd 5
+test_cabin_wrist_menu.gd 4
+test_docking.gd 14
+test_doi.gd 18
+test_imu_alignment.gd 52
+test_landing.gd 120
+test_lm_burns.gd 18
+test_lm_cabin_checklists.gd 285
+test_lm_checklists.gd 272
+test_lunar_mission.gd 73
+test_lunar_timeline.gd 32
+test_onboard_navigation.gd 89
+test_onboard_state.gd 4
+test_rendezvous.gd 77
+test_tli.gd 9
+test_vr_acceptance_recorder.gd 4

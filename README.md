@@ -488,20 +488,20 @@ A flown Apollo 11 profile in the simulator reproduces these values:
 
 | Quantity | Simulator | Apollo 11 |
 |---|---|---|
-| TLI | GET 2:44:48, 3,273 m/s, the plane turned 5.0° | 2:44:16, ~3,180 m/s, 1.3° |
+| TLI | GET 2:44:42, 3,182 m/s, the plane turned 1.9° | 2:44:16, ~3,180 m/s, 1.3° |
 | Translunar coast | 73.0 h | 73.0 h |
-| LOI-1 | GET 75:49:46, 875 m/s, 6.1 min, 53 × 170 nmi | 75:49:50, 889 m/s, 5.95 min, 61 × 169 nmi |
-| TEI | GET 135:20:38, 1,000 m/s | 135:23:42, 1,001 m/s |
+| LOI-1 | GET 75:49:48, 876 m/s, 6.1 min, 53 × 170 nmi | 75:49:50, 889 m/s, 5.95 min, 61 × 169 nmi |
+| TEI | GET 135:20:40, 1,000 m/s | 135:23:42, 1,001 m/s |
 | DOI | GET 101:36:14, 73.1 ft/s, 30 s | 101:36:14, ~76 ft/s, ~30 s |
 | Powered descent | 12 min 6 s, touchdown at 102:45:39, 140 m from the target (the LGC's crossrange error, which the radar can't see) | 12 min 35 s, touchdown at 102:45:40, about 6 km past the target |
 | The Sun at touchdown | 10.7° up | 10.8° up |
 | Ascent, liftoff to cutoff | GET 124:25:40, 7 min 8 s, then 60,054 ft and 32.0 ft/s up, 9.0 × 45.1 nmi | 124:22:00, 7 min 17 s, then 60,666 ft and 32.8 ft/s up, 9.5 × 47.3 nmi |
 | CSI | 52.4 ft/s, 50 min 50 s after insertion | 51.5 ft/s, 50 min 18 s after insertion |
 | TPI | 24.0 ft/s, 2 h 34 min 20 s after insertion | ~25 ft/s, 2 h 34 min 35 s after insertion |
-| Midcourse corrections | 0.2 and under 0.1 ft/s | ~1 ft/s each |
-| Braking, then station-keeping | 15 min 27 s, station-keeping 45 min after TPI | 15 min 8 s, station-keeping 48 min after TPI |
-| Docking | GET 127:57:20, 50 min after TPI | 128:03:00, 59 min after TPI |
-| Entry peak load | 7.1 g | ~6.5 g |
+| Midcourse corrections | 0.2 and 0.1 ft/s | ~1 ft/s each |
+| Braking, then station-keeping | 15 min 26 s, station-keeping 45 min after TPI | 15 min 8 s, station-keeping 48 min after TPI |
+| Docking | GET 127:57:26, 50 min after TPI | 128:03:00, 59 min after TPI |
+| Entry peak load | 6.7 g | ~6.5 g |
 | Splashdown | 8.6 m/s | — |
 
 Deliberate simplifications are tagged `[simplified]` in the code. The main
@@ -635,7 +635,8 @@ of it in the scenario tests. Add `-gdir=res://tests/unit/` to run only
 the unit tests, in about a minute, or `-gselect=<name>` to run only the
 scripts whose file names contain `<name>`. CI runs the suite in four
 parts side by side (`.github/workflows/ci.yml`): the unit tests, and the
-scenario tests dealt out over three jobs.
+scenario tests dealt out over three jobs by each file's time on the
+runners (`.github/scenario_seconds.txt`).
 
 The unit tests cover:
 
@@ -764,38 +765,38 @@ The scenario tests fly real segments through the crew interface:
   state vector is 93 km off, and the uplink brings it to 0.4 km
 - The IMU (`tests/scenarios/test_imu_alignment.gd`), slice 4c's check.
   Twelve hours of translunar coast drift the platform 0.215°, and P52 on
-  two stars (Menkent and Altair) leaves 0.003°, under the 0.02° limit,
-  with N05 0.004°. A TEI flown on a platform 0.5° off goes 8.59 m/s off
+  two stars (Menkent and Altair) leaves 0.004°, under the 0.02° limit,
+  with N05 0.005°. A TEI flown on a platform 0.5° off goes 8.59 m/s off
   the aligned flight, where the misalignment predicts 8.56 m/s, and the
   CMC doesn't see it. A yaw in FREE lights GIMBAL LOCK at 70°, cages the
   IMU at 85° and loses the alignment; P52 and P40 refuse (00220), and P51
   finds the platform's orientation on two stars the crew names. P52
   won't coarse align to a new orientation in gimbal lock from where the
   CSM points (00401) until the CSM turns, and P40's maneuver to the burn
-  attitude keeps the middle gimbal under 12°. P52 option 1 puts
+  attitude keeps the middle gimbal to 12.1° at most. P52 option 1 puts
   the burn attitude at zero gimbal angles, and with the optics on the
   Moon it finds no stars (00405). Sixteen hours of attitude hold on the
-  drifting platform cost 0.15 kg of RCS propellant
+  drifting platform cost 0.16 kg of RCS propellant
 - The CMC's own state vector (`tests/scenarios/test_onboard_state.gd`),
   slice 4b's check. From a perfect state, a day's translunar coast leaves
-  it 541 m off, as far as the SM's vents move a copy of the CSM, and the
+  it 537 m off, as far as the SM's vents move a copy of the CSM, and the
   ground's uplink puts it back to MSFN's tracking error, with P27 and V71
   on the DSKY. The CMC takes uplinks only in P00 with UP TLM CM in
   ACCEPT; in BLOCK a PAD comes by voice. A translation in P00 isn't in its
   state vector, and one in P47 is
 - Onboard navigation (`tests/scenarios/test_onboard_navigation.gd`),
   slice 4d's check. A TEI flown on a platform 0.5° off leaves a vacuum
-  perigee of −115 km, steep of the 25 to 50 km corridor, and the CMC's
+  perigee of −119 km, steep of the 25 to 50 km corridor, and the CMC's
   state vector 1.1 km and 8.9 m/s off. With UP TLM CM in BLOCK from then
   on, the crew marks six stars with P23 every four hours from 10 h after
   TEI, three on the Moon's horizon and three on the Earth's. At 38.6 h
-  P37 works out 4.0 m/s from the CMC's state, which, flown after P52,
-  leaves 29.1 km, where P37 from the unmarked state would have left
-  −41.3 km. After two more sessions a second P37 of 0.3 m/s leaves
-  37.9 km. P23's dialogue: the codes it won't take, 00404 for a star it
+  P37 works out 4.1 m/s from the CMC's state, which, flown after P52,
+  leaves 27.1 km, where P37 from the unmarked state would have left
+  −41.7 km. After two more sessions a second P37 of 0.4 m/s leaves
+  38.1 km. P23's dialogue: the codes it won't take, 00404 for a star it
   can't lay on the horizon, the landmark line on the horizon under the
   star, V32 dropping a bad mark, a good one bringing a state vector 50 km
-  off to 18 km, V67's RMS, and a load starting the filter again. In lunar
+  off to 15 km, V67's RMS, and a load starting the filter again. In lunar
   orbit, five P22 marks on the landing site through one pass bring the
   state vector from 2.2 km off to 53 m
 - TEI and the transearth MCCs into the entry corridor
