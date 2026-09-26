@@ -1,37 +1,40 @@
 # Cabin controls and displays: one row per item on the main display
 # console, built by src/cabin/cockpit_layout.gd onto the panels of
 # src/cabin/cm_cabin.gd. x_mm/y_mm are the item's centre on the panel face,
-# right and up as the commander sees it. Every placement is confidence D
-# (estimated): the panel assignment follows the CSM layout in outline only,
-# until the panel drawings are transcribed. role: historical = the control
-# or display exists in the CM as modelled; proxy = stands in for different
+# right and up as the commander sees it. Panels MDC1/MDC2/MDC3 are the AOH
+# Main Display Console Panels 1/2/3 (commander-left, centre, right); the
+# per-item panel assignment is transcribed from AOH Vol 1 §3 (see the
+# source column). Every x/y placement stays confidence D (estimated):
+# Figure 3-1 carries no dimensions. role: historical = the control or
+# display exists in the CM as modelled; proxy = stands in for different
 # CM hardware (one switch for several, or a pushbutton for a guarded switch).
 id,panel,type,label,x_mm,y_mm,rot_deg,channel,params,source,confidence,status,role
-P1_FDAI,MDC1,fdai,FDAI,-150,70,0,guid.indicator.attitude,scale=1.8,estimated,D,implemented,historical
-P1_DV_THRUST_A,MDC1,toggle,DELTA-V THRUST A,40,170,0,ctl.sps.arm_a,guarded=true;labels=OFF|NORMAL,estimated,D,implemented,historical
-P1_DV_THRUST_B,MDC1,toggle,DELTA-V THRUST B,110,170,0,ctl.sps.arm_b,guarded=true;labels=OFF|NORMAL,estimated,D,implemented,historical
-P1_THRUST_ON,MDC1,pushbutton,SPS THRUST ON,200,170,0,ctl.sps.thrust_on,,estimated,D,implemented,historical
-P1_ATT_SOURCE,MDC1,rotary,ATT SOURCE,60,50,0,ctl.scs.att_source,positions=3;labels=CMC|SCS|DIRECT;start_angle_deg=-45;detent_deg=45,estimated,D,implemented,proxy
-P1_CMC_MODE,MDC1,toggle,CMC MODE,160,50,0,ctl.cmc.mode,positions=3;labels=FREE|HOLD|AUTO,estimated,D,implemented,historical
-P1_UNDOCK,MDC1,pushbutton,UNDOCK,-50,-70,0,ctl.seq.undock,,estimated,D,implemented,proxy
-P1_CSM_LV_SEP,MDC1,pushbutton,CSM/LV SEP,40,-70,0,ctl.seq.csm_sep,,estimated,D,implemented,proxy
-P1_LM_JETT,MDC1,pushbutton,LM JETT,130,-70,0,ctl.seq.lm_jett,,estimated,D,implemented,proxy
-P1_CM_SM_SEP,MDC1,pushbutton,CM/SM SEP,220,-70,0,ctl.seq.cm_sm_sep,,estimated,D,implemented,proxy
+P1_FDAI,MDC1,fdai,FDAI,-150,70,0,guid.indicator.attitude,scale=1.8,AOH SCS 2.3,D,implemented,historical
+P1_DV_THRUST_A,MDC1,toggle,DELTA-V THRUST A,40,170,0,ctl.sps.arm_a,guarded=true;labels=OFF|NORMAL,AOH SPS 2.4-37,D,implemented,historical
+P1_DV_THRUST_B,MDC1,toggle,DELTA-V THRUST B,110,170,0,ctl.sps.arm_b,guarded=true;labels=OFF|NORMAL,AOH SPS 2.4-37,D,implemented,historical
+P1_THRUST_ON,MDC1,lamp,SPS THRUST ON,200,170,0,sps.thrust_n,,AOH SPS 2.4-40,D,implemented,historical
+P1_ATT_SOURCE,MDC1,rotary,ATT SOURCE,60,50,0,ctl.scs.att_source,positions=3;labels=CMC|SCS|DIRECT;start_angle_deg=-45;detent_deg=45,AOH SCS 2.3,D,implemented,proxy
+P1_CMC_MODE,MDC1,toggle,CMC MODE,160,50,0,ctl.cmc.mode,positions=3;labels=FREE|HOLD|AUTO,AOH §3,D,implemented,historical
+P1_CSM_LV_SEP,MDC1,pushbutton,CSM/LV SEP,40,-70,0,ctl.seq.csm_sep,,AOH §3,D,implemented,proxy
+P1_LM_JETT,MDC1,pushbutton,LM JETT,130,-70,0,ctl.seq.lm_jett,,AOH §3,D,implemented,proxy
+P1_CM_SM_SEP,MDC1,pushbutton,CM/SM SEP,220,-70,0,ctl.seq.cm_sm_sep,,AOH §3,D,implemented,proxy
 P1_ELS_LOGIC,MDC1,toggle,ELS LOGIC,-220,-170,0,ctl.els.logic,,estimated,D,implemented,historical
 P1_ELS_AUTO,MDC1,toggle,ELS AUTO,-150,-170,0,ctl.els.auto,,estimated,D,implemented,historical
 P1_DROGUE,MDC1,pushbutton,DROGUE DEPLOY,-60,-170,0,ctl.els.drogue,,estimated,D,implemented,proxy
 P1_MAIN_CHUTES,MDC1,pushbutton,MAIN DEPLOY,30,-170,0,ctl.els.main,,estimated,D,implemented,proxy
-P2_MISSION_TIMER,MDC2,clock,MISSION TIMER,0,200,0,time.get_s,power_channel=eps.bus_a_v,estimated,D,implemented,historical
-P2_RCS_QUAD_A,MDC2,toggle,RCS QUAD A,-240,190,0,ctl.rcs.quad_a,,estimated,D,implemented,proxy
-P2_RCS_QUAD_B,MDC2,toggle,RCS QUAD B,-180,190,0,ctl.rcs.quad_b,,estimated,D,implemented,proxy
-P2_RCS_QUAD_C,MDC2,toggle,RCS QUAD C,180,190,0,ctl.rcs.quad_c,,estimated,D,implemented,proxy
-P2_RCS_QUAD_D,MDC2,toggle,RCS QUAD D,240,190,0,ctl.rcs.quad_d,,estimated,D,implemented,proxy
-P2_DSKY,MDC2,dsky,DSKY,0,-50,0,dsky,,estimated,D,implemented,historical
+P2_MISSION_TIMER,MDC2,clock,MISSION TIMER,0,200,0,time.get_s,power_channel=eps.bus_a_v,AOH §3,D,implemented,historical
+P2_RCS_QUAD_A,MDC2,toggle,RCS QUAD A,-240,190,0,ctl.rcs.quad_a,,AOH SCS 2.3,D,implemented,proxy
+P2_RCS_QUAD_B,MDC2,toggle,RCS QUAD B,-180,190,0,ctl.rcs.quad_b,,AOH SCS 2.3,D,implemented,proxy
+P2_RCS_QUAD_C,MDC2,toggle,RCS QUAD C,180,190,0,ctl.rcs.quad_c,,AOH SCS 2.3,D,implemented,proxy
+P2_RCS_QUAD_D,MDC2,toggle,RCS QUAD D,240,190,0,ctl.rcs.quad_d,,AOH SCS 2.3,D,implemented,proxy
+P2_DSKY,MDC2,dsky,DSKY,0,-50,0,dsky,,AOH G&N,D,implemented,historical
 P2_UP_TLM_CM,MDC2,toggle,UP TLM CM,180,40,0,ctl.cmc.up_tlm,labels=BLOCK|ACCEPT,estimated,D,implemented,historical
-P3_FC1,MDC3,toggle,FC 1,-200,120,0,ctl.eps.fc1,,estimated,D,implemented,proxy
-P3_FC2,MDC3,toggle,FC 2,-130,120,0,ctl.eps.fc2,,estimated,D,implemented,proxy
-P3_FC3,MDC3,toggle,FC 3,-60,120,0,ctl.eps.fc3,,estimated,D,implemented,proxy
-P3_BATT_BUS,MDC3,toggle,BATT TO BUS,40,120,0,ctl.eps.batt_bus,,estimated,D,implemented,proxy
-P3_MASTER_ALARM,MDC3,lamp,MASTER ALARM,200,180,0,sys.master_alarm.eps,colour=ff2a1a;scale=1.5,estimated,D,implemented,proxy
+P2_UNDOCK,MDC2,pushbutton,UNDOCK,-200,-180,0,ctl.seq.undock,,AOH §3,D,implemented,proxy
+P3_FC1,MDC3,toggle,FC 1,-200,120,0,ctl.eps.fc1,,AOH §3,D,implemented,proxy
+P3_FC2,MDC3,toggle,FC 2,-130,120,0,ctl.eps.fc2,,AOH §3,D,implemented,proxy
+P3_FC3,MDC3,toggle,FC 3,-60,120,0,ctl.eps.fc3,,AOH §3,D,implemented,proxy
+P3_BATT_BUS,MDC3,toggle,BATT TO BUS,40,120,0,ctl.eps.batt_bus,,AOH §3,D,implemented,proxy
+P3_MASTER_ALARM,MDC3,lamp,MASTER ALARM,200,180,0,sys.master_alarm.eps,colour=ff2a1a;scale=1.5,AOH C&W,D,implemented,proxy
 P3_BUS_A_VOLTS,MDC3,numeric,MAIN BUS A V,-120,-40,0,eps.bus_a_v,format=%4.1f;blank_text=----,estimated,D,implemented,historical
 P3_BUS_B_VOLTS,MDC3,numeric,MAIN BUS B V,40,-40,0,eps.bus_b_v,format=%4.1f;blank_text=----,estimated,D,implemented,historical
+P3_FDAI,MDC3,fdai,FDAI 2,190,-60,0,guid.indicator.attitude,scale=1.8,AOH SCS 2.3,D,implemented,historical

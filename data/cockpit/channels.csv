@@ -5,7 +5,7 @@
 channel,type,units,writer,description
 ctl.sps.arm_a,bool,,crew,DELTA-V THRUST A: SPS pilot valve bank A armed
 ctl.sps.arm_b,bool,,crew,DELTA-V THRUST B: SPS pilot valve bank B armed
-ctl.sps.thrust_on,bool,,crew,SPS THRUST ON pushbutton (manual backup)
+ctl.sps.thrust_on,bool,,crew,SPS THRUST ON hold-button (HUD manual backup)
 ctl.scs.att_source,int,,crew,Attitude control source: 0 CMC 1 SCS 2 DIRECT
 ctl.cmc.mode,int,,crew,CMC MODE: 0 FREE 1 HOLD 2 AUTO
 ctl.cmc.up_tlm,bool,,crew,UP TLM CM: ACCEPT (true) takes the ground's uplinks to the CMC (P27); BLOCK refuses them
@@ -30,6 +30,7 @@ time.get_s,float,s,simclock,Ground elapsed time
 eps.bus_a_v,float,V,eps,Main bus A voltage
 eps.bus_b_v,float,V,eps,Main bus B voltage
 sys.master_alarm.eps,bool,,eps,EPS master alarm
+sps.thrust_n,float,N,sps,SPS thrust now (newtons)
 dsky,group,,agc,The DSKY display channels below
 dsky.prog,string,,agc,DSKY PROG digits
 dsky.verb,string,,agc,DSKY VERB digits

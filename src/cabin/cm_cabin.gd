@@ -6,8 +6,9 @@
 ## Built in body axes (+X toward the apex, +Y right, +Z toward the crew's
 ## feet) with x = 0 at the heat-shield base, as in the space view's CSM
 ## model. The node's own basis is Frames.BODY_TO_GODOT, so at the render
-## origin it sits where the space view draws the CM. Every dimension is
-## [estimated]: the shapes follow the CM in outline only, until its
+## origin it sits where the space view draws the CM. Panel assignments are
+## transcribed from AOH Vol 1 §3 (Panels 1-3); every dimension is
+## [estimated]: the shapes follow the CM in outline only, until dimensioned
 ## drawings are transcribed.
 class_name CmCabin
 extends Cabin
@@ -17,12 +18,19 @@ const EYE_CDR := Vector3(0.75, -0.62, -0.30)
 ## Centre couch design eye point, m: the command module pilot's seat for
 ## launch and entry, and where the main DSKY is straight ahead.
 const EYE_CMP := Vector3(0.75, 0.0, -0.30)
+## Right couch design eye point, m: the lunar module pilot's station. The
+## couches run CDR-CMP-LMP left to right (AOH Vol 1 §3; TN D-7440).
+const EYE_LMP := Vector3(0.75, 0.62, -0.30)
 ## Where the player can sit.
-const SEATS := {"CDR": EYE_CDR, "CMP": EYE_CMP}
+const SEATS := {"CDR": EYE_CDR, "CMP": EYE_CMP, "LMP": EYE_LMP}
 ## Axes of a panel face and of the player anchor, in body axes: +X to the
 ## crew's right, +Y the crew's up (body -Z), +Z toward the crew (body -X).
 const FACE_BASIS := Basis(Vector3(0, 1, 0), Vector3(0, 0, -1), Vector3(-1, 0, 0))
 ## Main display console: face centre (m, body) and face size (m).
+## MDC1/MDC2/MDC3 are AOH Main Display Console Panels 1/2/3 (left/centre/
+## right as the crew sees them; AOH Vol 1 §3 p. 3-2). The real MDC is a
+## ~2.1 x 0.91 m crescent of 14 subpanels (Panels 1-10, 12, 13, 15, 16);
+## only the three top-row panels are modelled.
 const PANELS := {
 	"MDC1": {"centre": Vector3(1.35, -0.66, -0.30), "size": Vector2(0.60, 0.50)},
 	"MDC2": {"centre": Vector3(1.37, 0.0, -0.30), "size": Vector2(0.62, 0.56)},
@@ -30,7 +38,8 @@ const PANELS := {
 }
 ## Pressure vessel: inner radius VESSEL_R0 - VESSEL_SLOPE * x between the
 ## aft bulkhead and the forward bulkhead, then the tunnel to the forward
-## hatch.
+## hatch. VESSEL_R0 is ~3.7 m inner diameter at the base, the working
+## estimate derived from the wall stack (see the cabin research notes).
 const VESSEL_R0 := 1.85
 const VESSEL_SLOPE := 0.46
 const AFT_X := 0.25
@@ -39,7 +48,9 @@ const TUNNEL_R := 0.40
 const TUNNEL_X := 2.9
 ## Window openings in the wall: axial extent (m) and the angle about +X of
 ## their centre (deg; 0 is +Y, the crew's right, and -90 is -Z, the crew's
-## up), with their angular half width.
+## up), with their angular half width. The five crew windows (AOH §2.12.4.1.1):
+## side 1/5 (square), rendezvous 2/4 (triangular), hatch 3. The left
+## rendezvous window serves the commander (AOH §2.12.4.1.5).
 const WINDOWS := {
 	"LeftRendezvous": {"x": Vector2(1.45, 1.85), "phi_deg": -135.0, "half_deg": 10.0},
 	"RightRendezvous": {"x": Vector2(1.45, 1.85), "phi_deg": -45.0, "half_deg": 10.0},
@@ -186,9 +197,11 @@ func _build_couches() -> void:
 		_slab(couch, "Seat", Vector3(0.52, y, 0.31), Vector3(0.92, y, 0.58), 0.46, 0.06, pad)
 		_slab(couch, "Legs", Vector3(0.92, y, 0.58), Vector3(0.80, y, 0.98), 0.40, 0.05, pad)
 		_slab(couch, "Frame", Vector3(0.44, y, 0.40), Vector3(0.44, y, -0.60), 0.08, 0.04, frame)
-	# The commander's hand controllers: rotation on the right armrest,
-	# translation on the left. Not grabbed yet: the keys and thumbsticks fly
-	# them (HandControllerInput).
+	# The commander's hand controllers: rotation on the right armrest
+	# (RHC-1, left-hand couch right armrest), translation on the left
+	# (THC, commander's left armrest) — AOH Vol 1 §3 p. 3-9; TN D-7884.
+	# Not grabbed yet: the keys and thumbsticks fly them
+	# (HandControllerInput).
 	var arms := CabinMaterials.get_material("dsky_case")
 	_slab(self, "ArmrestRight", Vector3(0.56, -0.33, -0.05), Vector3(0.56, -0.33, 0.25), 0.07, 0.05, frame)
 	_slab(self, "ArmrestLeft", Vector3(0.56, -0.91, -0.05), Vector3(0.56, -0.91, 0.25), 0.07, 0.05, frame)

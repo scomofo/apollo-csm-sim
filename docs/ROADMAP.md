@@ -246,8 +246,9 @@ gemini-capsule's `HEADSET_RUN.md`, then Apollo's.
   translation controller on the left. Take panel identity from the CSM
   Apollo Operations Handbook. Mark dimensions `[estimated]` until
   drawings are transcribed, as gemini-capsule's `controls.csv` does.
-  Built in 2c as a blockout; the panel assignment follows the CM in
-  outline only, and the handbook pass is still to do.
+  Built in 2c as a blockout; the AOH Vol 1 §3 handbook pass is done for
+  panel assignments (MDC1/2/3 = Panels 1/2/3), while x/y placements stay
+  confidence D — Figure 3-1 carries no dimensions.
 - **Every HUD control in the cabin.** Give every control `hud.gd` offers
   a `controls.csv` row: ΔV THRUST A and B, THRUST ON, ATT SOURCE, CMC
   MODE, RCS QUAD A to D, FC 1 to 3, BATT TO BUS, ELS LOGIC, ELS AUTO,
