@@ -7,6 +7,14 @@
 ## its timeline (mission.json "lunar_timeline"): CAPCOM's calls and the
 ## PADs, each at its time, as Apollo 11 had them.
 ##
+## The ground knows the CSM as MSFN tracks it: its truth off by a tracking
+## error drawn for each request (tracked_state()). The RTCC plans the
+## CSM's PADs from that state, and uplinks it with them to the CMC (P27),
+## which takes it in P00 with UP TLM CM in ACCEPT; otherwise CAPCOM reads
+## the PAD up by voice. The flight's dispersions, those errors and the
+## CSM's unmodelled forces (Dynamics.disperse()), come from the mission's
+## seed (mission.json "dispersions").
+##
 ## In lunar orbit the flight phase follows the LM: lunar_descent from DOI
 ## (the LM's perilune brought low) to touchdown, lunar_surface while it is
 ## landed, and lunar_ascent from liftoff until it docks.
@@ -60,8 +68,12 @@ var plan: Dictionary = {}
 ## The timeline's entries done: id to the GET each happened at, or -1 for
 ## one passed by (its condition didn't hold then, or the start came after).
 var timeline_done: Dictionary = {}
+## The seed the flight's dispersions are drawn from.
+var dispersion_seed: int = 0
 var _edges: Dictionary = {}
 var _o2_failed: bool = false
+## MSFN's tracking errors, drawn from the seed request by request.
+var _rng := RandomNumberGenerator.new()
 
 
 func _ready() -> void:
@@ -139,6 +151,7 @@ func start(p_phase: String) -> void:
 	pads = {}
 	plan = {}
 	timeline_done = {}
+	_disperse()
 	var tr := _parking_orbit_traj()
 	var cfg := "stack"
 	var sps_prop := float(SpacecraftData.section("sps")["propellant_kg"])
@@ -212,6 +225,9 @@ func start(p_phase: String) -> void:
 	_timeline_pass_by(SimClock.get_seconds)
 	phase = ""
 	_update_phase()
+	# The CMC starts on the state the ground last tracked.
+	if systems.has("agc"):
+		systems["agc"].init_nav(tracked_state(dynamics.traj))
 	if cfg == "stack":
 		tli_pad = _plan_tli(dynamics.traj)
 		if not tli_pad.is_empty():
@@ -413,10 +429,13 @@ func _on_pad_request(kind: Variant) -> void:
 
 
 ## Solve and uplink a maneuver PAD: "mcc", "loi", "circ", "tei" for the
-## CMC; "doi" for the LGC, while the LM flies free; "pdi", the LGC's state
-## vector for powered descent (pdi_pad()); "ascent", the liftoff time for
-## the LGC's P12 (ascent_pad()); "csi", the rendezvous plan (csi_pad()).
-## The TEI and the liftoff come no earlier than GET [param earliest].
+## CMC, planned from the CSM's tracked state and uplinked with it (P27;
+## the PAD's "uplinked" says whether the CMC took them); "sv", that state
+## alone (sv_uplink()); "doi" for the LGC, while the LM flies free; "pdi",
+## the LGC's state vector for powered descent (pdi_pad()); "ascent", the
+## liftoff time for the LGC's P12 (ascent_pad()); "csi", the rendezvous
+## plan (csi_pad()). The TEI and the liftoff come no earlier than GET
+## [param earliest].
 func request_pad(kind: String, earliest: float = -1.0) -> Dictionary:
 	if kind == "pdi":
 		return pdi_pad()
@@ -424,7 +443,12 @@ func request_pad(kind: String, earliest: float = -1.0) -> Dictionary:
 		return ascent_pad(earliest)
 	if kind == "csi":
 		return csi_pad()
-	var tr := dynamics.traj.clone()
+	if kind == "sv":
+		return sv_uplink()
+	var tracked: Trajectory = null
+	if kind != "doi":
+		tracked = tracked_state(dynamics.traj)
+	var tr := tracked.clone() if tracked != null else dynamics.traj.clone()
 	var mass := dynamics.mass
 	var now := SimClock.get_seconds
 	var pad := {}
@@ -469,16 +493,68 @@ func request_pad(kind: String, earliest: float = -1.0) -> Dictionary:
 		plan["pdi_tig"] = pad["hp_get"]
 	elif kind == "tei":
 		plan["tei_tig"] = pad["tig"]
-	var computer := "lgc" if kind == "doi" else "agc"
-	if systems.has(computer):
-		systems[computer].uplink_maneuver(float(pad["tig"]), pad["dv_lvlh"])
-	if kind == "doi" and systems.has("lgc"):
-		systems["lgc"].uplink_landing_site(landing_site())
 	var text := Rtcc.pad_text(pad)
 	Bus.set_value("mission.pad_text", text)
-	_say("Houston, uplinking " + text)
+	if kind == "doi":
+		if systems.has("lgc"):
+			systems["lgc"].uplink_maneuver(float(pad["tig"]), pad["dv_lvlh"])
+			systems["lgc"].uplink_landing_site(landing_site())
+		_say("Houston, uplinking " + text)
+	else:
+		var agc: AgcCore = systems.get("agc")
+		pad["state"] = tracked
+		pad["uplinked"] = agc != null and agc.uplink_state(tracked) and agc.uplink_maneuver(
+			float(pad["tig"]), pad["dv_lvlh"])
+		if pad["uplinked"]:
+			_say("Houston, uplinking your state vector and " + text)
+		else:
+			_say("Houston: Columbia, we can't uplink, we need P00 and UP TLM to ACCEPT. By voice: " + text)
 	_fire("pad_" + kind)
 	return pad
+
+
+## The CSM's state vector for the CMC (P27, V71): the state MSFN tracked.
+## Returns {"name": "SV", "tig": the GET, "state": that Trajectory,
+## "uplinked": whether the CMC took it (P00, UP TLM CM in ACCEPT)}.
+func sv_uplink() -> Dictionary:
+	var agc: AgcCore = systems.get("agc")
+	var tracked := tracked_state(dynamics.traj)
+	var pad := {"name": "SV", "tig": SimClock.get_seconds, "state": tracked,
+		"uplinked": agc != null and agc.uplink_state(tracked)}
+	last_pad = pad
+	pads["sv"] = pad
+	if pad["uplinked"]:
+		Bus.set_value("mission.pad_text", "STATE VECTOR uplinked at %s" % Units.hms(SimClock.get_seconds))
+		_say("Houston: Columbia, your state vector is in.")
+	else:
+		_say("Houston: Columbia, we have a state vector for you, P00 and UP TLM to ACCEPT please.")
+	_fire("pad_sv")
+	return pad
+
+
+## The state MSFN tracked for [param tr]: its truth, off by a tracking
+## error drawn for this request (mission.json "msfn": standard deviations in
+## LVLH, by the body [param tr]'s orbit is about).
+func tracked_state(tr: Trajectory) -> Trajectory:
+	var out := tr.clone()
+	var e: Dictionary = mission.section("msfn").get(tr.primary, {})
+	var sp: Array = e.get("pos_m", [0.0, 0.0, 0.0])
+	var sv: Array = e.get("vel_mps", [0.0, 0.0, 0.0])
+	var lv := Trajectory.lvlh_basis(out.pos(), out.vel())
+	var dp := lv * Vector3(_rng.randfn(0.0, sp[0]), _rng.randfn(0.0, sp[1]), _rng.randfn(0.0, sp[2]))
+	var dv := lv * Vector3(_rng.randfn(0.0, sv[0]), _rng.randfn(0.0, sv[1]), _rng.randfn(0.0, sv[2]))
+	for i in 3:
+		out.s[i] += dp[i]
+		out.s[3 + i] += dv[i]
+	return out
+
+
+## Seed the flight's dispersions (mission.json "dispersions"): the CSM's
+## unmodelled forces, and MSFN's tracking errors to come.
+func _disperse() -> void:
+	dispersion_seed = int(mission.section("dispersions").get("seed", 0))
+	dynamics.disperse(dispersion_seed)
+	_rng.seed = dispersion_seed + 1
 
 
 ## The PDI PAD, after DOI: the ground predicts PDI with the LGC's own
@@ -855,7 +931,7 @@ func _say(text: String) -> void:
 func snapshot() -> Dictionary:
 	return {"phase": phase, "events": events.duplicate(true), "visited_lunar_orbit": visited_lunar_orbit,
 		"tli_cutoff_get": tli_cutoff_get, "o2_failed": _o2_failed, "plan": plan.duplicate(),
-		"timeline_done": timeline_done.duplicate()}
+		"timeline_done": timeline_done.duplicate(), "seed": dispersion_seed, "rng_state": str(_rng.state)}
 
 
 func restore(d: Dictionary) -> void:
@@ -866,6 +942,9 @@ func restore(d: Dictionary) -> void:
 	_o2_failed = bool(d.get("o2_failed", false))
 	plan = d.get("plan", {}).duplicate()
 	timeline_done = d.get("timeline_done", {}).duplicate()
+	dispersion_seed = int(d.get("seed", 0))
+	_rng.seed = dispersion_seed + 1
+	_rng.state = str(d.get("rng_state", str(_rng.state))).to_int()
 	pads = {}
 	Bus.set_value("mission.phase", phase)
 	for e in events:

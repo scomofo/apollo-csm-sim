@@ -27,6 +27,7 @@ P2_RCS_QUAD_B,MDC2,toggle,RCS QUAD B,-180,190,0,ctl.rcs.quad_b,,estimated,D,impl
 P2_RCS_QUAD_C,MDC2,toggle,RCS QUAD C,180,190,0,ctl.rcs.quad_c,,estimated,D,implemented,proxy
 P2_RCS_QUAD_D,MDC2,toggle,RCS QUAD D,240,190,0,ctl.rcs.quad_d,,estimated,D,implemented,proxy
 P2_DSKY,MDC2,dsky,DSKY,0,-50,0,dsky,,estimated,D,implemented,historical
+P2_UP_TLM_CM,MDC2,toggle,UP TLM CM,180,40,0,ctl.cmc.up_tlm,labels=BLOCK|ACCEPT,estimated,D,implemented,historical
 P3_FC1,MDC3,toggle,FC 1,-200,120,0,ctl.eps.fc1,,estimated,D,implemented,proxy
 P3_FC2,MDC3,toggle,FC 2,-130,120,0,ctl.eps.fc2,,estimated,D,implemented,proxy
 P3_FC3,MDC3,toggle,FC 3,-60,120,0,ctl.eps.fc3,,estimated,D,implemented,proxy

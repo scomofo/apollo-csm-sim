@@ -14,6 +14,17 @@
 ##   P61  Entry preparation: V16N64 (g, velocity, altitude)
 ##   P64  Entry guidance (auto at 0.05 g): bank-angle drag control
 ##   P67  Entry final phase (lift up)
+##   P27  Update: the ground's uplinks (V71), the state vector and a PAD's
+##        P30 loads, taken in P00 with the UP TLM CM switch in ACCEPT
+##        (ctl.cmc.up_tlm); the DSKY shows P27 while UPLINK ACTY is lit
+##
+## Navigation: the CMC flies on its own state vector (the core's nav),
+## which a start phase sets to the state the ground last tracked. Average-G
+## adds the CSM's sensed ΔV in P40, P41, P47 and entry, and while the S-IVB
+## burns TLI [simplified: the monitor, P15, isn't modelled]. In coast it
+## doesn't: the small forces there (vents, unbalanced jets, a translation
+## in P00) move the CSM off the state vector, and the ground's uplinks take
+## that out.
 ##
 ## Digital autopilot (active when ctl.scs.att_source == 0, CMC):
 ##   ctl.cmc.mode 0 FREE  RHC commands acceleration, no hold
@@ -21,6 +32,7 @@
 ##                2 AUTO  as HOLD, plus program-commanded maneuvers
 ## It doesn't fly the S-IVB stack (the IU does) or in the atmosphere.
 ##
+## Reads:  the core's, ctl.cmc.up_tlm, sivb.state
 ## Writes: the core's channels (guid.*, dsky.*), guid.sps_on,
 ##         guid.bank_auto and guid.bank_cmd_deg
 class_name Agc
@@ -30,6 +42,10 @@ const ENTRY_G_REF := 4.0          ## g, constant-drag reference
 const ENTRY_FINAL_V := 3000.0     ## m/s, P67 below this
 
 var entry_captured: bool = false
+
+
+## The programs whose Average-G puts the sensed ΔV into the state vector.
+const AVERAGE_G := [40, 41, 47, 61, 64, 67]
 
 
 func programs() -> Array:
@@ -90,17 +106,30 @@ func start_program(p: int) -> void:
 		dsky.show(16, 64)
 
 
+## P27 runs from P00, and only with the UP TLM CM switch in ACCEPT.
+func accepts_uplink() -> bool:
+	return super.accepts_uplink() and program == 0 and bool(Bus.get_value("ctl.cmc.up_tlm", true))
+
+
+func avg_g() -> bool:
+	return program in AVERAGE_G or str(Bus.get_value("sivb.state", "")) == "burning"
+
+
 func extra_step() -> void:
 	_entry_step()
 
 
+## Entry guidance flies on the sensed deceleration (g) and the state
+## vector's speed and altitude rate.
 func _entry_step() -> void:
+	if not program in [61, 64, 67]:
+		Bus.set_value("guid.bank_auto", false)
+		return
 	var g := float(Bus.get_value("dyn.g_load", 0.0))
-	var in_atm := bool(Bus.get_value("dyn.in_atmosphere", false))
-	if program == 61 and in_atm and g >= 0.05:
+	if program == 61 and g >= 0.05:
 		change_program(64)
-	var speed := float(Bus.get_value("dyn.speed_mps", 0.0))
-	if program == 64 and speed < ENTRY_FINAL_V:
+	var tr := current_traj()
+	if program == 64 and tr.speed() < ENTRY_FINAL_V:
 		change_program(67)
 	var auto := (program == 64 or program == 67) and att_source() == 0
 	Bus.set_value("guid.bank_auto", auto)
@@ -115,7 +144,7 @@ func _entry_step() -> void:
 		if g >= ENTRY_G_REF * 0.75:
 			entry_captured = true
 		if entry_captured:
-			var hdot := float(Bus.get_value("dyn.alt_rate_mps", 0.0))
+			var hdot := tr.radial_rate()
 			var u := 0.2 + 1.5 * (g - ENTRY_G_REF) / ENTRY_G_REF - 0.01 * hdot
 			cmd = rad_to_deg(acos(clampf(u, -1.0, 1.0)))
 	Bus.set_value("guid.bank_cmd_deg", cmd)

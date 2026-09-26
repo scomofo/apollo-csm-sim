@@ -8,6 +8,7 @@ ctl.sps.arm_b,bool,,crew,DELTA-V THRUST B: SPS pilot valve bank B armed
 ctl.sps.thrust_on,bool,,crew,SPS THRUST ON pushbutton (manual backup)
 ctl.scs.att_source,int,,crew,Attitude control source: 0 CMC 1 SCS 2 DIRECT
 ctl.cmc.mode,int,,crew,CMC MODE: 0 FREE 1 HOLD 2 AUTO
+ctl.cmc.up_tlm,bool,,crew,UP TLM CM: ACCEPT (true) takes the ground's uplinks to the CMC (P27); BLOCK refuses them
 ctl.rcs.quad_a,bool,,crew,SM RCS quad A enabled
 ctl.rcs.quad_b,bool,,crew,SM RCS quad B enabled
 ctl.rcs.quad_c,bool,,crew,SM RCS quad C enabled

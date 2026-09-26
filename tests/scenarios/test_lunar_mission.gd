@@ -14,6 +14,7 @@ func test_midcourse_correction_and_lunar_orbit_insertion() -> void:
 	var mcc := rt.sequencer.request_pad("mcc")
 	if not mcc.is_empty():
 		gut.p("MCC " + Rtcc.pad_text(mcc))
+		assert_true(mcc["uplinked"], "the MCC PAD came up with the state vector (P27)")
 		var dv := fly_pad()
 		assert_almost_eq(dv, float(mcc["dv"]), 0.5, "MCC ΔV flown")
 	# Coast to about 8 h before pericynthion, then get the LOI PAD.
@@ -21,9 +22,17 @@ func test_midcourse_correction_and_lunar_orbit_insertion() -> void:
 	gut.p("pericynthion after MCC: %.1f km" % ((float(ap["rp"]) - Bodies.R_MOON) / 1000.0))
 	assert_between((float(ap["rp"]) - Bodies.R_MOON) / 1000.0, 60.0, 180.0, "MCC hit the pericynthion target")
 	run(float(ap["t"]) - 8.0 * 3600.0 - SimClock.get_seconds)
+	# The coast's unmodelled forces moved the CSM off the CMC's state
+	# vector; the LOI PAD's uplink takes that out.
+	var drift := (rt.agc().nav.pos() - rt.dynamics.traj.pos()).length()
 	var loi := rt.sequencer.request_pad("loi")
 	assert_false(loi.is_empty(), "LOI solution")
 	gut.p("LOI " + Rtcc.pad_text(loi))
+	assert_true(loi["uplinked"], "the LOI PAD came up with the state vector (P27)")
+	var left := (rt.agc().nav.pos() - rt.dynamics.traj.pos()).length()
+	gut.p("before the LOI PAD the CMC was %.1f km off; the uplink left it %.2f km off" % [drift / 1000.0, left / 1000.0])
+	assert_gt(drift, left, "the uplink took out the coast's drift")
+	assert_lt(left, 2000.0, "to MSFN's tracking error")
 	assert_between(float(loi["dv"]), 800.0, 1000.0, "LOI-1 ΔV (Apollo 11: 889 m/s)")
 	var sps0 := float(Bus.get_value("sps.prop_kg"))
 	var dv := fly_pad()

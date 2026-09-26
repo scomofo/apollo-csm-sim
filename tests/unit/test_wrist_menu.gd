@@ -157,8 +157,10 @@ func test_recentre_restores_the_view() -> void:
 
 func test_checklist_buttons_work_the_shared_book() -> void:
 	_book.select_for_phase("translunar_coast")
+	Bus.set_value("ctl.cmc.up_tlm", true)
+	_book.update()
 	_menu.activate("next")
-	assert_eq(_book.list().index, 1, "NEXT STEP acknowledges the read-only step")
+	assert_eq(_book.list().index, 2, "NEXT STEP acknowledges the read-only step")
 	_menu.activate("checklist")
 	assert_eq(_book.list().title, "Lunar orbit and TEI", "CHECKLIST opens the next one")
 	assert_true(Bus.get_value("present.checklist.highlight_enabled"), "the highlight starts on")

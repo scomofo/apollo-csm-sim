@@ -8,7 +8,9 @@
       {"text": "CSM/LV SEP: transposition, docking and LM extraction", "control": "P1_CSM_LV_SEP", "check": {"channel": "dyn.config", "op": "eq", "value": "csm_lm"}}
     ]},
     {"title": "SPS burn (P30 / P40)", "phases": ["translunar_coast"], "steps": [
-      {"text": "Mission Control: request the PAD (uplink lights UPLINK ACTY)"},
+      {"text": "UP TLM CM - ACCEPT, in P00, for the ground's uplink", "control": "P2_UP_TLM_CM", "check": {"channel": "ctl.cmc.up_tlm", "op": "eq", "value": true}},
+      {"text": "Mission Control: request the PAD (P27 takes the state vector and the P30 loads: UPLINK ACTY)"},
+      {"text": "UP TLM CM - BLOCK", "control": "P2_UP_TLM_CM", "check": {"channel": "ctl.cmc.up_tlm", "op": "eq", "value": false}},
       {"text": "V37E 30E - P30 External Delta-V", "control": "P2_DSKY", "check": {"channel": "guid.program", "op": "eq", "value": 30}},
       {"text": "Verify TIG (N33), PRO; verify N81 DV, PRO; check N42, PRO", "control": "P2_DSKY", "check": {"channel": "guid.maneuver_valid", "op": "eq", "value": true}},
       {"text": "CMC MODE - AUTO", "check": {"channel": "ctl.cmc.mode", "op": "eq", "value": 2}},

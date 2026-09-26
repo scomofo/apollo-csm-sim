@@ -164,6 +164,11 @@ func _fly_burn(short: float = 0.0) -> float:
 ## Returns the PAD with the ΔV flown.
 func _burn(kind: String, short: float = 0.0) -> Dictionary:
 	await open_checklist("SPS burn (P30 / P40)")
+	await wait_process_frames(1)
+	await slow_down()
+	if current_step().begins_with("UP TLM CM - ACCEPT"):
+		# BLOCK since the last burn.
+		await switch_to("P2_UP_TLM_CM", 1)
 	await expect_step("Mission Control: request the PAD")
 	await click_menu(kind)
 	var pad: Dictionary = rt.sequencer.last_pad
@@ -171,6 +176,8 @@ func _burn(kind: String, short: float = 0.0) -> Dictionary:
 	assert_true(dsky.lamps["uplink_acty"].get("lit"), "UPLINK ACTY")
 	gut.p(Rtcc.pad_text(pad))
 	await click_menu("next")
+	await expect_step("UP TLM CM - BLOCK")
+	await switch_to("P2_UP_TLM_CM", 0)
 	# P30 about 20 minutes before TIG.
 	await fly(float(pad["tig"]) - 1200.0 - SimClock.get_seconds, 3600.0)
 	pad["flown"] = await _fly_burn(short)

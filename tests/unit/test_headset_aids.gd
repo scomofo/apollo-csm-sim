@@ -182,13 +182,12 @@ func test_the_checklist_highlight_is_off_in_authentic_mode() -> void:
 	add_child_autofree(cabin)
 	var book := ChecklistBook.load_default()
 	book.select_for_phase("translunar_coast")
-	book.next()
 	var hl := ChecklistHighlight.new()
 	hl.cabin = cabin
 	hl.book = book
 	cabin.add_child(hl)
 	hl.update()
-	assert_eq(hl.target_id, "P2_DSKY")
+	assert_eq(hl.target_id, "P2_UP_TLM_CM")
 	Bus.set_value("present.comfort.authentic", true)
 	hl.update()
 	assert_eq(hl.target_id, "", "authentic mode")

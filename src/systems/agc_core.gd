@@ -23,9 +23,14 @@
 ##   V06/V16 display/monitor, V21-V25 load, V34 terminate, V35 lamp test,
 ##   V37 change program, V82 orbit parameters (V16N44)
 ##
-## Navigation is ideal [simplified]: the state vector and IMU equal truth
-## (no P52 alignment, no state-vector uplink drift). REFSMMAT is the ECI
-## frame, so ICDU angles are inertial Euler angles.
+## Navigation: each computer flies on its own state vector (nav), never
+## truth. It coasts it with its own integration, and adds its vehicle's
+## sensed ΔV (dyn.dv_step) only while Average-G runs (avg_g()). The ground's
+## uplinks replace it (P27, V71) when the computer takes them
+## (accepts_uplink()); until it has one it takes its vehicle's truth. The
+## IMU is ideal [simplified: milestone 4c]: the attitude and the sensed ΔV
+## are true, REFSMMAT is the ECI frame, so ICDU angles are inertial Euler
+## angles.
 ##
 ## Digital autopilot, from the computer's mode switch:
 ##   0 FREE  hand controller commands acceleration, no hold
@@ -85,9 +90,16 @@ var _rhc_was_active: bool = false
 var _last_source: int = -1
 var desired_q: Quaternion = Quaternion.IDENTITY
 
+## The computer's state vector; null until it has one.
+var nav: Trajectory = null
+## GET the ground's last state vector came up (P27), or -1.
+var nav_uplink_get: float = -1.0
+
 var alarm_code: int = 0
 var _display_timer: float = 0.0
 var _uplink_timer: float = 0.0
+## P27 has the DSKY while UPLINK ACTY is lit (an uplink taken in P00).
+var _p27_display: bool = false
 var _lamp_test_timer: float = 0.0
 var _powered: bool = true
 
@@ -189,12 +201,23 @@ func start_program(_p: int) -> void:
 	pass
 
 
+## The computer takes the ground's uplinks now (P27): it was powered at
+## its last step.
+func accepts_uplink() -> bool:
+	return _powered
+
+
+## Average-G runs: the vehicle's sensed ΔV goes into the state vector.
+func avg_g() -> bool:
+	return true
+
+
 ## A program step the core doesn't run (entry guidance on the CMC).
 func extra_step() -> void:
 	pass
 
 
-# --- truth access (ideal navigation) ---------------------------------------
+# --- truth access (the vehicle's sensors, and the state before navigation) ---
 
 func _ch(name: String) -> String:
 	return prefix + name
@@ -212,13 +235,66 @@ func _omega() -> Vector3:
 	return Bus.get_value(_ch("dyn.omega"), Vector3.ZERO)
 
 
-func current_traj() -> Trajectory:
+## The vehicle's true state, what the state vector starts from.
+func truth_traj() -> Trajectory:
 	var t := Trajectory.new()
 	var r: Array = Bus.get_value(_ch("dyn.r_m"), [Bodies.R_EARTH + 185000.0, 0.0, 0.0])
 	var v: Array = Bus.get_value(_ch("dyn.v_mps"), [0.0, 7790.0, 0.0])
 	t.set_state_d(str(Bus.get_value(_ch("dyn.primary"), "earth")), _now(),
 		PackedFloat64Array([r[0], r[1], r[2], v[0], v[1], v[2]]))
 	return t
+
+
+# --- navigation -------------------------------------------------------------
+
+## The computer's state vector (a copy), or truth before it has one.
+func current_traj() -> Trajectory:
+	if nav == null:
+		return truth_traj()
+	return nav.clone()
+
+
+## Set the state vector to [param tr] without an uplink (a start phase's).
+func init_nav(tr: Trajectory) -> void:
+	nav = tr.clone()
+	nav_uplink_get = -1.0
+
+
+## The ground's state vector [param tr] replaces the computer's (P27,
+## V71), which coasts it on from its time. Returns false, and leaves the
+## state vector as it was, when the computer doesn't take uplinks now
+## (accepts_uplink()).
+func uplink_state(tr: Trajectory) -> bool:
+	if not accepts_uplink():
+		return false
+	nav = tr.clone()
+	nav_uplink_get = _now()
+	_uplink_shown()
+	return true
+
+
+## Stage DEPENDENT, after Dynamics stepped: coast the state vector to now,
+## with this step's sensed ΔV while Average-G runs. Without one, it takes
+## the vehicle's truth.
+func _navigate() -> void:
+	if nav == null:
+		nav = truth_traj()
+		return
+	var now := _now()
+	var h := now - nav.t
+	if h <= 0.0:
+		return
+	if h > 60.0:
+		# Longer than a step (a state vector from before a start phase's
+		# time): coast it up.
+		nav.coast_to(now)
+		return
+	var ext := PackedFloat64Array()
+	if avg_g():
+		var d: Array = Bus.get_value(_ch("dyn.dv_step"), [0.0, 0.0, 0.0])
+		if float(d[0]) != 0.0 or float(d[1]) != 0.0 or float(d[2]) != 0.0:
+			ext = PackedFloat64Array([float(d[0]) / h, float(d[1]) / h, float(d[2]) / h])
+	nav.step(h, ext)
 
 
 ## State predicted at GET [param tig] (coasting).
@@ -319,11 +395,26 @@ func key_release() -> void:
 
 ## Load a maneuver PAD from the ground (the RTCC), as a real uplink would:
 ## it fills the P30 registers; the crew still runs P30 to accept it.
-func uplink_maneuver(tig: float, dv_lvlh: Vector3) -> void:
+## Returns false, loading nothing, when the computer doesn't take uplinks
+## now (accepts_uplink()).
+func uplink_maneuver(tig: float, dv_lvlh: Vector3) -> bool:
+	if not accepts_uplink():
+		return false
 	tig_load = tig
 	dv_lvlh_load = dv_lvlh
+	_uplink_shown()
+	return true
+
+
+## An uplink came in: UPLINK ACTY for a couple of seconds, and in P00 the
+## DSKY shows P27 and the ground's V71 meanwhile.
+func _uplink_shown() -> void:
 	_uplink_timer = 2.0
 	dsky.set_lamp("uplink_acty", true)
+	if program == 0:
+		_p27_display = true
+		dsky.set_prog(27)
+		dsky.show(71, -1)
 
 
 # --- programs ---------------------------------------------------------------
@@ -337,6 +428,7 @@ func change_program(p: int) -> bool:
 	dsky.lamps["key_rel"] = false
 	program = p
 	step_name = ""
+	_p27_display = false
 	auto_active = false
 	engine_enabled = false
 	engine_on = false
@@ -480,8 +572,12 @@ func tick(dt: float) -> void:
 func sense(_dt: float) -> void:
 	var d: Array = Bus.get_value(_ch("dyn.dv_step"), [0.0, 0.0, 0.0])
 	var step := Vector3(d[0], d[1], d[2])
-	if step == Vector3.ZERO:
-		return
+	if step != Vector3.ZERO:
+		_sense_step(step)
+	_navigate()
+
+
+func _sense_step(step: Vector3) -> void:
 	if _thrusting_program() and (step_name == "burn" or step_name == "tailoff" or step_name == "post"):
 		if step_name == "post":
 			# Residual trimming with the RCS works on the VG vector.
@@ -501,6 +597,12 @@ func _timers(dt: float) -> void:
 		_uplink_timer -= dt
 		if _uplink_timer <= 0.0:
 			dsky.set_lamp("uplink_acty", false)
+			if _p27_display:
+				# P27 done: back to P00's display.
+				_p27_display = false
+				if program == 0:
+					dsky.set_prog(0)
+					dsky.blank()
 	if _lamp_test_timer > 0.0:
 		_lamp_test_timer -= dt
 		if _lamp_test_timer <= 0.0:
@@ -701,6 +803,8 @@ func snapshot() -> Dictionary:
 		"auto_active": auto_active, "hold_q": [hold_q.x, hold_q.y, hold_q.z, hold_q.w],
 		"auto_target": [auto_target.x, auto_target.y, auto_target.z, auto_target.w],
 		"desired_q": [desired_q.x, desired_q.y, desired_q.z, desired_q.w],
+		"nav": {"primary": nav.primary, "t": nav.t, "s": Array(nav.s)} if nav != null else {},
+		"nav_uplink_get": nav_uplink_get,
 	}
 
 
@@ -734,4 +838,10 @@ func restore(d: Dictionary) -> void:
 	var dq: Array = d.get("desired_q", [])
 	if dq.size() == 4:
 		desired_q = Quaternion(dq[0], dq[1], dq[2], dq[3])
+	nav = null
+	var nd: Dictionary = d.get("nav", {})
+	if not nd.is_empty():
+		nav = Trajectory.new()
+		nav.set_state_d(str(nd["primary"]), float(nd["t"]), PackedFloat64Array(nd["s"]))
+	nav_uplink_get = float(d.get("nav_uplink_get", -1.0))
 	_publish()

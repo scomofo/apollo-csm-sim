@@ -424,12 +424,19 @@ func test_loi_turns_the_orbit_over_the_site() -> void:
 	var dv: Vector3 = loi["dv_lvlh"]
 	assert_ne(dv.y, 0.0, "an out-of-plane part")
 	assert_lt(absf(dv.y), 60.0, "a small plane change")
-	# The orbit the PAD leaves, flown as the RTCC flies it.
-	var tr := rt.dynamics.traj.clone()
-	tr.coast_to(float(loi["tig"]), 60.0)
-	Rtcc.simulate_sps_burn(tr, rt.dynamics.mass, dv)
-	var h := tr.pos().cross(tr.vel()).normalized()
+	# The orbit the PAD leaves, flown as the RTCC flies it: from the state
+	# MSFN tracked, the one the RTCC planned on, over the site; from the
+	# truth, off it by what the tracking error makes (under 2 km).
 	var t_land := float(rt.mission.section("landing")["get_s"])
 	var s := Rtcc.site_at(rt.sequencer.landing_site(), t_land).normalized()
-	assert_almost_eq(h.dot(s), 0.0, 1e-5, "over the site at the landing time")
-	assert_lt(h.dot(Bodies.moon_pole(t_land)), 0.0, "retrograde")
+	for from in [loi["state"], rt.dynamics.traj]:
+		var tr: Trajectory = (from as Trajectory).clone()
+		tr.coast_to(float(loi["tig"]), 60.0)
+		Rtcc.simulate_sps_burn(tr, rt.dynamics.mass, dv)
+		var h := tr.pos().cross(tr.vel()).normalized()
+		assert_lt(h.dot(Bodies.moon_pole(t_land)), 0.0, "retrograde")
+		if from == loi["state"]:
+			assert_almost_eq(h.dot(s), 0.0, 1e-5, "over the site at the landing time")
+		else:
+			gut.p("From the truth the orbit passes %.0f m from the site" % (absf(h.dot(s)) * Bodies.R_MOON))
+			assert_lt(absf(h.dot(s)) * Bodies.R_MOON, 2000.0, "near the site")

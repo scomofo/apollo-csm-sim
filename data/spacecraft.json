@@ -131,6 +131,11 @@
     "lm":     {"inertia": [33000.0, 42000.0, 42000.0], "ref_mass_kg": 15103.0},
     "lm_ascent": {"inertia": [7000.0, 5000.0, 5000.0], "ref_mass_kg": 4821.0}
   },
+  "unmodelled": {
+    "_source": "Small forces on the CSM that its computer's navigation doesn't model [estimated]: the SM's vents (waste water, fuel cell purges) as a steady force, standard deviation per body axis in N (0.01 N is about 6e-7 m/s^2 on the CSM alone); and the attitude jets' net force from their mismatched thrust and alignment, standard deviation per body axis as a fraction of the force the jets' torque takes. Drawn once for the flight from the mission's seed (mission.json \"dispersions\")",
+    "vent_force_n": 0.01,
+    "jet_imbalance": 0.02
+  },
   "docking": {
     "_source": "Probe-and-drogue docking [estimated throughout]: each docking port's distance from its vehicle's centre of mass along +X (the LM's, whole and as its ascent stage), the probe's push apart at undocking, the capture limits (closing speed, lateral speed, lateral miss, misalignment, relative rate), the radius within which the probe strikes the LM, and the rebound of a contact without capture",
     "csm_port_m": 5.5,

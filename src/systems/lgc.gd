@@ -72,7 +72,7 @@
 ## (V81): the first after an uplink takes the radar's relative position
 ## outright, later ones weight it and the range rate in. V06N49 shows the
 ## last update. [simplified: the IMU is ideal, so the sensed ΔV and the
-## attitude are true; the CMC still reads truth (milestone 4b)]
+## attitude are true]
 ##
 ## The LGC runs while the LM flies free [simplified: the LM powers up as it
 ## undocks; docked, and after LM JETT, the LGC is dark and the CSM flies
@@ -138,9 +138,8 @@ var tgo: float = 0.0
 var descent_throttle: float = 0.1
 ## P66's altitude rate, m/s (negative down).
 var rod_cmd: float = 0.0
-## The LGC's state vector; null until it powers up.
-var nav: Trajectory = null
-## Where the LGC has the LM on the surface (Moon-fixed), once landed.
+## Where the LGC has the LM on the surface (Moon-fixed), once landed. (Its
+## state vector is the core's nav, null until it powers up.)
 var nav_landed_mf: Vector3 = Vector3.ZERO
 ## V57: the landing radar may update the state vector.
 var lr_update: bool = false
@@ -296,30 +295,22 @@ func authority() -> Vector3:
 	return Vector3(t / inertia.x, t / inertia.y, t / inertia.z)
 
 
-## The LM's accelerometers count only while it flies free. The LGC's
-## state vector moves on to now with them.
+## The LM's accelerometers count only while it flies free, and the LGC's
+## state vector moves on to now with them (the core's sense()).
 func sense(dt: float) -> void:
 	if _free():
 		super.sense(dt)
-		_navigate()
 
 
 # --- navigation ----------------------------------------------------------------------
 
-## The LGC's state vector (a copy), or truth before it has one.
-func current_traj() -> Trajectory:
-	if nav == null:
-		return super.current_traj()
-	return nav.clone()
-
-
 ## Replace the state vector with the ground's [param tr] (P27, V71): the
 ## LGC coasts it on from its time.
-func uplink_state(tr: Trajectory) -> void:
-	nav = tr.clone()
+func uplink_state(tr: Trajectory) -> bool:
+	if not super.uplink_state(tr):
+		return false
 	nav_landed_mf = Vector3.ZERO
-	_uplink_timer = 2.0
-	dsky.set_lamp("uplink_acty", true)
+	return true
 
 
 ## Replace the CSM's state vector with the ground's [param tr] (P27). The
@@ -349,13 +340,15 @@ func uplink_liftoff(tig: float) -> void:
 
 
 ## Stage DEPENDENT: coast the state vector to now with this step's sensed
-## ΔV; on the surface, hold it at the spot it landed at.
+## ΔV (all of it: Average-G always runs while the LM flies free
+## [simplified]); on the surface, hold it at the spot it landed at. The
+## CSM's state vector coasts along.
 func _navigate() -> void:
 	var now := _now()
 	if csm_nav != null and csm_nav.t < now:
 		csm_nav.coast_to(now)
 	if nav == null:
-		nav = super.current_traj()   # the CSM's, handed over at undocking
+		super._navigate()   # the LM's truth: the CSM's, handed over at undocking
 		return
 	if bool(Bus.get_value("lm.dyn.landed", false)):
 		if nav_landed_mf == Vector3.ZERO:
@@ -364,14 +357,7 @@ func _navigate() -> void:
 		nav.set_state("moon", now, r, Bodies.moon_omega(now).cross(r))
 		return
 	nav_landed_mf = Vector3.ZERO
-	var h := now - nav.t
-	if h <= 0.0:
-		return
-	var d: Array = Bus.get_value("lm.dyn.dv_step", [0.0, 0.0, 0.0])
-	var ext := PackedFloat64Array()
-	if float(d[0]) != 0.0 or float(d[1]) != 0.0 or float(d[2]) != 0.0:
-		ext = PackedFloat64Array([float(d[0]) / h, float(d[1]) / h, float(d[2]) / h])
-	nav.step(h, ext)
+	super._navigate()
 
 
 ## Every 2 s in P63 to P66: read the landing radar. ΔH is its altitude
@@ -1186,9 +1172,7 @@ func snapshot() -> Dictionary:
 		"pdi_tig": pdi_tig, "tgo": tgo, "throttle": descent_throttle, "rod_cmd": rod_cmd, "guide_get": _guide_get,
 		"lr_update": lr_update, "delta_h": delta_h, "lr_timer": _lr_timer,
 	}
-	if nav != null:
-		d["nav"] = {"primary": nav.primary, "t": nav.t, "s": Array(nav.s),
-			"landed_mf": [nav_landed_mf.x, nav_landed_mf.y, nav_landed_mf.z]}
+	d["nav_landed_mf"] = [nav_landed_mf.x, nav_landed_mf.y, nav_landed_mf.z]
 	d["ascent"] = {"targets": ascent_targets.duplicate(), "base": ascent_base,
 		"plane": [ascent_plane.x, ascent_plane.y, ascent_plane.z]}
 	if csm_nav != null:
@@ -1211,13 +1195,7 @@ func restore(d: Dictionary) -> void:
 	_restoring = true
 	super.restore(d)
 	_restoring = false
-	nav = null
-	nav_landed_mf = Vector3.ZERO
-	var nd: Dictionary = d.get("nav", {})
-	if not nd.is_empty():
-		nav = Trajectory.new()
-		nav.set_state_d(str(nd["primary"]), float(nd["t"]), PackedFloat64Array(nd["s"]))
-		nav_landed_mf = _v3(nd["landed_mf"])
+	nav_landed_mf = _v3(d.get("nav_landed_mf", [0.0, 0.0, 0.0]))
 	csm_nav = null
 	var cd: Dictionary = d.get("csm_nav", {})
 	if not cd.is_empty():
