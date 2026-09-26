@@ -24,6 +24,8 @@ executed through the Apollo Guidance Computer's DSKY.
 
 ![P52 after 12 hours of translunar coast: the CMC has driven the optics to Menkent from its drifted platform, and the star sits 0.15° off the sextant's reticle for the crew to centre and mark](docs/images/optics_p52.png)
 
+![P23 on the way home: the sextant's landmark line lays the Earth's disc over the star line's view, and Alpheratz sits on its horizon for the mark](docs/images/optics_p23.png)
+
 The project used
 [scomofo/gemini-capsule](https://github.com/scomofo/gemini-capsule) as its
 template and began as the `apollo/` directory of that repository. It now
@@ -118,7 +120,8 @@ undocking to TEI) and at entry.
    (~875 m/s, 6 min, 53 × 170 nmi). Two revs later, fly **LOI-2** to
    circularize.
 5. **TEI.** Press **LM JETT**, then **TEI**, and fly it. Then fly one or two
-   transearth **MCC**s until the vacuum perigee is about 37 km (20 nmi).
+   transearth **MCC**s until the vacuum perigee is about 37 km (20 nmi),
+   or navigate on board with P23 and plan them with P37 (below).
    Before LM JETT you can undock and dock again (below).
 6. **Entry.** Press **CM/SM SEP** and select `V37E61E`. Set ELS LOGIC and
    ELS AUTO on. P64 steers the bank angle at 0.05 g, P67 takes over below
@@ -168,6 +171,37 @@ the IMU up at zero gimbal angles; find two stars yourself, MARK each and
 load its octal code (`V21E`, the code, `E`, PRO), and P51 works out the
 platform's orientation. The 37 navigation stars and their codes are in
 [data/stars/navigation_stars.json](data/stars/navigation_stars.json).
+
+**Navigating on board.** The CMC can keep its own state vector with the
+sextant, as the crew did in case the ground went quiet. P23
+(`V37E23E`) marks a star on the Earth's or the Moon's horizon. At
+V05N70 load the star's code (`V21E`, the code, `E`) and the horizon
+(`V23E`, 1 for the Earth's or 2 for the Moon's, `E`), then PRO. A star
+behind the body, or more than 57.5° from its horizon, brings PROG and
+00404. V50N18 is the attitude that lays the sextant's landmark line,
+which looks along the optics' shaft axis, on the horizon under the
+star: in CMC MODE AUTO, PRO flies there, and at V51 the CMC has driven
+the optics to the star. The sextant lays the landmark line's fainter
+view of the Earth or the Moon over the star line's. In OPTICS MODE
+MANUAL, move the star onto the horizon and MARK: the trunnion angle is
+then the angle between them. V06N49 shows how far the mark would move
+the state vector (ΔR in nmi, ΔV in ft/s). PRO takes it in and goes back
+to N70 for the next; V32 or MARK REJECT marks again. P37 (`V37E37E`)
+works out a midcourse correction from the CMC's own state vector to the
+entry corridor's middle, a vacuum perigee of 37 km (20 nmi). N33 has TIG
+half an hour on (load another with `V25E`); PRO for the ΔV in N81, PRO
+for the apsides in N42, and PRO stores it. Fly it as a PAD's, after P52
+option 1. In lunar orbit P22 (`V37E22E`) marks a landmark: the landing
+site, unless you load another into N89 (latitude, longitude halved,
+altitude). PRO for V50N18, the attitude that points the landmark line at
+it on the next pass, and PRO to fly there; the clock stops ten minutes
+before the pass. As the CSM comes up on it, the CMC drives the optics to
+the landmark, ringed in the optics view: centre it, MARK, and PRO at N49,
+a few times through the pass. Each mark is weighted by the navigation
+filter's estimate of the state vector's errors. V67 shows their RMS
+(N99: position in ft, velocity in ft/s), and loading either starts the
+filter again from it. V93 starts it again at the next mark, as a burn of
+more than 50 m/s, a start phase or an uplink does.
 
 **Undocking and docking.** In lunar orbit, **UNDOCK** releases Eagle. The
 probe pushes the two apart at 0.1 ft/s, and the LM flies free on its own
@@ -479,7 +513,7 @@ ones:
   the Moon's mascons are left out. In flight the oblateness turned the
   parking orbit's plane 0.8° west before TLI.
 - **Navigation.** Both computers fly on their own state vectors, which the
-  ground's uplinks correct. MSFN's tracking error is drawn fresh for each
+  ground's uplinks correct, and the CMC's own marks too. MSFN's tracking error is drawn fresh for each
   uplink, not from tracking arcs. The CSM's unmodelled forces are a
   steady vent force and its jets' imbalance, drawn once for the flight,
   and the LM and the S-IVB have none. The LGC's Average-G runs all the
@@ -491,12 +525,26 @@ ones:
   (0.011°). The LGC's IMU is ideal, its REFSMMAT the ECI frame and its
   attitude true: its P52 with the AOT, and P57 on the surface, are left
   for later.
-- **The optics.** The sextant and the telescope share one line of sight,
-  and their view shows the 37 navigation stars and the Earth, the Moon and
-  the Sun, without the fainter stars, aberration or the docked LM in the
-  way. The telescope names its stars, which the flown one didn't; NAMES
-  turns that off. In the cabin the eyepieces are one screen on the lower
-  equipment bay.
+- **The optics.** The telescope shares the sextant's star line, without a
+  trunnion of its own. Their view shows the 37 navigation stars and the
+  Earth, the Moon and the Sun, without the fainter stars, aberration or
+  the docked LM in the way; the sextant's landmark line shows only the
+  Earth and the Moon. The telescope names its stars, which the flown one
+  didn't; NAMES turns that off. P22's landmark is ringed, since the
+  view's Moon is a plain disc. In the cabin the eyepieces are one
+  screen on the lower equipment bay.
+- **Onboard navigation.** The CMC's filter keeps the state vector's error
+  covariance itself, where Colossus kept its square root (the W matrix),
+  and starts it from RMS errors the crew can load with V67; an uplink
+  starts it again, as the crew's V93 would. P23 marks the solid limb,
+  not the atmosphere's horizon some 30 km up, so there is no horizon
+  altitude to calibrate, and it marks stars on horizons only, not on
+  landmarks. The tests' crew lays the star on the horizon by setting the
+  trunnion, without trimming the attitude or the shaft. P37 aims at the
+  corridor's middle with the RTCC's integrated targeting, where
+  Colossus's P37 worked in conics to an entry flight path angle, and has
+  no landing-site options. P22's landmark is known exactly, and its marks
+  update the CSM's state vector only.
 - **S-IVB guidance.** It thrusts along the velocity, turned out of the
   plane by a fixed yaw, and cuts off on energy, instead of flying
   iterative guidance. Apollo 11's TLI takes a yaw of 14.5° and turns the
@@ -616,8 +664,13 @@ The unit tests cover:
 - The rendezvous radar: range, range rate and the line of sight in the
   LM's axes, and no data with the Moon in the way, beyond 400 nmi,
   docked or powered down
-- DSKY key logic
+- DSKY key logic, with V01 showing R1 alone
 - CMC programs
+- The navigation filter (`tests/unit/test_nav_filter.gd`): the
+  star-horizon angle and its gradient against finite differences, a star
+  behind the Earth, the landmark's line of sight, a scalar update, the
+  transition matrix, the covariance carried between marks, and a
+  checkpoint
 - The IMU, the stars and the optics (`tests/unit/test_imu.gd`): the
   gimbal angles in the gimbals' order and to a CDU count, the preferred
   and landing site REFSMMATs, a drift that adds up over 1.8 million
@@ -631,8 +684,10 @@ The unit tests cover:
 - Checkpoint round-trip, with a map of vehicles, each with its own
   systems, the LGC's rendezvous state, Mission Control's planned times
   and timeline, the CMC's state vector, the CSM's unmodelled forces and
-  where MSFN's draws have got to, and the CMC's IMU and a P52 between
-  its marks (schema 7). Older checkpoints are rejected
+  where MSFN's draws have got to, the CMC's IMU and a P52 between its
+  marks, and its navigation filter and a P23 mark waiting at N49
+  (schema 7). A checkpoint from before the filter restores, with the
+  filter starting again; older schemas are rejected
 - The main scene, and in Eagle from `lunar_descent`: its HUD, the keys on
   its LGC, its two views, its checklist for the phase, and L between the
   vehicles
@@ -718,6 +773,21 @@ The scenario tests fly real segments through the crew interface:
   on the DSKY. The CMC takes uplinks only in P00 with UP TLM CM in
   ACCEPT; in BLOCK a PAD comes by voice. A translation in P00 isn't in its
   state vector, and one in P47 is
+- Onboard navigation (`tests/scenarios/test_onboard_navigation.gd`),
+  slice 4d's check. A TEI flown on a platform 0.5° off leaves a vacuum
+  perigee of −115 km, steep of the 25 to 50 km corridor, and the CMC's
+  state vector 1.1 km and 8.9 m/s off. With UP TLM CM in BLOCK from then
+  on, the crew marks six stars with P23 every four hours from 10 h after
+  TEI, three on the Moon's horizon and three on the Earth's. At 38.6 h
+  P37 works out 4.0 m/s from the CMC's state, which, flown after P52,
+  leaves 29.1 km, where P37 from the unmarked state would have left
+  −41.3 km. After two more sessions a second P37 of 0.3 m/s leaves
+  37.9 km. P23's dialogue: the codes it won't take, 00404 for a star it
+  can't lay on the horizon, the landmark line on the horizon under the
+  star, V32 dropping a bad mark, a good one bringing a state vector 50 km
+  off to 18 km, V67's RMS, and a load starting the filter again. In lunar
+  orbit, five P22 marks on the landing site through one pass bring the
+  state vector from 2.2 km off to 53 m
 - TEI and the transearth MCCs into the entry corridor
 - CM/SM separation, P61/P64 entry and splashdown
 - An MCC PAD flown with P30 and P41 using only the cabin's controls,
@@ -837,8 +907,10 @@ wrist menu, `--pad=<kind>` asks Mission Control for a PAD first, and
 `--undock=<s>` undocks the LM and lets it drift for that many seconds,
 `--vehicle=csm` or `lm` chooses whose view it is while Eagle flies free,
 `--optics=<code>` opens the optics on a navigation star, `--seat=LEB`
-puts the cabin view at the lower equipment bay, and `--p52=<hours>`
-drifts that long and starts P52 with the optics open).
+puts the cabin view at the lower equipment bay, `--p52=<hours>`
+drifts that long and starts P52 with the optics open, and `--p23=<code>`
+flies P23 to a star, 0 for the first near the Earth's horizon, and lays
+it on the horizon).
 They were rendered in software, so the frame time on the wrist menu's top
 line is the software renderer's:
 
@@ -850,6 +922,7 @@ godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=2 --yaw=-0.3 
 godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=2 --yaw=0.55 --pitch=-0.08 --hud=0 --menu=1 --pad=tei --out=res://docs/images/cabin_checklist.png
 godot --path . tools/screenshot.tscn -- --phase=lunar_descent --view=2 --yaw=-0.75 --pitch=-0.75 --hud=0 --out=res://docs/images/eagle_cabin.png
 godot --path . tools/screenshot.tscn -- --phase=translunar_coast --p52=12 --out=res://docs/images/optics_p52.png
+godot --path . tools/screenshot.tscn -- --phase=transearth_coast --p23=0 --out=res://docs/images/optics_p23.png
 ```
 
 ## Roadmap
@@ -869,5 +942,7 @@ the headset run, with the VR cockpit's. In navigation realism, Apollo 11
 now flies on JPL's ephemeris (slice 4a), the CMC on its own state
 vector, which the ground's uplinks correct (slice 4b), and on its own
 IMU, which drifts and which P52 realigns on the stars through the optics
-at the lower equipment bay (slice 4c). Onboard navigation, P23's
-sightings and P22's landmarks (4d), is the stretch that is left.
+at the lower equipment bay (slice 4c), and on its own sightings: P23's
+stars on the horizons keep the entry corridor without an uplink, and
+P22 marks landmarks in lunar orbit (slice 4d). That finishes navigation
+realism.

@@ -1,11 +1,18 @@
 ## The CSM's optics at the lower equipment bay: the sextant (SXT, 28 power,
 ## a FIELD_SXT_DEG field) and the scanning telescope (SCT, unity power, a
-## FIELD_SCT_DEG field), on one line of sight [simplified: the SXT's
-## landmark line and the SCT's own trunnion are left out]. The shaft turns
-## the line of sight about the shaft axis, and the trunnion tilts it away
-## from that axis, up to TRUNNION_MAX_DEG. The shaft axis lies in the
-## body's X-Z plane, SHAFT_TILT_DEG from +Z toward +X: the optics look out
-## of the CM's side, below the crew's feet.
+## FIELD_SCT_DEG field), on one line of sight, the star line [simplified:
+## the SCT's own trunnion is left out]. The shaft turns the star line about
+## the shaft axis, and the trunnion tilts it away from that axis, up to
+## TRUNNION_MAX_DEG. The shaft axis lies in the body's X-Z plane,
+## SHAFT_TILT_DEG from +Z toward +X: the optics look out of the CM's side,
+## below the crew's feet.
+##
+## The sextant's second line of sight, the landmark line, lies along the
+## shaft axis (landmark_line()), and its image lies over the star line's:
+## the star line's image axes are the landmark line's turned about the
+## trunnion axis by the trunnion angle. So with a star's image laid on a
+## horizon's or a landmark's, the trunnion angle is the angle between them,
+## however the CSM points, which P23 reads to SEXTANT_READ_DEG.
 ##
 ## ctl.optics.zero drives both angles to zero. Otherwise ctl.optics.mode 0
 ## (MANUAL) follows the optics hand controller (ctl.optics.hc: x the shaft,
@@ -26,6 +33,8 @@ const SHAFT_TILT_DEG := 32.523
 const TRUNNION_MAX_DEG := 57.5
 const FIELD_SXT_DEG := 1.8
 const FIELD_SCT_DEG := 60.0
+## The sextant angle's reading, deg [estimated: about 7 arc seconds].
+const SEXTANT_READ_DEG := 0.002
 ## Full deflection's rate at each OPTICS SPEED, deg/s [estimated].
 const HC_RATES_DEG_S := [0.05, 0.5, 5.0]
 ## The CMC and ZERO drive rate, deg/s [estimated].
@@ -51,6 +60,11 @@ static func los(shaft: float, trunnion: float) -> Vector3:
 	var t := deg_to_rad(trunnion)
 	var o := Vector3(sin(t) * cos(s), sin(t) * sin(s), cos(t))
 	return Basis(Vector3(0, 1, 0), deg_to_rad(SHAFT_TILT_DEG)) * o
+
+
+## The sextant's landmark line: the shaft axis, a unit vector in body axes.
+static func landmark_line() -> Vector3:
+	return los(0.0, 0.0)
 
 
 ## The shaft and trunnion angles (deg: shaft 0-360, trunnion 0-180) that

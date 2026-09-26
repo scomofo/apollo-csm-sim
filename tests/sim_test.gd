@@ -138,6 +138,68 @@ func mark() -> void:
 	run(SimClock.FIXED_DT, false)
 
 
+## Lay star [param code]'s image on [param body]'s ("earth" or "moon")
+## horizon in the sextant, as the crew does in MANUAL for a P23 mark: the
+## trunnion at the true angle between them, off by [param err_deg]
+## [simplified: the crew's trims of the attitude and the shaft, which put
+## the horizon under the star, aren't flown].
+func superimpose(code: int, body: String, err_deg: float = 0.0) -> void:
+	Bus.set_value("ctl.optics.mode", 0)
+	var m := NavFilter.star_horizon(rt.dynamics.traj, Stars.direction(code), body)
+	optics().trunnion_deg = rad_to_deg(float(m["q"])) + err_deg
+	run(SimClock.FIXED_DT, false)
+
+
+## One P23 mark as the crew makes it, from V05N70: star [param code] on
+## [param horizon]'s horizon (1 the Earth's, 2 the Moon's) loaded; PRO for
+## the sighting attitude, and in CMC MODE AUTO PRO for the maneuver; at V51
+## the star laid on the horizon, off by [param err_deg], and marked; PRO at
+## N49 takes it in; then OPTICS MODE CMC again. Returns N49's ΔR (m) and
+## ΔV (m/s).
+func p23_mark(code: int, horizon: int, err_deg: float = 0.0) -> Vector2:
+	var agc := rt.agc()
+	assert_eq(agc.step_name, "n70", "V05N70")
+	keys("V21E%dE" % code)
+	keys("V23E%dE" % horizon)
+	keys("P")
+	assert_eq(agc.step_name, "v50n18", "V50N18: the sighting attitude")
+	Bus.set_value("ctl.cmc.mode", 2)
+	keys("P")
+	var there := run_until(func() -> bool: return agc.step_name == "mark", 900.0, 1.0, false)
+	assert_true(there, "V51 at the sighting attitude")
+	superimpose(code, "earth" if horizon == 1 else "moon", err_deg)
+	mark()
+	assert_eq(agc.step_name, "n49", "V06N49")
+	var dx: PackedFloat64Array = agc.sight_pending.get("dx", PackedFloat64Array([0, 0, 0, 0, 0, 0]))
+	keys("P")
+	Bus.set_value("ctl.optics.mode", 1)
+	return Vector2(Vector3(dx[0], dx[1], dx[2]).length(), Vector3(dx[3], dx[4], dx[5]).length())
+
+
+## Centre P22's landmark in the sextant, as the crew does in MANUAL: on its
+## true line of sight, off by [param err_deg] across it.
+func centre_landmark(err_deg: float = 0.0) -> void:
+	var m := NavFilter.landmark_los(rt.dynamics.traj, rt.agc().sight_landmark_mf)
+	var d := (m["los"] as Vector3).rotated(m["e1"], deg_to_rad(err_deg))
+	Bus.set_value("ctl.optics.mode", 0)
+	optics().aim(Basis(rt.dynamics.attitude.q).inverse() * d)
+
+
+## P37 as the crew runs it: V37E37E, PRO at N33 (TIG half an hour on) for
+## the correction, PRO at N81 and N42 to store it. Returns the ΔV (LVLH,
+## m/s).
+func p37() -> Vector3:
+	var agc := rt.agc()
+	keys("V37E37E")
+	assert_eq(agc.step_name, "n33", "V06N33: TIG")
+	keys("P")
+	assert_eq(agc.step_name, "n81", "V06N81: the correction")
+	var dv := agc.dv_lvlh_load
+	keys("PP")
+	assert_eq(agc.program, 0, "stored; P00")
+	return dv
+
+
 ## Roll the CSM half a turn about its X axis on the DAP (CMC MODE AUTO),
 ## as the crew turns the optics, on the CM's +Z side, away from the Moon or
 ## the Earth; then back to the mode it was in, holding.
@@ -246,6 +308,13 @@ func fly_pad(p52_option: int = 1) -> float:
 	assert_eq(agc.program, 30, "P30 selected")
 	keys("PPP")
 	assert_true(agc.maneuver_valid, "maneuver stored")
+	return fly_stored(p52_option)
+
+
+## Fly the maneuver the CMC has stored (P30's or P37's) from P52 on, as
+## fly_pad() does.
+func fly_stored(p52_option: int = 1) -> float:
+	var agc := rt.agc()
 	var tig := agc.maneuver_tig
 	Bus.set_value("ctl.cmc.mode", 0)
 	if p52_option > 0:

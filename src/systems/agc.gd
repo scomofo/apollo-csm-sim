@@ -33,6 +33,29 @@
 ##        orientation known (alarm 00220: P51 first)
 ##   V41N20  Coarse align: V25N22 flashes for the gimbal angles, and the
 ##        IMU is driven to them; REFSMMAT no longer holds
+##   P23  Cislunar navigation: V05N70 (the star; the landmark, 0; the
+##        horizon, 1 the Earth's and 2 the Moon's) [simplified: star-horizon
+##        marks only, on the solid limb]; PRO for V50N18, the attitude that
+##        lays the sextant's landmark line on the horizon under the star
+##        (alarm 00404 when the star is behind the body or past the
+##        trunnion's reach); PRO for the auto maneuver (CMC MODE AUTO); V51
+##        once there, with the optics on the star in CMC mode; the crew
+##        lays the star on the horizon and marks; V06N49 the update (ΔR,
+##        ΔV); PRO takes it in and goes back to N70, V32 marks again
+##   P22  Lunar orbit navigation: V06N89 the landmark (the landing site,
+##        or one the crew loads: latitude, longitude/2, altitude); PRO for
+##        V50N18, the attitude that lays the landmark line on it at the
+##        next pass; PRO for the maneuver; V51, the optics on the landmark
+##        while they reach it; each mark V06N49, PRO or V32 as in P23
+##   P37  Return to Earth: V06N33 TIG (half an hour on, or loaded); PRO
+##        works out the midcourse correction from the state vector that
+##        brings the vacuum perigee to the entry corridor's middle
+##        (V06N81); PRO for V06N42; PRO stores it for P40 or P41, as P30
+##        does [simplified: the RTCC's targeting, by integration, stands in
+##        for P37's conics and its landing-site options]
+##   V67  The navigation filter's RMS errors (V06N99: position, velocity);
+##        loading either starts the filter again from them
+##   V93  Start the filter again from its RMS errors at the next mark
 ## P52 won't coarse align to a new orientation that puts the middle gimbal
 ## past LOCK_MANEUVER_DEG where the CSM is (alarm 00401): the crew
 ## maneuvers first, and N22 follows the attitude. A gimbal lock that cages
@@ -48,7 +71,11 @@
 ## burns TLI [simplified: the monitor, P15, isn't modelled]. In coast it
 ## doesn't: the small forces there (vents, unbalanced jets, a translation
 ## in P00) move the CSM off the state vector, and the ground's uplinks take
-## that out.
+## that out, or the crew's own marks (P22, P23) through the navigation
+## filter (src/systems/nav_filter.gd). The filter starts again from its RMS
+## errors after a burn of more than NavFilter.BIG_BURN_MPS, a start phase
+## or an uplink [simplified: the crew's V93 after an uplink is made for
+## them].
 ##
 ## The IMU: the CMC's drifts (src/systems/imu.gd), at rates drawn from the
 ## mission's seed, and a start phase aligns it to that phase's REFSMMAT.
@@ -63,12 +90,15 @@
 ## It doesn't fly the S-IVB stack (the IU does) or in the atmosphere.
 ##
 ## Reads:  the core's, ctl.cmc.up_tlm, sivb.state, ctl.optics.mark,
-##         ctl.optics.mark_reject, optics.shaft_deg, optics.trunnion_deg
+##         ctl.optics.mark_reject, optics.shaft_deg, optics.trunnion_deg,
+##         dyn.mass_kg (P37)
 ## Writes: the core's channels (guid.*, dsky.*), guid.sps_on,
 ##         guid.bank_auto, guid.bank_cmd_deg, guid.optics.cmd (the CMC
 ##         drives the optics), guid.optics.cmd_deg (shaft, trunnion),
-##         guid.align_marks (P51 and P52's marks taken) and guid.align_star
-##         (the star to mark, or just marked, 0 for none yet)
+##         guid.align_marks (P51 and P52's marks taken), guid.align_star
+##         (the star to mark, or just marked, 0 for none yet),
+##         guid.nav_marks (the marks P22 or P23 has taken in) and
+##         guid.landmark_mf (P22's landmark, Moon-fixed, m; zero otherwise)
 class_name Agc
 extends AgcCore
 
@@ -82,16 +112,38 @@ const STAR_LIMB_CLEAR_DEG := 5.0
 const STAR_SUN_CLEAR_DEG := 15.0
 const PAIR_MIN_DEG := 30.0
 const PAIR_MAX_DEG := 150.0
-## P51 and P52's nouns.
+## A P23 mark's error, deg: its star-horizon angle's [estimated: the
+## crew's laying the star on the horizon, some 10 arc seconds]. A P22
+## mark's: the landmark's line of sight, each way across it [estimated:
+## centring it in the sextant, and the platform's alignment].
+const SIGHT_SIGMA_DEG := 0.003
+const LANDMARK_SIGMA_DEG := 0.02
+## P22 and P23 ask for a mark once the attitude is this near the sighting
+## attitude, deg, and the rates this low, deg/s.
+const SIGHT_ATT_DEG := 0.5
+const SIGHT_RATE_DEG_S := 0.05
+## P22 lands the clock this long before its pass, s.
+const PASS_LEAD_S := 600.0
+## P37's vacuum perigee altitude, m: the entry corridor's middle
+## [simplified: Colossus's P37 aimed at an entry flight path angle]; its
+## TIG unless the crew loads another, s from now; and how far on it looks
+## for the Earth, s.
+const P37_PERIGEE_ALT_M := 37000.0
+const P37_LEAD_S := 1800.0
+const P37_SEARCH_S := 5.0 * 86400.0
+## P51, P52, P22, P23 and V67's nouns.
 const CMC_NOUNS := {
 	5: {"name": "STAR ANGLE DIFF", "c": [["SAD", "d2", 1.0], ["", "blank", 1.0], ["", "blank", 1.0]]},
 	6: {"name": "OPTION CODE", "c": [["CODE", "o", 1.0], ["OPTION", "o", 1.0], ["", "blank", 1.0]]},
 	22: {"name": "NEW ICDU ANGLES", "c": [["OG", "d2", 1.0], ["IG", "d2", 1.0], ["MG", "d2", 1.0]]},
 	25: {"name": "CHECKLIST", "c": [["CODE", "o", 1.0], ["", "blank", 1.0], ["", "blank", 1.0]]},
-	70: {"name": "STAR CODE", "c": [["STAR", "o", 1.0], ["", "blank", 1.0], ["", "blank", 1.0]]},
+	49: {"name": "DELTA R/DELTA V", "c": [["DR", "d1", 1.0 / Dsky.NMI], ["DV", "d1", 1.0 / Dsky.FT], ["", "blank", 1.0]]},
+	70: {"name": "STAR/LMK/HOR", "c": [["STAR", "o", 1.0], ["LMK", "o", 1.0], ["HOR", "o", 1.0]]},
 	71: {"name": "STAR CODE", "c": [["STAR", "o", 1.0], ["", "blank", 1.0], ["", "blank", 1.0]]},
+	89: {"name": "LANDMARK", "c": [["LAT", "d3", 1.0], ["LONG/2", "d3", 1.0], ["ALT", "d2", 1.0 / Dsky.NMI]]},
 	91: {"name": "OCDU ANGLES", "c": [["SHAFT", "d2", 1.0], ["TRUN", "d3", 1.0], ["", "blank", 1.0]]},
 	93: {"name": "TORQUING ANGLES", "c": [["X", "d3", 1.0], ["Y", "d3", 1.0], ["Z", "d3", 1.0]]},
+	99: {"name": "RMS ERROR", "c": [["POS", "i", 1.0 / Dsky.FT], ["VEL", "d1", 1.0 / Dsky.FT], ["", "blank", 1.0]]},
 }
 
 var entry_captured: bool = false
@@ -117,6 +169,22 @@ var landing_get: float = 0.0
 var _mark_was: bool = false
 var _reject_was: bool = false
 var _restoring: bool = false
+## P22 and P23: the star and the horizon (1 the Earth's, 2 the Moon's)
+## N70 holds; P22's landmark (Moon-fixed, m) and its next pass (GET, s);
+## the marks taken in this run; and a mark's update waiting at N49,
+## {"t" (the mark's GET), "dx", "p"}, empty for none.
+var sight_star: int = 0
+var sight_horizon: int = 1
+var sight_landmark_mf: Vector3 = Vector3.ZERO
+var sight_pass: float = -1.0
+var sight_marks: int = 0
+var sight_pending: Dictionary = {}
+## The navigation filter, and the RMS errors V67 shows (m, m/s).
+var nav_filter := NavFilter.new()
+var _rms_shown: Vector2 = Vector2.ZERO
+## The ΔV Average-G has taken in since it started, m/s: at its end, the
+## burn the filter carries its errors through.
+var _burn_dv: float = 0.0
 
 
 ## The programs whose Average-G puts the sensed ΔV into the state vector.
@@ -129,7 +197,7 @@ func _init() -> void:
 
 
 func programs() -> Array:
-	return [0, 30, 40, 41, 47, 51, 52, 61, 64, 67]
+	return [0, 22, 23, 30, 37, 40, 41, 47, 51, 52, 61, 64, 67]
 
 
 func thrusting_programs() -> Array:
@@ -184,6 +252,10 @@ func authority() -> Vector3:
 func start_program(p: int) -> void:
 	if p in [61, 64, 67]:
 		dsky.show(16, 64)
+	if p in [22, 23, 37]:
+		if not _restoring:
+			_start_nav_program(p)
+		return
 	if _restoring or not p in [51, 52]:
 		return
 	align_marks = []
@@ -224,9 +296,45 @@ func avg_g() -> bool:
 	return program in AVERAGE_G or str(Bus.get_value("sivb.state", "")) == "burning"
 
 
+## A start phase's state vector: the filter starts again at the next mark.
+func init_nav(tr: Trajectory) -> void:
+	super.init_nav(tr)
+	nav_filter.stale = true
+
+
+## The ground's state vector: the filter starts again at the next mark.
+func uplink_state(tr: Trajectory) -> bool:
+	if not super.uplink_state(tr):
+		return false
+	nav_filter.stale = true
+	return true
+
+
+## As the core's, and when Average-G stops, the filter carries its errors
+## through the burn it took in.
+func _navigate(dv: Vector3) -> void:
+	super._navigate(dv)
+	if avg_g():
+		_burn_dv += dv.length()
+	elif _burn_dv > 0.0:
+		if nav != null:
+			nav_filter.after_burn(nav, _burn_dv)
+		_burn_dv = 0.0
+
+
+## P22 and P23 leave the DAP holding the attitude they flew to.
+func change_program(p: int) -> bool:
+	if program in [22, 23] and auto_active:
+		hold_q = auto_target
+	var ok := super.change_program(p)
+	_publish_nav()
+	return ok
+
+
 func extra_step() -> void:
 	_entry_step()
 	_align_step()
+	_nav_step()
 
 
 func proceed() -> void:
@@ -234,6 +342,8 @@ func proceed() -> void:
 		_proceed_p52()
 	elif program == 51:
 		_proceed_p51()
+	elif program in [22, 23, 37]:
+		_proceed_nav()
 	else:
 		super.proceed()
 		return
@@ -241,6 +351,7 @@ func proceed() -> void:
 	_publish()
 	_publish_align()
 	_publish_imu()
+	_publish_nav()
 
 
 func verb_noun(v: int, n: int) -> bool:
@@ -251,10 +362,20 @@ func verb_noun(v: int, n: int) -> bool:
 		_publish()
 		_publish_align()
 		return true
+	if v == 32 and program in [22, 23] and step_name == "n49":
+		_reject_sighting()
+		return true
 	if v == 41 and n == 20:
 		_v41 = true
 		coarse_load = icdu()
 		dsky.request_load(25, 22)
+		return true
+	if v == 67:
+		_rms_shown = _nav_rms()
+		dsky.show(6, 99, false, false)
+		return true
+	if v == 93:
+		nav_filter.stale = true
 		return true
 	return super.verb_noun(v, n)
 
@@ -272,12 +393,24 @@ func noun_values(n: int) -> Variant:
 			return [g.x, g.y, g.z]
 		25:
 			return [float(align_checklist), 0.0, 0.0]
-		70, 71:
+		49:
+			var dx: PackedFloat64Array = sight_pending.get("dx", PackedFloat64Array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]))
+			return [Vector3(dx[0], dx[1], dx[2]).length(), Vector3(dx[3], dx[4], dx[5]).length(), 0.0]
+		70:
+			if program == 23:
+				return [float(sight_star), 0.0, float(sight_horizon)]
 			return [float(align_stars[_star_index()]), 0.0, 0.0]
+		71:
+			return [float(align_stars[_star_index()]), 0.0, 0.0]
+		89:
+			var s := Bodies.fixed_to_selenographic(sight_landmark_mf)
+			return [s.x, s.y / 2.0, s.z - Bodies.R_MOON]
 		91:
 			return [float(Bus.get_value("optics.shaft_deg", 0.0)), float(Bus.get_value("optics.trunnion_deg", 0.0)), 0.0]
 		93:
 			return [rad_to_deg(align_torque.x), rad_to_deg(align_torque.y), rad_to_deg(align_torque.z)]
+		99:
+			return [_rms_shown.x, _rms_shown.y, 0.0]
 	return super.noun_values(n)
 
 
@@ -288,11 +421,37 @@ func noun_load(n: int, idx: int, value: float) -> bool:
 				return false
 			align_option = int(value)
 			return true
-		70, 71:
+		70:
+			if program == 23:
+				return _load_sighting(idx, int(value))
 			if idx != 0 or not program in [51, 52] or not Stars.has(int(value)):
 				return false
 			align_stars[_star_index()] = int(value)
 			_publish_align()
+			return true
+		71:
+			if idx != 0 or not program in [51, 52] or not Stars.has(int(value)):
+				return false
+			align_stars[_star_index()] = int(value)
+			_publish_align()
+			return true
+		89:
+			if program != 22 or step_name != "n89":
+				return false
+			var s := Bodies.fixed_to_selenographic(sight_landmark_mf)
+			var lla := [s.x, s.y, s.z - Bodies.R_MOON]
+			lla[idx] = value * 2.0 if idx == 1 else value
+			sight_landmark_mf = Bodies.selenographic_to_fixed(lla[0], lla[1], Bodies.R_MOON + lla[2])
+			return true
+		99:
+			if idx == 0 and value >= 1.0:
+				nav_filter.pos_rms = value
+			elif idx == 1 and value >= 0.001:
+				nav_filter.vel_rms = value
+			else:
+				return false
+			nav_filter.stale = true
+			_rms_shown = Vector2(nav_filter.pos_rms, nav_filter.vel_rms)
 			return true
 		22:
 			if not _v41:
@@ -429,12 +588,28 @@ func _align_step() -> void:
 	if rej and not _reject_was:
 		_on_mark_reject()
 	_reject_was = rej
-	var drive := program == 52 and step_name in ["star", "mark"]
-	Bus.set_value("guid.optics.cmd", drive)
-	if drive:
-		var a := Optics.angles_for(Basis(_att()).inverse() * Stars.direction(align_stars[_star_index()]))
+	var aim := _optics_aim()
+	Bus.set_value("guid.optics.cmd", aim != Vector3.ZERO)
+	if aim != Vector3.ZERO:
+		var a := Optics.angles_for(aim)
 		Bus.set_value("guid.optics.cmd_deg", Vector3(a.x, a.y, 0.0))
 	_publish_align()
+
+
+## Where the CMC drives the optics, body axes (zero for nowhere): P52's
+## star, P23's star, and P22's landmark while the trunnion reaches it
+## above its horizon, each where the state vector and the platform put it.
+func _optics_aim() -> Vector3:
+	if program == 52 and step_name in ["star", "mark"]:
+		return Basis(_att()).inverse() * Stars.direction(align_stars[_star_index()])
+	if not (program in [22, 23] and step_name in ["maneuver", "mark"]):
+		return Vector3.ZERO
+	if program == 23:
+		return Basis(_att()).inverse() * Stars.direction(sight_star) if Stars.has(sight_star) else Vector3.ZERO
+	if nav == null or not _landmark_visible(nav):
+		return Vector3.ZERO
+	var d := Basis(_att()).inverse() * (NavFilter.landmark_los(nav, sight_landmark_mf)["los"] as Vector3)
+	return d if Optics.angles_for(d).y <= Optics.TRUNNION_MAX_DEG else Vector3.ZERO
 
 
 ## P51 and P52's marks taken and the star they're on, on the Bus.
@@ -445,8 +620,11 @@ func _publish_align() -> void:
 
 
 ## MARK: the star's direction in stable member axes, from the optics and
-## the gimbals, each read to a CDU count.
+## the gimbals, each read to a CDU count; in P22 and P23 a sighting.
 func _on_mark() -> void:
+	if program in [22, 23] and step_name == "mark":
+		_mark_sighting()
+		return
 	if not (program in [51, 52] and step_name == "mark"):
 		return
 	var g := Imu.gimbal_basis(icdu())
@@ -467,6 +645,9 @@ func _on_mark() -> void:
 
 
 func _on_mark_reject() -> void:
+	if program in [22, 23] and step_name == "n49":
+		_reject_sighting()
+		return
 	if not program in [51, 52] or align_marks.is_empty() or not step_name in ["star", "mark", "id", "n05"]:
 		return
 	align_marks.pop_back()
@@ -581,6 +762,15 @@ func snapshot() -> Dictionary:
 		"site_mf": [landing_site_mf.x, landing_site_mf.y, landing_site_mf.z], "landing_get": landing_get,
 		"mark_was": _mark_was, "reject_was": _reject_was,
 	}
+	var pending := {}
+	if not sight_pending.is_empty():
+		pending = {"t": sight_pending["t"], "dx": Array(sight_pending["dx"]), "p": Array(sight_pending["p"])}
+	d["sight"] = {
+		"star": sight_star, "horizon": sight_horizon,
+		"landmark_mf": [sight_landmark_mf.x, sight_landmark_mf.y, sight_landmark_mf.z], "pass": sight_pass,
+		"marks": sight_marks, "pending": pending, "rms_shown": [_rms_shown.x, _rms_shown.y], "burn_dv": _burn_dv,
+	}
+	d["nav_filter"] = nav_filter.snapshot()
 	return d
 
 
@@ -588,6 +778,7 @@ func restore(d: Dictionary) -> void:
 	_restoring = true
 	super.restore(d)
 	_restoring = false
+	_restore_nav(d)
 	var a: Dictionary = d.get("align", {})
 	if a.is_empty():
 		return
@@ -611,6 +802,318 @@ func restore(d: Dictionary) -> void:
 	_reject_was = bool(a["reject_was"])
 	if program in [51, 52]:
 		_show_align_step()
+
+
+# --- navigation: P22, P23 and P37 ---------------------------------------------------
+
+func _start_nav_program(p: int) -> void:
+	sight_pending = {}
+	sight_marks = 0
+	sight_pass = -1.0
+	match p:
+		23:
+			step_name = "n70"
+			dsky.show(5, 70, true)
+		22:
+			if sight_landmark_mf == Vector3.ZERO:
+				sight_landmark_mf = landing_site_mf
+			if current_traj().primary != "moon" or sight_landmark_mf == Vector3.ZERO:
+				# Not in lunar orbit, or no landmark to track.
+				dsky.set_lamp("opr_err", true)
+				change_program(0)
+				return
+			step_name = "n89"
+			dsky.show(6, 89, true)
+		37:
+			tig_load = ceilf((_now() + P37_LEAD_S) / 60.0) * 60.0
+			step_name = "n33"
+			dsky.show(6, 33, true)
+
+
+func _proceed_nav() -> void:
+	match step_name:
+		"n70":
+			_plan_sighting()
+		"n89":
+			_plan_pass()
+		"v50n18":
+			if _locks_gimbals(auto_target):
+				_alarm(401)
+				return
+			_plan_via()
+			auto_active = true
+			step_name = "maneuver"
+			dsky.show(6, 18)
+		"n49":
+			_take_sighting()
+		"n33":
+			_plan_return()
+		"n81":
+			step_name = "n42"
+			dsky.show(6, 42, true)
+		"n42":
+			_store_maneuver()
+			change_program(0)
+
+
+## N70's loads in P23: the star (R1), the landmark (R2: none, 0) and the
+## horizon (R3: 1 the Earth's, 2 the Moon's).
+func _load_sighting(idx: int, value: int) -> bool:
+	match idx:
+		0:
+			if not Stars.has(value):
+				return false
+			sight_star = value
+		1:
+			return value == 0
+		2:
+			if not value in [1, 2]:
+				return false
+			sight_horizon = value
+	return true
+
+
+func _horizon_body() -> String:
+	return "earth" if sight_horizon == 1 else "moon"
+
+
+## P23's PRO at N70: the attitude that lays the landmark line on the
+## horizon under the star, where the state vector puts it (alarm 00404
+## when the star is behind the body or past the trunnion's reach).
+func _plan_sighting() -> void:
+	if not Stars.has(sight_star):
+		dsky.set_lamp("opr_err", true)
+		return
+	var m := NavFilter.star_horizon(current_traj(), Stars.direction(sight_star), _horizon_body())
+	if m.is_empty() or rad_to_deg(float(m["q"])) > Optics.TRUNNION_MAX_DEG:
+		_alarm(404)
+		return
+	_fly_to_sight(m["horizon"])
+
+
+## P22's PRO at N89: the next pass over the landmark from the state
+## vector, found again with the landmark where the Moon has turned it by
+## then, and the attitude that lays the landmark line on it there.
+func _plan_pass() -> void:
+	var tr := current_traj()
+	if tr.primary != "moon" or sight_landmark_mf == Vector3.ZERO:
+		dsky.set_lamp("opr_err", true)
+		return
+	var t := tr.t
+	for _i in 2:
+		t = Rtcc.time_at_direction(current_traj(), Rtcc.site_at(sight_landmark_mf, t).normalized(), tr.t)
+	sight_pass = t
+	_fly_to_sight(Rtcc.site_at(sight_landmark_mf, t) - predict(t).pos())
+
+
+## V50N18 for the attitude that lays the sextant's landmark line along
+## [param dir] (ECI), turned about it to the one nearest the CSM's attitude
+## that keeps the middle gimbal clear (alarm 00401 if none does). The DAP
+## holds the attitude it was holding till PRO.
+func _fly_to_sight(dir: Vector3) -> void:
+	var now := _att()
+	var d := dir.normalized()
+	var base := (Quaternion(Basis(now) * Optics.landmark_line(), d) * now).normalized()
+	var best := Quaternion.IDENTITY
+	var best_angle := INF
+	for k in 12:
+		var q := (Quaternion(d, TAU * k / 12.0) * base).normalized()
+		var a := _angle_between(now, q)
+		if a < best_angle and not _locks_gimbals(q):
+			best = q
+			best_angle = a
+	if best_angle == INF:
+		_alarm(401)
+		return
+	if auto_active:
+		hold_q = auto_target
+		auto_active = false
+	auto_target = best
+	desired_q = best
+	step_name = "v50n18"
+	dsky.show(50, 18, true)
+
+
+## The landmark is above its horizon from [param tr].
+func _landmark_visible(tr: Trajectory) -> bool:
+	var st := tr.moon_state_rel()
+	var site := Rtcc.site_at(sight_landmark_mf, tr.t)
+	return (Vector3(st[0], st[1], st[2]) - site).dot(site) > 0.0
+
+
+## MARK in P22 or P23: the sighting weighted in by the filter, for N49;
+## the state vector moves only on PRO. P22 needs the platform's
+## orientation (alarm 00220).
+func _mark_sighting() -> void:
+	if nav == null:
+		return
+	if program == 22 and not (imu.aligned and imu.operating()):
+		_alarm(220)
+		return
+	var pm := nav_filter.carried(nav)
+	var u := _horizon_update(pm) if program == 23 else _landmark_update(pm)
+	if u.is_empty():
+		_alarm(404)
+		return
+	sight_pending = {"t": nav.t, "dx": u["dx"], "p": u["p"]}
+	step_name = "n49"
+	dsky.show(6, 49, true)
+
+
+## P23's mark: the sextant's trunnion angle, read to SEXTANT_READ_DEG, is
+## the star's angle from the horizon; against the state vector's. Empty
+## when the state vector puts the star behind the body.
+func _horizon_update(pm: PackedFloat64Array) -> Dictionary:
+	var m := NavFilter.star_horizon(nav, Stars.direction(sight_star), _horizon_body())
+	if m.is_empty():
+		return {}
+	var q := deg_to_rad(snappedf(float(Bus.get_value("optics.trunnion_deg", 0.0)), Optics.SEXTANT_READ_DEG))
+	var s := deg_to_rad(SIGHT_SIGMA_DEG)
+	return NavFilter.scalar_update(pm, m["b"], q - float(m["q"]), s * s)
+
+
+## P22's mark: the landmark's line of sight, from the optics and the
+## gimbals, each read to a CDU count, and REFSMMAT; against the state
+## vector's, each way across it in turn.
+func _landmark_update(pm: PackedFloat64Array) -> Dictionary:
+	var sh := snappedf(float(Bus.get_value("optics.shaft_deg", 0.0)), Imu.CDU_DEG)
+	var tn := snappedf(float(Bus.get_value("optics.trunnion_deg", 0.0)), Imu.CDU_DEG)
+	var seen := imu.refsmmat.transposed() * (Imu.gimbal_basis(icdu()) * Optics.los(sh, tn))
+	var m := NavFilter.landmark_los(nav, sight_landmark_mf)
+	var rng := float(m["range"])
+	var s := deg_to_rad(LANDMARK_SIGMA_DEG)
+	var dx := PackedFloat64Array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+	var p := pm
+	for e: Vector3 in [m["e1"], m["e2"]]:
+		var b := PackedFloat64Array([-e.x / rng, -e.y / rng, -e.z / rng, 0.0, 0.0, 0.0])
+		# The residual, less what the first way's update already took out.
+		var dq := float(seen.dot(e))
+		for i in 3:
+			dq -= b[i] * dx[i]
+		var u := NavFilter.scalar_update(p, b, dq, s * s)
+		var step: PackedFloat64Array = u["dx"]
+		for i in 6:
+			dx[i] += step[i]
+		p = u["p"]
+	return {"dx": dx, "p": p}
+
+
+## PRO at N49: the mark's update into the state vector, carried on from
+## the mark's time to first order, and its errors the filter's. P23 goes
+## back to N70, P22 to the next mark.
+func _take_sighting() -> void:
+	if sight_pending.is_empty() or nav == null:
+		return
+	var dx := (sight_pending["dx"] as PackedFloat64Array).duplicate()
+	var dt := nav.t - float(sight_pending["t"])
+	for i in 3:
+		dx[i] += dx[i + 3] * dt
+	nav_filter.accept(nav, dx, sight_pending["p"])
+	sight_pending = {}
+	sight_marks += 1
+	if program == 23:
+		step_name = "n70"
+		dsky.show(5, 70, true)
+	else:
+		step_name = "mark"
+		dsky.show(51, -1, true)
+
+
+## V32 or MARK REJECT at N49: the mark dropped, to mark again.
+func _reject_sighting() -> void:
+	sight_pending = {}
+	step_name = "mark"
+	dsky.show(51, -1, true)
+	_publish_nav()
+
+
+## P37's PRO at N33: the correction at TIG, from the state vector, that
+## brings the vacuum perigee to P37_PERIGEE_ALT_M, none when it's within
+## the RTCC's tolerance. OPR ERR for a TIG less than a minute off, or a
+## state vector that doesn't come back to the Earth.
+func _plan_return() -> void:
+	if tig_load < _now() + 60.0:
+		dsky.set_lamp("opr_err", true)
+		return
+	var t_max := tig_load + P37_SEARCH_S
+	var er := Rtcc.earth_return(predict(tig_load), t_max)
+	if not bool(er["reached"]):
+		dsky.set_lamp("opr_err", true)
+		return
+	var target := signf(float(er["f"])) * (Bodies.R_EARTH + P37_PERIGEE_ALT_M)
+	var pad := Rtcc.plan_mcc(current_traj(), float(Bus.get_value(_ch("dyn.mass_kg"), 30000.0)), tig_load, "earth", target, t_max)
+	dv_lvlh_load = pad["dv_lvlh"]
+	step_name = "n81"
+	dsky.show(6, 81, true)
+
+
+## Each step: P22 and P23 ask for a mark once at the sighting attitude, and
+## P22 lands the clock ahead of its pass.
+func _nav_step() -> void:
+	if program in [22, 23] and step_name == "maneuver" and _att_error(auto_target) < deg_to_rad(SIGHT_ATT_DEG) \
+			and _omega().length() < deg_to_rad(SIGHT_RATE_DEG_S):
+		step_name = "mark"
+		dsky.show(51, -1, true)
+	if program == 22:
+		var lead := sight_pass - PASS_LEAD_S
+		Bus.set_value("guid.next_event_get_s", lead if sight_pass > 0.0 and _now() < lead else -1.0)
+	_publish_nav()
+
+
+func _publish_nav() -> void:
+	Bus.set_value("guid.nav_marks", sight_marks if program in [22, 23] else 0)
+	Bus.set_value("guid.landmark_mf", sight_landmark_mf if program == 22 else Vector3.ZERO)
+
+
+## The filter's RMS errors now (m, m/s): its covariance carried to the
+## state vector's time, or the RMS it starts again from.
+func _nav_rms() -> Vector2:
+	if nav == null or nav_filter.stale or nav_filter.anchor == null:
+		return Vector2(nav_filter.pos_rms, nav_filter.vel_rms)
+	return NavFilter.rms(nav_filter.carried(nav))
+
+
+func _show_nav_step() -> void:
+	match step_name:
+		"n70":
+			dsky.show(5, 70, true)
+		"n89":
+			dsky.show(6, 89, true)
+		"v50n18":
+			dsky.show(50, 18, true)
+		"maneuver":
+			dsky.show(6, 18)
+		"mark":
+			dsky.show(51, -1, true)
+		"n49":
+			dsky.show(6, 49, true)
+		"n33":
+			dsky.show(6, 33, true)
+		"n81":
+			dsky.show(6, 81, true)
+		"n42":
+			dsky.show(6, 42, true)
+
+
+func _restore_nav(d: Dictionary) -> void:
+	var s: Dictionary = d.get("sight", {})
+	if not s.is_empty():
+		sight_star = int(s["star"])
+		sight_horizon = int(s["horizon"])
+		var l: Array = s["landmark_mf"]
+		sight_landmark_mf = Vector3(l[0], l[1], l[2])
+		sight_pass = float(s["pass"])
+		sight_marks = int(s["marks"])
+		sight_pending = {}
+		var pd: Dictionary = s["pending"]
+		if not pd.is_empty():
+			sight_pending = {"t": float(pd["t"]), "dx": PackedFloat64Array(pd["dx"]), "p": PackedFloat64Array(pd["p"])}
+		var r: Array = s["rms_shown"]
+		_rms_shown = Vector2(r[0], r[1])
+		_burn_dv = float(s["burn_dv"])
+	nav_filter.restore(d.get("nav_filter", {}))
+	if program in [22, 23, 37]:
+		_show_nav_step()
 
 
 ## Entry guidance flies on the sensed deceleration (g) and the state
