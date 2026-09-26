@@ -14,6 +14,15 @@
 ## then it sits on its gear, turning with the Moon, until its engine lifts
 ## it off.
 ##
+## The CSM also feels small forces its computer doesn't model: the SM's
+## vents, a steady force in body axes, and its attitude jets' net force
+## while they fire, from their mismatched thrust (spacecraft.json
+## "unmodelled", drawn from the mission's seed: disperse()). Its
+## accelerometers sense them, but the CMC's state vector takes them in
+## only while Average-G runs. They act through coast steps, which wait only
+## for the commanded forces [simplified: the vent is steady, the LM and the
+## S-IVB have none].
+##
 ## Reads:  sps.thrust_n, rcs.force_body, rcs.torque_body, sivb.thrust_n,
 ##         sivb.dir, sps.prop_kg, rcs.sm_prop_kg, rcs.cm_prop_kg,
 ##         sivb.prop_kg, els.drogue, els.mains, guid.bank_cmd_deg,
@@ -62,6 +71,11 @@ var max_g: float = 0.0
 ## Inertial non-gravitational ΔV accumulated since construction, m/s
 ## (what the IMU accelerometers integrate). Doubles.
 var sensed_dv: PackedFloat64Array = PackedFloat64Array([0, 0, 0])
+## The CSM's unmodelled forces (disperse()): the vents' steady force, N,
+## and the attitude jets' net force as a fraction of the force their
+## torque takes, both in body axes.
+var vent_force: Vector3 = Vector3.ZERO
+var jet_imbalance: Vector3 = Vector3.ZERO
 var last_force_body: Vector3 = Vector3.ZERO
 var last_torque: Vector3 = Vector3.ZERO
 ## The LM while it flies free of the CSM; null while it is docked (part of
@@ -97,6 +111,33 @@ func initialize(primary: String, get_s: float, pos: Vector3, vel: Vector3, cfg: 
 	_align_prograde()
 	update_mass()
 	publish_state()
+
+
+## Draw the CSM's unmodelled forces from [param seed]: each body axis's
+## share of the vent force and of the jets' imbalance normal, at
+## spacecraft.json "unmodelled"'s standard deviations.
+func disperse(seed: int) -> void:
+	var u := SpacecraftData.section("unmodelled")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed
+	var sv := float(u.get("vent_force_n", 0.0))
+	var sj := float(u.get("jet_imbalance", 0.0))
+	vent_force = Vector3(rng.randfn(0.0, sv), rng.randfn(0.0, sv), rng.randfn(0.0, sv))
+	jet_imbalance = Vector3(rng.randfn(0.0, sj), rng.randfn(0.0, sj), rng.randfn(0.0, sj))
+
+
+## The CSM's unmodelled force now, body axes, N: its vents, and its
+## attitude jets' imbalance while they fire [param torque]. None in the
+## stack (the IU flies it) or for the CM alone.
+func _unmodelled_force(torque: Vector3) -> Vector3:
+	if config != "csm" and config != "csm_lm":
+		return Vector3.ZERO
+	var f := vent_force
+	if torque != Vector3.ZERO and jet_imbalance != Vector3.ZERO:
+		var c := SpacecraftData.config(config)
+		var jets := absf(torque.x) / float(c["rcs_roll_arm_m"]) + (absf(torque.y) + absf(torque.z)) / float(c["rcs_pitch_arm_m"])
+		f += jet_imbalance * jets
+	return f
 
 
 func set_configuration(cfg: String) -> void:
@@ -163,6 +204,10 @@ func tick(dt: float) -> void:
 	force_eci += ecl * force_body + aero_eci
 	last_force_body = force_body
 	last_torque = torque
+	# A coast step waits for the commanded forces to stop; the unmodelled
+	# ones act through it.
+	var commanded := force_eci != Vector3.ZERO
+	force_eci += ecl * _unmodelled_force(torque)
 	var a := force_eci / mass
 	var ext := PackedFloat64Array([a.x, a.y, a.z]) if force_eci != Vector3.ZERO else PackedFloat64Array()
 	traj.step(dt, ext)
@@ -184,7 +229,7 @@ func tick(dt: float) -> void:
 		attitude.omega = Vector3.ZERO
 	# A coast step may only be long when nothing acts on the vehicle AND no
 	# autopilot is trying to (a controller cannot run at minute steps).
-	var coasting := force_eci == Vector3.ZERO and torque == Vector3.ZERO and not aero and not landed \
+	var coasting := not commanded and torque == Vector3.ZERO and not aero and not landed \
 		and not bool(Bus.get_value("guid.dap_busy", false))
 	Bus.set_value("dyn.dv_step", [ext[0] * dt, ext[1] * dt, ext[2] * dt] if ext.size() == 3 else [0.0, 0.0, 0.0])
 	_step_lm(dt)
@@ -540,6 +585,8 @@ func snapshot() -> Dictionary:
 		"config": config, "landed": landed, "landed_speed": landed_speed,
 		"bank": bank, "max_g": max_g, "sensed_dv": Array(sensed_dv),
 		"lm_config": lm_config,
+		"vent_force": [vent_force.x, vent_force.y, vent_force.z],
+		"jet_imbalance": [jet_imbalance.x, jet_imbalance.y, jet_imbalance.z],
 	}
 
 
@@ -558,6 +605,10 @@ func restore(d: Dictionary, lm_d: Dictionary = {}) -> void:
 	max_g = float(d.get("max_g", 0.0))
 	sensed_dv = PackedFloat64Array(d.get("sensed_dv", [0, 0, 0]))
 	lm_config = str(d.get("lm_config", "lm"))
+	var vf: Array = d.get("vent_force", [0.0, 0.0, 0.0])
+	vent_force = Vector3(vf[0], vf[1], vf[2])
+	var ji: Array = d.get("jet_imbalance", [0.0, 0.0, 0.0])
+	jet_imbalance = Vector3(ji[0], ji[1], ji[2])
 	update_mass()
 	lm = Vehicle.from_snapshot(lm_d) if not lm_d.is_empty() else null
 	if lm != null:

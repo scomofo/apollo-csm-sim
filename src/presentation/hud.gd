@@ -116,7 +116,7 @@ func setup(p_rt: SimRuntime, p_book: ChecklistBook = null, p_lm_book: ChecklistB
 	right.add_child(_switches)
 	_lm_switches = _lm_switch_panel()
 	right.add_child(_lm_switches)
-	_mcc = _mcc_panel([["MCC", "mcc"], ["LOI-1", "loi"], ["LOI-2", "circ"], ["TEI", "tei"]])
+	_mcc = _mcc_panel([["MCC", "mcc"], ["LOI-1", "loi"], ["LOI-2", "circ"], ["TEI", "tei"], ["SV", "sv"]])
 	right.add_child(_mcc)
 	_lm_mcc = _mcc_panel([["DOI", "doi"], ["PDI", "pdi"], ["ASCENT", "ascent"], ["CSI", "csi"]])
 	right.add_child(_lm_mcc)
@@ -239,6 +239,7 @@ func _switch_panel() -> PanelContainer:
 	g.add_child(thrust)
 	_option(g, "ATT SOURCE", "ctl.scs.att_source", ["CMC", "SCS", "DIRECT"])
 	_option(g, "CMC MODE", "ctl.cmc.mode", ["FREE", "HOLD", "AUTO"])
+	_toggle(g, "UP TLM CM (ACCEPT)", "ctl.cmc.up_tlm")
 	g.add_child(Control.new())
 	for q in ["a", "b", "c", "d"]:
 		_toggle(g, "RCS QUAD " + q.to_upper(), "ctl.rcs.quad_" + q)

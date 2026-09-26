@@ -9,7 +9,9 @@ extends RefCounted
 ## 3: the LGC's rendezvous state (slice 3e).
 ## 4: Mission Control's planned times and timeline (slice 3f).
 ## 5: ECI is the ICRF of JPL's ephemeris, and the S-IVB's TLI yaw (slice 4a).
-const SCHEMA_VERSION := 5
+## 6: the CMC's own state vector, the CSM's unmodelled forces and the
+##    dispersions' seed and draws (slice 4b).
+const SCHEMA_VERSION := 6
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],
@@ -29,10 +31,11 @@ const LM_SYSTEMS := [
 	["lr", "res://src/systems/landing_radar.gd"],
 	["rr", "res://src/systems/rendezvous_radar.gd"],
 ]
-## Crew control defaults: CMC attitude source, HOLD, SPS disarmed; the LM's
-## DAP in HOLD, its engines disarmed and both RCS systems open.
+## Crew control defaults: CMC attitude source, HOLD, SPS disarmed, UP TLM
+## CM in ACCEPT; the LM's DAP in HOLD, its engines disarmed and both RCS
+## systems open.
 const CONTROL_DEFAULTS := {
-	"ctl.scs.att_source": 0, "ctl.cmc.mode": 1,
+	"ctl.scs.att_source": 0, "ctl.cmc.mode": 1, "ctl.cmc.up_tlm": true,
 	"ctl.sps.arm_a": false, "ctl.sps.arm_b": false, "ctl.sps.thrust_on": false,
 	"ctl.rhc": Vector3.ZERO, "ctl.thc": Vector3.ZERO,
 	"ctl.els.logic": false, "ctl.els.auto": false,

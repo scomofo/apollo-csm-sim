@@ -72,9 +72,11 @@ func test_the_hud_shows_the_checklists_of_the_vehicle_flown() -> void:
 	hud._check_title.item_selected.emit(1)
 	assert_eq(csm.list().title, "SPS burn (P30 / P40)", "the choice turns Columbia's book")
 	assert_eq(hud.lm_book.current, 1, "not Eagle's")
+	hud._process(0.0)
+	assert_eq(csm.list().index, 1, "UP TLM CM is in ACCEPT: its step is checked off")
 	var next: Button = hud.find_children("*", "Button", true, false).filter(func(b: Button) -> bool: return b.text == "Next")[0]
 	next.pressed.emit()
-	assert_eq(csm.list().index, 1, "Next acknowledges Columbia's step")
+	assert_eq(csm.list().index, 2, "Next acknowledges Columbia's step")
 	hud.set_vehicle("lm")
 	assert_eq(hud._check_title.selected, 1, "Eagle's checklist as it was left")
 	hud._process(0.0)
