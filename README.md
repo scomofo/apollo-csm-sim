@@ -110,7 +110,7 @@ undocking to TEI) and at entry.
      V16N40.
    - After cutoff, trim the V16N85 residuals with the THC, then press PRO.
 4. **LOI.** About 8 h before pericynthion, press **LOI-1** and fly it
-   (~875 m/s, 6 min, 54 × 170 nmi). Two revs later, fly **LOI-2** to
+   (~875 m/s, 6 min, 53 × 170 nmi). Two revs later, fly **LOI-2** to
    circularize.
 5. **TEI.** Press **LM JETT**, then **TEI**, and fly it. Then fly one or two
    transearth **MCC**s until the vacuum perigee is about 37 km (20 nmi).
@@ -217,7 +217,7 @@ keeps Apollo 11's timeline (mission.json "lunar_timeline"):
   CSI 13 minutes before the burn.
 - **Jettison and TEI.** GO for jettison comes two hours after docking.
   After LM JETT, the TEI PAD comes at 134:01, for the opportunity nearest
-  Apollo 11's 135:23:42 (here 135:20:40).
+  Apollo 11's 135:23:42 (here 135:20:38).
 
 Each PAD comes only when the vehicles can use it, and not while the
 ground's last PAD of its kind is still to be flown. An undocking a day
@@ -415,8 +415,8 @@ A flown Apollo 11 profile in the simulator reproduces these values:
 |---|---|---|
 | TLI | GET 2:44:48, 3,273 m/s, the plane turned 5.0° | 2:44:16, ~3,180 m/s, 1.3° |
 | Translunar coast | 73.0 h | 73.0 h |
-| LOI-1 | GET 75:49:51, 875 m/s, 6.1 min, 54 × 170 nmi | 75:49:50, 889 m/s, 5.95 min, 61 × 169 nmi |
-| TEI | GET 135:20:40, 1,000 m/s | 135:23:42, 1,001 m/s |
+| LOI-1 | GET 75:49:46, 875 m/s, 6.1 min, 53 × 170 nmi | 75:49:50, 889 m/s, 5.95 min, 61 × 169 nmi |
+| TEI | GET 135:20:38, 1,000 m/s | 135:23:42, 1,001 m/s |
 | DOI | GET 101:36:14, 73.1 ft/s, 30 s | 101:36:14, ~76 ft/s, ~30 s |
 | Powered descent | 12 min 6 s, touchdown at 102:45:39, 140 m from the target (the LGC's crossrange error, which the radar can't see) | 12 min 35 s, touchdown at 102:45:40, about 6 km past the target |
 | The Sun at touchdown | 10.7° up | 10.8° up |
@@ -424,8 +424,8 @@ A flown Apollo 11 profile in the simulator reproduces these values:
 | CSI | 52.4 ft/s, 50 min 50 s after insertion | 51.5 ft/s, 50 min 18 s after insertion |
 | TPI | 24.0 ft/s, 2 h 34 min 20 s after insertion | ~25 ft/s, 2 h 34 min 35 s after insertion |
 | Midcourse corrections | 0.2 and 0.1 ft/s | ~1 ft/s each |
-| Braking, then station-keeping | 15 min 25 s, station-keeping 45 min after TPI | 15 min 8 s, station-keeping 48 min after TPI |
-| Docking | GET 127:57:24, 50 min after TPI | 128:03:00, 59 min after TPI |
+| Braking, then station-keeping | 15 min 26 s, station-keeping 45 min after TPI | 15 min 8 s, station-keeping 48 min after TPI |
+| Docking | GET 127:57:19, 50 min after TPI | 128:03:00, 59 min after TPI |
 | Entry peak load | 7.1 g | ~6.5 g |
 | Splashdown | 8.6 m/s | — |
 
@@ -633,8 +633,8 @@ The scenario tests fly real segments through the crew interface:
 
 - S-IVB TLI to lunar arrival
 - MCC, LOI-1 and LOI-2 into lunar orbit, each PAD uplinked with the
-  state vector MSFN tracked (P27). The coast to LOI moves the CSM off the
-  CMC's state vector, and the LOI PAD's uplink takes that out
+  state vector MSFN tracked (P27). By the LOI PAD the CMC's state vector
+  is 93 km off, and the uplink brings it to 0.4 km
 - The CMC's own state vector (`tests/scenarios/test_onboard_state.gd`),
   slice 4b's check. From a perfect state, a day's translunar coast leaves
   it 541 m off, as far as the SM's vents move a copy of the CSM, and the
@@ -709,10 +709,10 @@ The scenario tests fly real segments through the crew interface:
     15 s before the plan's time, and midcourse corrections of 0.2 and
     0.1 ft/s.
   - The commander brakes by the gates and stops 40 m out, and Collins
-    docks at 0.33 ft/s. Eagle's ΔV, 115.5 ft/s, is 6 % over the RTCC's
+    docks at 0.33 ft/s. Eagle's ΔV, 113.2 ft/s, is 4 % over the RTCC's
     plan (the check allows 20 %).
   - GO for jettison comes 2 h 5 min after docking. After LM JETT, the TEI
-    PAD plans TEI at 135:20:40, the opportunity nearest Apollo 11's
+    PAD plans TEI at 135:20:38, the opportunity nearest Apollo 11's
     135:23:42
 - Mission Control's timeline (`tests/scenarios/test_lunar_timeline.gd`),
   slice 3f. From `lunar_orbit`: GO for undocking at 100:00, the DOI PAD
@@ -736,7 +736,7 @@ The scenario tests fly real segments through the crew interface:
   of Eagle's four checklists is flown from its phase's start until the
   HUD, or the card, shows it complete, with the same numbers from both:
   - From `lunar_orbit`: UNDOCK in Columbia at GO for undocking, and DOI
-    to a pericynthion 15,278 m above the site.
+    to a pericynthion 15,265 m above the site.
   - From `lunar_descent`: P63 to P68, and a landing 140 m from the site.
     At high gate the site is 33.9° down the commander's window, and N64
     shows 34.
@@ -784,4 +784,7 @@ timeline from undocking to TEI, the LM its start phases, and you Eagle's
 cockpit, as a desktop overlay, the view out of its windows, its
 checklists, and its cabin, each checklist flown from the HUD and from the
 cabin. That finishes the LM milestone; flying Eagle in a headset waits on
-the headset run, with the VR cockpit's. Navigation realism is next.
+the headset run, with the VR cockpit's. In navigation realism, Apollo 11
+now flies on JPL's ephemeris (slice 4a), and the CMC on its own state
+vector, which the ground's uplinks correct (slice 4b). The IMU and its
+alignments (4c) come next.

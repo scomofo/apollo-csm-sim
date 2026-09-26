@@ -929,6 +929,13 @@ Slice 4b gives the CMC its own navigation:
   and BLOCK after it.
 - **Checkpoints** are schema 6: the CMC's state vector, the unmodelled
   forces, and where MSFN's draws have got to.
+- **What it changes in flight.** By LOI the CMC's state vector is 93 km
+  off, mostly the start's tracking error grown over three days, and the
+  LOI PAD's uplink brings it to 0.4 km. The RTCC now plans LOI-1 from the
+  tracked state, so its PAD carries a few ft/s out of plane (DVY +13.9),
+  and the orbit it leaves passes 660 m from the site where the plan has
+  it over it. The rest of the flight moves by seconds and tenths of a
+  ft/s (the README's Fidelity table).
 
 ### Slices
 
