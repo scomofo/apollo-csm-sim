@@ -1179,7 +1179,10 @@ Slice 5a gives the Earth its shape and the Sun its pull:
 - **The vacuum perigee.** The RTCC took a return's vacuum perigee from
   the conic at 100,000 km. It now integrates on to the perigee
   (`Rtcc.vacuum_perigee()`), so TEI, the MCCs and P37 aim at the
-  perigee the CM reaches. On the entry start phase's return that
+  perigee the CM reaches. Under the surface it integrates on through
+  the same field, so a steep return's perigee runs on smoothly past
+  it; only a return whose perigee lies deeper than half the Earth's
+  radius keeps the conic's. On the entry start phase's return that
   perigee is 4.7 km below the conic's: J2 pulls it 3.2 km lower on the
   way in and the Moon 2.1 km, and the Sun lifts it 0.7 km. Aimed by the
   conic, the entry peaked at 7.1 g before 5a, from the Moon's 2.1 km
@@ -1189,13 +1192,13 @@ Slice 5a gives the Earth its shape and the Sun its pull:
 - **What else it moves.** The rest of the flight moves by seconds and
   tenths of a ft/s (the README's Fidelity table): about the Moon only
   the Sun's tide is new, some 10⁻⁷ m/s². 4d's check holds: after
-  the misaligned TEI's −119 km (−115 before), P23's marks and two P37s
+  the misaligned TEI's −117 km (−115 before), P23's marks and two P37s
   bring the vacuum perigee to 38.1 km (37.9).
 - **CI** deals the scenario files over its three parts by their time on
   the runners, recorded in `.github/scenario_seconds.txt`, where it
   dealt them in turn by name. By name, one run on this slice's gravity
-  took 8:15, 10:06 and 2:04; by the recorded times each part has about
-  6:45 of tests.
+  took 8:15, 10:06 and 2:04; dealt by time, the parts took 6:50, 7:02
+  and 6:47.
 - **Checkpoints** are schema 8, bumped here for 4d's navigation state.
 
 ### Slices

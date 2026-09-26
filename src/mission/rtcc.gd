@@ -14,6 +14,10 @@ extends RefCounted
 ## Integration controls for planning (coarser than flight, still RK4).
 const FRAC := 0.01
 const MAX_DT := 600.0
+## The deepest vacuum perigee, m from the Earth's centre, that earth_return()
+## integrates to: a return steeper than that is the conic's, the
+## perturbations' kilometres lost in thousands.
+const VACUUM_FLOOR := 0.5 * Bodies.R_EARTH
 
 
 static func sps_mdot() -> float:
@@ -140,16 +144,19 @@ static func earth_return(traj: Trajectory, t_max: float) -> Dictionary:
 	var h: Vector3 = c["h"]
 	var sgn := -1.0 if h.dot(Bodies.moon_normal()) < 0.0 else 1.0
 	var rp: float = c["rp"]
-	if reached and Bodies.perturbed and rp > Bodies.R_EARTH:
+	if reached and Bodies.perturbed and rp > VACUUM_FLOOR:
 		rp = vacuum_perigee(traj, rp)
 	return {"t": traj.t, "rp": rp, "f": sgn * rp, "reached": reached}
 
 
 ## The perigee radius an inbound [param traj] (Earth-relative) comes to in
 ## vacuum, integrated on through the Earth's oblateness, whose pull on the
-## way in moves it kilometres from the conic's (4.7 km lower on Apollo
-## 11's return); [param rp_conic], the conic's, where it meets the surface
-## first. [param traj] is left where it was.
+## way in moves it kilometres from the conic's (4.7 km lower on the entry
+## start phase's return, with the Moon's and the Sun's). Below the surface
+## too, through the same field, so a return's perigee runs on smoothly
+## through the altitudes the CM could not reach; [param rp_conic], the
+## conic's, where the path goes below VACUUM_FLOOR first. [param traj] is
+## left where it was.
 static func vacuum_perigee(traj: Trajectory, rp_conic: float) -> float:
 	var tr := traj.clone()
 	var rr_was := tr.radial_rate()
@@ -157,7 +164,7 @@ static func vacuum_perigee(traj: Trajectory, rp_conic: float) -> float:
 		var r_was := tr.radius()
 		var dt := clampf(FRAC * r_was / maxf(tr.speed(), 1.0), 0.5, MAX_DT)
 		tr.step(dt)
-		if tr.radius() < Bodies.R_EARTH:
+		if tr.radius() < VACUUM_FLOOR:
 			return rp_conic
 		var rr := tr.radial_rate()
 		if rr >= 0.0:

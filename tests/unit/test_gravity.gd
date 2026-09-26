@@ -101,22 +101,44 @@ func test_a_parking_orbits_plane_turns_west_at_j2s_rate() -> void:
 
 func test_the_rtccs_vacuum_perigee_is_flown_through_the_oblateness() -> void:
 	Bodies.perturbed = true
-	# A return that bottoms out 40 km up over the equator: from there,
-	# twelve hours back out, then in again as the RTCC sees it.
-	var rp := Bodies.R_EARTH + 40000.0
+	# Returns that bottom out over the equator 40 km up, 2 km under the
+	# surface and 60 km under it: from there, twelve hours back out, then
+	# in again as the RTCC sees them. Under the surface the path is flown
+	# on through the same field, so the perigee runs on smoothly past it.
+	for alt in [40000.0, -2000.0, -60000.0]:
+		var rp: float = Bodies.R_EARTH + alt
+		var tr := _return_from(rp)
+		var er := Rtcc.earth_return(tr.clone(), tr.t + 86400.0)
+		var conic := _conic_perigee(tr)
+		gut.p("perigee %.2f km; the RTCC's %.3f km, the conic's at 100,000 km %.3f km" % [
+			alt / 1000.0, (float(er["rp"]) - Bodies.R_EARTH) / 1000.0, (conic - Bodies.R_EARTH) / 1000.0])
+		assert_almost_eq(float(er["rp"]), rp, 100.0, "the vacuum perigee flown, %.0f km" % (alt / 1000.0))
+		assert_gt(absf(conic - rp), 1000.0, "which the conic misses by kilometres")
+		if alt == -2000.0:
+			assert_gt(conic, Bodies.R_EARTH, "a conic above the surface for a path that goes under it")
+	# A return far steeper than the corridor keeps the conic's perigee.
+	var deep := _return_from(0.3 * Bodies.R_EARTH)
+	var er_deep := Rtcc.earth_return(deep.clone(), deep.t + 86400.0)
+	assert_lt(float(er_deep["rp"]), Rtcc.VACUUM_FLOOR, "below the floor")
+	assert_almost_eq(float(er_deep["rp"]), _conic_perigee(deep), 1.0, "the conic's")
+
+
+## A return that bottoms out at radius [param rp] over the equator,
+## flown back twelve hours from there.
+static func _return_from(rp: float) -> Trajectory:
 	var vp := sqrt(2.0 * (-7.4e5 + Bodies.MU_EARTH / rp))
 	var tr := Trajectory.new()
 	tr.set_state("earth", 50000.0, Vector3(rp, 0.0, 0.0), Vector3(0.0, vp * cos(0.3), vp * sin(0.3)))
 	while tr.t > 50000.0 - 12.0 * 3600.0:
 		tr.step(-clampf(0.002 * tr.radius() / tr.speed(), 0.5, 60.0))
-	var er := Rtcc.earth_return(tr.clone(), tr.t + 86400.0)
+	return tr
+
+
+## The conic perigee radius of [param tr] once it comes within 100,000 km.
+static func _conic_perigee(tr: Trajectory) -> float:
 	var at := tr.clone()
-	at.coast_until(func(t2: Trajectory) -> bool: return t2.radius() < 1.0e8, at.t + 86400.0, 600.0, 0.01)
-	var conic: float = Trajectory.conic_of(at.earth_state(), Bodies.MU_EARTH)["rp"]
-	gut.p("perigee 40.00 km; the RTCC's %.3f km, the conic's at 100,000 km %.3f km" % [
-		(float(er["rp"]) - Bodies.R_EARTH) / 1000.0, (conic - Bodies.R_EARTH) / 1000.0])
-	assert_almost_eq(float(er["rp"]), rp, 100.0, "the vacuum perigee flown")
-	assert_gt(absf(conic - rp), 1000.0, "which the conic misses by kilometres")
+	at.coast_until(func(t2: Trajectory) -> bool: return t2.radius() < 1.0e8, at.t + 86400.0, Rtcc.MAX_DT, Rtcc.FRAC)
+	return Trajectory.conic_of(at.earth_state(), Bodies.MU_EARTH)["rp"]
 
 
 ## The right ascension of the ascending node, degrees.

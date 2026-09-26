@@ -647,7 +647,8 @@ The unit tests cover:
   against their potential's gradient, the energy counting them held round
   an orbit, a parking orbit's node regressing at J2's rate, the Sun's pull
   against its tide, the RTCC's vacuum perigee flown through the
-  oblateness, and the Earth's pole of 1969
+  oblateness, above the surface and under it, and the Earth's pole of
+  1969
 - The Moon-fixed frame on the circular model: the Moon keeps a face to
   the Earth and turns once a sidereal month, and selenographic
   coordinates round-trip
@@ -786,13 +787,13 @@ The scenario tests fly real segments through the crew interface:
   state vector, and one in P47 is
 - Onboard navigation (`tests/scenarios/test_onboard_navigation.gd`),
   slice 4d's check. A TEI flown on a platform 0.5° off leaves a vacuum
-  perigee of −119 km, steep of the 25 to 50 km corridor, and the CMC's
+  perigee of −117 km, steep of the 25 to 50 km corridor, and the CMC's
   state vector 1.1 km and 8.9 m/s off. With UP TLM CM in BLOCK from then
   on, the crew marks six stars with P23 every four hours from 10 h after
   TEI, three on the Moon's horizon and three on the Earth's. At 38.6 h
   P37 works out 4.1 m/s from the CMC's state, which, flown after P52,
   leaves 27.1 km, where P37 from the unmarked state would have left
-  −41.7 km. After two more sessions a second P37 of 0.4 m/s leaves
+  −41.6 km. After two more sessions a second P37 of 0.4 m/s leaves
   38.1 km. P23's dialogue: the codes it won't take, 00404 for a star it
   can't lay on the horizon, the landmark line on the horizon under the
   star, V32 dropping a bad mark, a good one bringing a state vector 50 km
