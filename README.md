@@ -507,11 +507,12 @@ A flown Apollo 11 profile in the simulator reproduces these values:
 Deliberate simplifications are tagged `[simplified]` in the code. The main
 ones:
 
-- **Gravity.** The Earth and the Moon pull as points, where JPL's
+- **Gravity.** The Earth, the Moon and the Sun pull where JPL's
   ephemeris (DE441) has them on Apollo 11's dates, and the Moon turns by
-  the IAU's rotation model. The Sun's gravity, the Earth's oblateness and
-  the Moon's mascons are left out. In flight the oblateness turned the
-  parking orbit's plane 0.8° west before TLI.
+  the IAU's rotation model. The Earth is oblate to its zonal harmonics,
+  J2 to J4, about its mean pole of date: its tesseral harmonics and
+  nutation are left out. The Moon pulls as a point, without its mascons.
+  The onboard computers and the RTCC integrate the same gravity.
 - **Navigation.** Both computers fly on their own state vectors, which the
   ground's uplinks correct, and the CMC's own marks too. MSFN's tracking error is drawn fresh for each
   uplink, not from tracking arcs. The CSM's unmodelled forces are a
@@ -630,9 +631,9 @@ godot --headless --path . -s addons/gut/gut_cmdln.gd -gexit
 That runs the whole suite, which takes a quarter of an hour, nearly all
 of it in the scenario tests. Add `-gdir=res://tests/unit/` to run only
 the unit tests, in about a minute, or `-gselect=<name>` to run only the
-scripts whose file names contain `<name>`. CI runs the suite in three
+scripts whose file names contain `<name>`. CI runs the suite in four
 parts side by side (`.github/workflows/ci.yml`): the unit tests, and the
-scenario tests dealt out over two jobs.
+scenario tests dealt out over three jobs.
 
 The unit tests cover:
 
