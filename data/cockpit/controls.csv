@@ -53,3 +53,55 @@ LEB_OPTICS_SPEED,LEB,rotary,OPTICS SPEED,-180,-150,0,ctl.optics.speed,positions=
 LEB_MARK,LEB,pushbutton,MARK,-90,-150,0,ctl.optics.mark,,estimated,D,implemented,historical
 LEB_MARK_REJECT,LEB,pushbutton,MARK REJECT,-20,-150,0,ctl.optics.mark_reject,,estimated,D,implemented,historical
 LEB_DSKY,LEB,dsky,DSKY,250,-20,0,dsky,,estimated,D,implemented,historical
+P1_EMS_FUNCTION,MDC1,rotary,EMS FUNCTION,-15,205,0,ctl.ems.function,positions=6;labels=ENTRY|DELTA-V TEST|DELTA-V SET/VHF RNG|DELTA-V|OFF|EMS TEST,AOH Fig 3-1 P1-B,D,implemented,historical
+P1_EMS_DV,MDC1,numeric,DELTA-V,-15,150,0,ems.delta_v,format=%7.1f;blank_text=----,AOH Fig 3-1 P1-B,D,implemented,historical
+P1_EMS_05G,MDC1,lamp,.05G,-15,100,0,ems.light_05g,,AOH Fig 3-1 P1-B,D,implemented,historical
+P2_CW_BMAG1_TEMP,MDC2,lamp,BMAG 1 TEMP,-140,172,0,sys.cw.bmag1_temp,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_BMAG2_TEMP,MDC2,lamp,BMAG 2 TEMP,-100,172,0,sys.cw.bmag2_temp,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_CO2_PP_HI,MDC2,lamp,CO2 PP HI,-60,172,0,sys.cw.co2_pp_hi,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_PITCH_GMBL_1,MDC2,lamp,PITCH GMBL 1,-20,172,0,sys.cw.pitch_gmbl_1,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_PITCH_GMBL_2,MDC2,lamp,PITCH GMBL 2,20,172,0,sys.cw.pitch_gmbl_2,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_YAW_GMBL_1,MDC2,lamp,YAW GMBL 1,60,172,0,sys.cw.yaw_gmbl_1,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_YAW_GMBL_2,MDC2,lamp,YAW GMBL 2,100,172,0,sys.cw.yaw_gmbl_2,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_CRYO_PRESS,MDC2,lamp,CRYO PRESS,140,172,0,sys.cw.cryo_press,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_GLYCOL_TEMP_LO,MDC2,lamp,GLYCOL TEMP LOW,-140,152,0,sys.cw.glycol_temp_lo,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_CM_RCS_1,MDC2,lamp,CM RCS 1,-100,152,0,sys.cw.cm_rcs_1,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_CM_RCS_2,MDC2,lamp,CM RCS 2,-60,152,0,sys.cw.cm_rcs_2,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_CM_RCS_3,MDC2,lamp,CM RCS 3,-20,152,0,sys.cw.cm_rcs_3,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_CM_RCS_4,MDC2,lamp,CM RCS 4,20,152,0,sys.cw.cm_rcs_4,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_SM_RCS_A,MDC2,lamp,SM RCS A,60,152,0,sys.cw.sm_rcs_a,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_SM_RCS_B,MDC2,lamp,SM RCS B,100,152,0,sys.cw.sm_rcs_b,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_SM_RCS_C,MDC2,lamp,SM RCS C,140,152,0,sys.cw.sm_rcs_c,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_SM_RCS_D,MDC2,lamp,SM RCS D,-140,132,0,sys.cw.sm_rcs_d,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_FC_1,MDC2,lamp,FC 1,-100,132,0,sys.cw.fc_1,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_FC_2,MDC2,lamp,FC 2,-60,132,0,sys.cw.fc_2,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_FC_3,MDC2,lamp,FC 3,-20,132,0,sys.cw.fc_3,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_INV_1_TEMP_HI,MDC2,lamp,INV 1 TEMP HI,20,132,0,sys.cw.inv_1_temp_hi,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_INV_2_TEMP_HI,MDC2,lamp,INV 2 TEMP HI,60,132,0,sys.cw.inv_2_temp_hi,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_INV_3_TEMP_HI,MDC2,lamp,INV 3 TEMP HI,100,132,0,sys.cw.inv_3_temp_hi,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_SPS_PRESS,MDC2,lamp,SPS PRESS,140,132,0,sys.cw.sps_press,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_AC_BUS_1,MDC2,lamp,AC BUS 1,-140,112,0,sys.cw.ac_bus_1,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_AC_BUS_2,MDC2,lamp,AC BUS 2,-100,112,0,sys.cw.ac_bus_2,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_FC_BUS_DISC,MDC2,lamp,FC BUS DISCONNECT,-60,112,0,sys.cw.fc_bus_disc,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_AC_BUS_1_OVLD,MDC2,lamp,AC BUS 1 OVERLOAD,-20,112,0,sys.cw.ac_bus_1_ovld,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_AC_BUS_2_OVLD,MDC2,lamp,AC BUS 2 OVERLOAD,20,112,0,sys.cw.ac_bus_2_ovld,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_CMC,MDC2,lamp,CMC,60,112,0,sys.cw.cmc,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_CREW_ALERT,MDC2,lamp,CREW ALERT,100,112,0,sys.cw.crew_alert,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_MN_BUS_A_UV,MDC2,lamp,MN BUS A UNDERVOLT,140,112,0,sys.cw.mn_bus_a_uv,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_MN_BUS_B_UV,MDC2,lamp,MN BUS B UNDERVOLT,-140,92,0,sys.cw.mn_bus_b_uv,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_ISS,MDC2,lamp,ISS,-100,92,0,sys.cw.iss,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_CW,MDC2,lamp,C/W,-60,92,0,sys.cw.cw,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_O2_FLOW_HI,MDC2,lamp,O2 FLOW HI,-20,92,0,sys.cw.o2_flow_hi,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_CW_SUIT_COMPR,MDC2,lamp,SUIT COMPRESSOR,20,92,0,sys.cw.suit_compr,,AOH Fig 3-1 P2-A,D,implemented,historical
+P2_EDS_ABORT,MDC2,lamp,ABORT,210,-60,0,sys.eds.abort,,AOH Fig 3-1 P2-B,D,implemented,historical
+P2_EDS_LV_RATE,MDC2,lamp,LV RATE,210,-80,0,sys.eds.lv_rate,,AOH Fig 3-1 P2-B,D,implemented,historical
+P2_EDS_SII_SEP,MDC2,lamp,SII SEP,210,-100,0,sys.eds.sii_sep,,AOH Fig 3-1 P2-B,D,implemented,historical
+P2_EDS_LV_GUID,MDC2,lamp,LV GUID,210,-120,0,sys.eds.lv_guid,,AOH Fig 3-1 P2-B,D,implemented,historical
+P2_EDS_LV_ENG_4,MDC2,lamp,LV ENG 4,210,-140,0,sys.eds.lv_eng_4,,AOH Fig 3-1 P2-B,D,implemented,historical
+P2_EDS_LV_ENG_1,MDC2,lamp,LV ENG 1,210,-160,0,sys.eds.lv_eng_1,,AOH Fig 3-1 P2-B,D,implemented,historical
+P2_EDS_LV_ENG_5,MDC2,lamp,LV ENG 5,254,-60,0,sys.eds.lv_eng_5,,AOH Fig 3-1 P2-B,D,implemented,historical
+P2_EDS_LV_ENG_3,MDC2,lamp,LV ENG 3,254,-80,0,sys.eds.lv_eng_3,,AOH Fig 3-1 P2-B,D,implemented,historical
+P2_EDS_LV_ENG_2,MDC2,lamp,LV ENG 2,254,-100,0,sys.eds.lv_eng_2,,AOH Fig 3-1 P2-B,D,implemented,historical
+P2_EDS_LIFTOFF,MDC2,lamp,LIFT OFF,254,-120,0,sys.eds.liftoff,,AOH Fig 3-1 P2-B,D,implemented,historical
+P2_EDS_NO_AUTO_ABORT,MDC2,lamp,NO AUTO ABORT,254,-140,0,sys.eds.no_auto_abort,,AOH Fig 3-1 P2-B,D,implemented,historical
+P2_EDS_LES,MDC2,lamp,LES,254,-160,0,sys.eds.les,,AOH Fig 3-1 P2-B,D,implemented,historical
