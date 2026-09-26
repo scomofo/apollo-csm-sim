@@ -340,15 +340,15 @@ func uplink_liftoff(tig: float) -> void:
 
 
 ## Stage DEPENDENT: coast the state vector to now with this step's sensed
-## ΔV (all of it: Average-G always runs while the LM flies free
+## ΔV [param dv] (all of it: Average-G always runs while the LM flies free
 ## [simplified]); on the surface, hold it at the spot it landed at. The
 ## CSM's state vector coasts along.
-func _navigate() -> void:
+func _navigate(dv: Vector3) -> void:
 	var now := _now()
 	if csm_nav != null and csm_nav.t < now:
 		csm_nav.coast_to(now)
 	if nav == null:
-		super._navigate()   # the LM's truth: the CSM's, handed over at undocking
+		super._navigate(dv)   # the LM's truth: the CSM's, handed over at undocking
 		return
 	if bool(Bus.get_value("lm.dyn.landed", false)):
 		if nav_landed_mf == Vector3.ZERO:
@@ -357,7 +357,7 @@ func _navigate() -> void:
 		nav.set_state("moon", now, r, Bodies.moon_omega(now).cross(r))
 		return
 	nav_landed_mf = Vector3.ZERO
-	super._navigate()
+	super._navigate(dv)
 
 
 ## Every 2 s in P63 to P66: read the landing radar. ΔH is its altitude

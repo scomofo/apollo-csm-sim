@@ -37,6 +37,7 @@ const TYPES := {
 	"clock": {"scene": "res://scenes/instruments/clock_display.tscn", "control": false, "takes": ["float"], "half_mm": Vector2(35, 8)},
 	"fdai": {"scene": "res://scenes/instruments/fdai.tscn", "control": false, "takes": ["quat"], "half_mm": Vector2(55, 55)},
 	"dsky": {"scene": "res://scenes/instruments/cabin_dsky.tscn", "control": false, "takes": ["group"], "half_mm": Vector2(100, 120)},
+	"optics": {"scene": "res://scenes/instruments/optics_eyepiece.tscn", "control": false, "takes": ["group"], "half_mm": Vector2(180, 105)},
 }
 ## Printed lettering, capital height (m) [estimated].
 const CAPTION_HEIGHT := 0.0055

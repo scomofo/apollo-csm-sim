@@ -5,13 +5,13 @@
 ## camera. It rides on the player's camera.
 ## Adapted from gemini-capsule's src/presentation/comfort.gd at 40e449c
 ## (README.md lists the port): the body rate comes from dyn.omega, entry
-## from dyn.g_load and the horizon from guid.indicator.attitude, in place
-## of Gemini's guid.rate.*, dynamic pressure and guid.att.lvlh. In Eagle
+## from dyn.g_load and the horizon from guid.indicator.lvlh, in place of
+## Gemini's guid.rate.*, dynamic pressure and guid.att.lvlh. In Eagle
 ## ([member vehicle] "lm") they are Eagle's: lm.dyn.omega and the LGC's
-## lm.guid.indicator.attitude, with no entry. Presentation only.
+## lm.guid.indicator.lvlh, with no entry. Presentation only.
 ##
-## Reads:  dyn.omega, dyn.g_load, guid.indicator.attitude, or in Eagle
-##         lm.dyn.omega, lm.guid.indicator.attitude
+## Reads:  dyn.omega, dyn.g_load, guid.indicator.lvlh, or in Eagle
+##         lm.dyn.omega, lm.guid.indicator.lvlh
 ## Writes: present.comfort.vignette (0..1), present.comfort.horizon (bool),
 ##         present.comfort.authentic (bool)
 class_name Comfort
@@ -104,11 +104,11 @@ func update_from_bus() -> void:
 	var horizon := horizon_aid and not authentic
 	_ring.visible = horizon
 	if horizon:
-		# guid.indicator.attitude turns LVLH-aligned body axes into the actual
+		# guid.indicator.lvlh turns LVLH-aligned body axes into the actual
 		# ones; taken from the vehicle's level attitude (Frames.level_turn),
 		# its inverse in render axes is the LVLH frame seen from the cabin.
 		# The ring's axis is render +Y: the local up.
-		var q = Bus.get_value(p + "guid.indicator.attitude", null)
+		var q = Bus.get_value(p + "guid.indicator.lvlh", null)
 		if q is Quaternion:
 			_ring.global_basis = Frames.level_turn(q as Quaternion, vehicle).inverse()
 	Bus.set_value("present.comfort.vignette", v)

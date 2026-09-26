@@ -35,3 +35,10 @@ P3_BATT_BUS,MDC3,toggle,BATT TO BUS,40,120,0,ctl.eps.batt_bus,,estimated,D,imple
 P3_MASTER_ALARM,MDC3,lamp,MASTER ALARM,200,180,0,sys.master_alarm.eps,colour=ff2a1a;scale=1.5,estimated,D,implemented,proxy
 P3_BUS_A_VOLTS,MDC3,numeric,MAIN BUS A V,-120,-40,0,eps.bus_a_v,format=%4.1f;blank_text=----,estimated,D,implemented,historical
 P3_BUS_B_VOLTS,MDC3,numeric,MAIN BUS B V,40,-40,0,eps.bus_b_v,format=%4.1f;blank_text=----,estimated,D,implemented,historical
+LEB_OPTICS,LEB,optics,OPTICS,-180,115,0,optics,,estimated,D,implemented,proxy
+LEB_OPTICS_ZERO,LEB,toggle,OPTICS ZERO,-340,-150,0,ctl.optics.zero,labels=OFF|ZERO,estimated,D,implemented,historical
+LEB_OPTICS_MODE,LEB,toggle,OPTICS MODE,-270,-150,0,ctl.optics.mode,labels=MAN|CMC,estimated,D,implemented,historical
+LEB_OPTICS_SPEED,LEB,rotary,OPTICS SPEED,-180,-150,0,ctl.optics.speed,positions=3;labels=LO|MED|HI;start_angle_deg=-45;detent_deg=45,estimated,D,implemented,historical
+LEB_MARK,LEB,pushbutton,MARK,-90,-150,0,ctl.optics.mark,,estimated,D,implemented,historical
+LEB_MARK_REJECT,LEB,pushbutton,MARK REJECT,-20,-150,0,ctl.optics.mark_reject,,estimated,D,implemented,historical
+LEB_DSKY,LEB,dsky,DSKY,250,-20,0,dsky,,estimated,D,implemented,historical

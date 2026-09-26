@@ -1,0 +1,302 @@
+{
+ "_comment": "The Apollo guidance computers' 37 navigation stars by octal code: the Hipparcos catalogue's new reduction (van Leeuwen 2007, CDS I/311), carried by its proper motions to Apollo 11's launch day, right ascension and declination in the ICRS (deg), and Hipparcos magnitude, from tools/stars/navigation_stars.py [derived]",
+ "epoch_year": 1969.5388,
+ "stars": [
+  {
+   "code": 1,
+   "name": "Alpheratz",
+   "hip": 677,
+   "ra_deg": 2.0955852,
+   "dec_deg": 29.0918141,
+   "mag": 2.04
+  },
+  {
+   "code": 2,
+   "name": "Diphda",
+   "hip": 3419,
+   "ra_deg": 10.8953099,
+   "dec_deg": -17.986877,
+   "mag": 2.21
+  },
+  {
+   "code": 3,
+   "name": "Navi",
+   "hip": 4427,
+   "ra_deg": 14.1767775,
+   "dec_deg": 60.7167732,
+   "mag": 2.14
+  },
+  {
+   "code": 4,
+   "name": "Achernar",
+   "hip": 7588,
+   "ra_deg": 24.4271625,
+   "dec_deg": -57.2364292,
+   "mag": 0.42
+  },
+  {
+   "code": 5,
+   "name": "Polaris",
+   "hip": 11767,
+   "ra_deg": 37.9252557,
+   "dec_deg": 89.2642092,
+   "mag": 2.11
+  },
+  {
+   "code": 6,
+   "name": "Acamar",
+   "hip": 13847,
+   "ra_deg": 44.5659004,
+   "dec_deg": -40.3048672,
+   "mag": 2.94
+  },
+  {
+   "code": 7,
+   "name": "Menkar",
+   "hip": 14135,
+   "ra_deg": 45.5699761,
+   "dec_deg": 4.090389,
+   "mag": 2.62
+  },
+  {
+   "code": 10,
+   "name": "Mirfak",
+   "hip": 15863,
+   "ra_deg": 51.080397,
+   "dec_deg": 49.8614012,
+   "mag": 1.9
+  },
+  {
+   "code": 11,
+   "name": "Aldebaran",
+   "hip": 21421,
+   "ra_deg": 68.9796028,
+   "dec_deg": 16.5109011,
+   "mag": 1.0
+  },
+  {
+   "code": 12,
+   "name": "Rigel",
+   "hip": 24436,
+   "ra_deg": 78.6344559,
+   "dec_deg": -8.2016426,
+   "mag": 0.19
+  },
+  {
+   "code": 13,
+   "name": "Capella",
+   "hip": 24608,
+   "ra_deg": 79.1714114,
+   "dec_deg": 46.0016036,
+   "mag": 0.24
+  },
+  {
+   "code": 14,
+   "name": "Canopus",
+   "hip": 30438,
+   "ra_deg": 95.9876796,
+   "dec_deg": -52.695858,
+   "mag": -0.55
+  },
+  {
+   "code": 15,
+   "name": "Sirius",
+   "hip": 32349,
+   "ra_deg": 101.2919792,
+   "dec_deg": -16.7057669,
+   "mag": -1.09
+  },
+  {
+   "code": 16,
+   "name": "Procyon",
+   "hip": 37279,
+   "ra_deg": 114.8315696,
+   "dec_deg": 5.2337604,
+   "mag": 0.46
+  },
+  {
+   "code": 17,
+   "name": "Regor",
+   "hip": 39953,
+   "ra_deg": 122.3832013,
+   "dec_deg": -47.3366746,
+   "mag": 1.7
+  },
+  {
+   "code": 20,
+   "name": "Dnoces",
+   "hip": 44127,
+   "ra_deg": 134.8074749,
+   "dec_deg": 48.0436481,
+   "mag": 3.19
+  },
+  {
+   "code": 21,
+   "name": "Alphard",
+   "hip": 46390,
+   "ra_deg": 141.8969749,
+   "dec_deg": -8.6588904,
+   "mag": 2.13
+  },
+  {
+   "code": 22,
+   "name": "Regulus",
+   "hip": 49669,
+   "ra_deg": 152.0951138,
+   "dec_deg": 11.9671615,
+   "mag": 1.32
+  },
+  {
+   "code": 23,
+   "name": "Denebola",
+   "hip": 57632,
+   "ra_deg": 177.2692608,
+   "dec_deg": 14.5730283,
+   "mag": 2.16
+  },
+  {
+   "code": 24,
+   "name": "Gienah",
+   "hip": 59803,
+   "ra_deg": 183.9529526,
+   "dec_deg": -17.5421154,
+   "mag": 2.55
+  },
+  {
+   "code": 25,
+   "name": "Acrux",
+   "hip": 60718,
+   "ra_deg": 186.6502335,
+   "dec_deg": -63.0989671,
+   "mag": 0.67
+  },
+  {
+   "code": 26,
+   "name": "Spica",
+   "hip": 65474,
+   "ra_deg": 201.2986126,
+   "dec_deg": -11.16106,
+   "mag": 0.89
+  },
+  {
+   "code": 27,
+   "name": "Alkaid",
+   "hip": 67301,
+   "ra_deg": 206.88673,
+   "dec_deg": 49.3133929,
+   "mag": 1.8
+  },
+  {
+   "code": 30,
+   "name": "Menkent",
+   "hip": 68933,
+   "ra_deg": 211.6760846,
+   "dec_deg": -36.3655712,
+   "mag": 2.22
+  },
+  {
+   "code": 31,
+   "name": "Arcturus",
+   "hip": 69673,
+   "ra_deg": 213.925096,
+   "dec_deg": 19.1993326,
+   "mag": 0.11
+  },
+  {
+   "code": 32,
+   "name": "Alphecca",
+   "hip": 76267,
+   "ra_deg": 233.6708107,
+   "dec_deg": 26.7154508,
+   "mag": 2.22
+  },
+  {
+   "code": 33,
+   "name": "Antares",
+   "hip": 80763,
+   "ra_deg": 247.3520298,
+   "dec_deg": -26.4318055,
+   "mag": 0.98
+  },
+  {
+   "code": 34,
+   "name": "Atria",
+   "hip": 82273,
+   "ra_deg": 252.1658042,
+   "dec_deg": -69.0274446,
+   "mag": 2.07
+  },
+  {
+   "code": 35,
+   "name": "Rasalhague",
+   "hip": 86032,
+   "ra_deg": 263.7326859,
+   "dec_deg": 12.5619122,
+   "mag": 2.13
+  },
+  {
+   "code": 36,
+   "name": "Vega",
+   "hip": 91262,
+   "ra_deg": 279.2325537,
+   "dec_deg": 38.781267,
+   "mag": 0.09
+  },
+  {
+   "code": 37,
+   "name": "Nunki",
+   "hip": 92855,
+   "ra_deg": 283.8162175,
+   "dec_deg": -26.296272,
+   "mag": 2.01
+  },
+  {
+   "code": 40,
+   "name": "Altair",
+   "hip": 97649,
+   "ra_deg": 297.6912351,
+   "dec_deg": 8.8650611,
+   "mag": 0.83
+  },
+  {
+   "code": 41,
+   "name": "Dabih",
+   "hip": 100345,
+   "ra_deg": 305.2524122,
+   "dec_deg": -14.7814455,
+   "mag": 3.21
+  },
+  {
+   "code": 42,
+   "name": "Peacock",
+   "hip": 100751,
+   "ra_deg": 306.4117979,
+   "dec_deg": -56.7343619,
+   "mag": 1.86
+  },
+  {
+   "code": 43,
+   "name": "Deneb",
+   "hip": 102098,
+   "ra_deg": 310.3579556,
+   "dec_deg": 45.2803232,
+   "mag": 1.3
+  },
+  {
+   "code": 44,
+   "name": "Enif",
+   "hip": 107315,
+   "ra_deg": 326.0462527,
+   "dec_deg": 9.8750049,
+   "mag": 2.55
+  },
+  {
+   "code": 45,
+   "name": "Fomalhaut",
+   "hip": 113368,
+   "ra_deg": 344.4094909,
+   "dec_deg": -29.6208437,
+   "mag": 1.18
+  }
+ ]
+}

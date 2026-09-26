@@ -35,7 +35,7 @@ func _step_texts(card: ChecklistCard) -> PackedStringArray:
 
 
 func test_the_book_opens_by_phase_cycles_and_acknowledges() -> void:
-	assert_eq(book.lists.size(), 4)
+	assert_eq(book.lists.size(), 5)
 	book.select_for_phase("translunar_coast")
 	assert_eq(book.list().title, "SPS burn (P30 / P40)")
 	var w := book.window()
@@ -63,7 +63,7 @@ func test_the_book_opens_by_phase_cycles_and_acknowledges() -> void:
 	assert_eq(book.list().title, "Lunar orbit and TEI")
 	assert_eq(book.list().index, 0, "a checklist opens where it stands, at first its first step")
 	book.select(-1)
-	assert_eq(book.list().title, "Entry", "select wraps")
+	assert_eq(book.list().title, "IMU realign (P52)", "select wraps")
 	book.select(1)
 	assert_eq(book.list().index, 4, "back to the SPS burn checklist where it was left")
 	book.list().index = book.list().steps.size()
@@ -141,7 +141,7 @@ func test_every_step_names_a_cabin_control_or_one_writes_its_check() -> void:
 				assert_ne(id, "", "%s: a cabin control writes %s" % [s["text"], channel])
 			if id != "":
 				framed += 1
-	assert_eq(framed, 21, "21 steps point at a cabin control")
+	assert_eq(framed, 31, "31 steps point at a cabin control")
 
 
 func test_every_eagle_step_names_one_of_its_controls_or_one_writes_its_check() -> void:
@@ -214,6 +214,10 @@ func test_the_highlight_frames_the_current_steps_control() -> void:
 		Bus.set_value("guid.program", p)
 		book.update()
 	Bus.set_value("guid.maneuver_valid", true)
+	book.update()
+	hl.update()
+	assert_eq(hl.target_id, "", "P52 is flown at the lower equipment bay, on its own checklist")
+	Bus.set_value("imu.preferred", true)
 	book.update()
 	hl.update()
 	assert_eq(hl.target_id, "P1_CMC_MODE", "CMC MODE - AUTO: the switch that writes ctl.cmc.mode")

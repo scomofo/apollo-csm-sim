@@ -1,17 +1,18 @@
 ## The VR cockpit milestone's check (docs/ROADMAP.md, milestone 2): every
-## checklist in data/missions/apollo_11/checklists.json worked from the
-## commander's couch through the cabin, as a player on the desktop works it
-## (CabinTest), until the card shows it complete. Mission Control's PADs
-## are asked for on the wrist menu, read-only steps are acknowledged with
-## its NEXT STEP and the checklists turned with its CHECKLIST, and the burn
-## residuals are trimmed with the translation controller on the keys. Each
-## phase starts from that phase's start state, as test_lunar_mission.gd's
-## segments do.
+## checklist in data/missions/apollo_11/checklists.json worked through the
+## cabin, as a player on the desktop works it (CabinTest), until the card
+## shows it complete: from the commander's couch, and the IMU realign
+## before each burn at the lower equipment bay (slice 4c). Mission
+## Control's PADs are asked for on the wrist menu, read-only steps are
+## acknowledged with its NEXT STEP and the checklists turned with its
+## CHECKLIST, and the burn residuals are trimmed with the translation
+## controller on the keys. Each phase starts from that phase's start state,
+## as test_lunar_mission.gd's segments do.
 extends CabinTest
 
 ## The checklists this file flies; a checklist added to checklists.json
 ## needs a flight here too.
-const FLOWN := ["Parking orbit and TLI", "SPS burn (P30 / P40)", "Lunar orbit and TEI", "Entry"]
+const FLOWN := ["Parking orbit and TLI", "SPS burn (P30 / P40)", "Lunar orbit and TEI", "Entry", "IMU realign (P52)"]
 
 
 func test_every_checklist_is_flown_here() -> void:
@@ -100,6 +101,10 @@ func _fly_burn(short: float = 0.0) -> float:
 	assert_eq([dsky.fields["verb"].text, dsky.fields["noun"].text], ["06", "33"], "P30 shows TIG")
 	await type("PPP")
 	assert_true(agc.maneuver_valid, "TIG, ΔV and the apsides accepted")
+	await expect_step("P52 option 1")
+	var p52 := await realign_at_the_leb(1)
+	gut.p("  P52 on %s and %s: N05 %.3f deg, N93 %s deg" % [Stars.name_of(p52["stars"][0]),
+		Stars.name_of(p52["stars"][1]), p52["sad"], p52["torque"]])
 	await expect_step("CMC MODE - AUTO")
 	await slow_down()
 	await switch_to("P1_CMC_MODE", 2)

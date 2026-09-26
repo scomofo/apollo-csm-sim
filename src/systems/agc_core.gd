@@ -27,22 +27,38 @@
 ## truth. It coasts it with its own integration, and adds its vehicle's
 ## sensed ΔV (dyn.dv_step) only while Average-G runs (avg_g()). The ground's
 ## uplinks replace it (P27, V71) when the computer takes them
-## (accepts_uplink()); until it has one it takes its vehicle's truth. The
-## IMU is ideal [simplified: milestone 4c]: the attitude and the sensed ΔV
-## are true, REFSMMAT is the ECI frame, so ICDU angles are inertial Euler
-## angles.
+## (accepts_uplink()); until it has one it takes its vehicle's truth.
+##
+## The IMU (src/systems/imu.gd): the computer reads its vehicle's attitude
+## and sensed ΔV through the stable member, taken to lie at REFSMMAT, so a
+## misaligned platform turns both. Everything the computer flies, displays
+## and navigates on sees them so turned; the ICDU angles (N20, and the
+## FDAI's total attitude) are the vehicle's attitude relative to the stable
+## member. While the IMU is in coarse align or caged NO ATT lights and the
+## DAP only damps the rates. A thrusting program needs the IMU's
+## orientation known (alarm 00220), and won't maneuver to a burn attitude
+## past LOCK_MANEUVER_DEG of middle gimbal (alarm 00401): P52 to the
+## preferred orientation first. Each auto maneuver is planned clear of
+## gimbal lock on the way (_plan_via()). The LGC's IMU is ideal
+## (real_imu()).
 ##
 ## Digital autopilot, from the computer's mode switch:
 ##   0 FREE  hand controller commands acceleration, no hold
 ##   1 HOLD  hand controller rate command, attitude hold on release
 ##   2 AUTO  as HOLD, plus program-commanded maneuvers
+## The hold comes to rest inside a tenth of ATT_DEADBAND (0.05°), with the
+## rate nulled to REST_RATE and the jets off, so the clock can coast; past
+## that it corrects (a drifting platform moves the attitude it holds).
 ##
 ## Writes (under the prefix): guid.rcs_rot_cmd, guid.program,
 ##         guid.next_event_get_s, guid.vg_mps, guid.maneuver_valid,
 ##         guid.maneuver_tig, guid.step, guid.dap_busy, guid.att_error_deg,
 ##         guid.rcs_trans_cmd, the engine command (the computer's),
-##         guid.indicator.attitude (the FDAI's attitude: body relative to
-##         LVLH), and the DSKY's display: dsky.prog, dsky.verb, dsky.noun,
+##         guid.indicator.attitude (the FDAI's attitude, indicator_attitude()),
+##         guid.indicator.lvlh (body relative to LVLH, for the horizon aid),
+##         imu.icdu_deg (the ICDU angles, deg), imu.aligned, imu.mode,
+##         imu.preferred (REFSMMAT is P30's preferred orientation), and
+##         the DSKY's display: dsky.prog, dsky.verb, dsky.noun,
 ##         dsky.r1-dsky.r3 (blank while unpowered), dsky.flash,
 ##         dsky.comp_acty, dsky.lamp.<lamp>
 class_name AgcCore
@@ -51,6 +67,12 @@ extends Node
 const RATE_HOLD := 0.0349066      ## rad/s, 2 °/s hand controller full-scale rate
 const RATE_AUTO := 0.0174533      ## rad/s, 1 °/s auto-maneuver rate
 const ATT_DEADBAND := 0.00873     ## rad, 0.5°
+## The rate the hold nulls down to before it leaves the jets off, rad/s:
+## the attitude moves about 0.02° an hour on what is left.
+const REST_RATE := 1e-7
+## The auto maneuver refuses a burn attitude whose middle gimbal angle is
+## past this, deg (alarm 00401).
+const LOCK_MANEUVER_DEG := 60.0
 
 var dsky: Dsky
 var program: int = 0
@@ -86,12 +108,22 @@ var ignition_get: float = -1.0
 var hold_q: Quaternion = Quaternion.IDENTITY
 var auto_target: Quaternion = Quaternion.IDENTITY
 var auto_active: bool = false
+## The auto maneuver's legs still to fly before auto_target, on a real IMU
+## (_plan_via()): the DAP steers to the first until it is inside the
+## deadband.
+var maneuver_vias: Array[Quaternion] = []
 var _rhc_was_active: bool = false
 var _last_source: int = -1
 var desired_q: Quaternion = Quaternion.IDENTITY
 
 ## The computer's state vector; null until it has one.
 var nav: Trajectory = null
+## The IMU the computer reads its attitude and sensed ΔV through.
+var imu := Imu.new()
+## The preferred orientation P30 worked out for the stored maneuver (P52
+## option 1), and whether there is one.
+var preferred_refsmmat: Basis = Basis.IDENTITY
+var preferred_valid: bool = false
 ## GET the ground's last state vector came up (P27), or -1.
 var nav_uplink_get: float = -1.0
 
@@ -107,6 +139,7 @@ var _powered: bool = true
 func _init() -> void:
 	dsky = Dsky.new(self)
 	dsky.changed.connect(_publish_dsky)
+	imu.ideal = not real_imu()
 
 
 func _ready() -> void:
@@ -212,6 +245,18 @@ func avg_g() -> bool:
 	return true
 
 
+## The computer's IMU drifts, is aligned and can lock its gimbals; false
+## for an ideal one.
+func real_imu() -> bool:
+	return false
+
+
+## The attitude the FDAI shows, given the body's attitude relative to LVLH
+## [param lvlh]: that, the orbit-rate display.
+func indicator_attitude(lvlh: Quaternion) -> Quaternion:
+	return lvlh
+
+
 ## A program step the core doesn't run (entry guidance on the CMC).
 func extra_step() -> void:
 	pass
@@ -227,8 +272,19 @@ func _now() -> float:
 	return float(Bus.get_value("time.get_s", 0.0))
 
 
+## The vehicle's attitude as the computer reads it, through the IMU.
 func _att() -> Quaternion:
+	return imu.attitude(_true_att())
+
+
+## The vehicle's true attitude (body to ECI), what the IMU's gimbals sit on.
+func _true_att() -> Quaternion:
 	return Bus.get_value(_ch("dyn.att_q"), Quaternion.IDENTITY)
+
+
+## The ICDU angles now (outer, inner, middle), deg.
+func icdu() -> Vector3:
+	return imu.icdu(Basis(_true_att()))
 
 
 func _omega() -> Vector3:
@@ -274,9 +330,9 @@ func uplink_state(tr: Trajectory) -> bool:
 
 
 ## Stage DEPENDENT, after Dynamics stepped: coast the state vector to now,
-## with this step's sensed ΔV while Average-G runs. Without one, it takes
-## the vehicle's truth.
-func _navigate() -> void:
+## with this step's sensed ΔV [param dv] while Average-G runs. Without one,
+## it takes the vehicle's truth.
+func _navigate(dv: Vector3) -> void:
 	if nav == null:
 		nav = truth_traj()
 		return
@@ -290,10 +346,8 @@ func _navigate() -> void:
 		nav.coast_to(now)
 		return
 	var ext := PackedFloat64Array()
-	if avg_g():
-		var d: Array = Bus.get_value(_ch("dyn.dv_step"), [0.0, 0.0, 0.0])
-		if float(d[0]) != 0.0 or float(d[1]) != 0.0 or float(d[2]) != 0.0:
-			ext = PackedFloat64Array([float(d[0]) / h, float(d[1]) / h, float(d[2]) / h])
+	if avg_g() and dv != Vector3.ZERO:
+		ext = PackedFloat64Array([dv.x / h, dv.y / h, dv.z / h])
 	nav.step(h, ext)
 
 
@@ -307,11 +361,67 @@ func predict(tig: float) -> Trajectory:
 
 # --- gimbal angles --------------------------------------------------------
 
-## ICDU angles (outer, inner, middle gimbal) in degrees, 0-360, for an
-## attitude quaternion (REFSMMAT = ECI).
-static func gimbal_angles(q: Quaternion) -> Vector3:
-	var e := Basis(q).get_euler(EULER_ORDER_XZY)
-	return Vector3(fposmod(rad_to_deg(e.x), 360.0), fposmod(rad_to_deg(e.y), 360.0), fposmod(rad_to_deg(e.z), 360.0))
+## The ICDU angles (outer, inner, middle), deg, for attitude [param q] as
+## the computer reads it: relative to REFSMMAT.
+func gimbal_angles_of(q: Quaternion) -> Vector3:
+	return Imu.gimbal_angles(imu.refsmmat * Basis(q))
+
+
+## Attitude [param q] puts the middle gimbal past LOCK_MANEUVER_DEG: the
+## auto maneuver won't fly there (alarm 00401). Never for an ideal IMU.
+func _locks_gimbals(q: Quaternion) -> bool:
+	return not imu.ideal and absf(wrapf(gimbal_angles_of(q).z, -180.0, 180.0)) > LOCK_MANEUVER_DEG
+
+
+## Plan the auto maneuver to auto_target clear of gimbal lock, on a real
+## IMU [aid: the sim's own routing]. The thrust axis (body X) turns the
+## shortest way onto the target's, then the CSM rolls about it, which turns
+## the outer gimbal alone. Where the first leg would take the middle gimbal
+## past LOCK_MANEUVER_DEG, the gimbals turn one at a time instead: the
+## inner (about the stable member's Y), the middle, then the outer. The
+## middle gimbal then runs only between its two ends' angles.
+func _plan_via() -> void:
+	maneuver_vias.clear()
+	if imu.ideal:
+		return
+	var now := _att()
+	var x_now := Basis(now) * Vector3.RIGHT
+	var x_to := Basis(auto_target) * Vector3.RIGHT
+	if x_now.angle_to(x_to) < deg_to_rad(1.0):
+		return
+	var legs: Array[Quaternion] = [(Quaternion(x_now, x_to) * now).normalized()]
+	if _peak_middle_gimbal(now, legs[0]) > LOCK_MANEUVER_DEG:
+		var g0 := gimbal_angles_of(now)
+		var g1 := gimbal_angles_of(auto_target)
+		legs = [_at_gimbals(Vector3(g0.x, g1.y, g0.z)), _at_gimbals(Vector3(g0.x, g1.y, g1.z))]
+	var from := now
+	for q in legs:
+		if _angle_between(from, q) > deg_to_rad(2.0) and _angle_between(q, auto_target) > deg_to_rad(2.0):
+			maneuver_vias.append(q)
+			from = q
+
+
+## The largest middle gimbal angle (deg) on the way from attitude
+## [param a] to [param b], the shortest way.
+func _peak_middle_gimbal(a: Quaternion, b: Quaternion) -> float:
+	var peak := 0.0
+	for i in 17:
+		peak = maxf(peak, absf(wrapf(gimbal_angles_of(a.slerp(b, i / 16.0)).z, -180.0, 180.0)))
+	return peak
+
+
+## The attitude at ICDU angles [param g] (outer, inner, middle; deg).
+func _at_gimbals(g: Vector3) -> Quaternion:
+	return (imu.refsmmat.transposed() * Imu.gimbal_basis(g)).get_rotation_quaternion()
+
+
+static func _angle_between(a: Quaternion, b: Quaternion) -> float:
+	return 2.0 * acos(clampf(absf(a.dot(b)), 0.0, 1.0))
+
+
+## Where the auto maneuver steers now: its next leg's end, or auto_target.
+func _maneuver_target() -> Quaternion:
+	return maneuver_vias[0] if not maneuver_vias.is_empty() else auto_target
 
 
 # --- DSKY interface ---------------------------------------------------------
@@ -322,10 +432,10 @@ func noun_values(n: int) -> Variant:
 		9:
 			return [alarm_code, 0, 0]
 		17, 20:
-			var g := gimbal_angles(_att())
+			var g := icdu()
 			return [g.x, g.y, g.z]
 		18:
-			var g := gimbal_angles(desired_q)
+			var g := gimbal_angles_of(desired_q)
 			return [g.x, g.y, g.z]
 		33:
 			var t := maneuver_tig if _thrusting_program() and maneuver_valid else tig_load
@@ -425,6 +535,9 @@ func change_program(p: int) -> bool:
 	if p in thrusting_programs() and not maneuver_valid:
 		_alarm(1703)   # no maneuver stored
 		return false
+	if p in thrusting_programs() and not imu.aligned:
+		_alarm(220)    # IMU orientation unknown
+		return false
 	dsky.lamps["key_rel"] = false
 	program = p
 	step_name = ""
@@ -434,6 +547,7 @@ func change_program(p: int) -> bool:
 	engine_on = false
 	rcs_burn = false
 	ignition_get = -1.0
+	maneuver_vias.clear()
 	dsky.set_prog(p)
 	match p:
 		0:
@@ -468,6 +582,12 @@ func proceed() -> void:
 	elif _thrusting_program():
 		match step_name:
 			"v50n18":
+				if _locks_gimbals(auto_target):
+					# The burn attitude is in gimbal lock on this REFSMMAT:
+					# realign (P52 option 1) first.
+					_alarm(401)
+					return
+				_plan_via()
 				step_name = "maneuver"
 				auto_active = true
 				dsky.show(6, 18)
@@ -489,6 +609,11 @@ func _store_maneuver() -> void:
 	maneuver_dv_lvlh = dv_lvlh_load
 	maneuver_tig = tig_load
 	maneuver_valid = dv_lvlh_load.length() > 0.0
+	# The preferred orientation for it, which P52 option 1 aligns to.
+	preferred_valid = maneuver_valid
+	if preferred_valid:
+		preferred_refsmmat = Imu.preferred(maneuver_dv_inertial, p.pos())
+	_publish_imu()
 
 
 func _predicted_apsides() -> Array:
@@ -559,7 +684,7 @@ func tick(dt: float) -> void:
 		publish_engine(false)
 		dsky.set_lamp("no_att", true)
 		return
-	dsky.set_lamp("no_att", false)
+	dsky.set_lamp("no_att", not imu.operating())
 	_timers(dt)
 	_program_step()
 	extra_step()
@@ -568,13 +693,16 @@ func tick(dt: float) -> void:
 	_publish_indicator()
 
 
-## Stage DEPENDENT: integrate the accelerometers after Dynamics stepped.
-func sense(_dt: float) -> void:
+## Stage DEPENDENT: step the IMU and integrate its accelerometers after
+## Dynamics stepped.
+func sense(dt: float) -> void:
+	imu.step(dt, Basis(_true_att()))
 	var d: Array = Bus.get_value(_ch("dyn.dv_step"), [0.0, 0.0, 0.0])
-	var step := Vector3(d[0], d[1], d[2])
+	var step := imu.sensed(Vector3(d[0], d[1], d[2]))
 	if step != Vector3.ZERO:
 		_sense_step(step)
-	_navigate()
+	_navigate(step)
+	_publish_imu()
 
 
 func _sense_step(step: Vector3) -> void:
@@ -613,8 +741,7 @@ func _timers(dt: float) -> void:
 	if _display_timer >= 1.0:
 		_display_timer = 0.0
 		dsky.refresh()
-	var mg := gimbal_angles(_att()).z
-	dsky.set_lamp("gimbal_lock", absf(wrapf(mg, -180.0, 180.0)) > 85.0 and str(Bus.get_value(_ch("dyn.config"), "")) != "stack")
+	dsky.set_lamp("gimbal_lock", imu.lock_lamp(Basis(_true_att())))
 
 
 func _thrusting_program() -> bool:
@@ -645,6 +772,7 @@ func _program_step() -> void:
 				dsky.show(99, 40, true)
 		"ignition":
 			if now >= maneuver_tig - 1e-6:
+				maneuver_vias.clear()
 				step_name = "burn"
 				engine_on = not _rcs_program()
 				rcs_burn = _rcs_program()
@@ -712,6 +840,17 @@ func _dap(_dt: float) -> void:
 	var tau := 0.6
 	var cmd := Vector3.ZERO
 	var rhc_active := hc.length() > 0.05
+	if not imu.operating():
+		# No attitude reference (NO ATT): the hand controller as in FREE,
+		# and otherwise the rates damped; the hold starts again where the
+		# vehicle is once the IMU is back.
+		hold_q = _att()
+		cmd = hc if rhc_active else _rate_cmd(-w, alpha, tau)
+		_rhc_was_active = rhc_active
+		Bus.set_value(_ch("guid.rcs_rot_cmd"), cmd)
+		Bus.set_value(_ch("guid.dap_busy"), rhc_active or cmd.length() > 1e-4)
+		Bus.set_value(_ch("guid.att_error_deg"), Vector3.ZERO)
+		return
 	if m == 0:
 		cmd = hc
 		hold_q = _att()
@@ -723,7 +862,9 @@ func _dap(_dt: float) -> void:
 		var target := hold_q
 		var max_rate := RATE_HOLD
 		if m == 2 and auto_active:
-			target = auto_target
+			if not maneuver_vias.is_empty() and _error_vector(maneuver_vias[0]).length() < ATT_DEADBAND:
+				maneuver_vias.pop_front()
+			target = _maneuver_target()
 			max_rate = auto_rate()
 		if _rhc_was_active:
 			hold_q = _att()
@@ -735,15 +876,21 @@ func _dap(_dt: float) -> void:
 			# Rate that can still be braked to zero over the error, capped.
 			var brake := sqrt(2.0 * alpha[i] * 0.5 * absf(ei))
 			w_des[i] = signf(ei) * minf(minf(absf(ei) * 0.4, brake), max_rate)
-		if e.length() < ATT_DEADBAND * 0.2 and w.length() < 5e-5:
-			w_des = w
+		if e.length() < ATT_DEADBAND * 0.1 and w.length() < 5e-5:
+			# At rest: null what rate is left, then leave the jets off (a
+			# coast step needs them off). Resting only inside 0.05°, half
+			# the 0.1° past which the DAP is busy, keeps a drifting
+			# platform from chattering the jets at that edge.
+			w_des = Vector3.ZERO if w.length() > REST_RATE else w
 		cmd = _rate_cmd(w_des - w, alpha, tau)
 		if m == 2 and auto_active:
 			desired_q = auto_target
 	_rhc_was_active = rhc_active
 	Bus.set_value(_ch("guid.rcs_rot_cmd"), cmd)
 	# Busy while steering or outside the hold deadband: no coarse coast steps.
-	var target_now := auto_target if (m == 2 and auto_active) else hold_q
+	var target_now := hold_q
+	if m == 2 and auto_active:
+		target_now = _maneuver_target()
 	var busy := rhc_active or cmd.length() > 1e-4 or (m != 0 and _error_vector(target_now).length() > ATT_DEADBAND * 0.2)
 	Bus.set_value(_ch("guid.dap_busy"), busy)
 	Bus.set_value(_ch("guid.att_error_deg"), _error_vector(target_now) * (180.0 / PI) if m != 0 else Vector3.ZERO)
@@ -766,14 +913,28 @@ func _publish() -> void:
 	Bus.set_value(_ch("guid.step"), step_name)
 
 
-## The attitude the FDAI shows: body relative to the local vertical frame
-## (orbit-rate display), as the 2D FDAI in hud.gd draws it.
+## The attitude the FDAI shows (indicator_attitude()), and the body's
+## attitude relative to the local vertical frame from the state vector,
+## which the horizon aid shows.
 func _publish_indicator() -> void:
 	var tr := current_traj()
 	if tr.radius() < 1.0 or tr.pos().cross(tr.vel()).length() < 1e-6:
 		return   # no trajectory yet (before a start phase is set up)
 	var lvlh := Trajectory.lvlh_basis(tr.pos(), tr.vel())
-	Bus.set_value(_ch("guid.indicator.attitude"), (lvlh.inverse() * Basis(_att())).get_rotation_quaternion())
+	var rel := (lvlh.inverse() * Basis(_att())).get_rotation_quaternion()
+	Bus.set_value(_ch("guid.indicator.lvlh"), rel)
+	Bus.set_value(_ch("guid.indicator.attitude"), indicator_attitude(rel))
+
+
+## The IMU's state on the Bus: the ICDU angles, whether the computer knows
+## the platform's orientation, its mode, and whether REFSMMAT is the
+## preferred orientation for the stored maneuver.
+func _publish_imu() -> void:
+	Bus.set_value(_ch("imu.icdu_deg"), icdu())
+	Bus.set_value(_ch("imu.aligned"), imu.aligned)
+	Bus.set_value(_ch("imu.mode"), imu.mode)
+	Bus.set_value(_ch("imu.preferred"), preferred_valid and imu.aligned
+		and Imu.rotation_vector(imu.refsmmat * preferred_refsmmat.transposed()).length() < 1e-6)
 
 
 ## The DSKY's display on the Bus, for a cabin DSKY. The EL display is
@@ -801,10 +962,13 @@ func snapshot() -> Dictionary:
 		"vg": Array(vg), "dv_accum": dv_accum, "engine_enabled": engine_enabled, "engine_on": engine_on,
 		"ignition_get": ignition_get,
 		"auto_active": auto_active, "hold_q": [hold_q.x, hold_q.y, hold_q.z, hold_q.w],
+		"vias": maneuver_vias.map(func(q: Quaternion) -> Array: return [q.x, q.y, q.z, q.w]),
 		"auto_target": [auto_target.x, auto_target.y, auto_target.z, auto_target.w],
 		"desired_q": [desired_q.x, desired_q.y, desired_q.z, desired_q.w],
 		"nav": {"primary": nav.primary, "t": nav.t, "s": Array(nav.s)} if nav != null else {},
 		"nav_uplink_get": nav_uplink_get,
+		"imu": imu.snapshot(),
+		"preferred": Imu.rows_of(preferred_refsmmat) if preferred_valid else [],
 	}
 
 
@@ -818,6 +982,8 @@ func restore(d: Dictionary) -> void:
 	maneuver_dv_inertial = Vector3(m[0], m[1], m[2])
 	var ml: Array = d.get("maneuver_dv_lvlh", [0, 0, 0])
 	maneuver_dv_lvlh = Vector3(ml[0], ml[1], ml[2])
+	# The IMU first: a thrusting program needs its orientation known.
+	imu.restore(d.get("imu", {}))
 	var p := int(d["program"])
 	change_program(p if not p in thrusting_programs() or maneuver_valid else 0)
 	step_name = str(d["step"])
@@ -838,10 +1004,17 @@ func restore(d: Dictionary) -> void:
 	var dq: Array = d.get("desired_q", [])
 	if dq.size() == 4:
 		desired_q = Quaternion(dq[0], dq[1], dq[2], dq[3])
+	maneuver_vias.clear()
+	for v in d.get("vias", []):
+		maneuver_vias.append(Quaternion(v[0], v[1], v[2], v[3]))
 	nav = null
 	var nd: Dictionary = d.get("nav", {})
 	if not nd.is_empty():
 		nav = Trajectory.new()
 		nav.set_state_d(str(nd["primary"]), float(nd["t"]), PackedFloat64Array(nd["s"]))
 	nav_uplink_get = float(d.get("nav_uplink_get", -1.0))
+	var pr: Array = d.get("preferred", [])
+	preferred_valid = pr.size() == 9
+	if preferred_valid:
+		preferred_refsmmat = Imu.from_rows(pr)
 	_publish()

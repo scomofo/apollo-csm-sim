@@ -6,6 +6,7 @@
   "liftoff_jd": 2440419.0638889,
   "moon": {"ephemeris": "res://data/ephemeris/apollo_11.json"},
   "parking_orbit": {"alt_km": 185.0, "insertion_get_s": 709.3, "inclination_deg": 32.522, "raan_deg": 359.819, "arg_lat_deg": 88.45, "_comment": "Apollo 11's orbit at insertion, from the Saturn V flight evaluation report for AS-506 (Table 4-5): inclination 32.521 deg and descending node 123.088 deg east of the launch meridian at liftoff, insertion at 32.672 N 52.694 W, 191.1 km [published], put in the ICRF by tools/ephemeris/parking_orbit.py [derived]. The report's 186.0 x 183.2 km orbit is taken as circular [simplified]"},
+  "launch_refsmmat": {"x": [-0.878996371, 0.394490687, 0.267847862], "y": [-0.007752124, 0.549830890, -0.835240024], "z": [-0.476765439, -0.736249340, -0.480241216], "_comment": "The launch pad REFSMMAT, the orientation the CMC's IMU was released at liftoff: X horizontal along the flight azimuth (72.058 deg, the flight evaluation report's), Z down along Launch Complex 39A's vertical, Y = Z x X, each a stable member axis in the ICRF, from tools/ephemeris/parking_orbit.py [derived]. The parking_orbit and translunar_coast start phases start aligned to it"},
   "tli": {"energy_j_per_kg": -743764.0, "pericynthion_alt_km": 111.0, "earliest_get_s": 8400.0, "_comment": "The energy at TLI cutoff: half the flown C3, -1,487,528 m2/s2 (AS-506 flight evaluation report, Table 4-6) [published]"},
   "tde_delay_s": 3600.0,
   "loi": {"apolune_alt_km": 315.0},

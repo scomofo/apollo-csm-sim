@@ -167,6 +167,14 @@ func _round_trip(p_layout: CockpitLayout, cabin: Cabin) -> void:
 					assert_true(d.lamps[lamp].get("lit"), "%s lights %s" % [id, lamp])
 				Bus.set_value(ch + ".comp_acty", true)
 				assert_true(d.comp_acty, "%s shows COMP ACTY" % id)
+			"optics":
+				# The eyepieces show the optics' view, rendered off the panel.
+				var view: OpticsView = node.get("view")
+				assert_not_null(view, "%s has the optics' view" % id)
+				assert_eq(Vector2i(view.size), node.get("viewport").size, "%s: the view fills its viewport" % id)
+				var face: MeshInstance3D = node.get_node("Face")
+				assert_eq((face.material_override as StandardMaterial3D).albedo_texture, node.get("viewport").get_texture(),
+					"%s shows it on its face" % id)
 			_:
 				fail_test("%s: no round trip for type %s" % [id, r["type"]])
 				continue
@@ -176,6 +184,7 @@ func _round_trip(p_layout: CockpitLayout, cabin: Cabin) -> void:
 
 func test_every_hud_switch_has_a_cabin_control() -> void:
 	assert_eq(_hud_switches_without_a_control("_switch_panel", layout, 22), [], "Columbia's")
+	assert_eq(_hud_switches_without_a_control("_optics_panel", layout, 5), [], "the optics'")
 	assert_eq(_hud_switches_without_a_control("_lm_switch_panel", CockpitLayout.load_lm(), 8), [], "Eagle's")
 
 
@@ -267,14 +276,17 @@ func test_eagles_dsky_types_into_the_lgc_with_its_alt_and_vel_lamps() -> void:
 	assert_lt(d.lamps["uplink_acty"].position.y + 0.010 * lowest.scale.y, CabinDsky.SIZE.y * 0.5, "on the case")
 
 
-func test_the_desktop_rig_can_click_every_control_from_the_commanders_station() -> void:
-	await _click_every_control(CmCabin.new(), layout, 22 + 19)
+func test_the_desktop_rig_can_click_every_control_from_its_station() -> void:
+	# Columbia's console from the commander's couch; the optics' switches
+	# and the second DSKY from the lower equipment bay.
+	await _click_every_control(CmCabin.new(), layout, 22 + 19 + 5 + 19)
 	await _click_every_control(LmCabin.new(), CockpitLayout.load_lm(), 8 + 19)
 
 
 ## Build [param p_layout] onto [param cabin] in a viewport and point the
-## desktop rig at each of its [param expect] controls from the commander's
-## eye: each is the one under the pointer.
+## desktop rig at each of its [param expect] controls from the eye of its
+## station (the lower equipment bay for the LEB panel's, the commander's
+## for the rest): each is the one under the pointer.
 func _click_every_control(cabin: Cabin, p_layout: CockpitLayout, expect: int) -> void:
 	var viewport := SubViewport.new()
 	viewport.size = Vector2i(800, 600)
@@ -289,15 +301,25 @@ func _click_every_control(cabin: Cabin, p_layout: CockpitLayout, expect: int) ->
 	(rig.get_node("Camera3D") as Camera3D).current = true
 	await wait_physics_frames(2)
 	var controls: Array[ControlBase] = []
+	var panels: Array[String] = []
 	for id in cabin.items:
+		var panel := str((cabin.items[id].get_meta("row") as Dictionary)["panel"])
 		if cabin.items[id] is ControlBase:
 			controls.append(cabin.items[id])
+			panels.append(panel)
 		elif cabin.items[id] is CabinDsky:
 			for k in cabin.items[id].keys:
 				controls.append(cabin.items[id].keys[k])
+				panels.append(panel)
 	assert_eq(controls.size(), expect, "%s: the switches, buttons and DSKY keys" % cabin.name)
-	for c in controls:
-		assert_true(rig.focus_control(c), "looks at %s" % c.get_path())
+	var home: String = cabin.seats().keys()[0]
+	for i in controls.size():
+		var c := controls[i]
+		var station := "LEB" if panels[i] == "LEB" else home
+		if cabin.seat != station:
+			cabin.set_seat(station)
+			await wait_physics_frames(1)
+		assert_true(rig.focus_control(c), "looks at %s from %s" % [c.get_path(), station])
 		assert_eq(rig.call("_control_at", Vector2(400, 300)), c, "%s is under the pointer" % c.get_path())
 		rig.end_inspection()
 
@@ -307,15 +329,19 @@ func test_the_commander_faces_the_console_inside_the_vessel() -> void:
 	assert_true(cabin.anchor.global_basis.is_equal_approx(Basis.IDENTITY),
 		"the rig looks along the render -Z, which is body +X, with the crew's up")
 	assert_almost_eq(cabin.anchor.global_position, Frames.BODY_TO_GODOT * CmCabin.EYE_CDR, Vector3.ONE * 1e-6)
-	for panel_name in CmCabin.PANELS:
-		var p: Dictionary = CmCabin.PANELS[panel_name]
+	var all := cabin.panels()
+	for panel_name in all:
+		var p: Dictionary = all[panel_name]
 		var mount := cabin.panel_node(panel_name)
 		var normal := mount.global_basis.z
+		# The console faces the commander, the navigation panel its station.
+		cabin.set_seat("LEB" if panel_name == "LEB" else "CDR")
 		assert_gt(normal.dot(cabin.anchor.global_position - mount.global_position), 0.0, "%s faces the crew" % panel_name)
 		var half: Vector2 = p["size"] * 0.5
 		for corner in [Vector2(-1, -1), Vector2(-1, 1), Vector2(1, -1), Vector2(1, 1)]:
-			var c: Vector3 = p["centre"] + CmCabin.FACE_BASIS * Vector3(corner.x * half.x, corner.y * half.y, 0.0)
+			var c: Vector3 = p["centre"] + (p["basis"] as Basis) * Vector3(corner.x * half.x, corner.y * half.y, 0.0)
 			assert_lt(Vector2(c.y, c.z).length(), CmCabin.wall_radius(c.x), "%s fits inside the wall" % panel_name)
+	cabin.set_seat("CDR")
 	# The wall is open at the five windows and closed elsewhere: of its
 	# 41 x 144 quads, the windows take 8 x 8 (twice), 8 x 4 (twice) and 7 x 6.
 	var faces := (cabin.get_node("Wall") as MeshInstance3D).mesh.get_faces()

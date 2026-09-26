@@ -15,6 +15,12 @@ ascending node and the insertion's argument of latitude in the ICRF.
 Nutation, polar motion and the ICRF's offset from J2000 are left out:
 each is under 0.01 deg here. It checks the insertion point lies in the
 plane.
+
+It also prints the launch pad REFSMMAT for mission.json's
+launch_refsmmat block: the orientation the CMC's IMU was released at
+liftoff, X horizontal along the flight azimuth (72.058 deg east of north,
+the flight evaluation report's), Z down along the pad's geodetic vertical
+and Y = Z x X, each row a stable member axis in the ICRF.
 """
 import json
 import math
@@ -24,7 +30,10 @@ ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", ".."))
 MISSION = os.path.join(ROOT, "data", "missions", "apollo_11", "mission.json")
 
 # Launch Complex 39A, geodetic (NASA KSC).
+PAD_LAT = 28.608389
 PAD_LON = -80.604333
+# AS-506 flight evaluation report: the flight azimuth, deg east of north.
+FLIGHT_AZIMUTH = 72.058
 # AS-506 flight evaluation report, Table 4-5, actual.
 INCLINATION = 32.521
 DESCENDING_NODE = 123.088
@@ -106,6 +115,24 @@ def main():
     print("ICRF: inclination %.3f deg, RAAN %.3f deg; insertion at argument of latitude %.2f deg, "
           "radius %.1f km (%.1f km over the equatorial radius), %.3f deg out of the plane"
           % (i_icrf, raan, u, rn, rn - A_KM, out_of_plane))
+    # The launch pad REFSMMAT: the pad's local frame at range zero.
+    lat, lon, az = math.radians(PAD_LAT), math.radians(PAD_LON), math.radians(FLIGHT_AZIMUTH)
+    up = [math.cos(lat) * math.cos(lon), math.cos(lat) * math.sin(lon), math.sin(lat)]
+    north = [-math.sin(lat) * math.cos(lon), -math.sin(lat) * math.sin(lon), math.cos(lat)]
+    east = [-math.sin(lon), math.cos(lon), 0.0]
+    x = [math.cos(az) * north[i] + math.sin(az) * east[i] for i in range(3)]
+    z = [-c for c in up]
+    y = [z[1] * x[2] - z[2] * x[1], z[2] * x[0] - z[0] * x[2], z[0] * x[1] - z[1] * x[0]]
+    to_icrf = mul(to_j2000, transpose(rz(math.radians(gmst_deg(epoch)))))
+    rows = [apply(to_icrf, a) for a in (x, y, z)]
+    # Its Y axis against the parking orbit's normal: the orbital-rate pitch
+    # in the parking orbit turns the CSM about it, so the middle gimbal
+    # stays near zero.
+    tilt = math.degrees(math.acos(max(-1.0, min(1.0, -sum(a * b for a, b in zip(rows[1], normal))))))
+    print("launch pad REFSMMAT (ICRF rows):")
+    for name, row in zip("xyz", rows):
+        print('  "%s": [%.9f, %.9f, %.9f]' % (name, row[0], row[1], row[2]))
+    print("its Y axis is %.3f deg from the parking orbit's negative normal" % tilt)
 
 
 if __name__ == "__main__":

@@ -1,13 +1,14 @@
 ## Flight Director Attitude Indicator. The ball stands for the reference
-## frame (the platform, in orbit-rate mode = LVLH) and the case for the
-## vehicle. Like the flown instrument, it shows the view from inside the
-## ball: nose up puts sky at the centre, a right roll turns the horizon
-## counter-clockwise, and a right yaw moves the markings left.
-## Reads guid.indicator.attitude (Quaternion, body relative to LVLH-aligned
-## body), which the CMC publishes, or the LGC's lm.guid.indicator.attitude
-## with [member vehicle] "lm": the LM flies level with its windows forward
-## along the track and its +X up (Frames.LM_LEVEL), so that attitude reads
-## level on its ball.
+## frame and the case for the vehicle. Like the flown instrument, it shows
+## the view from inside the ball: nose up puts sky at the centre, a right
+## roll turns the horizon counter-clockwise, and a right yaw moves the
+## markings left.
+## Reads guid.indicator.attitude (Quaternion), which the CMC publishes: the
+## CSM's attitude relative to the IMU's stable member, the ICDU angles, so
+## the ball shows total attitude against REFSMMAT. Or, with [member vehicle]
+## "lm", the LGC's lm.guid.indicator.attitude, relative to LVLH (orbit-rate
+## mode): the LM flies level with its windows forward along the track and
+## its +X up (Frames.LM_LEVEL), so that attitude reads level on its ball.
 ## Adapted from gemini-capsule at 40e449c (README.md lists the port). Its
 ## ball shows the outside view, as a gimballed sphere seen from behind:
 ## pitch and yaw read reversed. INSIDE_VIEW corrects that. Its ball is also

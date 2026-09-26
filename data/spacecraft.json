@@ -136,6 +136,11 @@
     "vent_force_n": 0.01,
     "jet_imbalance": 0.02
   },
+  "imu": {
+    "_source": "The CMC's IMU [estimated]: each gyro's drift about its stable member axis, standard deviation in deg/h (0.015 deg/h is one milli-earth-rate unit, within the Apollo IMU's specification), drawn once for the flight from the mission's seed (mission.json \"dispersions\"); and a coarse align's error about each axis, standard deviation in deg, drawn at each coarse align",
+    "drift_deg_per_h": 0.015,
+    "coarse_align_deg": 0.2
+  },
   "docking": {
     "_source": "Probe-and-drogue docking [estimated throughout]: each docking port's distance from its vehicle's centre of mass along +X (the LM's, whole and as its ascent stage), the probe's push apart at undocking, the capture limits (closing speed, lateral speed, lateral miss, misalignment, relative rate), the radius within which the probe strikes the LM, and the rebound of a contact without capture",
     "csm_port_m": 5.5,

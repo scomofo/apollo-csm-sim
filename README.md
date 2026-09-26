@@ -22,6 +22,8 @@ executed through the Apollo Guidance Computer's DSKY.
 
 ![Eagle's cabin on the descent orbit: the landing point designator on the commander's window, panel 1 with the FDAI, and the LGC's DSKY on panel 4](docs/images/eagle_cabin.png)
 
+![P52 after 12 hours of translunar coast: the CMC has driven the optics to Menkent from its drifted platform, and the star sits 0.15° off the sextant's reticle for the crew to centre and mark](docs/images/optics_p52.png)
+
 The project used
 [scomofo/gemini-capsule](https://github.com/scomofo/gemini-capsule) as its
 template and began as the `apollo/` directory of that repository. It now
@@ -76,13 +78,14 @@ work in a headset.
 | Right-drag | Look around (window and chase views) |
 | In the cabin view: click, scroll | Work the control under the cursor: a click cycles a switch or presses a key, scrolling moves a switch up or down |
 | In the cabin view: right-click, Z, Home | Mouse look on and off; inspect the control under the cursor; recentre |
-| In the cabin view: M | Wrist menu: PAD requests, time rate, pause, recentre, eye height, seat, checklist, comfort aids |
+| In the cabin view: M | Wrist menu: PAD requests, time rate, pause, recentre, eye height, seat (the couches, and the lower equipment bay with the optics), checklist, comfort aids |
+| O | The optics, the sextant and the scanning telescope: while they're open, W/S and A/D move them instead of the hand controller, X is MARK and Y MARK REJECT. In the cabin they are at the lower equipment bay, where the same keys and the right stick move them |
 | F5 / F9 | Save / load checkpoint |
 | H | Key help |
 
 Every DSKY key and cockpit switch is also clickable on screen, in the HUD
-or, in the cabin view, on Columbia's main display console or Eagle's
-panels. Above 100× the
+or, in the cabin view, on Columbia's main display console and lower
+equipment bay, or on Eagle's panels. Above 100× the
 cabin's switches lock, and its DSKY keys still work. Time acceleration
 drops back to 10× by itself when an engine lights, at each scheduled
 event (TLI, TIG−60 s, V99, and Mission Control's calls and PADs from
@@ -102,6 +105,8 @@ undocking to TEI) and at entry.
    On the DSKY:
    - `V37E30E` (P30): check TIG in N33 and PRO; check ΔV in N81 and PRO;
      check the predicted apsides in N42 and PRO.
+   - Realign the IMU with P52 option 1, to the preferred orientation P30
+     worked out for the burn (below).
    - Set CMC MODE to AUTO. Then `V37E40E` (P40, SPS), or `V37E41E` (P41, RCS)
      for burns under 10 ft/s.
    - At V50N18, press PRO to maneuver to burn attitude. Set ΔV THRUST A and B
@@ -127,6 +132,42 @@ state vector MSFN tracked with each of Columbia's PADs, and **SV** under
 Mission Control asks for one alone. The CMC takes them in P00, with UP TLM
 CM (panel 2, right of the DSKY) in ACCEPT. In BLOCK, CAPCOM reads the
 PAD up by voice instead.
+
+**The IMU.** The CMC reads its attitude and its accelerometers through
+the IMU's stable member, which it takes to lie at REFSMMAT. The gyros
+drift the platform off it, about 0.02° an hour, and a burn flown on a
+drifted platform goes that far off in direction. Each start phase starts
+freshly aligned: to the launch pad REFSMMAT until the lunar orbit, to the
+landing site's there, and to the local vertical on the way home. The
+FDAI's total attitude and N20 are the ICDU angles, the CSM's attitude
+relative to the stable member. GIMBAL LOCK lights past 70° of middle
+gimbal, and past 85° the CMC cages the IMU: NO ATT, and the alignment is
+lost (P51 and P52 stop with 00220). P40 won't maneuver to a burn attitude
+past 60° of middle gimbal (PROG, 00401), and it plans each maneuver
+clear of lock: the thrust axis the short way onto the burn's and then a
+roll about it, or, where that would pass near lock, one gimbal at a time.
+
+Realign before a burn with P52 (the IMU realign checklist): `V37E52E`,
+then `V22E`, the option and `E` (1 the preferred orientation P30 worked
+out for the burn, 2 the local vertical, 3 REFSMMAT again, 4 the landing
+site's), and PRO. For a new orientation, PRO at N22 drives the gimbals to
+it (NO ATT meanwhile). If its middle gimbal is past 60° where the CSM
+points, PROG and 00401 say so instead: turn the CSM until N22's middle
+gimbal is small, clear of GIMBAL LOCK on the way, RSET, and PRO again.
+PRO at V50N25 00015, and the CMC picks two stars.
+For each, PRO at N70: the CMC drives the optics to where it expects the
+star, in OPTICS MODE CMC. Switch to MANUAL, centre the star in the sextant
+and MARK. N05 is the star angle difference, and N93 the gyro torquing
+angles; PRO torques the gyros through them. On the desktop, O opens the
+optics. In the cabin they're at the lower equipment bay, away from the
+couch (SEAT on the wrist menu), with a second DSKY. The optics look out of
+the CM's side toward the crew's feet, so in low orbit, heads up, they see
+the Moon or the Earth: PROG and 00405 say there are no stars, and you
+roll heads down first. A caged platform needs P51 (`V37E51E`). It runs
+the IMU up at zero gimbal angles; find two stars yourself, MARK each and
+load its octal code (`V21E`, the code, `E`, PRO), and P51 works out the
+platform's orientation. The 37 navigation stars and their codes are in
+[data/stars/navigation_stars.json](data/stars/navigation_stars.json).
 
 **Undocking and docking.** In lunar orbit, **UNDOCK** releases Eagle. The
 probe pushes the two apart at 0.1 ft/s, and the LM flies free on its own
@@ -420,12 +461,12 @@ A flown Apollo 11 profile in the simulator reproduces these values:
 | DOI | GET 101:36:14, 73.1 ft/s, 30 s | 101:36:14, ~76 ft/s, ~30 s |
 | Powered descent | 12 min 6 s, touchdown at 102:45:39, 140 m from the target (the LGC's crossrange error, which the radar can't see) | 12 min 35 s, touchdown at 102:45:40, about 6 km past the target |
 | The Sun at touchdown | 10.7° up | 10.8° up |
-| Ascent, liftoff to cutoff | GET 124:25:40, 7 min 8 s, then 60,054 ft and 32.1 ft/s up, 9.0 × 45.1 nmi | 124:22:00, 7 min 17 s, then 60,666 ft and 32.8 ft/s up, 9.5 × 47.3 nmi |
+| Ascent, liftoff to cutoff | GET 124:25:40, 7 min 8 s, then 60,054 ft and 32.0 ft/s up, 9.0 × 45.1 nmi | 124:22:00, 7 min 17 s, then 60,666 ft and 32.8 ft/s up, 9.5 × 47.3 nmi |
 | CSI | 52.4 ft/s, 50 min 50 s after insertion | 51.5 ft/s, 50 min 18 s after insertion |
 | TPI | 24.0 ft/s, 2 h 34 min 20 s after insertion | ~25 ft/s, 2 h 34 min 35 s after insertion |
-| Midcourse corrections | 0.2 and 0.1 ft/s | ~1 ft/s each |
-| Braking, then station-keeping | 15 min 26 s, station-keeping 45 min after TPI | 15 min 8 s, station-keeping 48 min after TPI |
-| Docking | GET 127:57:19, 50 min after TPI | 128:03:00, 59 min after TPI |
+| Midcourse corrections | 0.2 and under 0.1 ft/s | ~1 ft/s each |
+| Braking, then station-keeping | 15 min 27 s, station-keeping 45 min after TPI | 15 min 8 s, station-keeping 48 min after TPI |
+| Docking | GET 127:57:20, 50 min after TPI | 128:03:00, 59 min after TPI |
 | Entry peak load | 7.1 g | ~6.5 g |
 | Splashdown | 8.6 m/s | — |
 
@@ -438,12 +479,24 @@ ones:
   the Moon's mascons are left out. In flight the oblateness turned the
   parking orbit's plane 0.8° west before TLI.
 - **Navigation.** Both computers fly on their own state vectors, which the
-  ground's uplinks correct, but on ideal IMUs: no P52 alignments, the
-  attitude is true, and so is the sensed ΔV. MSFN's tracking error is drawn
-  fresh for each uplink, not from tracking arcs. The CSM's unmodelled
-  forces are a steady vent force and its jets' imbalance, drawn once for
-  the flight, and the LM and the S-IVB have none. The LGC's Average-G runs
-  all the time Eagle flies free.
+  ground's uplinks correct. MSFN's tracking error is drawn fresh for each
+  uplink, not from tracking arcs. The CSM's unmodelled forces are a
+  steady vent force and its jets' imbalance, drawn once for the flight,
+  and the LM and the S-IVB have none. The LGC's Average-G runs all the
+  time Eagle flies free.
+- **The IMU.** The CMC's gyros drift at a steady rate, drawn once for the
+  flight, with no drift that follows the acceleration, and its
+  accelerometers have no bias or scale error. A coarse align lands within
+  0.2° of its angles; the marks and the gimbals read to a CDU count
+  (0.011°). The LGC's IMU is ideal, its REFSMMAT the ECI frame and its
+  attitude true: its P52 with the AOT, and P57 on the surface, are left
+  for later.
+- **The optics.** The sextant and the telescope share one line of sight,
+  and their view shows the 37 navigation stars and the Earth, the Moon and
+  the Sun, without the fainter stars, aberration or the docked LM in the
+  way. The telescope names its stars, which the flown one didn't; NAMES
+  turns that off. In the cabin the eyepieces are one screen on the lower
+  equipment bay.
 - **S-IVB guidance.** It thrusts along the velocity, turned out of the
   plane by a fixed yaw, and cuts off on energy, instead of flying
   iterative guidance. Apollo 11's TLI takes a yaw of 14.5° and turns the
@@ -565,13 +618,21 @@ The unit tests cover:
   docked or powered down
 - DSKY key logic
 - CMC programs
+- The IMU, the stars and the optics (`tests/unit/test_imu.gd`): the
+  gimbal angles in the gimbals' order and to a CDU count, the preferred
+  and landing site REFSMMATs, a drift that adds up over 1.8 million
+  fixed steps, the attitude and the sensed ΔV turned by a misalignment
+  and torqued back, a coarse align's time and accuracy, GIMBAL LOCK at
+  70° and the cage at 85°, V41 N20, the 37 stars' codes and positions,
+  the optics' line of sight, modes and limits, the optics view's
+  projection, and the DSKY's octal and three-decimal registers
 - Systems: SPS arming, EPS consumption and the Apollo 13 failure, SCS/CMC
   autopilot, the coast-step policy
 - Checkpoint round-trip, with a map of vehicles, each with its own
   systems, the LGC's rendezvous state, Mission Control's planned times
-  and timeline, and the CMC's state vector, the CSM's unmodelled forces
-  and where MSFN's draws have got to (schema 6). Older checkpoints are
-  rejected
+  and timeline, the CMC's state vector, the CSM's unmodelled forces and
+  where MSFN's draws have got to, and the CMC's IMU and a P52 between
+  its marks (schema 7). Older checkpoints are rejected
 - The main scene, and in Eagle from `lunar_descent`: its HUD, the keys on
   its LGC, its two views, its checklist for the phase, and L between the
   vehicles
@@ -633,8 +694,23 @@ The scenario tests fly real segments through the crew interface:
 
 - S-IVB TLI to lunar arrival
 - MCC, LOI-1 and LOI-2 into lunar orbit, each PAD uplinked with the
-  state vector MSFN tracked (P27). By the LOI PAD the CMC's state vector
-  is 93 km off, and the uplink brings it to 0.4 km
+  state vector MSFN tracked (P27) and flown after a P52 to its preferred
+  orientation, as every burn in the suite is. By the LOI PAD the CMC's
+  state vector is 93 km off, and the uplink brings it to 0.4 km
+- The IMU (`tests/scenarios/test_imu_alignment.gd`), slice 4c's check.
+  Twelve hours of translunar coast drift the platform 0.215°, and P52 on
+  two stars (Menkent and Altair) leaves 0.003°, under the 0.02° limit,
+  with N05 0.004°. A TEI flown on a platform 0.5° off goes 8.59 m/s off
+  the aligned flight, where the misalignment predicts 8.56 m/s, and the
+  CMC doesn't see it. A yaw in FREE lights GIMBAL LOCK at 70°, cages the
+  IMU at 85° and loses the alignment; P52 and P40 refuse (00220), and P51
+  finds the platform's orientation on two stars the crew names. P52
+  won't coarse align to a new orientation in gimbal lock from where the
+  CSM points (00401) until the CSM turns, and P40's maneuver to the burn
+  attitude keeps the middle gimbal under 12°. P52 option 1 puts
+  the burn attitude at zero gimbal angles, and with the optics on the
+  Moon it finds no stars (00405). Sixteen hours of attitude hold on the
+  drifting platform cost 0.15 kg of RCS propellant
 - The CMC's own state vector (`tests/scenarios/test_onboard_state.gd`),
   slice 4b's check. From a perfect state, a day's translunar coast leaves
   it 541 m off, as far as the SM's vents move a copy of the CSM, and the
@@ -651,13 +727,15 @@ The scenario tests fly real segments through the crew interface:
   checklist worked on from the menu and the DSKY
 - The headset acceptance recorder on the desktop rig: fingertip crossings
   on a switch, the DSKY and the menu (a click doesn't count), the
-  thumbsticks' pitch and roll response, the lock above 100×, and aboard
-  Eagle a recentre, its DSKY and ENG ARM, and the record it writes
-- Every checklist worked from the commander's couch through the desktop
-  rig until the card shows it complete: parking orbit and TLI, LOI-1,
-  LOI-2 and TEI each down the SPS burn checklist on P40 with a residual
-  trimmed on the translation controller, LM JETT, and entry to
-  splashdown. The cabin scenarios share `tests/cabin_test.gd`
+  thumbsticks' pitch and roll response, the lock above 100×, aboard
+  Eagle a recentre, its DSKY and ENG ARM, at the lower equipment bay the
+  optics turned by hand and MARK, and the record it writes
+- Every checklist worked through the desktop rig until the card shows it
+  complete: parking orbit and TLI, LOI-1, LOI-2 and TEI each down the SPS
+  burn checklist on P40 with a residual trimmed on the translation
+  controller, each after the IMU realign checklist at the lower
+  equipment bay (SEAT, its DSKY, the optics and MARK), LM JETT, and entry
+  to splashdown. The cabin scenarios share `tests/cabin_test.gd`
 - Undocking and docking in lunar orbit (`tests/scenarios/test_docking.gd`).
   The stack splits with its momentum conserved. An equiperiod separation
   (0.6 m/s radially down) carries the CSM 4ΔV/n ahead of the LM half a
@@ -693,7 +771,7 @@ The scenario tests fly real segments through the crew interface:
   is set down at the site. The RTCC times the liftoff for Columbia to
   lead by 16.4° at insertion. P12 lifts off at that time, rises for 8 s,
   and cuts off 7 min 8 s after liftoff. It inserts at 60,054 ft and
-  32.1 ft/s up into a 9.0 × 45.1 nmi orbit, within 0.001° of Columbia's
+  32.0 ft/s up into a 9.0 × 45.1 nmi orbit, within 0.001° of Columbia's
   plane, with Columbia 16.42° ahead and 167 kg of propellant left. A
   checkpoint taken mid-ascent flies on to the same insertion
 - The rendezvous (`tests/scenarios/test_rendezvous.gd`), slice 3e's
@@ -706,10 +784,10 @@ The scenario tests fly real segments through the crew interface:
   - Columbia's uplinked state vector is 914 m off, and after 12 marks
     P20 has it within 0.2 m relative to Eagle.
   - The LGC flies the sequence: CDH 2.1 ft/s onto 14.7 nmi below, TPI
-    15 s before the plan's time, and midcourse corrections of 0.2 and
-    0.1 ft/s.
+    15 s before the plan's time, and midcourse corrections of 0.2 ft/s
+    and under 0.1 ft/s.
   - The commander brakes by the gates and stops 40 m out, and Collins
-    docks at 0.33 ft/s. Eagle's ΔV, 113.2 ft/s, is 4 % over the RTCC's
+    docks at 0.33 ft/s. Eagle's ΔV, 114.2 ft/s, is 5 % over the RTCC's
     plan (the check allows 20 %).
   - GO for jettison comes 2 h 5 min after docking. After LM JETT, the TEI
     PAD plans TEI at 135:20:38, the opportunity nearest Apollo 11's
@@ -757,8 +835,10 @@ The scenario tests fly real segments through the crew interface:
 `1` chase, `2` cabin; `--hud=0` leaves the HUD out, `--menu=1` shows the
 wrist menu, `--pad=<kind>` asks Mission Control for a PAD first, and
 `--undock=<s>` undocks the LM and lets it drift for that many seconds,
-and `--vehicle=csm` or `lm` chooses whose view it is while Eagle flies
-free).
+`--vehicle=csm` or `lm` chooses whose view it is while Eagle flies free,
+`--optics=<code>` opens the optics on a navigation star, `--seat=LEB`
+puts the cabin view at the lower equipment bay, and `--p52=<hours>`
+drifts that long and starts P52 with the optics open).
 They were rendered in software, so the frame time on the wrist menu's top
 line is the software renderer's:
 
@@ -769,6 +849,7 @@ godot --path . tools/screenshot.tscn -- --phase=lunar_descent --view=0 --out=res
 godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=2 --yaw=-0.3 --pitch=-0.12 --hud=0 --out=res://docs/images/cabin_lunar_orbit.png
 godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=2 --yaw=0.55 --pitch=-0.08 --hud=0 --menu=1 --pad=tei --out=res://docs/images/cabin_checklist.png
 godot --path . tools/screenshot.tscn -- --phase=lunar_descent --view=2 --yaw=-0.75 --pitch=-0.75 --hud=0 --out=res://docs/images/eagle_cabin.png
+godot --path . tools/screenshot.tscn -- --phase=translunar_coast --p52=12 --out=res://docs/images/optics_p52.png
 ```
 
 ## Roadmap
@@ -785,6 +866,8 @@ cockpit, as a desktop overlay, the view out of its windows, its
 checklists, and its cabin, each checklist flown from the HUD and from the
 cabin. That finishes the LM milestone; flying Eagle in a headset waits on
 the headset run, with the VR cockpit's. In navigation realism, Apollo 11
-now flies on JPL's ephemeris (slice 4a), and the CMC on its own state
-vector, which the ground's uplinks correct (slice 4b). The IMU and its
-alignments (4c) come next.
+now flies on JPL's ephemeris (slice 4a), the CMC on its own state
+vector, which the ground's uplinks correct (slice 4b), and on its own
+IMU, which drifts and which P52 realigns on the stars through the optics
+at the lower equipment bay (slice 4c). Onboard navigation, P23's
+sightings and P22's landmarks (4d), is the stretch that is left.
