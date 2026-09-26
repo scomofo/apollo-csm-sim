@@ -2,7 +2,9 @@
 ## P52 and two star marks realign it to within a set limit, and a burn
 ## flown on a misaligned platform misses by as much as the misalignment
 ## says. Gimbal lock costs the alignment, and P51 finds the platform's
-## orientation again from the stars.
+## orientation again from the stars. Holding attitude on the drifting
+## platform through a long coast costs a few corrections, not a limit
+## cycle.
 extends SimTest
 
 ## What P52 leaves, deg: the marks and the gimbals are read to a CDU count
@@ -32,6 +34,32 @@ func test_the_platform_drifts_and_p52_realigns_it() -> void:
 	assert_lt(left, RESIDUAL_LIMIT_DEG, "realigned")
 	assert_eq(agc.program, 0)
 	assert_true(agc.imu.aligned)
+
+
+func test_attitude_hold_on_a_drifting_platform_costs_little_propellant() -> void:
+	build("translunar_coast")
+	var agc := rt.agc()
+	Bus.set_value("ctl.cmc.mode", 1)
+	run(1.0, false)
+	var kg0 := float(Bus.get_value("rcs.sm_prop_kg"))
+	# The drift carries the attitude the CMC holds away every few hours;
+	# each time the DAP brings it back and nulls the rate, and between
+	# times the coast runs in long steps.
+	var seen := {"worst_deg": 0.0, "fine": 0}
+	var watch := func(dt: float) -> void:
+		seen["worst_deg"] = maxf(seen["worst_deg"], rad_to_deg(agc._error_vector(agc.hold_q).length()))
+		if dt < SimClock.FIXED_DT * 1.5:
+			seen["fine"] += 1
+	SimClock.ticked.connect(watch)
+	run(16.0 * 3600.0)
+	SimClock.ticked.disconnect(watch)
+	var used := kg0 - float(Bus.get_value("rcs.sm_prop_kg"))
+	gut.p("16 h in HOLD on a drifting platform: %.3f kg of RCS propellant, the error at most %.3f deg, %d fine steps" % [
+		used, seen["worst_deg"], seen["fine"]])
+	assert_gt(float(seen["worst_deg"]), rad_to_deg(Agc.ATT_DEADBAND * 0.1) - 0.005, "the drift moved the attitude held")
+	assert_lt(float(seen["worst_deg"]), rad_to_deg(Agc.ATT_DEADBAND * 0.2), "inside the deadband")
+	assert_lt(used, 1.0, "a few corrections, no limit cycle")
+	assert_lt(int(seen["fine"]), 20000, "the coast in long steps between them")
 
 
 func dsky_lamp(lamp: String) -> bool:

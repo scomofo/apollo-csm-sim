@@ -1043,6 +1043,15 @@ Slice 4c gives the CMC its IMU:
   does on the desktop while the optics are open.
 - **The DSKY** shows and loads octal registers (star codes, option and
   checklist codes) and three decimals (N93, the trunnion).
+- **Attitude hold.** The drifting platform moves the attitude the CMC
+  holds. The hold stopped firing inside its 0.1° deadband with whatever
+  rate was left, so once the drift had carried it out, it limit-cycled:
+  each coast step carried the attitude out again, and the jets fired
+  again, about once a minute. Through the coast to LOI in HOLD, that
+  emptied SM RCS quads B and D, and LOI-1 flew 56 % long. The hold now
+  comes to rest inside 0.05° and nulls the rate before it leaves the jets
+  off: 16 h in HOLD costs 0.15 kg, a correction every three hours or so
+  (`test_imu_alignment.gd`).
 
 ### Order
 

@@ -46,6 +46,9 @@
 ##   0 FREE  hand controller commands acceleration, no hold
 ##   1 HOLD  hand controller rate command, attitude hold on release
 ##   2 AUTO  as HOLD, plus program-commanded maneuvers
+## The hold comes to rest inside a tenth of ATT_DEADBAND (0.05°), with the
+## rate nulled to REST_RATE and the jets off, so the clock can coast; past
+## that it corrects (a drifting platform moves the attitude it holds).
 ##
 ## Writes (under the prefix): guid.rcs_rot_cmd, guid.program,
 ##         guid.next_event_get_s, guid.vg_mps, guid.maneuver_valid,
@@ -64,6 +67,9 @@ extends Node
 const RATE_HOLD := 0.0349066      ## rad/s, 2 °/s hand controller full-scale rate
 const RATE_AUTO := 0.0174533      ## rad/s, 1 °/s auto-maneuver rate
 const ATT_DEADBAND := 0.00873     ## rad, 0.5°
+## The rate the hold nulls down to before it leaves the jets off, rad/s:
+## the attitude moves about 0.02° an hour on what is left.
+const REST_RATE := 1e-7
 ## The auto maneuver refuses a burn attitude whose middle gimbal angle is
 ## past this, deg (alarm 00401).
 const LOCK_MANEUVER_DEG := 60.0
@@ -870,8 +876,12 @@ func _dap(_dt: float) -> void:
 			# Rate that can still be braked to zero over the error, capped.
 			var brake := sqrt(2.0 * alpha[i] * 0.5 * absf(ei))
 			w_des[i] = signf(ei) * minf(minf(absf(ei) * 0.4, brake), max_rate)
-		if e.length() < ATT_DEADBAND * 0.2 and w.length() < 5e-5:
-			w_des = w
+		if e.length() < ATT_DEADBAND * 0.1 and w.length() < 5e-5:
+			# At rest: null what rate is left, then leave the jets off (a
+			# coast step needs them off). Resting only inside 0.05°, half
+			# the 0.1° past which the DAP is busy, keeps a drifting
+			# platform from chattering the jets at that edge.
+			w_des = Vector3.ZERO if w.length() > REST_RATE else w
 		cmd = _rate_cmd(w_des - w, alpha, tau)
 		if m == 2 and auto_active:
 			desired_q = auto_target

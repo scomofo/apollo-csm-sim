@@ -461,12 +461,12 @@ A flown Apollo 11 profile in the simulator reproduces these values:
 | DOI | GET 101:36:14, 73.1 ft/s, 30 s | 101:36:14, ~76 ft/s, ~30 s |
 | Powered descent | 12 min 6 s, touchdown at 102:45:39, 140 m from the target (the LGC's crossrange error, which the radar can't see) | 12 min 35 s, touchdown at 102:45:40, about 6 km past the target |
 | The Sun at touchdown | 10.7° up | 10.8° up |
-| Ascent, liftoff to cutoff | GET 124:25:40, 7 min 8 s, then 60,054 ft and 32.1 ft/s up, 9.0 × 45.1 nmi | 124:22:00, 7 min 17 s, then 60,666 ft and 32.8 ft/s up, 9.5 × 47.3 nmi |
+| Ascent, liftoff to cutoff | GET 124:25:40, 7 min 8 s, then 60,054 ft and 32.0 ft/s up, 9.0 × 45.1 nmi | 124:22:00, 7 min 17 s, then 60,666 ft and 32.8 ft/s up, 9.5 × 47.3 nmi |
 | CSI | 52.4 ft/s, 50 min 50 s after insertion | 51.5 ft/s, 50 min 18 s after insertion |
 | TPI | 24.0 ft/s, 2 h 34 min 20 s after insertion | ~25 ft/s, 2 h 34 min 35 s after insertion |
-| Midcourse corrections | 0.2 and 0.1 ft/s | ~1 ft/s each |
-| Braking, then station-keeping | 15 min 26 s, station-keeping 45 min after TPI | 15 min 8 s, station-keeping 48 min after TPI |
-| Docking | GET 127:57:19, 50 min after TPI | 128:03:00, 59 min after TPI |
+| Midcourse corrections | 0.2 and under 0.1 ft/s | ~1 ft/s each |
+| Braking, then station-keeping | 15 min 27 s, station-keeping 45 min after TPI | 15 min 8 s, station-keeping 48 min after TPI |
+| Docking | GET 127:57:20, 50 min after TPI | 128:03:00, 59 min after TPI |
 | Entry peak load | 7.1 g | ~6.5 g |
 | Splashdown | 8.6 m/s | — |
 
@@ -709,7 +709,8 @@ The scenario tests fly real segments through the crew interface:
   CSM points (00401) until the CSM turns, and P40's maneuver to the burn
   attitude keeps the middle gimbal under 12°. P52 option 1 puts
   the burn attitude at zero gimbal angles, and with the optics on the
-  Moon it finds no stars (00405)
+  Moon it finds no stars (00405). Sixteen hours of attitude hold on the
+  drifting platform cost 0.15 kg of RCS propellant
 - The CMC's own state vector (`tests/scenarios/test_onboard_state.gd`),
   slice 4b's check. From a perfect state, a day's translunar coast leaves
   it 541 m off, as far as the SM's vents move a copy of the CSM, and the
@@ -770,7 +771,7 @@ The scenario tests fly real segments through the crew interface:
   is set down at the site. The RTCC times the liftoff for Columbia to
   lead by 16.4° at insertion. P12 lifts off at that time, rises for 8 s,
   and cuts off 7 min 8 s after liftoff. It inserts at 60,054 ft and
-  32.1 ft/s up into a 9.0 × 45.1 nmi orbit, within 0.001° of Columbia's
+  32.0 ft/s up into a 9.0 × 45.1 nmi orbit, within 0.001° of Columbia's
   plane, with Columbia 16.42° ahead and 167 kg of propellant left. A
   checkpoint taken mid-ascent flies on to the same insertion
 - The rendezvous (`tests/scenarios/test_rendezvous.gd`), slice 3e's
@@ -783,10 +784,10 @@ The scenario tests fly real segments through the crew interface:
   - Columbia's uplinked state vector is 914 m off, and after 12 marks
     P20 has it within 0.2 m relative to Eagle.
   - The LGC flies the sequence: CDH 2.1 ft/s onto 14.7 nmi below, TPI
-    15 s before the plan's time, and midcourse corrections of 0.2 and
-    0.1 ft/s.
+    15 s before the plan's time, and midcourse corrections of 0.2 ft/s
+    and under 0.1 ft/s.
   - The commander brakes by the gates and stops 40 m out, and Collins
-    docks at 0.33 ft/s. Eagle's ΔV, 113.2 ft/s, is 4 % over the RTCC's
+    docks at 0.33 ft/s. Eagle's ΔV, 114.2 ft/s, is 5 % over the RTCC's
     plan (the check allows 20 %).
   - GO for jettison comes 2 h 5 min after docking. After LM JETT, the TEI
     PAD plans TEI at 135:20:38, the opportunity nearest Apollo 11's
