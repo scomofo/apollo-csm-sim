@@ -649,9 +649,9 @@ godot --headless --path . -s addons/gut/gut_cmdln.gd -gexit
 That runs the whole suite, which takes about 25 minutes, nearly all of
 it in the scenario tests. Add `-gdir=res://tests/unit/` to run only the
 unit tests, in under two minutes, or `-gselect=<name>` to run only the
-scripts whose file names contain `<name>`. CI runs the suite in four
+scripts whose file names contain `<name>`. CI runs the suite in five
 parts side by side (`.github/workflows/ci.yml`): the unit tests, and the
-scenario tests dealt out over three jobs by each file's time on the
+scenario tests dealt out over four jobs by each file's time on the
 runners (`.github/scenario_seconds.txt`).
 
 The unit tests cover:

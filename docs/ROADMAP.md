@@ -36,8 +36,8 @@ picture).
 - **Start phases stay consistent.** A new `--phase` is built the way the
   existing ones are, from the RTCC's own solutions, so it continues the
   mission it claims to.
-- **CI stays fast.** The suite runs in four jobs side by side: the unit
-  tests, and the scenario tests in three parts, dealt out by each file's
+- **CI stays fast.** The suite runs in five jobs side by side: the unit
+  tests, and the scenario tests in four parts, dealt out by each file's
   time on the runners (`.github/scenario_seconds.txt`). Keep each job
   under ten minutes: start a long scenario from a phase or checkpoint
   instead of flying the whole mission, record a new scenario file's
@@ -1232,8 +1232,12 @@ Slice 5b gives the Moon its mascons:
   e⁻⁸, 3 at ten lunar radii. A day of a 60 nmi orbit comes 10 m from
   one evaluated at every stage, its apsides under a metre. On CI the
   scenario parts' tests took 6:09, 8:11 and 8:50 (5a's: 6:13, 6:24 and
-  6:46), still dealt by 5a's times, the slowest job 9:11; with 5b's in
-  `.github/scenario_seconds.txt` they deal 461, 463 and 459 s.
+  6:46), still dealt by 5a's times. Dealt by 5b's, one run's took 7:41,
+  9:59 and 8:11, the slowest job 10:21, and the next run's 4:50, 8:37
+  and 7:16: the runners took up to twice as long as each other on a
+  file. So the scenarios have a fourth part, and
+  `.github/scenario_seconds.txt` each file's longest of the three runs,
+  by which the four parts deal 387 to 391 s.
 - **The onboard model.** The CMC and the LGC fly R-2, the model their
   programs carried: the Moon's J2, J3, C22 and C31 at 1,738.09 km,
   applied within 16,093 km (Risdal's Boeing report; the Comanche 055 and
