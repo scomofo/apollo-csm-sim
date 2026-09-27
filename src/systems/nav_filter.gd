@@ -249,7 +249,7 @@ static func transpose(a: PackedFloat64Array) -> PackedFloat64Array:
 
 func snapshot() -> Dictionary:
 	return {"pos_rms": pos_rms, "vel_rms": vel_rms, "p": Array(p), "stale": stale,
-		"anchor": {"primary": anchor.primary, "t": anchor.t, "s": Array(anchor.s)} if anchor != null else {}}
+		"anchor": {"primary": anchor.primary, "t": anchor.t, "s": Array(anchor.s), "field": anchor.field_snapshot()} if anchor != null else {}}
 
 
 func restore(d: Dictionary) -> void:
@@ -260,5 +260,6 @@ func restore(d: Dictionary) -> void:
 	anchor = null
 	var a: Dictionary = d.get("anchor", {})
 	if not a.is_empty():
-		anchor = Trajectory.new()
+		anchor = Trajectory.new().as_onboard(Trajectory.Model.CMC)
 		anchor.set_state_d(str(a["primary"]), float(a["t"]), PackedFloat64Array(a["s"]))
+		anchor.restore_field(a.get("field", {}))

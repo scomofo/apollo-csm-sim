@@ -579,7 +579,7 @@ func publish_state() -> void:
 
 func snapshot() -> Dictionary:
 	return {
-		"primary": traj.primary, "t": traj.t, "s": Array(traj.s),
+		"primary": traj.primary, "t": traj.t, "s": Array(traj.s), "field": traj.field_snapshot(),
 		"q": [attitude.q.x, attitude.q.y, attitude.q.z, attitude.q.w],
 		"omega": [attitude.omega.x, attitude.omega.y, attitude.omega.z],
 		"config": config, "landed": landed, "landed_speed": landed_speed,
@@ -594,6 +594,7 @@ func snapshot() -> Dictionary:
 ## while the LM is docked or gone).
 func restore(d: Dictionary, lm_d: Dictionary = {}) -> void:
 	traj.set_state_d(str(d["primary"]), float(d["t"]), PackedFloat64Array(d["s"]))
+	traj.restore_field(d.get("field", {}))
 	var q: Array = d["q"]
 	attitude.q = Quaternion(q[0], q[1], q[2], q[3])
 	var w: Array = d["omega"]

@@ -104,7 +104,9 @@ func test_undocking_and_doi() -> void:
 	await expect_step("LGC MODE - FREE: drift to PDI")
 	await set_switch("ctl.lm.mode", 0)
 	await expect_complete(FLOWN[0])
-	var hp := float(rt.dynamics.lm.traj.conic()["rp"]) - rt.sequencer.landing_site().length()
+	# The pericynthion the LM will reach, flown to: the Moon's field keeps
+	# the conic of the moment kilometres off it.
+	var hp := Rtcc.next_periapsis_alt(rt.dynamics.lm.traj.clone()) + Bodies.R_MOON - rt.sequencer.landing_site().length()
 	gut.p("DOI flown from %s: pericynthion %.0f m above the site" % [_from(), hp])
 	assert_almost_eq(hp, 15240.0, 300.0, "the pericynthion 50,000 ft above the site")
 	await fly(60.0)

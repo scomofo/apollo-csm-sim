@@ -100,12 +100,19 @@ func test_average_g_takes_a_translation_in_p47_but_not_in_p00() -> void:
 	var err := _nav_error()
 	gut.p("A 0.5 m/s translation in P00 leaves the CMC %.3f m/s off" % err[1].length())
 	assert_almost_eq((err[1] as Vector3).length(), 0.5, 0.02, "the state vector missed it")
-	# In P47 Average-G takes it in.
+	# In P47 Average-G takes it in. The CMC's model of the Moon's field
+	# isn't truth's: a copy of the state vector coasting beside a copy of
+	# the truth parts from it as the CMC's does meanwhile.
 	agc.init_nav(rt.dynamics.traj)
+	var coast_nav := agc.nav.clone()
+	var coast_truth := rt.dynamics.traj.clone()
 	keys("V37E47E")
 	assert_eq(agc.program, 47)
 	csm_translate(dv)
+	coast_nav.coast_to(rt.dynamics.traj.t, 1.0)
+	coast_truth.coast_to(rt.dynamics.traj.t, 1.0)
+	var drift := coast_nav.vel() - coast_truth.vel()
 	err = _nav_error()
-	gut.p("In P47 the CMC is %.4f m/s off" % err[1].length())
-	assert_lt((err[1] as Vector3).length(), 0.001, "the state vector took it in")
+	gut.p("In P47 the CMC is %.4f m/s off, %.4f m/s of it its model's" % [err[1].length(), drift.length()])
+	assert_lt((err[1] - drift).length(), 0.001, "the state vector took it in")
 	assert_almost_eq(agc.dv_body.x, 0.5, 0.02, "N83 shows it")

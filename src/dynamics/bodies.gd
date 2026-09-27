@@ -19,7 +19,7 @@ extends RefCounted
 
 const MU_EARTH: float = 3.986004418e14   ## m³/s²
 const R_EARTH: float = 6378137.0         ## m
-const MU_MOON: float = 4.9048695e12      ## m³/s²
+const MU_MOON: float = 4.9028003063e12   ## m³/s², GRAIL's (GL1800F)
 const R_MOON: float = 1737400.0          ## m
 const MU_SUN: float = 1.32712440018e20   ## m³/s²
 ## The Earth's zonal harmonics J2, J3 and J4, unnormalised, about R_EARTH
@@ -68,6 +68,7 @@ static func moon_mean_motion() -> float:
 static func configure(inclination_deg: float, raan_deg: float, phase0_deg: float, sun_phase_deg: float = -20.0) -> void:
 	ephemeris = null
 	perturbed = false
+	MoonGravity.unload()
 	earth_pole = PackedFloat64Array([0.0, 0.0, 1.0])
 	sun_phase = deg_to_rad(sun_phase_deg)
 	moon_inclination = deg_to_rad(inclination_deg)

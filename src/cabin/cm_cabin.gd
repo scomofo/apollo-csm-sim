@@ -23,8 +23,6 @@ const EYE_CMP := Vector3(0.75, 0.0, -0.30)
 ## Right couch design eye point, m: the lunar module pilot's station. The
 ## couches run CDR-CMP-LMP left to right (AOH Vol 1 §3; TN D-7440).
 const EYE_LMP := Vector3(0.75, 0.62, -0.30)
-## Where the player can sit.
-const SEATS := {"CDR": EYE_CDR, "CMP": EYE_CMP, "LMP": EYE_LMP}
 ## At the lower equipment bay, m: the command module pilot beyond the
 ## couches' feet, head toward the apex, facing the navigation panel, away
 ## from the couch.

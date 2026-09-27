@@ -31,8 +31,14 @@ func test_p30_accepts_crew_loaded_pad_and_predicts_apsides() -> void:
 	assert_eq(rt.agc().dsky.noun, "42")
 	var ha := rt.agc().dsky.r[0].to_int() / 10.0
 	var hp := rt.agc().dsky.r[1].to_int() / 10.0
-	assert_between(ha, 90.0, 105.0, "posigrade 50 ft/s raises the far side ~38 nmi")
-	assert_almost_eq(hp, 59.9, 1.5)
+	# 50 ft/s posigrade adds 70 km to the orbit's major axis, raising the
+	# far side ~38 nmi; the burn's point becomes the pericynthion.
+	var c := rt.dynamics.traj.conic()
+	var sum_before := (float(c["ra"]) + float(c["rp"]) - 2.0 * Bodies.R_MOON) / Units.NMI
+	assert_almost_eq(ha + hp - sum_before, 37.7, 1.5, "posigrade 50 ft/s raises the far side ~38 nmi")
+	var at := rt.dynamics.traj.clone()
+	at.coast_to(tig, 60.0)
+	assert_almost_eq(hp, at.altitude() / Units.NMI, 1.5, "the pericynthion where the burn is")
 	keys("P")
 	assert_true(rt.agc().maneuver_valid)
 	assert_eq(rt.agc().program, 0)
@@ -57,7 +63,10 @@ func test_v82_shows_orbit_parameters() -> void:
 	build("lunar_orbit")
 	keys("V82E")
 	assert_eq(rt.agc().dsky.noun, "44")
-	assert_almost_eq(rt.agc().dsky.r[1].to_int() / 10.0, 59.9, 0.5)
+	# The orbit after LOI-2, 65.7 by 53.8 nmi above the landing site's
+	# radius, 1.04 nmi below the Moon's mean radius, the display's datum.
+	assert_almost_eq(rt.agc().dsky.r[0].to_int() / 10.0, 64.7, 1.0, "HA")
+	assert_almost_eq(rt.agc().dsky.r[1].to_int() / 10.0, 52.8, 1.0, "HP")
 
 
 func test_p41_rcs_burn_for_a_small_trim() -> void:

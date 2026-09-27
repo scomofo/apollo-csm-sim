@@ -107,10 +107,13 @@ func test_a_burn_on_a_misaligned_platform_misses_by_what_the_misalignment_predic
 	assert_almost_eq(rad_to_deg(m.length()), 0.5, 1e-3, "the platform was 0.5 deg off")
 	assert_almost_eq(got.length(), predicted.length(), 0.03 * predicted.length(), "the miss is the misalignment's")
 	assert_lt(rad_to_deg(got.angle_to(predicted)), 3.0, "and in its direction")
-	# The CMC doesn't see it: its state vector has flown the plan.
+	# The CMC doesn't see it: its state vector has flown the plan, as
+	# flight A's did (both drifting alike from the truth before it).
 	var nav: Trajectory = b["nav"]
 	nav.coast_to(t, 1.0)
-	assert_lt((nav.vel() - tr["a"].vel()).length(), 0.2 * got.length(), "the CMC thinks it flew the aligned burn")
+	var nav_a: Trajectory = a["nav"]
+	nav_a.coast_to(t, 1.0)
+	assert_lt((nav.vel() - nav_a.vel()).length(), 0.2 * got.length(), "the CMC thinks it flew the aligned burn")
 	# Where it takes the CSM: the Earth return's perigee.
 	var ra := Rtcc.earth_return(tr["a"].clone(), t + 4.0 * 86400.0)
 	var rb := Rtcc.earth_return(tr["b"].clone(), t + 4.0 * 86400.0)

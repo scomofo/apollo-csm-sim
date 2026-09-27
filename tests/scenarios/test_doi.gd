@@ -23,8 +23,7 @@ func test_a_doi_pad_flown_on_the_lgc_reaches_its_pericynthion() -> void:
 	build("lunar_orbit")
 	_undock()
 	run(600.0)   # Eagle drifts clear of Columbia
-	var csm_peri := float(Bus.get_value("dyn.peri_alt_m"))
-	var csm_apo := float(Bus.get_value("dyn.apo_alt_m"))
+	var csm_before := rt.dynamics.traj.clone()
 	# The PAD goes to the LGC, not the CMC.
 	Bus.set_value("ctl.ground.pad_request", "doi")
 	var pad: Dictionary = rt.sequencer.last_pad
@@ -70,9 +69,13 @@ func test_a_doi_pad_flown_on_the_lgc_reaches_its_pericynthion() -> void:
 		Units.hms(box["t"]), float(pad["hp"]), Units.hms(float(pad["hp_get"]))])
 	assert_almost_eq(hp, TARGET_M, 250.0, "at its pericynthion target")
 	assert_almost_eq(float(box["t"]), float(pad["hp_get"]), 30.0, "when the PAD had it")
-	# Columbia flew on in its own orbit.
-	assert_almost_eq(float(Bus.get_value("dyn.peri_alt_m")), csm_peri, 1000.0, "Columbia's pericynthion")
-	assert_almost_eq(float(Bus.get_value("dyn.apo_alt_m")), csm_apo, 1000.0, "and apocynthion")
+	# Columbia flew on in its own orbit, as a copy of it flies (its vents
+	# aside, which push it metres in hours).
+	var csm_own := csm_before.clone()
+	csm_own.coast_to(rt.dynamics.traj.t, 10.0)
+	var off := csm_own.pos().distance_to(rt.dynamics.traj.pos())
+	gut.p("Columbia %.1f m from a copy of it flown on from before the DOI" % off)
+	assert_lt(off, 100.0, "Columbia flew on in its own orbit")
 
 
 func test_no_doi_pad_while_the_lm_is_docked() -> void:

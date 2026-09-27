@@ -19,7 +19,11 @@ func test_checkpoint_round_trip_through_json_reproduces_the_flight() -> void:
 	assert_true(rt.agc().maneuver_valid, "stored maneuver restored")
 	assert_eq(rt.dynamics.config, "csm")
 	run(900.0)
-	assert_almost_eq(SimClock.get_seconds, expect_t, 1e-6)
+	# A restored run's first step is a fine one (SimClock.restore()), so
+	# its coast steps fall 0.02 s off the original's; the Moon's field
+	# makes the flights part by millimetres for it, and the steps' sum by
+	# microseconds.
+	assert_almost_eq(SimClock.get_seconds, expect_t, 1e-4)
 	var d := Vector3(rt.dynamics.traj.s[0] - expect[0], rt.dynamics.traj.s[1] - expect[1], rt.dynamics.traj.s[2] - expect[2])
 	assert_lt(d.length(), 1.0, "same trajectory after restore")
 
@@ -37,7 +41,7 @@ func test_restore_rejects_foreign_checkpoints() -> void:
 func test_a_checkpoint_keeps_each_vehicle_under_its_name() -> void:
 	build("lunar_orbit")
 	var snap := rt.snapshot()
-	assert_eq(snap["schema_version"], 8)
+	assert_eq(snap["schema_version"], 9)
 	assert_eq(snap["vehicles"].keys(), ["csm"], "docked, the LM is part of the CSM's csm_lm")
 	assert_eq(snap["vehicles"]["csm"]["dynamics"]["config"], "csm_lm")
 	assert_has(snap["vehicles"]["csm"]["systems"], "agc")
@@ -56,7 +60,7 @@ func test_a_checkpoint_from_before_the_vehicles_map_is_rejected() -> void:
 	snap["dynamics"] = snap["vehicles"]["csm"]["dynamics"]
 	snap["systems"] = snap["vehicles"]["csm"]["systems"]
 	snap.erase("vehicles")
-	assert_eq(rt.restore(snap), "checkpoint schema 1, expected 8")
+	assert_eq(rt.restore(snap), "checkpoint schema 1, expected 9")
 
 
 func test_a_checkpoint_from_before_the_rendezvous_is_rejected() -> void:
@@ -65,7 +69,7 @@ func test_a_checkpoint_from_before_the_rendezvous_is_rejected() -> void:
 	# Schema 2's LGC had no rendezvous state.
 	snap["schema_version"] = 2
 	snap["vehicles"]["csm"]["systems"]["lgc"].erase("rendezvous")
-	assert_eq(rt.restore(snap), "checkpoint schema 2, expected 8")
+	assert_eq(rt.restore(snap), "checkpoint schema 2, expected 9")
 
 
 func test_a_checkpoint_from_before_the_timeline_is_rejected() -> void:
@@ -75,7 +79,7 @@ func test_a_checkpoint_from_before_the_timeline_is_rejected() -> void:
 	snap["schema_version"] = 3
 	snap["mission"].erase("plan")
 	snap["mission"].erase("timeline_done")
-	assert_eq(rt.restore(snap), "checkpoint schema 3, expected 8")
+	assert_eq(rt.restore(snap), "checkpoint schema 3, expected 9")
 
 
 func test_the_lms_systems_come_back_with_it() -> void:
@@ -171,7 +175,7 @@ func test_a_checkpoint_from_the_circular_moon_is_rejected() -> void:
 	var snap := rt.snapshot()
 	# Schema 4's states were in the circular model's ECI, not the ICRF.
 	snap["schema_version"] = 4
-	assert_eq(rt.restore(snap), "checkpoint schema 4, expected 8")
+	assert_eq(rt.restore(snap), "checkpoint schema 4, expected 9")
 
 
 func test_a_checkpoint_from_before_the_cmcs_own_state_vector_is_rejected() -> void:
@@ -179,7 +183,7 @@ func test_a_checkpoint_from_before_the_cmcs_own_state_vector_is_rejected() -> vo
 	var snap := rt.snapshot()
 	# Schema 5's CMC read truth, and the flight had no dispersions.
 	snap["schema_version"] = 5
-	assert_eq(rt.restore(snap), "checkpoint schema 5, expected 8")
+	assert_eq(rt.restore(snap), "checkpoint schema 5, expected 9")
 
 
 func test_a_checkpoint_from_before_the_imu_is_rejected() -> void:
@@ -187,7 +191,7 @@ func test_a_checkpoint_from_before_the_imu_is_rejected() -> void:
 	var snap := rt.snapshot()
 	# Schema 6's CMC read its attitude and sensed ΔV straight, on no platform.
 	snap["schema_version"] = 6
-	assert_eq(rt.restore(snap), "checkpoint schema 6, expected 8")
+	assert_eq(rt.restore(snap), "checkpoint schema 6, expected 9")
 
 
 func test_a_checkpoint_from_before_the_navigation_filter_is_rejected() -> void:
@@ -195,7 +199,15 @@ func test_a_checkpoint_from_before_the_navigation_filter_is_rejected() -> void:
 	var snap := rt.snapshot()
 	# Schema 7's CMC had no filter, and P22 and P23 no state.
 	snap["schema_version"] = 7
-	assert_eq(rt.restore(snap), "checkpoint schema 7, expected 8")
+	assert_eq(rt.restore(snap), "checkpoint schema 7, expected 9")
+
+
+func test_a_checkpoint_from_before_the_moons_field_is_rejected() -> void:
+	build("lunar_orbit")
+	var snap := rt.snapshot()
+	# Schema 8's trajectories held no sample of the Moon's field.
+	snap["schema_version"] = 8
+	assert_eq(rt.restore(snap), "checkpoint schema 8, expected 9")
 
 
 func test_the_cmcs_state_vector_and_the_dispersions_come_back_from_a_checkpoint() -> void:

@@ -310,6 +310,8 @@ func test_p66_lands_on_the_hand_controller_and_the_rod_switch() -> void:
 	while not rt.dynamics.lm.landed and SimClock.get_seconds - t0 < 400.0:
 		_fly_by_hand(lgc)
 	Bus.set_value("ctl.lm.rhc", Vector3.ZERO)
+	# The LGC sees the touchdown at its next step.
+	run(SimClock.FIXED_DT, false)
 	assert_true(rt.dynamics.lm.landed, "touchdown")
 	var td: Dictionary = rt.dynamics.lm.touchdown
 	gut.p("In P66, Eagle landed %.0f m from the site, %.2f m/s down and %.2f m/s across" % [
