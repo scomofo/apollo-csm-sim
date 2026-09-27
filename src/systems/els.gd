@@ -8,7 +8,7 @@
 ## dynamic-pressure limits].
 ##
 ## Reads:  ctl.els.logic, ctl.els.auto, ctl.els.drogue, ctl.els.main,
-##         dyn.alt_m, dyn.speed_mps, dyn.config, dyn.primary
+##         dyn.alt_m, dyn.air_speed_mps, dyn.config, dyn.primary
 ## The mains open reefed: their drag area grows over MAIN_DISREEF_S so the
 ## opening load stays near the ~4 g of the real staged disreefing.
 ##
@@ -44,7 +44,7 @@ func tick(dt: float) -> void:
 		return
 	var d := SpacecraftData.section("els")
 	var alt := float(Bus.get_value("dyn.alt_m", 1e9))
-	var v := float(Bus.get_value("dyn.speed_mps", 0.0))
+	var v := float(Bus.get_value("dyn.air_speed_mps", 0.0))
 	var q := 0.5 * Atmosphere.density(alt) * v * v
 	var auto := bool(Bus.get_value("ctl.els.auto", false))
 	var want_drogue := bool(Bus.get_value("ctl.els.drogue", false)) or (auto and alt < float(d["drogue_alt_m"]))

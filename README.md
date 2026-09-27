@@ -3,12 +3,15 @@
 A lunar-mission simulator of the Apollo Command/Service Module, built with
 Godot **4.4.1** on the architecture of the
 [Gemini capsule simulator](https://github.com/scomofo/gemini-capsule). It flies the
-Apollo 11 profile from Earth parking orbit through TLI, midcourse
-corrections, lunar orbit insertion, transearth injection, entry and
-splashdown, with every maneuver planned by a simulated Mission Control and
-executed through the Apollo Guidance Computer's DSKY.
+Apollo 11 profile from the launch pad, on the Saturn V into Earth parking
+orbit, through TLI, midcourse corrections, lunar orbit insertion,
+transearth injection, entry and splashdown, with every maneuver planned by
+a simulated Mission Control and executed through the Apollo Guidance
+Computer's DSKY.
 
 ![Chase view in lunar orbit with Eagle docked](docs/images/lunar_orbit_chase.png)
+
+![Apollo 11 16 s after liftoff: the Saturn V climbing from the pad on its S-IC, P11 on the DSKY and the launch checklist](docs/images/launch_chase.png)
 
 ![Parking orbit: the S-IVB/CSM/LM stack before TLI](docs/images/parking_orbit_chase.png)
 
@@ -38,6 +41,7 @@ From the repository root:
 
 ```
 godot --path .                                  # parking orbit, TLI ahead
+godot --path . -- --phase=launch                # on the pad, 20 s before liftoff
 godot --path . -- --phase=translunar_coast      # after TLI and docking
 godot --path . -- --phase=lunar_orbit           # after LOI-2, 54 × 66 nmi, Eagle docked
 godot --path . -- --phase=lunar_descent         # Eagle after DOI, 20 min before PDI
@@ -95,13 +99,26 @@ undocking to TEI) and at entry.
 
 ## Flying the mission
 
-1. **Parking orbit.** CAPCOM gives you GO for TLI. The S-IVB/IU flies TLI
+1. **Launch.** The launch phase starts on Launch Complex 39A 20 s before
+   liftoff, at 13:32:00 UTC. The Saturn V flies itself on the Instrument
+   Unit's program, as AS-506 did:
+   - the roll and pitch program;
+   - the S-IC's cutoffs and staging;
+   - the S-II and the S-IVB on the IU's iterative guidance, and the
+     tower's jettison;
+   - insertion into the 100 nmi parking orbit at 11:51.
+
+   At liftoff the CMC comes up in P11 (V16N62: inertial speed, altitude
+   rate, altitude). Panel 1's LV ENG, LIFTOFF and S-II SEP lights show the
+   stages, and the launch checklist checks itself off as they come. After
+   insertion, `V82E` shows the orbit. There are no aborts yet.
+2. **Parking orbit.** CAPCOM gives you GO for TLI. The S-IVB/IU flies TLI
    automatically at the planned TIG (GET 2:44), on its iterative guidance,
    onto the free return the RTCC planned. Watch it with `V16N62E` or
    `V82E`.
-2. **Transposition and docking.** Press **CSM/LV SEP** after cutoff. It
+3. **Transposition and docking.** Press **CSM/LV SEP** after cutoff. It
    happens automatically an hour after cutoff if you don't.
-3. **Midcourse correction.** With the CMC in P00 and UP TLM CM in ACCEPT,
+4. **Midcourse correction.** With the CMC in P00 and UP TLM CM in ACCEPT,
    press **MCC** under Mission Control. The RTCC solves the burn from the
    state MSFN tracked, and uplinks that state vector and the PAD: P27 and
    V71 on the DSKY while UPLINK ACTY is lit. Then set UP TLM CM to BLOCK.
@@ -117,15 +134,15 @@ undocking to TEI) and at entry.
    - At TIG−5 s, V99N40 flashes: press PRO to enable the engine. Monitor
      V16N40.
    - After cutoff, trim the V16N85 residuals with the THC, then press PRO.
-4. **LOI.** About 8 h before pericynthion, press **LOI-1** and fly it
+5. **LOI.** About 8 h before pericynthion, press **LOI-1** and fly it
    (~875 m/s, 6 min, 53 × 170 nmi). Two revs later, fly **LOI-2** into
    Apollo 11's 54 × 66 nmi orbit, out of round for the Moon's mascons to
    round it toward 60 nmi by the rendezvous.
-5. **TEI.** Press **LM JETT**, then **TEI**, and fly it. Then fly one or two
+6. **TEI.** Press **LM JETT**, then **TEI**, and fly it. Then fly one or two
    transearth **MCC**s until the vacuum perigee is about 37 km (20 nmi),
    or navigate on board with P23 and plan them with P37 (below).
    Before LM JETT you can undock and dock again (below).
-6. **Entry.** Press **CM/SM SEP** and select `V37E61E`. Set ELS LOGIC and
+7. **Entry.** Press **CM/SM SEP** and select `V37E61E`. Set ELS LOGIC and
    ELS AUTO on. P64 steers the bank angle at 0.05 g, P67 takes over below
    3 km/s, and the drogue and main parachutes deploy automatically.
 
@@ -483,6 +500,16 @@ These parts are modelled from published figures (rounded; see
   311 s), ascent engine (3,500 lbf) and RCS (100 lbf jets in two systems)
 - The rendezvous radar's range (400 nmi), and the TPI elevation and
   transfer angle (26.6° and 130°)
+- The Saturn V as AS-506 flew it, from its flight evaluation report:
+  - its masses at liftoff and at each stage's start;
+  - the S-IC's five F-1s, 6,719 kN each at sea level and 7,986 kN in
+    vacuum, with Isp from 264.5 s to 302 s;
+  - the S-II's five J-2s, 5,142 kN, and 3,059 kN on four at the low
+    mixture ratio;
+  - the S-IVB's J-2 in its first burn, 901 kN;
+  - the IU's event times, its pitch program (SA-504's) and its flight
+    azimuth, 72.058°;
+  - the drag from the flight manual's axial force coefficient.
 - The J-2 in TLI, the S-IVB's second burn (894 kN, Isp 428.7 s, 74,452 kg
   of propellant), and the vehicle's 134,051 kg at its ignition
 - CSM, LM and S-IVB masses (the LM's split between its stages is
@@ -494,6 +521,11 @@ A flown Apollo 11 profile in the simulator reproduces these values:
 
 | Quantity | Simulator | Apollo 11 |
 |---|---|---|
+| Launch: Mach 1, maximum dynamic pressure | 1:06.8; 32.7 kPa at 1:18.2 | 1:06.3; 35.2 kPa at 1:23.0 |
+| Launch: the S-IC's centre and outboard engines' cutoffs | 2:15.2, 2:41.7, at 66.0 km and 2,738 m/s | 2:15.2, 2:41.6, at 66.1 km and 2,764 m/s |
+| Launch: the S-II's cutoff | 9:08.2, at 6,916 m/s | 9:08.2, at 6,910 m/s |
+| Launch: the S-IVB's cutoff, and insertion | 11:41.3; 11:51.1 at 7,793.1 m/s | 11:39.3; 11:49.3 at 7,793.1 m/s |
+| Parking orbit | 99.9 × 99.8 nmi, 32.521° | 100.4 × 98.9 nmi, 32.521° |
 | TLI | GET 2:43:58, 3,186 m/s in 334.8 s, the plane turned 1.20°, C3 −1,376,351 m²/s² | 2:44:16, 3,182 m/s in 346.9 s, 1.20°, C3 −1,391,607 m²/s² |
 | The free return after TLI | 896.5 nmi past the Moon at 75:05:23, 1.9° N 174.4° W; an Earth capture | 896.3 nmi at 75:05:21, 0.1° S 174.1° W; an Earth capture |
 | Translunar midcourse correction | 30.5 ft/s at 4:04 | 19.7 ft/s at 4:40 (the evasive maneuver) and 20.9 ft/s at 26:45 |
@@ -511,8 +543,8 @@ A flown Apollo 11 profile in the simulator reproduces these values:
 | Midcourse corrections | 2.6 and 0.5 ft/s | under 1 and about 1.5 ft/s |
 | Braking, then station-keeping | 15 min 44 s, station-keeping 46 min after TPI | 15 min 8 s, station-keeping 48 min after TPI |
 | Docking | GET 127:51:53, 50 min after TPI | 128:03:00, 59 min after TPI |
-| Entry peak load | 6.7 g | ~6.5 g |
-| Splashdown | 8.6 m/s | — |
+| Entry peak load | 6.9 g | ~6.5 g |
+| Splashdown | 8.5 m/s | — |
 
 Deliberate simplifications are tagged `[simplified]` in the code. The main
 ones:
@@ -576,8 +608,25 @@ ones:
   standing in for cross-product steering.
 - **Entry guidance.** It is a constant-drag bank controller without range
   targeting.
-- **Atmosphere.** Earth rotation and winds are ignored.
-- **Launch.** There is no launch phase.
+- **Atmosphere.** The 1976 U.S. Standard Atmosphere turns with the
+  Earth, without winds. Its density is a log-linear table of the
+  standard's values; its pressure and speed of sound come from the
+  standard's layers.
+- **Launch.** The pad sits on the simulator's round Earth, its geodetic
+  latitude taken for geocentric. The vehicle is a point 1 m over the pad
+  whose thrust turns at the IU's rate limit, 1°/s. Its engines run at
+  their stages' thrust, with no start or shutdown transients but the
+  S-II's and S-IVB's starts, and no engine failures. The S-IC's thrust
+  follows the air's pressure, and its propellant ends its burn at the
+  flown time. The IU's pitch program is SA-504's; AS-506's own isn't at
+  hand. The S-IVB vents and burns 1,051 kg in the parking orbit, taken
+  off at insertion. There are no aborts, and no launch escape.
+- **The launch's view.** Panel 1's launch lights are the Operations
+  Handbook's account of them, not their circuits, and their places are
+  estimated. The sky is a blend toward blue with the air's pressure and
+  the Sun's height, not scattering. Below 8 km the ground is a plain in
+  haze, at true scale under the S-IC's base, since the scaled Earth
+  would pass through a vehicle 113 m tall.
 - **The landing.** The surface is NASA's elevation maps, smooth between their
   posts: 4 m at the site, so no smaller rocks, and the gear meets the
   ground level, straight below the centre of mass. The descent's guidance
@@ -701,6 +750,13 @@ The unit tests cover:
 - The ascent guidance: its targets are a 9 × 45 nmi orbit, it pitches
   over along the track, steers back into the CSM's plane, and its time to
   go is the rocket equation's
+- The launch's models (`tests/unit/test_launch_models.gd`):
+  - the atmosphere against the 1976 standard's table;
+  - the Earth-fixed frame turning once a sidereal day, the pad moving at
+    408 m/s and the air there still;
+  - the pad under the launch REFSMMAT's vertical;
+  - the IGM's integrals over burns in sequence, with coasts between,
+    against the acceleration integrated step by step.
 - The S-IVB's iterative guidance (`tests/unit/test_igm.gd`): from the
   flown TIG onto the flown TLI's conic, in planes turned 0, 1.3 and −2°
   about the burn, it cuts off on the conic's energy within 1 J/kg and in
@@ -737,8 +793,9 @@ The unit tests cover:
   where MSFN's draws have got to, the CMC's IMU and a P52 between its
   marks, its navigation filter and a P23 mark waiting at N49, and the
   Moon's field's samples each trajectory holds and the thrust they were
-  taken with, and the IU's target conic and its guidance's state
-  (schema 11). Older
+  taken with, the IU's target conic and its guidance's state, and the
+  launch vehicle's stages, time bases, guidance and events (schema 12).
+  Older
   checkpoints are rejected
 - The main scene, and in Eagle from `lunar_descent`: its HUD, the keys on
   its LGC, its two views, its checklist for the phase, and L between the
@@ -749,7 +806,7 @@ The unit tests cover:
 - Which vehicle you fly: Eagle from undocking, Columbia again at docking
   or jettison, and L between them while Eagle flies free. Boarding, not
   L, opens the vehicle's checklist for the phase
-- Columbia's and Eagle's checklists: each opens the one its phases name,
+- Columbia's and Eagle's checklists, the launch's among them: each opens the one its phases name,
   and the HUD shows the checklists of the vehicle flown, both keeping up
   with the Bus whichever shows
 - The space view: the cabin and the cameras stay fixed while Earth, Moon,
@@ -759,7 +816,10 @@ The unit tests cover:
   the ground takes the sphere's place, 3.6 m below its centre of mass,
   with Columbia drawn nearer than the ground. From Eagle's cabin the
   ground is drawn about the commander's eye, 2.2 m below it, beneath the
-  cabin's floor, and Columbia outside the cabin, 2.8 m out
+  cabin's floor, and Columbia outside the cabin, 2.8 m out. On the pad
+  the sky is blue, the ground is drawn 113 m down under the S-IC's base in
+  place of the scaled Earth, and the chase camera stands the Saturn V up;
+  in orbit none of it shows
 - The ground below Eagle: the maps' heights on its grid, placed at the
   Moon's scale with the eye at the origin, a new grid as Eagle moves on
   or comes down, and the last one drawn while a worker builds the next
@@ -800,6 +860,19 @@ The unit tests cover:
 
 The scenario tests fly real segments through the crew interface:
 
+- The launch (`tests/scenarios/test_launch.gd`), slice 5d's check. From
+  the pad, the Saturn V flies Apollo 11 into its parking orbit:
+  - insertion at 11:51.1, 7,793.1 m/s (11:49.3 and 7,793.1 m/s flown);
+  - the orbit 99.9 × 99.8 nmi at 32.521°, 0.003° from the flown plane;
+  - each stage's cutoff near the flight evaluation report's: the S-IC's
+    within 0.1 s, the S-II's within 0.02 s, the S-IVB's 2.0 s late;
+  - Mach 1 and the maximum dynamic pressure near the report's;
+  - the CMC in P11, the countdown's start sequence and thrust OK, and
+    panel 1's lights through each stage;
+  - the S-IVB left with 74,299 kg for TLI (74,452 flown), and TLI planned
+    for 2:44:00.
+
+  A checkpoint mid-S-II flies on to the same cutoff
 - S-IVB TLI to lunar arrival (`tests/scenarios/test_tli.gd`), slice 5c's
   check: the IU's iterative guidance flies TLI at 2:43:58 into the flown
   TLI's plane, turning it 1.20° as flown, with 3,186 m/s from the J-2 in
@@ -876,7 +949,9 @@ The scenario tests fly real segments through the crew interface:
   Eagle a recentre, its DSKY and ENG ARM, at the lower equipment bay the
   optics turned by hand and MARK, and the record it writes
 - Every checklist worked through the desktop rig until the card shows it
-  complete: parking orbit and TLI, the MCC, LOI-1, LOI-2 and TEI each
+  complete: the launch, checked off on the vehicle's events with panel 1's
+  lights lit and V82 on the orbit, parking orbit and TLI, the MCC, LOI-1,
+  LOI-2 and TEI each
   down the SPS burn checklist on P40 with a residual trimmed on the translation
   controller, each after the IMU realign checklist at the lower
   equipment bay (SEAT, its DSKY, the optics and MARK), LM JETT, and entry
@@ -992,12 +1067,14 @@ wrist menu, `--pad=<kind>` asks Mission Control for a PAD first, and
 puts the cabin view at the lower equipment bay, `--p52=<hours>`
 drifts that long and starts P52 with the optics open, and `--p23=<code>`
 flies P23 to a star, 0 for the first near the Earth's horizon, and lays
-it on the horizon).
+it on the horizon, and `--coast=<s>` flies on that long first, as from
+the pad into the ascent).
 They were rendered in software, so the frame time on the wrist menu's top
 line is the software renderer's:
 
 ```
 godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=1 --out=res://docs/images/x.png
+godot --path . tools/screenshot.tscn -- --phase=launch --view=1 --coast=36 --yaw=2.4 --pitch=0.18 --out=res://docs/images/launch_chase.png
 godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=1 --undock=400 --yaw=3.6 --vehicle=csm --out=res://docs/images/lm_undocked_chase.png
 godot --path . tools/screenshot.tscn -- --phase=lunar_descent --view=0 --out=res://docs/images/eagle_descent_orbit.png
 godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=2 --yaw=-0.3 --pitch=-0.12 --hud=0 --out=res://docs/images/cabin_lunar_orbit.png
@@ -1031,6 +1108,7 @@ realism. In the flight's remaining simplifications (milestone 5), the
 Earth is oblate and the Sun pulls (slice 5a), and the Moon has its
 mascons, which the onboard computers model as their flown R-2 did, so
 their state vectors drift from truth in lunar orbit (slice 5b), and the
-S-IVB flies TLI on the IU's iterative guidance (slice 5c). Next come the
-launch, P40's cross-product steering and entry range targeting, then
-sound (6) and the other missions (7).
+S-IVB flies TLI on the IU's iterative guidance (slice 5c), and the Saturn V
+flies Apollo 11 from the pad into its parking orbit (slice 5d). Next come
+P40's cross-product steering and entry range targeting, then sound (6) and
+the other missions (7).

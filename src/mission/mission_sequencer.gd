@@ -34,8 +34,21 @@ extends Node
 signal event_fired(id: String)
 signal capcom(text: String)
 
-const PHASES := ["parking_orbit", "tli", "translunar_coast", "lunar_orbit", "lunar_descent",
+const PHASES := ["launch", "parking_orbit", "tli", "translunar_coast", "lunar_orbit", "lunar_descent",
 	"lunar_surface", "lunar_ascent", "transearth_coast", "entry", "splashdown", "lost"]
+## Mission Control's calls through the launch, by the vehicle's events
+## [published: the Apollo 11 air-to-ground, the PAO's mission commentary].
+const LAUNCH_CALLS := {
+	"ignition": "Ignition sequence start.",
+	"thrust_ok": "All engine running.",
+	"liftoff": "We have a liftoff, 32 minutes past the hour. Liftoff on Apollo 11.",
+	"sic_ceco": "This is Houston, you are GO for staging.",
+	"staging": "11, Houston, thrust is GO all engines, you are looking good.",
+	"les_jettison": "Roger. Tower.",
+	"igm": "11, Houston, your guidance is converged, you are looking good.",
+	"emr_shift": "Roger, we've got PU shift down here, too.",
+	"s2_oeco": "11, this is Houston. You are GO for staging.",
+}
 ## The start phases flown on from the lunar orbit start with the LM
 ## (_lm_start()).
 const LM_PHASES := ["lunar_descent", "lunar_surface", "lunar_ascent"]
@@ -92,6 +105,8 @@ func _ready() -> void:
 		dynamics.docking_contact.connect(_on_docking_contact)
 		dynamics.lm_touchdown.connect(_on_lm_touchdown)
 		dynamics.lm_liftoff.connect(_on_lm_liftoff)
+	if systems.has("lv"):
+		systems["lv"].event_fired.connect(_on_lv_event)
 
 
 func _exit_tree() -> void:
@@ -103,6 +118,8 @@ func _exit_tree() -> void:
 		dynamics.lm_touchdown.disconnect(_on_lm_touchdown)
 	if dynamics != null and dynamics.lm_liftoff.is_connected(_on_lm_liftoff):
 		dynamics.lm_liftoff.disconnect(_on_lm_liftoff)
+	if systems.has("lv") and is_instance_valid(systems["lv"]) and systems["lv"].event_fired.is_connected(_on_lv_event):
+		systems["lv"].event_fired.disconnect(_on_lv_event)
 
 
 # --- start states ------------------------------------------------------------
@@ -166,6 +183,16 @@ func start(p_phase: String) -> void:
 	var cfg := "stack"
 	var sps_prop := float(SpacecraftData.section("sps")["propellant_kg"])
 	var sivb_prop := float(SpacecraftData.section("sivb")["propellant_kg"])
+	if p_phase == "launch":
+		# On the pad, the Saturn V turning with the Earth.
+		cfg = "saturn_v"
+		var l := mission.section("launch")
+		var lv: LaunchVehicle = systems["lv"]
+		lv.arm(l, _insertion_target())
+		tr = Trajectory.new()
+		tr.set_state_d("earth", float(l["start_get_s"]), lv.pad_state(float(l["start_get_s"])))
+	elif systems.has("lv"):
+		systems["lv"].state = "idle"
 	if p_phase == "translunar_coast":
 		var pad := _plan_tli(tr)
 		assert(not pad.is_empty(), "no TLI solution")
@@ -204,7 +231,7 @@ func start(p_phase: String) -> void:
 		systems["sps"].prop_kg = sps_prop
 	if systems.has("sivb"):
 		systems["sivb"].prop_kg = sivb_prop if cfg == "stack" else 0.0
-		systems["sivb"].state = "idle" if cfg == "stack" else "done"
+		systems["sivb"].state = "idle" if cfg in ["saturn_v", "stack"] else "done"
 	dynamics.initialize(tr.primary, tr.t, tr.pos(), tr.vel(), cfg)
 	dynamics.traj.s = tr.s.duplicate()
 	dynamics.publish_state()
@@ -231,6 +258,8 @@ func start(p_phase: String) -> void:
 				Units.hms(float(tli_pad["tig"])), float(tli_pad["dv"]) / Units.FT])
 	_fire("start_" + p_phase)
 	match p_phase:
+		"launch":
+			_say("T minus 20 seconds and counting. We are still GO with Apollo 11.")
 		"translunar_coast":
 			_say("Columbia, Houston. Good trajectory. Request an MCC PAD when you are ready; LOI PAD about eight hours out.")
 		"lunar_orbit":
@@ -370,6 +399,8 @@ func _update_phase() -> void:
 	if dynamics.landed:
 		var ok := tr.primary == "earth" and dynamics.landed_speed < 15.0
 		p = "splashdown" if ok else "lost"
+	elif dynamics.config == "saturn_v":
+		p = "launch"
 	elif dynamics.config == "cm" and tr.primary == "earth" and tr.altitude() < 1.0e6:
 		p = "entry"
 	elif dynamics.config == "stack" and str(Bus.get_value("sivb.state", "")) != "done":
@@ -394,6 +425,55 @@ func _update_phase() -> void:
 		elif phase == "lost":
 			Bus.set_value("mission.result", "lost")
 			_say("Houston... we have lost the spacecraft.")
+
+
+## The parking orbit's insertion the IU's guidance flies the launch to:
+## the start phase's circular orbit, its radius, speed and plane
+## (Sivb.igm_burns()'s terminal point).
+func _insertion_target() -> Dictionary:
+	var tr := _parking_orbit_traj()
+	var n := tr.pos().cross(tr.vel()).normalized()
+	var r := tr.pos().length()
+	return {"rt": r, "vt": sqrt(Bodies.MU_EARTH / r), "gamma": 0.0, "n": [n.x, n.y, n.z]}
+
+
+## The launch vehicle's events: Mission Control's calls; at liftoff the
+## CMC's P11 on the liftoff discrete, its state vector the pad's; at
+## insertion the parking orbit.
+func _on_lv_event(id: String) -> void:
+	_fire(id)
+	if LAUNCH_CALLS.has(id):
+		_say(LAUNCH_CALLS[id])
+	match id:
+		"liftoff":
+			if systems.has("agc"):
+				var agc: Agc = systems["agc"]
+				agc.init_nav(dynamics.traj)
+				agc.change_program(11)
+		"insertion":
+			_insert()
+
+
+## Insertion: the stack flies on into the parking orbit, the S-IVB with the
+## propellant its first burn left less what it vents and burns before its
+## second (mission.json "launch"), and Mission Control plans TLI.
+func _insert() -> void:
+	var lv: LaunchVehicle = systems["lv"]
+	var fixed := SpacecraftData.total_mass("stack", float(Bus.get_value("sps.prop_kg", 0.0)),
+		float(Bus.get_value("rcs.sm_prop_kg", 560.0)), float(Bus.get_value("rcs.cm_prop_kg", 110.0)), 0.0)
+	var left := maxf(lv.mass - fixed - float(mission.section("launch")["parking_orbit_loss_kg"]), 0.0)
+	systems["sivb"].prop_kg = left
+	systems["sivb"].state = "idle"
+	Bus.set_value("sivb.prop_kg", left)
+	dynamics.set_configuration("stack")
+	var c: Dictionary = dynamics.traj.conic()
+	_say("Roger. Shutdown. We show an orbit of %.1f by %.1f." % [(float(c["ra"]) - Bodies.R_EARTH) / Units.NMI,
+		(float(c["rp"]) - Bodies.R_EARTH) / Units.NMI])
+	_update_phase()
+	tli_pad = _plan_tli(dynamics.traj)
+	if not tli_pad.is_empty():
+		systems["sivb"].arm_tli(float(tli_pad["tig"]), tli_pad["target"])
+		Bus.set_value("mission.tli_tig", float(tli_pad["tig"]))
 
 
 ## In lunar orbit, the LM's part of the flight: its descent (from DOI, its

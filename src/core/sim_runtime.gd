@@ -19,13 +19,15 @@ extends RefCounted
 ## 10: the thrust each trajectory's samples ahead were taken with, for
 ##    them to be taken again when a burn begins or ends (slice 5b).
 ## 11: the IU's target conic and its iterative guidance's state (slice 5c).
-const SCHEMA_VERSION := 11
+## 12: the launch vehicle's (slice 5d).
+const SCHEMA_VERSION := 12
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],
 	["agc", "res://src/systems/agc.gd"],
 	["rcs", "res://src/systems/rcs.gd"],
 	["sps", "res://src/systems/sps.gd"],
+	["lv", "res://src/systems/launch_vehicle.gd"],
 	["sivb", "res://src/systems/sivb.gd"],
 	["els", "res://src/systems/els.gd"],
 	["optics", "res://src/systems/optics.gd"],

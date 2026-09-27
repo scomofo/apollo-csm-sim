@@ -57,6 +57,8 @@ const SURFACE_CHECK_M := 11000.0
 ## this long.
 const LIFTOFF_MARGIN := 1.1
 const LIFTOFF_S := 0.5
+## Above this height the Saturn V's drag is left out, m.
+const LV_AERO_TOP_M := 150000.0
 
 var traj: Trajectory = Trajectory.new()
 var attitude: Attitude = Attitude.new()
@@ -150,6 +152,10 @@ func set_configuration(cfg: String) -> void:
 
 
 func update_mass() -> void:
+	if config == "saturn_v":
+		mass = float(Bus.get_value("lv.mass_kg", SpacecraftData.section("saturn_v")["liftoff_kg"]))
+		attitude.inertia = SpacecraftData.inertia(config, mass)
+		return
 	mass = SpacecraftData.total_mass(config,
 		float(Bus.get_value("sps.prop_kg", SpacecraftData.section("sps")["propellant_kg"])),
 		float(Bus.get_value("rcs.sm_prop_kg", 4.0 * SpacecraftData.section("sm_rcs")["quad_propellant_kg"])),
@@ -170,7 +176,12 @@ func _lm_mass(cfg: String) -> float:
 ## The LM is still with the mission: in the S-IVB's adapter, docked, or
 ## flying free (not jettisoned).
 func has_lm() -> bool:
-	return lm != null or config == "stack" or config == "csm_lm"
+	return lm != null or config == "saturn_v" or config == "stack" or config == "csm_lm"
+
+
+## The speed through the air, which turns with the Earth, m/s.
+func air_speed() -> float:
+	return Atmosphere.air_velocity(traj.pos(), traj.vel()).length()
 
 
 func in_atmosphere() -> bool:
@@ -184,11 +195,17 @@ func tick(dt: float) -> void:
 		_publish_coast(false)
 		return
 	update_mass()
+	if config == "saturn_v" and bool(Bus.get_value("lv.held", false)):
+		_hold_on_pad(dt)
+		return
 	var ecl := attitude.eci_from_body()
 	var force_body := Vector3.ZERO
 	var force_eci := Vector3.ZERO
 	var torque := Vector3.ZERO
-	if config != "stack":
+	if config == "saturn_v":
+		var d: Array = Bus.get_value("lv.dir", [1.0, 0.0, 0.0])
+		force_eci += Vector3(d[0], d[1], d[2]).normalized() * float(Bus.get_value("lv.thrust_n", 0.0))
+	elif config != "stack":
 		force_body.x += float(Bus.get_value("sps.thrust_n", 0.0)) if config != "cm" else 0.0
 		force_body += Bus.get_value("rcs.force_body", Vector3.ZERO)
 		torque = Bus.get_value("rcs.torque_body", Vector3.ZERO)
@@ -201,6 +218,8 @@ func tick(dt: float) -> void:
 	var aero := config == "cm" and in_atmosphere()
 	if aero:
 		aero_eci = _aero_force()
+	elif config == "saturn_v" and traj.primary == "earth" and traj.altitude() < LV_AERO_TOP_M:
+		aero_eci = _lv_drag()
 	force_eci += ecl * force_body + aero_eci
 	last_force_body = force_body
 	last_torque = torque
@@ -217,7 +236,9 @@ func tick(dt: float) -> void:
 	g_load = a.length() / Units.G0
 	max_g = maxf(max_g, g_load)
 	# Attitude.
-	if config == "stack":
+	if config == "saturn_v":
+		_align_lv()
+	elif config == "stack":
 		_align_iu()
 	elif aero:
 		_entry_attitude(dt)
@@ -225,7 +246,8 @@ func tick(dt: float) -> void:
 		attitude.step(dt, torque)
 	if traj.altitude() <= 0.0:
 		landed = true
-		landed_speed = traj.speed()
+		# Against the ground, which on the Earth turns with the air.
+		landed_speed = air_speed() if traj.primary == "earth" else traj.speed()
 		attitude.omega = Vector3.ZERO
 	# A coast step may only be long when nothing acts on the vehicle AND no
 	# autopilot is trying to (a controller cannot run at minute steps).
@@ -485,9 +507,54 @@ func _publish_docking() -> void:
 	Bus.set_value("dock.misalign_deg", g["misalign_deg"])
 
 
-## Aerodynamic + parachute force on the CM, inertial N.
+## On the pad, held by the holddown arms: the vehicle turns with the Earth,
+## from its state at the step's end.
+func _hold_on_pad(dt: float) -> void:
+	var p: Array = Bus.get_value("lv.pad_fixed", [])
+	if p.size() == 3:
+		traj.set_state_d("earth", traj.t + dt, LaunchVehicle.pad_state_of(p, traj.t + dt))
+	_align_lv()
+	g_load = 1.0
+	Bus.set_value("dyn.dv_step", [0.0, 0.0, 0.0])
+	publish_state()
+	_publish_coast(false)
+
+
+## The Saturn V's drag through the turning air: its axial force
+## coefficient at the Mach number on its cross-section (spacecraft.json
+## "saturn_v"), along the air's velocity [simplified: the angle of attack's
+## normal force left out], inertial N.
+func _lv_drag() -> Vector3:
+	var h := traj.altitude()
+	var va := Atmosphere.air_velocity(traj.pos(), traj.vel())
+	var sp := va.length()
+	if sp < 1e-3:
+		return Vector3.ZERO
+	var d := SpacecraftData.section("saturn_v")
+	var mach := sp / Atmosphere.sound_speed(h)
+	var table: Array = d["cd_mach"]
+	var cd := float(table[-1][1])
+	for i in range(1, table.size()):
+		if mach <= float(table[i][0]):
+			var m0 := float(table[i - 1][0])
+			cd = lerpf(float(table[i - 1][1]), float(table[i][1]), (mach - m0) / (float(table[i][0]) - m0))
+			break
+	return -va / sp * 0.5 * Atmosphere.density(h) * sp * sp * cd * float(d["reference_area_m2"])
+
+
+## The Instrument Unit flies the Saturn V: the attitude is the one it
+## publishes.
+func _align_lv() -> void:
+	var q: Array = Bus.get_value("lv.q", [])
+	if q.size() == 4:
+		attitude.q = Quaternion(q[0], q[1], q[2], q[3]).normalized()
+	attitude.omega = Vector3.ZERO
+
+
+## Aerodynamic + parachute force on the CM, inertial N, through the turning
+## air.
 func _aero_force() -> Vector3:
-	var v := traj.vel()
+	var v := Atmosphere.air_velocity(traj.pos(), traj.vel())
 	var sp := v.length()
 	if sp < 1e-3:
 		return Vector3.ZERO
@@ -538,7 +605,7 @@ func _entry_attitude(dt: float) -> void:
 			var rhc: Vector3 = Bus.get_value("ctl.rhc", Vector3.ZERO)
 			bank += rhc.x * rate * dt
 	bank = wrapf(bank, -PI, PI)
-	var vhat := traj.vel().normalized()
+	var vhat := Atmosphere.air_velocity(traj.pos(), traj.vel()).normalized()
 	var x := -vhat
 	var zb := -_lift_dir(vhat)
 	var y := zb.cross(x).normalized()
@@ -570,6 +637,7 @@ func publish_state() -> void:
 	Bus.set_value("dyn.landed", landed)
 	Bus.set_value("dyn.landed_speed_mps", landed_speed)
 	Bus.set_value("dyn.in_atmosphere", in_atmosphere())
+	Bus.set_value("dyn.air_speed_mps", air_speed() if traj.primary == "earth" else traj.speed())
 	var e := traj.earth_state()
 	var m := traj.moon_state_rel()
 	Bus.set_value("dyn.earth_dist_m", Vector3(e[0], e[1], e[2]).length())

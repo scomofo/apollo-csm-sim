@@ -22,6 +22,13 @@ P1_ELS_LOGIC,MDC1,toggle,ELS LOGIC,-220,-170,0,ctl.els.logic,,estimated,D,implem
 P1_ELS_AUTO,MDC1,toggle,ELS AUTO,-150,-170,0,ctl.els.auto,,estimated,D,implemented,historical
 P1_DROGUE,MDC1,pushbutton,DROGUE DEPLOY,-60,-170,0,ctl.els.drogue,,estimated,D,implemented,proxy
 P1_MAIN_CHUTES,MDC1,pushbutton,MAIN DEPLOY,30,-170,0,ctl.els.main,,estimated,D,implemented,proxy
+P1_LV_ENG_1,MDC1,lamp,LV ENG 1,120,-150,0,lv.eng_light_1,,AOH §3,D,implemented,historical
+P1_LV_ENG_2,MDC1,lamp,LV ENG 2,180,-150,0,lv.eng_light_2,,AOH §3,D,implemented,historical
+P1_LV_ENG_3,MDC1,lamp,LV ENG 3,180,-200,0,lv.eng_light_3,,AOH §3,D,implemented,historical
+P1_LV_ENG_4,MDC1,lamp,LV ENG 4,120,-200,0,lv.eng_light_4,,AOH §3,D,implemented,historical
+P1_LV_ENG_5,MDC1,lamp,LV ENG 5,150,-175,0,lv.eng_light_5,,AOH §3,D,implemented,historical
+P1_LIFTOFF,MDC1,lamp,LIFTOFF,245,-150,0,lv.liftoff_light,,AOH §3,D,implemented,historical
+P1_S2_SEP,MDC1,lamp,S-II SEP,245,-200,0,lv.s2_sep_light,,AOH §3,D,implemented,historical
 P2_MISSION_TIMER,MDC2,clock,MISSION TIMER,0,200,0,time.get_s,power_channel=eps.bus_a_v,AOH §3,D,implemented,historical
 P2_RCS_QUAD_A,MDC2,toggle,RCS QUAD A,-240,190,0,ctl.rcs.quad_a,,AOH SCS 2.3,D,implemented,proxy
 P2_RCS_QUAD_B,MDC2,toggle,RCS QUAD B,-180,190,0,ctl.rcs.quad_b,,AOH SCS 2.3,D,implemented,proxy

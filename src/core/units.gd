@@ -7,6 +7,7 @@ extends RefCounted
 const FT: float = 0.3048            ## m per ft
 const NMI: float = 1852.0           ## m per nautical mile
 const LBF: float = 4.4482216152605  ## N per lbf
+const PSF: float = 47.880258889     ## Pa per lbf/ft²
 const LBM: float = 0.45359237       ## kg per lbm
 const PSI: float = 6894.757293168   ## Pa per psi
 const G0: float = 9.80665           ## m/s², standard gravity

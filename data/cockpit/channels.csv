@@ -40,6 +40,13 @@ eps.bus_a_v,float,V,eps,Main bus A voltage
 eps.bus_b_v,float,V,eps,Main bus B voltage
 sys.master_alarm.eps,bool,,eps,EPS master alarm
 sps.thrust_n,float,N,sps,SPS thrust now (newtons)
+lv.eng_light_1,bool,,lv,LV ENGINE light 1: engine 1 of the stage burning or next is below thrust
+lv.eng_light_2,bool,,lv,LV ENGINE light 2: engine 2 of the stage burning or next is below thrust
+lv.eng_light_3,bool,,lv,LV ENGINE light 3: engine 3 of the stage burning or next is below thrust
+lv.eng_light_4,bool,,lv,LV ENGINE light 4: engine 4 of the stage burning or next is below thrust
+lv.eng_light_5,bool,,lv,LV ENGINE light 5: engine 5 of the stage burning or next is below thrust
+lv.liftoff_light,bool,,lv,LIFTOFF light: from liftoff to the S-IC's separation
+lv.s2_sep_light,bool,,lv,S-II SEP light: from the S-IC's separation to the S-II's aft interstage's
 dsky,group,,agc,The DSKY display channels below
 dsky.prog,string,,agc,DSKY PROG digits
 dsky.verb,string,,agc,DSKY VERB digits

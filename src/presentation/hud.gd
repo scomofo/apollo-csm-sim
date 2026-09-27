@@ -549,6 +549,23 @@ MISALIGN %4.1f°""" % [
 	return text
 
 
+## Through the launch: the stage burning and its engines, their thrust,
+## the Mach number and the dynamic pressure.
+func _launch_text() -> String:
+	if str(Bus.get_value("dyn.config", "")) != "saturn_v":
+		return ""
+	var stage := str(Bus.get_value("lv.stage", ""))
+	if bool(Bus.get_value("lv.held", false)):
+		stage = "ON PAD"
+	return """
+STAGE   %9s  ENG %d
+THRUST  %9.0f klbf
+MACH    %9.2f
+Q       %9.0f psf""" % [stage if stage != "" else "STAGING", int(Bus.get_value("lv.engines", 0)),
+		float(Bus.get_value("lv.thrust_n", 0.0)) / (1000.0 * Units.LBF), float(Bus.get_value("lv.mach", 0.0)),
+		float(Bus.get_value("lv.q_pa", 0.0)) / Units.PSF]
+
+
 func _process(_delta: float) -> void:
 	if rt == null:
 		return
@@ -592,6 +609,7 @@ RATE  %+.2f %+.2f %+.2f °/s""" % [
 		float(Bus.get_value("dyn.g_load", 0.0)),
 		gim.x, gim.y, gim.z, rad_to_deg(w.x), rad_to_deg(w.y), rad_to_deg(w.z)]
 	_flight.text += _docking_text()
+	_flight.text += _launch_text()
 	var o2 := float(Bus.get_value("eps.o2_tank1_kg", 0.0)) + float(Bus.get_value("eps.o2_tank2_kg", 0.0))
 	var fc := PackedStringArray()
 	for n in 3:

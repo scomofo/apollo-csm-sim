@@ -1129,11 +1129,12 @@ them after the core split in 3b.
 
 ## 5. The whole flight
 
-**Status: slices 5a to 5c are done: the Earth is oblate, the Sun
-pulls, the Moon has its mascons, and the S-IVB flies TLI on the IU's
-iterative guidance.** What the README still lists as simplifications of
-the flight itself: the missions start in parking orbit, P40 holds its ΔV
-direction in LVLH, and entry guidance has no aim.
+**Status: slices 5a to 5d are done: the Earth is oblate, the Sun
+pulls, the Moon has its mascons, the S-IVB flies TLI on the IU's
+iterative guidance, and the Saturn V flies Apollo 11 from the pad into
+its parking orbit.** What the README still lists as simplifications of
+the flight itself: P40 holds its ΔV direction in LVLH, and entry
+guidance has no aim.
 
 - **Gravity** first, since it moves every number the suite checks. The
   Earth's oblateness turned Apollo 11's parking orbit 0.8° west before
@@ -1378,6 +1379,82 @@ Slice 5c gives the S-IVB its iterative guidance:
 - **Checkpoints** are schema 11: the IU's target conic and its
   guidance's state.
 
+Slice 5d gives the flight its launch:
+
+- **The Earth turns.** The Earth-fixed frame turns about the pole of
+  date on Greenwich mean sidereal time (IAU 1982, UT1 taken for UTC),
+  precessed as the pole is. Launch Complex 39A moves at 408 m/s, and
+  the pad sits under the launch REFSMMAT's vertical within 0.0001°. The
+  air turns with the Earth: the drag, the dynamic pressure and the
+  entry's aerodynamics take the velocity through the air. The CM now
+  meets the air at another speed and angle, and the entry's peak load
+  goes from 6.7 g to 6.9 g (Apollo 11: about 6.5 g); the splashdown's
+  speed, against the ground, is 8.5 m/s. The atmosphere's pressure and
+  speed of sound come from the 1976 standard's layers
+  (`test_launch_models.gd`).
+- **The Saturn V** (`LaunchVehicle`) is AS-506 from its flight
+  evaluation report (MPR-SAT-FE-69-9):
+  - its masses at liftoff and at each stage's start (Table 20-9);
+  - the F-1s, 6,719 kN each at sea level (Table 5-1) and 7,986 kN in
+    vacuum at the outboard cutoff, the thrust between following the
+    air's pressure;
+  - the S-II's J-2s at the high mixture ratio, then four at the low one;
+  - the S-IVB's J-2 in its first burn.
+
+  The drag is the flight manual's axial force coefficient against Mach
+  [derived]. Each stage burns until its propellant is gone, the S-IVB
+  until the IU's velocity cutoff.
+- **The IU's program** runs on its time bases, as AS-506's did (Table
+  2-2):
+  - T1 at the umbilical's disconnect: the yaw away from the tower, then
+    at 137 m the roll to the 72.058° flight azimuth and the time-tilt
+    pitch program (SA-504's presettings, D5-15706-4 Table 5-1; AS-506's
+    aren't at hand), and the S-IC's centre engine cutoff on the clock;
+  - T2 there: the tilt arrest;
+  - T3 at the outboard engines' cutoff: staging, the S-II's start, the
+    aft interstage's and the tower's jettison, and the iterative
+    guidance from T3 + 42.4 s, with the S-II's centre engine cutoff and
+    mixture ratio shift on the clock;
+  - T4 at the S-II's cutoff: the S-IVB's start;
+  - T5 at its velocity cutoff, with insertion 9.77 s later.
+- **Iterative guidance to orbit.** `Sivb.igm_burns()` takes 5c's IGM to
+  a sequence of burns with coasts between: the S-II's phases, the coast
+  to the S-IVB's start, and the S-IVB's burn, whose time it iterates.
+  It also flies to a fixed terminal point: the parking orbit's radius,
+  circular speed, level flight and plane. The integrals over the burns
+  match the acceleration integrated step by step
+  (`test_launch_models.gd`), and TLI, the one-burn case, comes out as in
+  5c.
+- **The flight** (`test_launch.gd`):
+  - Mach 1 at 1:06.8 (Apollo 11: 1:06.3), and the maximum dynamic
+    pressure 32.7 kPa at 1:18.2 (35.2 kPa at 1:23.0);
+  - the S-IC's cutoffs within 0.1 s of the flown, at 66.0 km and
+    2,738 m/s (66.1 km, 2,764 m/s);
+  - the S-II's cutoff within 0.02 s, at 6,916 m/s (6,910);
+  - the S-IVB's cutoff at 11:41.3 (11:39.3), and insertion at 11:51.1
+    (11:49.3) at 7,793.1 m/s, as flown;
+  - a 99.9 × 99.8 nmi orbit at 32.521° (100.4 × 98.9 nmi at 32.521°),
+    0.003° from the flown plane.
+
+  The S-IVB keeps 74,299 kg for TLI (74,452), and the RTCC plans TLI for
+  2:44:00. A checkpoint mid-S-II flies on to the same cutoff.
+- **The start phase and the cabin.** `--phase=launch` starts on the pad
+  20 s before liftoff, held by the holddown arms and turning with the
+  Earth. At liftoff the CMC comes up in P11 (V16 N62), its state vector
+  the pad's. Panel 1 gets the LV ENG 1 to 5, LIFTOFF and S-II SEP lights,
+  lit on the vehicle's events as the Operations Handbook describes them
+  [estimated]. Columbia's book gets a launch checklist that checks itself
+  off on the events; `test_cabin_checklists.gd` flies it through the
+  cabin. The HUD shows the stage, the engines burning, the thrust, the
+  Mach number and the dynamic pressure. Mission Control calls the
+  countdown's last seconds and the flight's events as the PAO and CAPCOM
+  did.
+- **The view.** The chase camera stands the Saturn V up. By day the sky
+  is blue in the air, and below 8 km the ground is a plain in haze at
+  true scale under the S-IC's base: the scaled Earth would pass through a
+  vehicle 113 m tall.
+- **Checkpoints** are schema 12: the launch vehicle's.
+
 ### Slices
 
 | Slice | Work | Check |
@@ -1385,7 +1462,7 @@ Slice 5c gives the S-IVB its iterative guidance:
 | 5a (done) The Earth's oblateness and the Sun | The Earth's zonal harmonics (J2 to J4) about its pole of date, precessed from the ICRF, and the Sun's pull from the ephemeris, in the propagator: truth, the RTCC and the onboard computers alike. The suite gets a third scenario part if the step's cost takes a part past ten minutes | Test: the parking orbit's node moves west as flown before TLI (0.8°), and each new acceleration matches an independent evaluation. The suite passes, re-tuned only where the flight really changed; re-measure the Fidelity table |
 | 5b (done) The Moon's mascons | The Moon's gravity field from GRAIL, truncated by a script in `tools/` to the degree a 60 nmi orbit feels, for truth and the RTCC; the CMC and the LGC keep the simpler lunar model their programs flew with, sourced in the slice. The step's cost is measured and budgeted | Test: a low lunar orbit's apsides move as an independent integration of the same field predicts, and the flown LOI-2 orbit's change by the landing is compared with the mission report's. The landing and the rendezvous pass, the onboard state vectors now drifting from truth |
 | 5c (done) S-IVB iterative guidance | The IU's iterative guidance mode for TLI: steering to the target conic the RTCC plans (its energy, eccentricity and plane), the time to go iterated as it burns, cutoff on the target. The fixed yaw goes | Test: TLI hits the target within a set limit, with its ΔV and plane change near Apollo 11's (about 3,180 m/s and 1.3°) |
-| 5d The launch | Liftoff from Launch Complex 39A at 13:32:00 UTC: the S-IC's roll and tilt programs and its cutoffs, staging, the S-II and the S-IVB on iterative guidance, the launch escape tower's jettison, insertion. The atmosphere turns with the Earth. A start phase on the pad, and the cabin and the HUD through the ascent. Aborts are left for later | Test: insertion into Apollo 11's parking orbit (32.5°, about 100 nmi) at about 11:49 GET within set limits, each stage's burn near the flown times (the Saturn V flight evaluation report) |
+| 5d (done) The launch | Liftoff from Launch Complex 39A at 13:32:00 UTC: the S-IC's roll and tilt programs and its cutoffs, staging, the S-II and the S-IVB on iterative guidance, the launch escape tower's jettison, insertion. The atmosphere turns with the Earth. A start phase on the pad, and the cabin and the HUD through the ascent. Aborts are left for later | Test: insertion into Apollo 11's parking orbit (32.5°, about 100 nmi) at about 11:49 GET within set limits, each stage's burn near the flown times (the Saturn V flight evaluation report) |
 | 5e P40 cross-product steering | Colossus's cross-product steering in P40 and P41, in place of holding the ΔV's LVLH direction | Test: LOI-1 on cross-product steering leaves an orbit nearer the RTCC's plan than LVLH steering does, and short burns come out as they did |
 | 5f Entry range targeting | Colossus's entry guidance (P62 to P67): the range to a splashdown target on the rotating Earth, up-control for long ranges, the final phase along a reference trajectory, and lateral roll reversals. The target comes with the entry PAD | Test: from entry interface the CM splashes down within a set limit of the target, from a short and a long range alike |
 

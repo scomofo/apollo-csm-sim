@@ -188,7 +188,7 @@ var _burn_dv: float = 0.0
 
 
 ## The programs whose Average-G puts the sensed ΔV into the state vector.
-const AVERAGE_G := [40, 41, 47, 61, 64, 67]
+const AVERAGE_G := [11, 40, 41, 47, 61, 64, 67]
 
 
 func _init() -> void:
@@ -197,7 +197,7 @@ func _init() -> void:
 
 
 func programs() -> Array:
-	return [0, 22, 23, 30, 37, 40, 41, 47, 51, 52, 61, 64, 67]
+	return [0, 11, 22, 23, 30, 37, 40, 41, 47, 51, 52, 61, 64, 67]
 
 
 func thrusting_programs() -> Array:
@@ -252,6 +252,11 @@ func authority() -> Vector3:
 func start_program(p: int) -> void:
 	if p in [61, 64, 67]:
 		dsky.show(16, 64)
+	if p == 11:
+		# Earth orbit insertion monitor: the speed, the altitude rate and the
+		# altitude [simplified: on V16, which the DSKY refreshes, for P11's
+		# own V06].
+		dsky.show(16, 62)
 	if p in [22, 23, 37]:
 		if not _restoring:
 			_start_nav_program(p)

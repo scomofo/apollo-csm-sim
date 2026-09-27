@@ -35,7 +35,7 @@ func _step_texts(card: ChecklistCard) -> PackedStringArray:
 
 
 func test_the_book_opens_by_phase_cycles_and_acknowledges() -> void:
-	assert_eq(book.lists.size(), 5)
+	assert_eq(book.lists.size(), 6)
 	book.select_for_phase("translunar_coast")
 	assert_eq(book.list().title, "SPS burn (P30 / P40)")
 	var w := book.window()
@@ -64,11 +64,11 @@ func test_the_book_opens_by_phase_cycles_and_acknowledges() -> void:
 	assert_eq(book.list().index, 0, "a checklist opens where it stands, at first its first step")
 	book.select(-1)
 	assert_eq(book.list().title, "IMU realign (P52)", "select wraps")
-	book.select(1)
+	book.select(2)
 	assert_eq(book.list().index, 4, "back to the SPS burn checklist where it was left")
 	book.list().index = book.list().steps.size()
 	book.cycle()
-	book.select(1)
+	book.select(2)
 	assert_eq(book.list().index, 0, "a finished checklist starts again, for the next burn")
 
 
@@ -141,7 +141,7 @@ func test_every_step_names_a_cabin_control_or_one_writes_its_check() -> void:
 				assert_ne(id, "", "%s: a cabin control writes %s" % [s["text"], channel])
 			if id != "":
 				framed += 1
-	assert_eq(framed, 31, "31 steps point at a cabin control")
+	assert_eq(framed, 39, "39 steps point at a cabin control")
 
 
 func test_every_eagle_step_names_one_of_its_controls_or_one_writes_its_check() -> void:
