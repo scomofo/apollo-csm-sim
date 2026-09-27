@@ -12,13 +12,10 @@ func test_mcc_pad_flown_from_the_cabin() -> void:
 	build("translunar_coast")
 	await setup_cabin()
 	var agc := rt.agc()
-	# The coast starts on target, so no MCC would be needed: give TLI a
-	# cutoff error of 0.8 m/s short, which misses the pericynthion target by
-	# more than the RTCC's 20 km tolerance.
-	var tr := rt.dynamics.traj
-	tr.set_state(tr.primary, tr.t, tr.pos(), tr.vel() - tr.vel().normalized() * 0.8)
-	rt.dynamics.publish_state()
-	# Mission Control uplinks the PAD, as the HUD's MCC button asks it to.
+	# The coast starts on TLI's free return: the MCC takes it off it, to
+	# 60 nmi over the landing site, as Apollo 11's evasive maneuver and
+	# midcourse correction did (19.7 and 20.9 ft/s). Mission Control
+	# uplinks the PAD, as the HUD's MCC button asks it to.
 	Bus.set_value("ctl.ground.pad_request", "mcc")
 	var pad: Dictionary = rt.sequencer.last_pad
 	assert_false(pad.is_empty(), "an MCC solution")

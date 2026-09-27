@@ -16,6 +16,13 @@ Nutation, polar motion and the ICRF's offset from J2000 are left out:
 each is under 0.01 deg here. It checks the insertion point lies in the
 plane.
 
+It prints the plane Apollo 11's TLI left the stack in, for mission.json's
+tli block (plane_normal): Table 10-6 of the same report gives it at TLI,
+10 s after the S-IVB's second cutoff signal, on the postflight
+trajectory, inclination 31.383 deg and descending node 121.847 deg, in
+the same frame as the parking orbit's. The IU's guidance flies TLI into
+it (Rtcc.plan_tli()).
+
 It also prints the launch pad REFSMMAT for mission.json's
 launch_refsmmat block: the orientation the CMC's IMU was released at
 liftoff, X horizontal along the flight azimuth (72.058 deg east of north,
@@ -41,6 +48,10 @@ INSERTION_S = 709.3
 INSERTION_LAT = 32.672
 INSERTION_LON = -52.694
 INSERTION_ALT_KM = 191.1
+# AS-506 flight evaluation report, Table 10-6, the postflight trajectory
+# at TLI.
+TLI_INCLINATION = 31.383
+TLI_DESCENDING_NODE = 121.847
 # WGS 84.
 A_KM = 6378.137
 F = 1.0 / 298.257223563
@@ -86,16 +97,23 @@ def precession(jd_tt):
     return mul(rz(-z), mul(ry(theta), rz(-zeta)))
 
 
+def plane_normal(epoch, to_j2000, inclination, descending_node):
+    """The unit normal (r x v) of the orbit plane of [param inclination]
+    and [param descending_node] (deg; the node counted in the equator
+    eastward from the launch meridian at range zero), in the ICRF. In the
+    mean equator of date the ascending node lies 180 degrees from the
+    descending one."""
+    node = math.radians(gmst_deg(epoch) + PAD_LON + descending_node - 180.0)
+    inc = math.radians(inclination)
+    return apply(to_j2000, [math.sin(inc) * math.sin(node), -math.sin(inc) * math.cos(node), math.cos(inc)])
+
+
 def main():
     with open(MISSION) as f:
         epoch = float(json.load(f)["liftoff_jd"])
     tt = epoch + 39.75 / 86400.0
     to_j2000 = transpose(precession(tt))
-    # The plane in the mean equator of date: the ascending node lies 180
-    # degrees from the descending one, both counted from the launch meridian.
-    node = math.radians(gmst_deg(epoch) + PAD_LON + DESCENDING_NODE - 180.0)
-    inc = math.radians(INCLINATION)
-    normal = apply(to_j2000, [math.sin(inc) * math.sin(node), -math.sin(inc) * math.cos(node), math.cos(inc)])
+    normal = plane_normal(epoch, to_j2000, INCLINATION, DESCENDING_NODE)
     raan = math.degrees(math.atan2(normal[0], -normal[1])) % 360.0
     i_icrf = math.degrees(math.acos(normal[2]))
     # The insertion point, from the Earth-fixed frame to the ICRF.
@@ -115,6 +133,10 @@ def main():
     print("ICRF: inclination %.3f deg, RAAN %.3f deg; insertion at argument of latitude %.2f deg, "
           "radius %.1f km (%.1f km over the equatorial radius), %.3f deg out of the plane"
           % (i_icrf, raan, u, rn, rn - A_KM, out_of_plane))
+    tli = plane_normal(epoch, to_j2000, TLI_INCLINATION, TLI_DESCENDING_NODE)
+    turn = math.degrees(math.acos(max(-1.0, min(1.0, sum(a * b for a, b in zip(normal, tli))))))
+    print('TLI plane: "plane_normal": [%.9f, %.9f, %.9f], %.3f deg from the parking orbit\'s at insertion'
+          % (tli[0], tli[1], tli[2], turn))
     # The launch pad REFSMMAT: the pad's local frame at range zero.
     lat, lon, az = math.radians(PAD_LAT), math.radians(PAD_LON), math.radians(FLIGHT_AZIMUTH)
     up = [math.cos(lat) * math.cos(lon), math.cos(lat) * math.sin(lon), math.sin(lat)]

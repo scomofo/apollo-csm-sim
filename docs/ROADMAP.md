@@ -1129,11 +1129,11 @@ them after the core split in 3b.
 
 ## 5. The whole flight
 
-**Status: slices 5a and 5b are done: the Earth is oblate, the Sun
-pulls, and the Moon has its mascons.** What the README still lists as
-simplifications of the flight itself: the missions start in parking
-orbit, the S-IVB flies TLI at a fixed yaw, P40 holds its ΔV direction in
-LVLH, and entry guidance has no aim.
+**Status: slices 5a to 5c are done: the Earth is oblate, the Sun
+pulls, the Moon has its mascons, and the S-IVB flies TLI on the IU's
+iterative guidance.** What the README still lists as simplifications of
+the flight itself: the missions start in parking orbit, P40 holds its ΔV
+direction in LVLH, and entry guidance has no aim.
 
 - **Gravity** first, since it moves every number the suite checks. The
   Earth's oblateness turned Apollo 11's parking orbit 0.8° west before
@@ -1177,7 +1177,9 @@ Slice 5a gives the Earth its shape and the Sun its pull:
   energy counting the oblate potential [estimated]. Read as a two-body
   energy at the cutoff, 285 km up over 9° N where J2's potential is
   −28 kJ/kg, the flown C3 leaves the stack 3.7 % more bound once away
-  from the Earth, and the Moon comes 1.6 h late.
+  from the Earth, and the Moon comes 1.6 h late. (5c found that C3 was
+  the one at the cutoff signal, before the J-2's thrust decay, and reads
+  the later one as two-body, as the IU did.)
 - **The vacuum perigee.** The RTCC took a return's vacuum perigee from
   the conic at 100,000 km. It now integrates on to the perigee
   (`Rtcc.vacuum_perigee()`), so TEI, the MCCs and P37 aim at the
@@ -1302,13 +1304,87 @@ Slice 5b gives the Moon its mascons:
   in a quarter of an hour, where they stayed within a fifth of one, and
   the round trip's check on their times allows 0.1 ms.
 
+Slice 5c gives the S-IVB its iterative guidance:
+
+- **The IGM.** The IU's iterative guidance mode for the out-of-orbit
+  burn, for one stage (Boeing D5-15706-4, Table 4-IV): each pass the
+  range angle to go puts the terminal radius in the target plane, its
+  true anomaly on the target conic gives the terminal radius, speed and
+  flight path angle, and the velocity to be gained, less the mean
+  gravity on the way, corrects the time to go by the rocket equation,
+  twice a pass. The thrust points along the velocity to be gained,
+  turned by the K terms, a linear-tangent change that brings the
+  terminal radius into the plane and onto the conic; they drop out in
+  the last 28.6 s, as AS-506's did, and the steering freezes in the last
+  4 s (AS-506's in its last 1.2 s: the passes here come a second apart,
+  where the LVDC's came 1.7 s apart). The J-2 cuts off in the step
+  where the energy reaches the target's. The RTCC flies the same law
+  when it plans (`Sivb.simulate_burn()`). From the flown TIG onto conics
+  turned 0, 1.3 and −2° about the burn, the burn ends on the target's
+  energy within 1 J/kg and in its plane within 0.0001°, at the conic's
+  radius and flight path angle; from its fifth second on the time to go
+  puts the cutoff within 0.34 s (`test_igm.gd`). The fixed yaw is gone.
+- **C3.** The flight evaluation report defines C3 as V² − 2μ/R, two-body,
+  and the IU cut off on it; the S-IVB now does too. 5a read the flown C3
+  as counting the oblate potential, because read as two-body the Moon
+  came 1.6 h late. But that C3, −1,487,528 m²/s², was the one at the
+  cutoff signal (Table 4-2): the J-2's thrust decay added some 4 m/s,
+  and at TLI, 10 s on, the postflight trajectory's was −1,391,607
+  (Table 10-6). The propagator flies the flown trajectory on it: the
+  report's state at S-IVB/CSM separation (Table 4-3), flown on here,
+  passes the Moon 826.3 nmi up at 75:08:56, where the mission report has
+  827.2 nmi at 75:07:47.
+- **The plan.** TLI's plane is the one the IU's targeting gave, the
+  flown one (inclination 31.383° and descending node 121.847° at TLI),
+  and its conic keeps the flown one's perigee, put mid-burn. The RTCC
+  solves the ignition time and the energy for the free return Apollo
+  11's TLI left the stack on: 896.3 nmi past the Moon at 75:05:21 (the
+  mission report's Table 7-III). Its C3 comes out −1,376,351 m²/s², at
+  the cutoff 0.70 m/s over the report's, within the metre a second the
+  report's trajectory solutions spread. A plane solved for a return into
+  the entry corridor instead came 0.46° from the flown one, the pass
+  6° north of the flown: Apollo 11's free return captured at the Earth.
+- **TLI.** The J-2 is the one the flight evaluation report gives for
+  the second burn: 894,364 N at an Isp of 428.69 s, on 74,452 kg of
+  propellant (Tables 7-2 and 7-3), where it was 1,000 kN at 421 s on
+  75,000 kg, and the S-IVB's dry mass makes the vehicle 134,051 kg at
+  the ignition (Table 20-7). At 2:43:58 (Apollo 11: 2:44:16) the J-2
+  gives 3,186 m/s in 334.8 s (3,182 m/s in 346.9 s) and turns the plane
+  1.20°, as flown.
+  The stack passes the Moon 896.5 nmi up at 75:05:23, 1.9° N 174.4° W
+  (896.3 nmi at 75:05:21, 0.1° S 174.1° W), and comes back to an Earth
+  capture, its vacuum perigee 4,216 km under the surface (the report's
+  entry, 64° down, puts it 5,149 km under) (`test_tli.gd`). A
+  checkpoint mid-burn flies on to the same cutoff within 0.02 s.
+- **The MCC** now aims at the pericynthion's time too, 75:53:35, where
+  Apollo 11's first midcourse correction left it (at 61.5 nmi), with its
+  altitude and its plane over the landing site: the three misses take
+  the whole ΔV. It takes 30.5 ft/s at 4:04 (Apollo 11: 19.7 ft/s in the
+  evasive maneuver at 4:40 and 20.9 ft/s at 26:45). LOI-1 then comes at
+  75:50:33 (75:49:50), 2,876 ft/s in 6.1 min (2,917.5 ft/s in 5.96 min),
+  and leaves 57.7 × 169.6 nmi (60.0 × 169.7). The tests that went to
+  LOI straight from the translunar coast's start, which TLI had aimed at
+  the site, now fly the MCC first; the cabin's MCC tests lose the TLI
+  error they added for an MCC to correct.
+- **The end of a burn.** When P40 or P41 ends, the CMC's DAP now holds
+  the attitude the program left the CSM in: it held the one from before
+  the burn's maneuver, and a HOLD after TEI turned the CSM back through
+  gimbal lock. The tests hold after a burn until the DAP has nulled its
+  rate, before the coast in FREE: the MCC's SPS burn, now flown on the
+  way out, left the stack turning, which in a day's coast took it into
+  gimbal lock. In NO ATT the DAP's damping rests with the jets off at
+  the rate the hold rests at, where it pulsed on a trace of rate for
+  good.
+- **Checkpoints** are schema 11: the IU's target conic and its
+  guidance's state.
+
 ### Slices
 
 | Slice | Work | Check |
 |---|---|---|
 | 5a (done) The Earth's oblateness and the Sun | The Earth's zonal harmonics (J2 to J4) about its pole of date, precessed from the ICRF, and the Sun's pull from the ephemeris, in the propagator: truth, the RTCC and the onboard computers alike. The suite gets a third scenario part if the step's cost takes a part past ten minutes | Test: the parking orbit's node moves west as flown before TLI (0.8°), and each new acceleration matches an independent evaluation. The suite passes, re-tuned only where the flight really changed; re-measure the Fidelity table |
 | 5b (done) The Moon's mascons | The Moon's gravity field from GRAIL, truncated by a script in `tools/` to the degree a 60 nmi orbit feels, for truth and the RTCC; the CMC and the LGC keep the simpler lunar model their programs flew with, sourced in the slice. The step's cost is measured and budgeted | Test: a low lunar orbit's apsides move as an independent integration of the same field predicts, and the flown LOI-2 orbit's change by the landing is compared with the mission report's. The landing and the rendezvous pass, the onboard state vectors now drifting from truth |
-| 5c S-IVB iterative guidance | The IU's iterative guidance mode for TLI: steering to the target conic the RTCC plans (its energy, eccentricity and plane), the time to go iterated as it burns, cutoff on the target. The fixed yaw goes | Test: TLI hits the target within a set limit, with its ΔV and plane change near Apollo 11's (about 3,180 m/s and 1.3°) |
+| 5c (done) S-IVB iterative guidance | The IU's iterative guidance mode for TLI: steering to the target conic the RTCC plans (its energy, eccentricity and plane), the time to go iterated as it burns, cutoff on the target. The fixed yaw goes | Test: TLI hits the target within a set limit, with its ΔV and plane change near Apollo 11's (about 3,180 m/s and 1.3°) |
 | 5d The launch | Liftoff from Launch Complex 39A at 13:32:00 UTC: the S-IC's roll and tilt programs and its cutoffs, staging, the S-II and the S-IVB on iterative guidance, the launch escape tower's jettison, insertion. The atmosphere turns with the Earth. A start phase on the pad, and the cabin and the HUD through the ascent. Aborts are left for later | Test: insertion into Apollo 11's parking orbit (32.5°, about 100 nmi) at about 11:49 GET within set limits, each stage's burn near the flown times (the Saturn V flight evaluation report) |
 | 5e P40 cross-product steering | Colossus's cross-product steering in P40 and P41, in place of holding the ΔV's LVLH direction | Test: LOI-1 on cross-product steering leaves an orbit nearer the RTCC's plan than LVLH steering does, and short burns come out as they did |
 | 5f Entry range targeting | Colossus's entry guidance (P62 to P67): the range to a splashdown target on the rotating Earth, up-control for long ranges, the final phase along a reference trajectory, and lateral roll reversals. The target comes with the entry PAD | Test: from entry interface the CM splashes down within a set limit of the target, from a short and a long range alike |

@@ -68,8 +68,8 @@ func test_the_zonal_energy_is_conserved_with_the_orbits() -> void:
 	var full := []
 	for i in 12:
 		tr.coast_to(tr.t + 450.0, 30.0)
-		two_body.append(Sivb.energy_of(tr.s) - Bodies.zonal_energy(tr.s[0], tr.s[1], tr.s[2]))
-		full.append(Sivb.energy_of(tr.s))
+		two_body.append(Sivb.energy_of(tr.s))
+		full.append(Sivb.energy_of(tr.s) + Bodies.zonal_energy(tr.s[0], tr.s[1], tr.s[2]))
 	var swing: float = two_body.max() - two_body.min()
 	var held: float = full.max() - full.min()
 	gut.p("round an orbit the two-body energy swings %.0f J/kg, the full one %.2f J/kg" % [swing, held])
