@@ -14,7 +14,8 @@
 ## optics as the CMC drives them to its first star. --p23=<code> starts
 ## P23 on navigation star <code> (octal; 0 for the first 15° to 50° from
 ## the Earth's horizon), flies the auto maneuver and shows the optics with
-## the star laid on the Earth's horizon.
+## the star laid on the Earth's horizon. --coast=<s> flies on that many
+## seconds before the shot (from the launch phase's pad, into the ascent).
 extends Node
 
 var _frames := 0
@@ -36,6 +37,7 @@ func _ready() -> void:
 	var seat := ""
 	var p52_hours := 0.0
 	var p23 := -1
+	var coast := 0.0
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--phase="):
 			phase = a.trim_prefix("--phase=")
@@ -65,6 +67,8 @@ func _ready() -> void:
 			p52_hours = float(a.trim_prefix("--p52="))
 		elif a.begins_with("--p23="):
 			p23 = int(a.trim_prefix("--p23="))
+		elif a.begins_with("--coast="):
+			coast = float(a.trim_prefix("--coast="))
 	SimClock.manual = true
 	_main = load("res://scenes/main.tscn").instantiate()
 	_main.start_phase = phase
@@ -91,6 +95,8 @@ func _ready() -> void:
 		SimClock.advance(SimClock.FIXED_DT)
 		Bus.set_value("ctl.seq.undock", false)
 		SimClock.advance(undock)
+	if coast > 0.0:
+		SimClock.advance(coast)
 	_main.vehicles.update()
 	if vehicle != "" and _main.vehicles.vehicle != vehicle:
 		_main.vehicles.toggle()

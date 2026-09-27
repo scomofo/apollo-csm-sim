@@ -12,7 +12,8 @@ extends CabinTest
 
 ## The checklists this file flies; a checklist added to checklists.json
 ## needs a flight here too.
-const FLOWN := ["Parking orbit and TLI", "SPS burn (P30 / P40)", "Lunar orbit and TEI", "Entry", "IMU realign (P52)"]
+const FLOWN := ["Launch", "Parking orbit and TLI", "SPS burn (P30 / P40)", "Lunar orbit and TEI", "Entry",
+	"IMU realign (P52)"]
 
 
 func test_every_checklist_is_flown_here() -> void:
@@ -22,6 +23,37 @@ func test_every_checklist_is_flown_here() -> void:
 
 func _sivb(state: String) -> Callable:
 	return func() -> bool: return str(Bus.get_value("sivb.state", "")) == state
+
+
+func _lv(event: String) -> Callable:
+	return func() -> bool: return (rt.systems["lv"] as LaunchVehicle).events.has(event)
+
+
+## From the pad to the parking orbit: the launch checks itself off on the
+## vehicle's events, the main display console's lights show them, and the
+## crew's V82 reads the orbit.
+func test_launch() -> void:
+	build("launch")
+	await setup_cabin("launch")
+	await expect_step("LIFTOFF light and the clock")
+	assert_eq(Bus.get_value("present.checklist.next_control"), "P1_LIFTOFF", "the highlight is on the LIFTOFF light")
+	assert_true(await fly_until(_lv("liftoff"), 30.0, 1.0, false), "liftoff")
+	assert_true(cabin.items["P1_LIFTOFF"].get("lit"), "LIFTOFF lit")
+	await expect_step("Roll and pitch program")
+	assert_true(await fly_until(_lv("sic_ceco"), 200.0, 5.0, false), "the S-IC's inboard cutoff")
+	assert_true(cabin.items["P1_LV_ENG_5"].get("lit"), "LV ENG 5 lit")
+	await expect_step("Outboard cutoff, staging")
+	assert_true(await fly_until(_lv("staging"), 60.0, 0.5, false), "staging")
+	assert_true(cabin.items["P1_S2_SEP"].get("lit"), "S-II SEP lit")
+	assert_false(cabin.items["P1_LIFTOFF"].get("lit"), "LIFTOFF out")
+	await expect_step("Skirt sep")
+	assert_true(await fly_until(_lv("insertion"), 700.0, 10.0, false), "insertion")
+	await expect_step("V82E")
+	await type("V82E")
+	assert_eq([dsky.fields["verb"].text, dsky.fields["noun"].text], ["16", "44"], "V82 shows the orbit")
+	assert_almost_eq(dsky.fields["r1"].text.to_int(), 999, 10, "apogee about 100 nmi")
+	assert_almost_eq(dsky.fields["r2"].text.to_int(), 999, 10, "perigee about 100 nmi")
+	await expect_complete("Launch")
 
 
 func test_parking_orbit_and_tli() -> void:

@@ -1,6 +1,18 @@
 {
   "_comment": "Condensed from the Apollo 11 CSM flight plan and checklists [adapted for this simulator]. Keys: V/N/Enter = VERB/NOUN/ENTR, Space = PRO. control: the cabin control a step is done on (an id in data/cockpit/controls.csv); without it the checklist highlight finds the control that writes the step's check channel. phases: the flight phases (mission.phase) a checklist is for; it opens at the start, and as the crew comes back aboard Columbia, in one. Eagle's are in lm_checklists.json.",
   "checklists": [
+    {"title": "Launch", "phases": ["launch"], "steps": [
+      {"text": "LIFTOFF light and the clock: the CMC in P11 (V16 N62: speed, altitude rate, altitude)", "control": "P1_LIFTOFF", "check": {"channel": "guid.program", "op": "eq", "value": 11}},
+      {"text": "Roll and pitch program: the FDAI rolls to the flight azimuth, then pitches downrange", "control": "P1_FDAI", "check": {"channel": "lv.event.tilt", "op": "gt", "value": 0}},
+      {"text": "Inboard cutoff: LV ENG 5 on", "control": "P1_LV_ENG_5", "check": {"channel": "lv.event.sic_ceco", "op": "gt", "value": 0}},
+      {"text": "Outboard cutoff, staging: S-II SEP on, the S-II's engines to thrust", "control": "P1_S2_SEP", "check": {"channel": "lv.event.staging", "op": "gt", "value": 0}},
+      {"text": "Skirt sep: S-II SEP out", "control": "P1_S2_SEP", "check": {"channel": "lv.event.interstage_jettison", "op": "gt", "value": 0}},
+      {"text": "Tower jettison", "check": {"channel": "lv.event.les_jettison", "op": "gt", "value": 0}},
+      {"text": "Guidance initiate: the IU steers to orbit", "check": {"channel": "lv.event.igm", "op": "gt", "value": 0}},
+      {"text": "S-II cutoff, staging, S-IVB ignition: LV ENG 1 on until its thrust", "control": "P1_LV_ENG_1", "check": {"channel": "lv.event.s4_ignition", "op": "gt", "value": 0}},
+      {"text": "S-IVB cutoff: LV ENG 1 on; insertion", "control": "P1_LV_ENG_1", "check": {"channel": "lv.event.insertion", "op": "gt", "value": 0}},
+      {"text": "V82E: the parking orbit, about 100 nmi", "control": "P2_DSKY", "check": {"channel": "dsky.noun", "op": "eq", "value": "44"}}
+    ]},
     {"title": "Parking orbit and TLI", "phases": ["parking_orbit", "tli"], "steps": [
       {"text": "Watch the S-IVB/IU: TLI is automatic at the GO-for-TLI TIG"},
       {"text": "TLI ignition", "check": {"channel": "sivb.state", "op": "eq", "value": "burning"}},

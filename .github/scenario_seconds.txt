@@ -1,17 +1,20 @@
 # Each scenario file's seconds on CI's runners, by which ci.yml deals the
 # scenario files out over its parts evenly: the longest of three push runs
 # of slice 5b (46aa6d1's, a483249's and e3704c1's), whose runners took up
-# to twice as long as each other on a file. A file not listed counts 60 s.
+# to twice as long as each other on a file; test_launch.gd and
+# test_cabin_checklists.gd the longer of slice 5d's two runs (f54a69b's).
+# A file not listed counts 60 s.
 # Add a new file's time once CI has run it, and measure again when the
 # parts drift apart.
 test_ascent.gd 39
-test_cabin_checklists.gd 115
+test_cabin_checklists.gd 127
 test_cabin_mcc.gd 5
 test_cabin_wrist_menu.gd 5
 test_docking.gd 15
 test_doi.gd 31
 test_imu_alignment.gd 74
 test_landing.gd 153
+test_launch.gd 42
 test_lm_burns.gd 18
 test_lm_cabin_checklists.gd 354
 test_lm_checklists.gd 312

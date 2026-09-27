@@ -101,36 +101,55 @@ static func first_t_go(st: PackedFloat64Array, mass: float, tgt: Dictionary) -> 
 
 
 ## One pass of the iterative guidance mode (IGM) for the out-of-orbit burn
-## [published: D5-15706-4, Table 4-IV, for one stage]. From the state
-## [param st] (Earth-relative, inertial), the stack's [param mass] and the
-## time to go [param tgo] carried on from the last pass: where the burn
-## ends on [param tgt]'s conic, and the steering there. Returns {"dir"
-## (inertial unit vector), "t_go"}.
-##
-## Twice a pass: the range angle to go puts the terminal radius in the
-## target plane, its true anomaly on the conic gives the terminal radius,
-## speed and flight path angle, and the velocity to be gained (less the
-## gravity on the way, the mean of here and there) corrects the time to go
-## by the rocket equation. The steering is along that velocity to be
-## gained (chi tilde), turned by the K terms, a linear-tangent change that
-## leaves the velocity it gains alone, to bring the terminal radius in the
-## plane (yaw) and at the conic's distance from the terminal velocity's
-## line (pitch). The frame is the rotated terminal one of the out-of-orbit
-## burn: zeta along the terminal velocity, xi across it in the plane, eta
-## along the plane's normal.
+## [published: D5-15706-4, Table 4-IV, for one stage]: igm_burns() for the
+## J-2's burn on a stack of [param mass] kg, its time to go [param tgo]
+## carried on from the last pass. Returns {"dir" (inertial unit vector),
+## "t_go"}.
 static func igm(st: PackedFloat64Array, mass: float, tgt: Dictionary, tgo: float) -> Dictionary:
 	var d := SpacecraftData.section("sivb")
-	var ve := float(d["isp_s"]) * Units.G0
-	var tau := ve * mass / float(d["thrust_n"])
+	var f := float(d["thrust_n"])
+	var burn := {"t0": 0.0, "T": tgo, "F": f, "mdot": f / (float(d["isp_s"]) * Units.G0), "m0": mass}
+	var g := igm_burns(st, [burn], tgt)
+	return {"dir": g["dir"], "t_go": float((g["burns"] as Array)[-1]["T"])}
+
+
+## One pass of the iterative guidance mode (IGM) [published: D5-15706-4,
+## Table 4-IV]. From the state [param st] (Earth-relative, inertial) and
+## the burns still to come, [param burns] (each {"t0": its start from now,
+## "T": its length, "F": thrust, "mdot": flow, "m0": mass at its start},
+## the last one's T carried on from the last pass): where the burn ends on
+## [param tgt], and the steering there. [param tgt] is a conic for the
+## out-of-orbit burn ({"energy", "e", "n", "pe"}: the terminal point where
+## the range angle puts it on the conic) or a terminal point for the burn
+## into orbit ({"rt", "vt", "gamma", "n"}: radius, speed, flight path
+## angle). Returns {"dir" (inertial unit vector), "burns" (the last one's
+## T corrected)}.
+##
+## Twice a pass: the range angle to go puts the terminal radius in the
+## target plane, the target gives the terminal radius, speed and flight
+## path angle there, and the velocity to be gained (less the gravity on
+## the way, the mean of here and there) corrects the last burn's time by
+## the rocket equation. The steering is along that velocity to be gained
+## (chi tilde), turned by the K terms, a linear-tangent change that leaves
+## the velocity it gains alone, to bring the terminal radius in the plane
+## (yaw) and at the target's distance from the terminal velocity's line
+## (pitch). The frame is the rotated terminal one: zeta along the terminal
+## velocity, xi across it in the plane, eta along the plane's normal.
+static func igm_burns(st: PackedFloat64Array, burns: Array, tgt: Dictionary) -> Dictionary:
 	var mu := Bodies.MU_EARTH
 	var r := Vector3(st[0], st[1], st[2])
 	var v := Vector3(st[3], st[4], st[5])
 	var n := _vec(tgt["n"])
-	var pe := _vec(tgt["pe"])
-	var e := float(tgt["e"])
-	var energy := float(tgt["energy"])
-	var p := mu * (1.0 - e * e) / (-2.0 * energy)
-	var t := clampf(tgo, 1.0, 0.95 * tau)
+	var conic := not tgt.has("rt")
+	var pe := _vec(tgt["pe"]) if conic else Vector3.ZERO
+	var e := float(tgt["e"]) if conic else 0.0
+	var energy := float(tgt["energy"]) if conic else 0.0
+	var p := mu * (1.0 - e * e) / (-2.0 * energy) if conic else 0.0
+	var bs: Array = burns.duplicate(true)
+	var last: Dictionary = bs[-1]
+	var ve := float(last["F"]) / float(last["mdot"])
+	var tau := float(last["m0"]) / float(last["mdot"])
+	last["T"] = clampf(float(last["T"]), 1.0, 0.95 * tau)
 	var rn := r.length()
 	var up := (r - n * r.dot(n)).normalized()
 	var down := n.cross(up)
@@ -141,48 +160,88 @@ static func igm(st: PackedFloat64Array, mass: float, tgt: Dictionary, tgo: float
 	var rt := rn
 	var gam := 0.0
 	var dvg := Vector3.ZERO
+	var it := {}
 	for _pass in 2:
-		var l := ve * log(tau / (tau - t))
-		var s := l * t - (l * tau - ve * t)
-		# The range angle to go: the arc the burn still covers.
-		var ang := (v.dot(down) * t + s) / rn
+		it = _integrals(bs)
+		var t := float(it["T"])
+		# The range angle to go: the arc the burns still cover.
+		var ang := (v.dot(down) * t + float(it["S"])) / rn
 		var rt_hat := up * cos(ang) + down * sin(ang)
-		var f := atan2(pe.cross(rt_hat).dot(n), pe.dot(rt_hat))
-		rt = p / (1.0 + e * cos(f))
-		gam = atan2(e * sin(f), 1.0 + e * cos(f))
-		var vt := sqrt(maxf(2.0 * (energy + mu / rt), 0.0))
+		var vt := 0.0
+		if conic:
+			var f := atan2(pe.cross(rt_hat).dot(n), pe.dot(rt_hat))
+			rt = p / (1.0 + e * cos(f))
+			gam = atan2(e * sin(f), 1.0 + e * cos(f))
+			vt = sqrt(maxf(2.0 * (energy + mu / rt), 0.0))
+		else:
+			rt = float(tgt["rt"])
+			gam = float(tgt["gamma"])
+			vt = float(tgt["vt"])
 		var h_hat := n.cross(rt_hat)
 		zeta = h_hat * cos(gam) + rt_hat * sin(gam)
 		xi = rt_hat * cos(gam) - h_hat * sin(gam)
 		g = (-r * (mu / (rn * rn * rn)) - rt_hat * (mu / (rt * rt))) * 0.5
 		dvg = zeta * vt - v - g * t
-		# The rocket equation's time for the speed still to gain.
-		t = clampf(t + (dvg.length() - l) * (tau - t) / ve, 1.0, 0.95 * tau)
+		# The rocket equation's time for the speed still to gain, in the
+		# last burn.
+		var tl := float(last["T"])
+		last["T"] = clampf(tl + (dvg.length() - float(it["L"])) * (tau - tl) / ve, 1.0, 0.95 * tau)
+	it = _integrals(bs)
 	var dxi := dvg.dot(xi)
 	var deta := dvg.dot(eta)
 	var dzeta := dvg.dot(zeta)
 	var chi_y := atan2(deta, sqrt(dxi * dxi + dzeta * dzeta))
 	var chi_p := atan2(dxi, dzeta)
+	var t := float(it["T"])
 	if t > TERMINAL_S:
-		# The stage integrals: L the speed the burn gains, J its first
-		# moment in time, S the distance its thrust covers, Q that
-		# distance's moment.
-		var l := ve * log(tau / (tau - t))
-		var j := l * tau - ve * t
-		var s := l * t - j
-		var q := s * tau - ve * t * t / 2.0
-		var dd := q - s * j / l
+		var l := float(it["L"])
+		var j := float(it["J"])
+		var s := float(it["S"])
+		var dd := float(it["Q"]) - s * j / l
 		# Yaw: the terminal radius into the target plane.
 		var eta_off := r.dot(eta) + v.dot(eta) * t + g.dot(eta) * t * t / 2.0 + s * sin(chi_y)
 		var k4 := -eta_off / (cos(chi_y) * dd)
 		chi_y -= k4 * j / l
-		# Pitch: the terminal radius at the conic's distance from the
+		# Pitch: the terminal radius at the target's distance from the
 		# terminal velocity's line, R cos(gamma).
 		var xi_off := r.dot(xi) + v.dot(xi) * t + g.dot(xi) * t * t / 2.0 + s * cos(chi_y) * sin(chi_p)
 		var k2 := (rt * cos(gam) - xi_off) / (cos(chi_p) * cos(chi_y) * dd)
 		chi_p -= k2 * j / l
 	var u := xi * (sin(chi_p) * cos(chi_y)) + eta * sin(chi_y) + zeta * (cos(chi_p) * cos(chi_y))
-	return {"dir": u.normalized(), "t_go": t}
+	return {"dir": u.normalized(), "burns": bs}
+
+
+## The integrals of the thrust acceleration over [param burns] (as
+## igm_burns() takes them), from now to the last one's end T: L the speed
+## they gain, J its first moment in time, S the distance their thrust
+## covers by T, Q that distance's moment [published: D5-15706-4, Table
+## 4-IV's stage integrals, each burn's shifted to its start]. Returns {"L",
+## "J", "S", "Q", "T"}.
+static func _integrals(burns: Array) -> Dictionary:
+	var t_end := 0.0
+	for b: Dictionary in burns:
+		t_end = maxf(t_end, float(b["t0"]) + float(b["T"]))
+	var big_l := 0.0
+	var big_j := 0.0
+	var big_s := 0.0
+	var big_q := 0.0
+	for b: Dictionary in burns:
+		var t := float(b["T"])
+		if t <= 0.0:
+			continue
+		var t0 := float(b["t0"])
+		var ve := float(b["F"]) / float(b["mdot"])
+		var tau := float(b["m0"]) / float(b["mdot"])
+		var l := ve * log(tau / (tau - t))
+		var j := l * tau - ve * t
+		var s := l * t - j
+		var q := s * tau - ve * t * t / 2.0
+		var rest := t_end - t0 - t
+		big_l += l
+		big_j += j + t0 * l
+		big_s += s + l * rest
+		big_q += q + t0 * s + (j + t0 * l) * rest
+	return {"L": big_l, "J": big_j, "S": big_s, "Q": big_q, "T": t_end}
 
 
 ## [param a] (an Array or a Vector3) as a Vector3.

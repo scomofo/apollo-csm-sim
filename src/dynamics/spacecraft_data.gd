@@ -1,5 +1,7 @@
 ## Loads data/spacecraft.json once and answers mass and inertia questions
 ## per vehicle configuration. The CSM's configurations, in flight order:
+##   saturn_v  the Saturn V on the pad and through the launch (its mass the
+##             LaunchVehicle's; the IU flies it)
 ##   stack   S-IVB + CSM + LM (parking orbit and TLI; the IU flies it)
 ##   csm_lm  CSM docked to the LM (after transposition and docking)
 ##   csm     CSM alone (after undocking or LM jettison)
@@ -11,7 +13,7 @@ class_name SpacecraftData
 extends RefCounted
 
 const PATH := "res://data/spacecraft.json"
-const CONFIGS := ["stack", "csm_lm", "csm", "cm"]
+const CONFIGS := ["saturn_v", "stack", "csm_lm", "csm", "cm"]
 const LM_CONFIGS := ["lm", "lm_ascent"]
 
 static var _data: Dictionary = {}

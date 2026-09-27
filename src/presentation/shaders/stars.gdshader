@@ -2,9 +2,14 @@
 // direction of the scene's directional light. The render axes are the
 // cabin's (space_view.gd), so cabin_to_eci turns a view direction into ECI
 // for the star lookup; the Sun disc stays in render axes, like the light.
+// In the Earth's air by day the sky is blue over the stars, paler toward
+// the horizon: air is how blue (space_view.gd sets it from the air's
+// pressure and the Sun's height), zenith the local vertical in render axes.
 shader_type sky;
 
 uniform mat3 cabin_to_eci = mat3(1.0);
+uniform float air = 0.0;
+uniform vec3 zenith = vec3(0.0, 1.0, 0.0);
 
 float h(vec3 p) {
 	return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453);
@@ -26,6 +31,8 @@ void sky() {
 			col += tint * b * (layer == 0 ? 1.2 : 0.6);
 		}
 	}
+	float up = clamp(dot(w, zenith), 0.0, 1.0);
+	col = mix(col, mix(vec3(0.62, 0.74, 0.88), vec3(0.22, 0.42, 0.78), sqrt(up)), air);
 	if (LIGHT0_ENABLED) {
 		float s = dot(w, LIGHT0_DIRECTION);
 		col += vec3(1.0, 0.97, 0.9) * (smoothstep(0.99996, 0.99999, s) * 40.0 + pow(max(s, 0.0), 800.0) * 0.6);

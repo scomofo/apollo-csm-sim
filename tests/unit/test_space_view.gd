@@ -342,6 +342,40 @@ func test_from_eagles_cabin_the_ground_and_columbia_are_drawn_outside_it() -> vo
 	assert_eq(view.sun.directional_shadow_max_distance, SpaceView.SHADOW_M)
 
 
+## On the pad at 9:32 in the morning: the day sky over the stars, the
+## ground at true scale under the S-IC's base in place of the scaled Earth,
+## and the chase camera standing the Saturn V up; in orbit, none of it.
+func test_the_saturn_v_stands_on_the_ground_under_the_day_sky() -> void:
+	var l := Mission.load_default().section("launch")
+	var p := Bodies.geographic_to_fixed(float(l["pad_lat_deg"]), float(l["pad_lon_deg"]),
+		Bodies.R_EARTH + LaunchVehicle.PAD_HEIGHT_M)
+	var r := Bodies.earth_fixed_to_eci(p, -14.0)
+	var up := Vector3(r[0], r[1], r[2]).normalized()
+	Bus.set_value("time.get_s", -14.0)
+	Bus.set_value("dyn.r_m", [r[0], r[1], r[2]])
+	Bus.set_value("dyn.config", "saturn_v")
+	Bus.set_value("lv.attached", [true, true, true])
+	view.view_mode = 1
+	_render(Quaternion(Vector3(1, 0, 0), up))
+	assert_gt(float(view.sky_material.get_shader_parameter("air")), 0.9, "a blue sky")
+	var zen: Vector3 = view.sky_material.get_shader_parameter("zenith")
+	assert_almost_eq(zen, view.eci_to_cabin * up, Vector3.ONE * 1e-5, "overhead")
+	assert_true(view.launch_ground.visible and view.environment.fog_enabled, "the ground in the haze")
+	assert_false(view.earth.visible or view.earth_glow.visible, "not the scaled Earth")
+	assert_almost_eq(view.launch_ground.position, -zen * 113.0, Vector3.ONE * 0.01, "under the S-IC's base")
+	assert_almost_eq(view.launch_ground.basis.y, zen, Vector3.ONE * 1e-5, "level")
+	var thrust := Frames.BODY_TO_GODOT * Vector3(1, 0, 0)
+	assert_gt(view.camera.global_transform.basis.y.dot(thrust), 0.95, "the Saturn V up the screen")
+	# In the parking orbit.
+	Bus.set_value("time.get_s", 0.0)
+	Bus.set_value("dyn.r_m", [R, 0.0, 0.0])
+	Bus.set_value("dyn.config", "stack")
+	_render(_lvlh())
+	assert_eq(float(view.sky_material.get_shader_parameter("air")), 0.0, "space is black")
+	assert_false(view.launch_ground.visible or view.environment.fog_enabled)
+	assert_true(view.earth.visible, "the Earth below")
+
+
 ## The LM model's placement relative to the CSM model's.
 func _csm_to_lm() -> Transform3D:
 	return view.csm.global_transform.affine_inverse() * view.lm_free.global_transform

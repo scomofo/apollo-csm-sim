@@ -3,7 +3,7 @@
 ## vehicle flown, with both keeping up with the Bus.
 extends SimTest
 
-const CSM_FOR := {"parking_orbit": "Parking orbit and TLI", "tli": "Parking orbit and TLI",
+const CSM_FOR := {"launch": "Launch", "parking_orbit": "Parking orbit and TLI", "tli": "Parking orbit and TLI",
 	"translunar_coast": "SPS burn (P30 / P40)", "lunar_orbit": "Lunar orbit and TEI",
 	"lunar_descent": "Lunar orbit and TEI", "lunar_surface": "Lunar orbit and TEI",
 	"lunar_ascent": "Lunar orbit and TEI", "transearth_coast": "Entry", "entry": "Entry"}
@@ -64,12 +64,13 @@ func test_the_hud_shows_the_checklists_of_the_vehicle_flown() -> void:
 	# Back in Columbia, its checklists where they stood, and Eagle's go on.
 	hud.set_vehicle("csm")
 	assert_eq(hud.book, csm)
-	assert_eq(_titles(hud), ["Parking orbit and TLI", "SPS burn (P30 / P40)", "Lunar orbit and TEI", "Entry", "IMU realign (P52)"])
+	assert_eq(_titles(hud), ["Launch", "Parking orbit and TLI", "SPS burn (P30 / P40)", "Lunar orbit and TEI", "Entry",
+		"IMU realign (P52)"])
 	assert_eq(hud._check_title.selected, 0)
 	Bus.set_value("mission.event.pad_pdi", SimClock.get_seconds)
 	hud._process(0.0)
 	assert_eq(hud.lm_book.list().index, 1, "Eagle's checklist checked the PAD off, out of sight")
-	hud._check_title.item_selected.emit(1)
+	hud._check_title.item_selected.emit(2)
 	assert_eq(csm.list().title, "SPS burn (P30 / P40)", "the choice turns Columbia's book")
 	assert_eq(hud.lm_book.current, 1, "not Eagle's")
 	hud._process(0.0)

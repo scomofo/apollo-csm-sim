@@ -33,6 +33,9 @@ const MOON_SOI: float = 66100000.0
 ## Height at which the atmosphere is treated as beginning (Entry Interface,
 ## 400,000 ft).
 const ENTRY_INTERFACE_ALT: float = 121920.0
+## The Earth's rate of turning, sidereal, rad/s [published: IERS
+## Conventions].
+const EARTH_OMEGA: float = 7.2921158553e-5
 
 ## The JPL ephemeris the Moon and the Sun follow, or null for the circular
 ## model below.
@@ -52,6 +55,9 @@ static var moon_raan: float = 0.0
 static var moon_phase0: float = 0.0
 ## Sun direction angle in the lunar orbit plane, rad.
 static var sun_phase: float = 0.0
+## Julian Date (UTC) at GET 0: the ephemeris's epoch, Apollo 11's liftoff
+## by default.
+static var epoch_jd: float = 2440419.0638889
 
 
 ## The circular model's mean motion, or with the ephemeris the Moon's mean
@@ -81,6 +87,7 @@ static func configure(inclination_deg: float, raan_deg: float, phase0_deg: float
 static func use_ephemeris(e: Ephemeris) -> void:
 	ephemeris = e
 	perturbed = true
+	epoch_jd = e.epoch_jd_utc
 	earth_pole = pole_of_date(e.epoch_jd_utc)
 
 
@@ -94,6 +101,87 @@ static func pole_of_date(jd: float) -> PackedFloat64Array:
 	var zeta := (2306.2181 * t + 0.30188 * t * t + 0.017998 * t * t * t) * arcsec
 	var theta := (2004.3109 * t - 0.42665 * t * t - 0.041833 * t * t * t) * arcsec
 	return PackedFloat64Array([sin(theta) * cos(zeta), -sin(theta) * sin(zeta), cos(theta)])
+
+
+## The Earth-fixed frame's axes in ECI at GET [param t], in doubles:
+## PackedFloat64Array(9), X (on the equator at the Greenwich meridian),
+## then Y (90° E), then Z (the pole). The Earth turns by the Greenwich mean
+## sidereal time (IAU 1982; UT1 taken as UTC) about its mean pole of date,
+## which the IAU 1976 precession carries from J2000's, as
+## tools/ephemeris/parking_orbit.py places the parking orbit
+## [simplified: nutation and polar motion, under 0.01 degrees, left out].
+## On the circular model ECI is the mean equator of date.
+static func earth_fixed_axes(t: float) -> PackedFloat64Array:
+	# Days from J2000, the epoch's part first: a Julian Date resolves only
+	# some 50 microseconds in a double, 2 cm of the ground's turning.
+	var d := (epoch_jd - 2451545.0) + t / 86400.0
+	var c := d / 36525.0
+	var g := deg_to_rad(fposmod(280.46061837 + 360.98564736629 * d + 0.000387933 * c * c - c * c * c / 38710000.0, 360.0))
+	# The Earth-fixed axes in the mean equator of date, rows X, Y, Z.
+	var m := PackedFloat64Array([cos(g), sin(g), 0.0, -sin(g), cos(g), 0.0, 0.0, 0.0, 1.0])
+	if ephemeris == null:
+		return m
+	# To J2000: the transpose of the precession Rz(-z) Ry(theta) Rz(-zeta).
+	var arcsec := PI / 180.0 / 3600.0
+	var zeta := (2306.2181 * c + 0.30188 * c * c + 0.017998 * c * c * c) * arcsec
+	var z := (2306.2181 * c + 1.09468 * c * c + 0.018203 * c * c * c) * arcsec
+	var th := (2004.3109 * c - 0.42665 * c * c - 0.041833 * c * c * c) * arcsec
+	var p := _mat_mul(_rot_z(-z), _mat_mul(_rot_y(th), _rot_z(-zeta)))
+	var out := PackedFloat64Array()
+	out.resize(9)
+	for k in 3:
+		# Axis k from the mean of date to J2000: P^T applied to it.
+		for i in 3:
+			out[k * 3 + i] = p[0 * 3 + i] * m[k * 3 + 0] + p[1 * 3 + i] * m[k * 3 + 1] + p[2 * 3 + i] * m[k * 3 + 2]
+	return out
+
+
+## [param p], a position in the Earth-fixed frame (m, three floats), in
+## ECI at GET [param t], in doubles.
+static func earth_fixed_to_eci(p: Array, t: float) -> PackedFloat64Array:
+	var a := earth_fixed_axes(t)
+	return PackedFloat64Array([p[0] * a[0] + p[1] * a[3] + p[2] * a[6], p[0] * a[1] + p[1] * a[4] + p[2] * a[7],
+		p[0] * a[2] + p[1] * a[5] + p[2] * a[8]])
+
+
+## [param r], a position in ECI (m, three floats), in the Earth-fixed frame
+## at GET [param t], in doubles.
+static func eci_to_earth_fixed(r: Array, t: float) -> PackedFloat64Array:
+	var a := earth_fixed_axes(t)
+	return PackedFloat64Array([r[0] * a[0] + r[1] * a[1] + r[2] * a[2], r[0] * a[3] + r[1] * a[4] + r[2] * a[5],
+		r[0] * a[6] + r[1] * a[7] + r[2] * a[8]])
+
+
+## The Earth's angular velocity in ECI, rad/s: about its pole.
+static func earth_omega() -> Vector3:
+	return Vector3(earth_pole[0], earth_pole[1], earth_pole[2]) * EARTH_OMEGA
+
+
+## A point at [param radius] m from the Earth's centre at latitude
+## [param lat_deg] and east longitude [param lon_deg], in the Earth-fixed
+## frame [simplified: the Earth a sphere, the latitude geodetic taken as
+## geocentric].
+static func geographic_to_fixed(lat_deg: float, lon_deg: float, radius: float) -> PackedFloat64Array:
+	var la := deg_to_rad(lat_deg)
+	var lo := deg_to_rad(lon_deg)
+	return PackedFloat64Array([radius * cos(la) * cos(lo), radius * cos(la) * sin(lo), radius * sin(la)])
+
+
+static func _rot_z(a: float) -> PackedFloat64Array:
+	return PackedFloat64Array([cos(a), sin(a), 0.0, -sin(a), cos(a), 0.0, 0.0, 0.0, 1.0])
+
+
+static func _rot_y(a: float) -> PackedFloat64Array:
+	return PackedFloat64Array([cos(a), 0.0, -sin(a), 0.0, 1.0, 0.0, sin(a), 0.0, cos(a)])
+
+
+static func _mat_mul(a: PackedFloat64Array, b: PackedFloat64Array) -> PackedFloat64Array:
+	var m := PackedFloat64Array()
+	m.resize(9)
+	for i in 3:
+		for j in 3:
+			m[i * 3 + j] = a[i * 3] * b[j] + a[i * 3 + 1] * b[3 + j] + a[i * 3 + 2] * b[6 + j]
+	return m
 
 
 ## The Earth's zonal harmonics' part of the specific potential energy at

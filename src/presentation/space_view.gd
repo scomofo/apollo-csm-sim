@@ -61,6 +61,17 @@ const CABIN_CSM_M := 2.8
 ## drawn at another [simplified: Eagle casts no shadow on the ground].
 const SHADOW_M := 100.0
 const CABIN_SHADOW_M := 3.0
+## Above this height the sky is black.
+const SKY_TOP_M := 150000.0
+## The Saturn V's model along body X (m): the launch escape tower's tip,
+## the CM's apex once it's gone, and the S-IC's, S-II's and S-IVB's bases.
+const LV_TOP_X := [13.0, 3.2]
+const LV_BASE_X := [-113.0, -63.8, -33.8]
+## Below this height the Saturn V flies over the ground drawn at true scale
+## (launch_ground), in haze, in place of the scaled Earth.
+const GROUND_TOP_M := 8000.0
+## The haze's density at the ground, per m.
+const HAZE := 0.0004
 
 var camera: Camera3D
 var earth: MeshInstance3D
@@ -90,6 +101,11 @@ var chase_pitch: float = 0.25
 var eci_to_cabin: Basis = Frames.BODY_TO_GODOT
 ## The star sky; its cabin_to_eci uniform keeps the stars fixed in ECI.
 var sky_material: ShaderMaterial
+var environment: Environment
+## The ground under the Saturn V on the pad and low in its climb, at true
+## scale under the S-IC's base [simplified: a plain in haze; the scaled
+## Earth would pass through a vehicle 113 m tall standing on it].
+var launch_ground: MeshInstance3D
 
 var _parts: Dictionary = {}
 
@@ -114,6 +130,14 @@ func _ready() -> void:
 	add_child(lm_free)
 	ground = LunarGround.new()
 	add_child(ground)
+	launch_ground = MeshInstance3D.new()
+	var plain := PlaneMesh.new()
+	plain.size = Vector2(16000.0, 16000.0)
+	launch_ground.mesh = plain
+	launch_ground.material_override = _mat(Color(0.3, 0.34, 0.22), 0.0, 1.0)
+	launch_ground.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	launch_ground.visible = false
+	add_child(launch_ground)
 	camera = Camera3D.new()
 	camera.near = NEAR
 	camera.far = RENDER_DIST * 3.0
@@ -124,7 +148,9 @@ func _ready() -> void:
 
 func _build_environment() -> void:
 	var env := Environment.new()
+	environment = env
 	env.background_mode = Environment.BG_SKY
+	env.fog_sky_affect = 0.0
 	var sky := Sky.new()
 	sky_material = ShaderMaterial.new()
 	sky_material.shader = preload("res://src/presentation/shaders/stars.gdshader")
@@ -240,6 +266,31 @@ func _build_csm() -> Node3D:
 	_along_x(sivb, 3.3, 1.956, -16.0, -7.5, white)
 	_along_x(sivb, 3.3, 3.3, -33.8, -16.0, white)
 	_parts["sivb"] = sivb
+	# The rest of the Saturn V below it, and the launch escape tower on the
+	# CM, for the launch [simplified: plain cylinders at the stages'
+	# diameters and lengths, rounded].
+	var s_ii := Node3D.new()
+	root.add_child(s_ii)
+	_along_x(s_ii, 5.03, 3.3, -39.0, -33.8, white)
+	_along_x(s_ii, 5.03, 5.03, -63.8, -39.0, white)
+	_parts["s_ii"] = s_ii
+	var s_ic := Node3D.new()
+	root.add_child(s_ic)
+	_along_x(s_ic, 5.03, 5.03, -69.5, -63.8, white)
+	_along_x(s_ic, 5.03, 5.03, -111.6, -69.5, white)
+	_along_x(s_ic, 6.4, 5.03, -113.0, -111.6, dark)
+	_parts["s_ic"] = s_ic
+	var les := Node3D.new()
+	root.add_child(les)
+	_along_x(les, 0.35, 0.35, 3.2, 7.0, dark)
+	_along_x(les, 0.6, 0.6, 7.0, 11.5, white)
+	_along_x(les, 0.6, 0.1, 11.5, 13.0, white)
+	_parts["les"] = les
+	var flame := _mat(Color(1.0, 0.75, 0.45, 0.45), 0.0, 1.0, 3.0)
+	for stage in [["S-IC", 5.0, 9.0, -113.0, -160.0], ["S-II", 4.0, 7.0, -63.8, -95.0], ["S-IVB", 1.2, 4.0, -33.8, -50.0]]:
+		var pl := _along_x(root, float(stage[1]), float(stage[2]), float(stage[3]), float(stage[4]), flame)
+		pl.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_parts["plume_" + str(stage[0])] = pl
 	_parts["main_chutes"] = _chutes(root, 3, 8.0, 18.0, Color(1.0, 0.45, 0.2))
 	_parts["drogues"] = _chutes(root, 2, 2.5, 30.0, Color(1.0, 1.0, 1.0))
 	return root
@@ -412,6 +463,27 @@ func _process(_delta: float) -> void:
 	sun.basis = eci_to_cabin * Basis.looking_at(-sd, Vector3(0, 0, 1) if absf(sd.z) < 0.99 else Vector3(1, 0, 0))
 	(earth_glow.material_override as ShaderMaterial).set_shader_parameter("sun_dir", eci_to_cabin * sd)
 	sky_material.set_shader_parameter("cabin_to_eci", eci_to_cabin.inverse())
+	# The day sky in the Earth's air: bluer the more air there is overhead
+	# and the higher the Sun [simplified: a blend, not scattering].
+	var air := 0.0
+	var h := rel.length() - Bodies.R_EARTH
+	if primary == "earth" and h < SKY_TOP_M:
+		air = pow(Atmosphere.pressure(h) / Atmosphere.P0, 0.35) * smoothstep(-0.1, 0.1, rel.normalized().dot(sd))
+	sky_material.set_shader_parameter("air", air)
+	sky_material.set_shader_parameter("zenith", eci_to_cabin * rel.normalized())
+	# Low in the launch, the ground at true scale in the haze, the S-IC's
+	# base on it at the pad, and not the scaled Earth.
+	var low := str(Bus.get_value("dyn.config", "")) == "saturn_v" and primary == "earth" and h < GROUND_TOP_M
+	launch_ground.visible = low
+	environment.fog_enabled = low
+	if low:
+		var zen := eci_to_cabin * rel.normalized()
+		var below := h - LaunchVehicle.PAD_HEIGHT_M - float(LV_BASE_X[0])
+		launch_ground.transform = Transform3D(Basis(Quaternion(Vector3.UP, zen)), -zen * below)
+		environment.fog_light_color = Color(0.62, 0.74, 0.88) * maxf(air, 0.05)
+		environment.fog_density = HAZE * exp(-h / 2000.0)
+		earth.visible = false
+		earth_glow.visible = false
 	# Spacecraft: the one the view is from fixed, in its body axes.
 	csm.transform = Transform3D(body, Vector3.ZERO)
 	var cfg := str(Bus.get_value("dyn.config", "stack"))
@@ -432,7 +504,15 @@ func _process(_delta: float) -> void:
 		lm_free.transform = Transform3D(body, Vector3.ZERO) * _lm_docked(lm_cfg).affine_inverse()
 	elif lm_free.visible:
 		_place_lm_free(q)
-	_parts["sivb"].visible = cfg == "stack"
+	var launch := cfg == "saturn_v"
+	_parts["sivb"].visible = cfg == "stack" or launch
+	var attached: Array = Bus.get_value("lv.attached", [false, false, false])
+	_parts["s_ic"].visible = launch and bool(attached[0])
+	_parts["s_ii"].visible = launch and bool(attached[1])
+	_parts["les"].visible = launch and bool(attached[2])
+	var lv_stage := str(Bus.get_value("lv.stage", "")) if launch and float(Bus.get_value("lv.thrust_n", 0.0)) > 0.0 else ""
+	for st in ["S-IC", "S-II", "S-IVB"]:
+		_parts["plume_" + st].visible = lv_stage == st
 	_parts["plume"].visible = float(Bus.get_value("sps.thrust_n", 0.0)) > 1000.0 or float(Bus.get_value("sivb.thrust_n", 0.0)) > 0.0
 	_parts["plume"].scale = Vector3.ONE * clampf(float(Bus.get_value("sps.chamber_pct", 100.0)) / 100.0, 0.2, 1.0)
 	_parts["drogues"].visible = bool(Bus.get_value("els.drogue", false))
@@ -458,6 +538,16 @@ func _process(_delta: float) -> void:
 		var b := Basis(right, up, -fwd)
 		b = b * Basis(Vector3.UP, look_yaw) * Basis(Vector3.RIGHT, look_pitch)
 		camera.transform = Transform3D(b, fwd * 3.6)
+	elif launch:
+		# The Saturn V upright, from beside it, as the cameras on the ground
+		# and in the chase planes saw it: its thrust up the screen, the camera
+		# on the middle of the stages still on it.
+		csm.visible = true
+		var top: float = LV_TOP_X[0 if bool(attached[2]) else 1]
+		var base: float = LV_BASE_X[0 if bool(attached[0]) else 1 if bool(attached[1]) else 2]
+		var at := body * Vector3((top + base) / 2.0, 0, 0)
+		var off := body * (Basis(Vector3(1, 0, 0), chase_yaw) * Basis(Vector3(0, 1, 0), chase_pitch) * Vector3(0, 0, -1))
+		camera.transform = Transform3D(Basis.IDENTITY, at + off * 2.0 * (top - base)).looking_at(at, body * Vector3(1, 0, 0))
 	else:
 		csm.visible = true
 		var up := body * Vector3(0, 0, -1)
