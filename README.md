@@ -763,9 +763,10 @@ The unit tests cover:
 - The cockpit layouts: `controls.csv` and `lm_controls.csv` validate,
   malformed rows are reported, and every row round-trips between its node
   and the Bus, a toggle's through its values. Every switch on Columbia's
-  and Eagle's HUDs has a cabin control, each cabin DSKY types into its
-  computer (Eagle's with its ALT and VEL lamps), and the desktop rig can
-  click every control from the commander's couch or station
+  and Eagle's HUDs has a cabin control but SPS THRUST ON, the HUD's
+  manual backup, which in the cabin is a lamp; each cabin DSKY types into
+  its computer (Eagle's with its ALT and VEL lamps), and the desktop rig
+  can click every control from the commander's couch or station
 - What the cabin shows and sets on the Bus: the DSKY display, the FDAI
   attitude, and switches that follow the HUD and checkpoints
 - The checklists in the cabin: one book shared by the HUD and the card,

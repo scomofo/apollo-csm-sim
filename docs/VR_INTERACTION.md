@@ -73,16 +73,16 @@ the control's own axes decides what happens.
 | Lever-locked toggle switch | ENG ARM, in Eagle | The first crossing pulls the lever out for 1.5 s, and a crossing within that time moves it | A click or a scroll pulls it out, and the next within 1.5 s moves it |
 | Guarded toggle switch | DELTA-V THRUST A and B | The first upward crossing lifts the guard and the next flips the lever. A downward crossing at OFF closes the guard | A click lifts the guard, then cycles the lever; scrolling down at OFF closes the guard |
 | Rotary switch | ATT SOURCE, OPTICS SPEED | One detent per crossing: left to right steps clockwise, right to left anticlockwise | A click steps clockwise and wraps round; the scroll wheel steps either way |
-| Pushbutton | SPS THRUST ON, UNDOCK, CSM/LV SEP, LM JETT, CM/SM SEP, DROGUE DEPLOY, MAIN DEPLOY, and MARK and MARK REJECT at the lower equipment bay; in Eagle, ABORT STAGE, ENGINE STOP and ENGINE START | Pressed by a fingertip pushed into its face; pulling back out doesn't press it | A click |
+| Pushbutton | UNDOCK, CSM/LV SEP, LM JETT, CM/SM SEP, DROGUE DEPLOY, MAIN DEPLOY, and MARK and MARK REJECT at the lower equipment bay; in Eagle, ABORT STAGE, ENGINE STOP and ENGINE START | Pressed by a fingertip pushed into its face; pulling back out doesn't press it | A click |
 | DSKY key | The 19 keys of each DSKY: Columbia's two, on the main display console and at the lower equipment bay, and Eagle's | Like a pushbutton. The touch volumes are shallow, so a finger coming in at an angle presses the key it is on, not the next one | A click |
 | Wrist-menu button | §5 | Like a pushbutton | A click |
 
 The FDAI, the mission timer, the main bus voltmeters, the master alarm,
-the DSKY's display and the optics' eyepieces show their Bus channels and
-take no input, and so do Eagle's range, range rate and thrust readouts
-and LUNAR CONTACT lamps. The eyepieces are one screen on the lower
-equipment bay, the telescope's view beside the sextant's [simplified:
-the crew looked into two eyepieces].
+the SPS THRUST ON lamp, the DSKY's display and the optics' eyepieces show
+their Bus channels and take no input, and so do Eagle's range, range
+rate and thrust readouts and LUNAR CONTACT lamps. The eyepieces are one
+screen on the lower equipment bay, the telescope's view beside the
+sextant's [simplified: the crew looked into two eyepieces].
 
 Rules:
 
