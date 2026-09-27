@@ -16,7 +16,9 @@ extends RefCounted
 ## 8: the CMC's navigation filter, and P22's and P23's sightings (slice 4d).
 ## 9: the Moon's gravity field's samples each trajectory holds, the
 ##    truth's and the computers' state vectors' (slice 5b).
-const SCHEMA_VERSION := 9
+## 10: the thrust each trajectory's samples ahead were taken with, for
+##    them to be taken again when a burn begins or ends (slice 5b).
+const SCHEMA_VERSION := 10
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],

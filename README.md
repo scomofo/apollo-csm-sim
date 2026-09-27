@@ -500,13 +500,13 @@ A flown Apollo 11 profile in the simulator reproduces these values:
 | DOI | GET 101:34:52, 74.3 ft/s, 30 s | 101:36:14, ~76 ft/s, ~30 s |
 | Powered descent | 12 min 8 s, touchdown at 102:45:23, 165 m from the target (the LGC's crossrange error, which the radar can't see) | 12 min 35 s, touchdown at 102:45:40, about 6 km past the target |
 | The Sun at touchdown | 10.7° up | 10.8° up |
-| Ascent, liftoff to cutoff | GET 124:22:23, 7 min 8 s, then 60,002 ft and 32.0 ft/s up, 9.0 × 44.8 nmi | 124:22:00, 7 min 17 s, then 60,666 ft and 32.8 ft/s up, 9.5 × 47.3 nmi |
+| Ascent, liftoff to cutoff | GET 124:22:23, 7 min 8 s, then 60,003 ft and 32.0 ft/s up, 9.0 × 44.8 nmi | 124:22:00, 7 min 17 s, then 60,666 ft and 32.8 ft/s up, 9.5 × 47.3 nmi |
 | CSI | 50.0 ft/s, 50 min 40 s after insertion | 51.5 ft/s, 50 min 18 s after insertion |
 | CDH, with Columbia's orbit out of round | 7.5 ft/s | 19.9 ft/s |
-| TPI | 26.2 ft/s, 2 h 31 min 58 s after insertion, 2 min 37 s before the plan's time | ~25 ft/s, 2 h 34 min 35 s after insertion, 6 min 39 s after the plan's |
-| Midcourse corrections | 2.7 and 0.5 ft/s | under 1 and about 1.5 ft/s |
-| Braking, then station-keeping | 15 min 43 s, station-keeping 46 min after TPI | 15 min 8 s, station-keeping 48 min after TPI |
-| Docking | GET 127:51:55, 50 min after TPI | 128:03:00, 59 min after TPI |
+| TPI | 26.2 ft/s, 2 h 31 min 57 s after insertion, 2 min 38 s before the plan's time | ~25 ft/s, 2 h 34 min 35 s after insertion, 6 min 39 s after the plan's |
+| Midcourse corrections | 2.6 and 0.5 ft/s | under 1 and about 1.5 ft/s |
+| Braking, then station-keeping | 15 min 44 s, station-keeping 46 min after TPI | 15 min 8 s, station-keeping 48 min after TPI |
+| Docking | GET 127:51:53, 50 min after TPI | 128:03:00, 59 min after TPI |
 | Entry peak load | 6.7 g | ~6.5 g |
 | Splashdown | 8.6 m/s | — |
 
@@ -649,9 +649,9 @@ godot --headless --path . -s addons/gut/gut_cmdln.gd -gexit
 That runs the whole suite, which takes about 25 minutes, nearly all of
 it in the scenario tests. Add `-gdir=res://tests/unit/` to run only the
 unit tests, in under two minutes, or `-gselect=<name>` to run only the
-scripts whose file names contain `<name>`. CI runs the suite in four
+scripts whose file names contain `<name>`. CI runs the suite in five
 parts side by side (`.github/workflows/ci.yml`): the unit tests, and the
-scenario tests dealt out over three jobs by each file's time on the
+scenario tests dealt out over four jobs by each file's time on the
 runners (`.github/scenario_seconds.txt`).
 
 The unit tests cover:
@@ -674,7 +674,9 @@ The unit tests cover:
   distance; 12 h of a 60 nmi orbit flown as
   `tools/gravity/moon_gravity.py` integrates it independently, to a
   tenth of a millimetre; the propagator sampling the field where the
-  trajectory is, and under thrust where the thrust carries it; and each
+  trajectory is, and under thrust where the thrust carries it, the
+  samples ahead taken again when a burn begins or ends within an
+  interval (0.01 µm/s² off where the held ones are 10 to 13); and each
   computer on its own model: the CMC without the Earth and the Sun below
   800 km, the LGC without them anywhere, R-2 383 µm/s² off GRAIL's pull
   60 nmi up
@@ -725,7 +727,8 @@ The unit tests cover:
   and timeline, the CMC's state vector, the CSM's unmodelled forces and
   where MSFN's draws have got to, the CMC's IMU and a P52 between its
   marks, its navigation filter and a P23 mark waiting at N49, and the
-  Moon's field's samples each trajectory holds (schema 9). Older
+  Moon's field's samples each trajectory holds and the thrust they were
+  taken with (schema 10). Older
   checkpoints are rejected
 - The main scene, and in Eagle from `lunar_descent`: its HUD, the keys on
   its LGC, its two views, its checklist for the phase, and L between the
@@ -835,7 +838,7 @@ The scenario tests fly real segments through the crew interface:
   At 38.6 h P37 works out 5.8 m/s from the CMC's state, which, flown
   after P52, leaves 45.0 km, where P37 from the unmarked state would
   have left 355 km. After two more sessions a second P37 of 0.23 m/s
-  leaves 37.0 km. P23's dialogue: the codes it won't take, 00404 for a
+  leaves 37.1 km. P23's dialogue: the codes it won't take, 00404 for a
   star it can't lay on the horizon, the landmark line on the horizon
   under the star, V32 dropping a bad mark, a good one bringing a state
   vector 50 km off to 15 km, V67's RMS, and a load starting the filter
@@ -873,7 +876,7 @@ The scenario tests fly real segments through the crew interface:
   undocks, Mission Control uplinks a DOI PAD to the LGC, and P40 flies it
   on the descent engine, at 10 % and then 40 % throttle. Half a
   revolution later Eagle passes its pericynthion within 250 m of the
-  PAD's 50,000 ft above the site (15,221 m against 15,241 m), while
+  PAD's 50,000 ft above the site (15,221 m against 15,240 m), while
   Columbia flies on in its own orbit
 - The landing at Tranquility Base (`tests/scenarios/test_landing.gd`),
   slice 3c's check, and slice 3f's for the `lunar_descent` start phase.
@@ -897,7 +900,7 @@ The scenario tests fly real segments through the crew interface:
 - The ascent (`tests/scenarios/test_ascent.gd`), slice 3d's check. Eagle
   is set down at the site. The RTCC times the liftoff for Columbia to
   lead by 16.4° at insertion. P12 lifts off at that time, rises for 9 s,
-  and cuts off 7 min 8 s after liftoff. It inserts at 60,002 ft and
+  and cuts off 7 min 8 s after liftoff. It inserts at 60,003 ft and
   32.0 ft/s up into a 9.0 × 44.8 nmi orbit, within 0.02° of Columbia's
   plane, with Columbia 16.43° ahead and 167 kg of propellant left. A
   checkpoint taken mid-ascent flies on to the same insertion
@@ -912,12 +915,12 @@ The scenario tests fly real segments through the crew interface:
     P20 has it within 4 m relative to Eagle, the LGC's model of the
     Moon's field moving both its state vectors off meanwhile.
   - The LGC flies the sequence: CDH 7.5 ft/s onto 16.0 nmi below (Apollo
-    11's took 19.9 ft/s for Columbia's orbit), TPI 2 min 37 s before the
+    11's took 19.9 ft/s for Columbia's orbit), TPI 2 min 38 s before the
     plan's time (Apollo 11's came 6 min 39 s after), P34 run again 12
     minutes before it as Apollo 11's crew did, and midcourse corrections
-    of 2.7 and 0.5 ft/s (Apollo 11's: under 1 and about 1.5).
+    of 2.6 and 0.5 ft/s (Apollo 11's: under 1 and about 1.5).
   - The commander brakes by the gates and stops 40 m out, and Collins
-    docks at 0.33 ft/s. Eagle's ΔV, 129.9 ft/s, is 8 % over the RTCC's
+    docks at 0.33 ft/s. Eagle's ΔV, 128.3 ft/s, is 7 % over the RTCC's
     plan (the check allows 20 %).
   - GO for jettison comes 2 h 5 min after docking. After LM JETT, the TEI
     PAD plans TEI at 135:16:22, the opportunity nearest Apollo 11's

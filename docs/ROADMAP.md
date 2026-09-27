@@ -36,8 +36,8 @@ picture).
 - **Start phases stay consistent.** A new `--phase` is built the way the
   existing ones are, from the RTCC's own solutions, so it continues the
   mission it claims to.
-- **CI stays fast.** The suite runs in four jobs side by side: the unit
-  tests, and the scenario tests in three parts, dealt out by each file's
+- **CI stays fast.** The suite runs in five jobs side by side: the unit
+  tests, and the scenario tests in four parts, dealt out by each file's
   time on the runners (`.github/scenario_seconds.txt`). Keep each job
   under ten minutes: start a long scenario from a phase or checkpoint
   instead of flying the whole mission, record a new scenario file's
@@ -1225,15 +1225,20 @@ Slice 5b gives the Moon its mascons:
   bounded and continuous.
 - **The cost.** Degree 30 costs 246 µs an evaluation, too much for
   every stage of every step. So the field is sampled once every 30 s of
-  GET, at each interval's middle,
-  where the trajectory will be then (a third-order series along the
-  step), and a cubic through four samples gives it at each stage; the
+  GET, at each interval's middle, where the trajectory will be then (a
+  third-order series, the step's thrust held; when a burn begins or
+  ends, the samples ahead are taken again), and a cubic through four
+  samples gives it at each stage; the
   degree fades with distance, to the terms whose (R/r)ⁿ still exceed
   e⁻⁸, 3 at ten lunar radii. A day of a 60 nmi orbit comes 10 m from
   one evaluated at every stage, its apsides under a metre. On CI the
   scenario parts' tests took 6:09, 8:11 and 8:50 (5a's: 6:13, 6:24 and
-  6:46), still dealt by 5a's times, the slowest job 9:11; with 5b's in
-  `.github/scenario_seconds.txt` they deal 461, 463 and 459 s.
+  6:46), still dealt by 5a's times. Dealt by 5b's, one run's took 7:41,
+  9:59 and 8:11, the slowest job 10:21, and the next run's 4:50, 8:37
+  and 7:16: the runners took up to twice as long as each other on a
+  file. So the scenarios have a fourth part, and
+  `.github/scenario_seconds.txt` each file's longest of the three runs,
+  by which the four parts deal 387 to 391 s.
 - **The onboard model.** The CMC and the LGC fly R-2, the model their
   programs carried: the Moon's J2, J3, C22 and C31 at 1,738.09 km,
   applied within 16,093 km (Risdal's Boeing report; the Comanche 055 and
@@ -1262,11 +1267,11 @@ Slice 5b gives the Moon its mascons:
   data's error.
 - **The rendezvous** on the flown orbit behaves as Apollo 11's did:
   with Columbia's orbit out of round, CDH takes 7.5 ft/s (Apollo 11's
-  took 19.9), and TPI comes 2 min 37 s before the plan's time (Apollo
+  took 19.9), and TPI comes 2 min 38 s before the plan's time (Apollo
   11's came 6 min 39 s after). With the LGC's model drifting, a TPI
   worked out half an hour ahead left 6.4 ft/s for the first midcourse
   correction; recomputed 12 minutes before, as the crew did, the
-  corrections are 2.7 and 0.5 ft/s (Apollo 11's crew reported under 1
+  corrections are 2.6 and 0.5 ft/s (Apollo 11's crew reported under 1
   and about 1.5).
 - **The re-tune.** Measured where the field moves the truth: the DOI's
   pericynthion by flying to it, not by the conic of the moment, which
@@ -1289,7 +1294,9 @@ Slice 5b gives the Moon its mascons:
   accumulator a frame at a time, 17,500 frames and two minutes before it
   made a step.
 - **Checkpoints** are schema 9: each trajectory's field samples, since
-  a restored flight must interpolate from the same ones. A restored
+  a restored flight must interpolate from the same ones. Schema 10 adds
+  the thrust they were taken with, so a restored flight takes the
+  samples ahead again where the original did. A restored
   run's first step is a fine one, so its coast steps fall 0.02 s off the
   uninterrupted run's; the field parts the two flights by millimetres
   in a quarter of an hour, where they stayed within a fifth of one, and

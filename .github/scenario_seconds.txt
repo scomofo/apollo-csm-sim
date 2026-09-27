@@ -1,23 +1,25 @@
 # Each scenario file's seconds on CI's runners, by which ci.yml deals the
-# scenario files out over its parts evenly: 46aa6d1's push run, slice
-# 5b's. A file not listed counts 60 s. Add a new file's time once CI has
-# run it, and measure again when the parts drift apart.
-test_ascent.gd 30
+# scenario files out over its parts evenly: the longest of three push runs
+# of slice 5b (46aa6d1's, a483249's and e3704c1's), whose runners took up
+# to twice as long as each other on a file. A file not listed counts 60 s.
+# Add a new file's time once CI has run it, and measure again when the
+# parts drift apart.
+test_ascent.gd 39
 test_cabin_checklists.gd 115
 test_cabin_mcc.gd 5
-test_cabin_wrist_menu.gd 4
-test_docking.gd 13
+test_cabin_wrist_menu.gd 5
+test_docking.gd 15
 test_doi.gd 31
-test_imu_alignment.gd 65
-test_landing.gd 151
-test_lm_burns.gd 12
-test_lm_cabin_checklists.gd 254
+test_imu_alignment.gd 74
+test_landing.gd 153
+test_lm_burns.gd 18
+test_lm_cabin_checklists.gd 354
 test_lm_checklists.gd 312
-test_lunar_mission.gd 64
+test_lunar_mission.gd 96
 test_lunar_timeline.gd 84
 test_mascons.gd 8
-test_onboard_navigation.gd 128
+test_onboard_navigation.gd 129
 test_onboard_state.gd 5
-test_rendezvous.gd 89
-test_tli.gd 9
+test_rendezvous.gd 100
+test_tli.gd 10
 test_vr_acceptance_recorder.gd 4
