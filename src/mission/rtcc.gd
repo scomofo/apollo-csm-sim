@@ -19,6 +19,13 @@ const MAX_DT := 600.0
 ## integrates to: a return steeper than that is the conic's, the
 ## perturbations' kilometres lost in thousands.
 const VACUUM_FLOOR := 0.5 * Bodies.R_EARTH
+## Entry interface: 400,000 ft above the Earth, m.
+const EI_ALT_M := 121920.0
+## The largest step tei_components() takes on TEI's ΔV, m/s.
+const TEI_STEP_MPS := 150.0
+## A corridor return's time from entry interface to its vacuum perigee, s:
+## Barker's equation for a 37 km perigee [derived].
+const EI_TO_PERIGEE_S := 133.0
 
 
 static func sps_mdot() -> float:
@@ -976,39 +983,168 @@ static func plan_rendezvous(lm: Trajectory, csm: Trajectory, mass: float, t_tpi:
 
 # --- TEI ------------------------------------------------------------------------
 
-## Transearth injection from lunar orbit: prograde External ΔV of
-## [param dv] m/s, ignition time solved so the return perigee (vacuum)
-## sits at [param perigee_alt] - the entry corridor (≈ -6.5° at EI for
-## 37 km). Either sense of return is accepted; the earliest wins.
-static func plan_tei(traj: Trajectory, mass: float, dv: float, perigee_alt: float, earliest: float) -> Dictionary:
+## Transearth injection from lunar orbit onto a prograde return, one whose
+## orbit about the Earth turns the way the Moon's does, as Apollo's did
+## (Apollo 11 came in heading 50° east of north: MSC-00171, Table 7-VII).
+## The opportunity is the flown TEI's, [param tig_near], or given none, the
+## first after [param earliest] where a prograde External ΔV of
+## [param dv] m/s brings the return's vacuum perigee to [param perigee_alt],
+## the entry corridor (≈ -6.5° at entry interface for 37 km). After
+## [param earliest], an opportunity a whole lunar orbit after the flown
+## one moves entry interface with it. Given the return's inclination
+## [param incl_deg] and entry interface's GET [param ei_get], the ΔV's
+## three LVLH components are then solved together at that ignition time
+## (tei_components()), from [param guess] if given (the flown TEI's): its
+## part out of the plane turns the return's plane, its size and pitch set
+## the time home and the corridor.
+static func plan_tei(traj: Trajectory, mass: float, dv: float, perigee_alt: float, earliest: float,
+		incl_deg: float = -1.0, ei_get: float = -1.0, tig_near: float = -1.0, guess: Vector3 = Vector3.ZERO) -> Dictionary:
 	var period: float = traj.conic()["period"]
 	var start := traj.clone()
 	start.coast_to(earliest, 30.0, FRAC)
-	var tb := burn_time(mass, dv)
-	var best := {}
-	for sgn in [1.0, -1.0]:
-		var target: float = sgn * (Bodies.R_EARTH + perigee_alt)
-		var eval := func(tig: float) -> float:
+	var target: float = Bodies.R_EARTH + perigee_alt
+	var tig := 0.0
+	var revs := 0.0
+	if tig_near >= 0.0:
+		revs = maxf(0.0, ceilf((earliest - tig_near) / period))
+		tig = tig_near + revs * period
+	else:
+		var tb := burn_time(mass, dv)
+		var eval := func(t_ig: float) -> float:
 			var tr := start.clone()
-			tr.coast_to(tig, 30.0, FRAC)
+			tr.coast_to(t_ig, 30.0, FRAC)
 			simulate_sps_burn(tr, mass, Vector3(dv, 0, 0))
-			var er := earth_return(tr, tig + 6.0 * 86400.0)
+			var er := earth_return(tr, t_ig + 6.0 * 86400.0)
 			return float(er["f"]) - target if er["reached"] else NAN
-		var tig := solve_scan(eval, earliest + tb, earliest + tb + period, 24, 0.05)
-		if not is_nan(tig) and (best.is_empty() or tig < float(best["tig"])):
-			var tr := start.clone()
-			tr.coast_to(tig, 30.0, FRAC)
-			simulate_sps_burn(tr, mass, Vector3(dv, 0, 0))
-			var er := earth_return(tr, tig + 6.0 * 86400.0)
-			best = {"name": "TEI", "tig": tig, "dv_lvlh": Vector3(dv, 0, 0), "dv": dv, "burn_s": tb,
-				"perigee_alt": float(er["rp"]) - Bodies.R_EARTH, "sense": sgn, "target_f": target}
-	return best
+		tig = solve_scan(eval, earliest + tb, earliest + tb + period, 24, 0.05)
+		if is_nan(tig):
+			return {}
+	var dv_lvlh := Vector3(dv, 0, 0)
+	var pad := {"name": "TEI", "tig": tig, "sense": 1.0, "target_f": target}
+	if incl_deg >= 0.0 and ei_get >= 0.0:
+		var sol := tei_components(start, tig, mass, guess if guess != Vector3.ZERO else dv_lvlh, perigee_alt,
+			incl_deg, ei_get + revs * period)
+		if sol.is_empty():
+			return {}
+		dv_lvlh = sol["dv_lvlh"]
+		pad["ei_get"] = sol["ei_get"]
+		pad["incl"] = sol["incl"]
+	var tr := start.clone()
+	tr.coast_to(tig, 30.0, FRAC)
+	simulate_sps_burn(tr, mass, dv_lvlh)
+	var er := earth_return(tr, tig + 6.0 * 86400.0)
+	pad["dv_lvlh"] = dv_lvlh
+	pad["dv"] = dv_lvlh.length()
+	pad["burn_s"] = burn_time(mass, dv_lvlh.length())
+	pad["perigee_alt"] = float(er["rp"]) - Bodies.R_EARTH
+	return pad
+
+
+## TEI's ΔV at [param tig] from [param start] (a lunar orbit before it),
+## solved from [param guess] for a return with its vacuum perigee at
+## [param perigee_alt], its orbit about the Earth at [param incl_deg] to
+## the equator, and entry interface (400,000 ft) at GET [param ei_get]: a
+## Newton solve on the three LVLH components, its Jacobian taken by
+## finite differences and then carried by Broyden's update, each step
+## held to TEI_STEP_MPS and halved while it leaves no return. Returns
+## {"dv_lvlh", "ei_get", "incl"}, empty when it does not converge.
+static func tei_components(start: Trajectory, tig: float, mass: float, guess: Vector3, perigee_alt: float,
+		incl_deg: float, ei_get: float) -> Dictionary:
+	var dv := guess
+	var f := _tei_miss(start, tig, mass, dv, perigee_alt, incl_deg, ei_get)
+	if f.is_empty():
+		return {}
+	var jac: Array[PackedFloat64Array] = []
+	for it in 20:
+		if absf(f[0]) < 200.0 and absf(f[1]) < 0.01 and absf(f[2]) < 2.0:
+			return {"dv_lvlh": dv, "ei_get": ei_get + f[2], "incl": incl_deg + f[1]}
+		if jac.is_empty():
+			for k in 3:
+				var d := Vector3.ZERO
+				d[k] = 0.5
+				var fk := _tei_miss(start, tig, mass, dv + d, perigee_alt, incl_deg, ei_get)
+				if fk.is_empty():
+					return {}
+				jac.append(PackedFloat64Array([(fk[0] - f[0]) / 0.5, (fk[1] - f[1]) / 0.5, (fk[2] - f[2]) / 0.5]))
+		var x := _solve3(jac, PackedFloat64Array([-f[0], -f[1], -f[2]]))
+		if x.is_empty():
+			return {}
+		var step := Vector3(x[0], x[1], x[2])
+		if step.length() > TEI_STEP_MPS:
+			step *= TEI_STEP_MPS / step.length()
+		var f2 := PackedFloat64Array()
+		for h in 6:
+			f2 = _tei_miss(start, tig, mass, dv + step, perigee_alt, incl_deg, ei_get)
+			if not f2.is_empty():
+				break
+			step *= 0.5
+		if f2.is_empty():
+			return {}
+		# Broyden: J += (Δf - J s) s^T / (s . s).
+		var s2 := step.length_squared()
+		var r := PackedFloat64Array([0.0, 0.0, 0.0])
+		for i in 3:
+			r[i] = f2[i] - f[i] - (jac[0][i] * step[0] + jac[1][i] * step[1] + jac[2][i] * step[2])
+		for k in 3:
+			for i in 3:
+				jac[k][i] += r[i] * step[k] / s2
+		dv += step
+		f = f2
+	return {}
+
+
+## The misses of a TEI of [param dv] (LVLH) at [param tig]: the vacuum
+## perigee's altitude less [param perigee_alt] (m), the return's
+## inclination less [param incl_deg] (deg), entry interface's GET less
+## [param ei_get] (s). A return whose perigee lies above entry interface
+## takes its perigee's time less EI_TO_PERIGEE_S for entry interface's.
+## Empty when it doesn't come back to the Earth.
+static func _tei_miss(start: Trajectory, tig: float, mass: float, dv: Vector3, perigee_alt: float, incl_deg: float,
+		ei_get: float) -> PackedFloat64Array:
+	var tr := start.clone()
+	tr.coast_to(tig, 30.0, FRAC)
+	simulate_sps_burn(tr, mass, dv)
+	var near := func(t2: Trajectory) -> bool:
+		return t2.primary == "earth" and t2.radius() < 1.0e8
+	if not tr.coast_until(near, tig + 6.0 * 86400.0, MAX_DT, FRAC):
+		return PackedFloat64Array()
+	var c := Trajectory.conic_of(tr.earth_state(), Bodies.MU_EARTH)
+	var h: Vector3 = c["h"]
+	var incl := rad_to_deg(acos(clampf(h.normalized().dot(Bodies.earth_omega().normalized()), -1.0, 1.0)))
+	var rp := vacuum_perigee(tr, float(c["rp"]))
+	var ei := func(t2: Trajectory) -> bool:
+		return t2.altitude() < EI_ALT_M or t2.radial_rate() > 0.0
+	tr.coast_until(ei, tr.t + 86400.0, 60.0, 0.002)
+	var t_ei := tr.t
+	if tr.altitude() > EI_ALT_M + 1000.0:
+		t_ei -= EI_TO_PERIGEE_S
+	return PackedFloat64Array([rp - Bodies.R_EARTH - perigee_alt, incl - incl_deg, t_ei - ei_get])
+
+
+## The entry PAD for the target at latitude [param lat_deg], east longitude
+## [param lng_deg] (N61), from the state [param traj] (not changed): the
+## entry's predictions as the CMC's P61 makes them (EntryGuidance.predict()):
+## "gmax" (g); "v400k" (m/s) and "gamma400k" (deg) at entry interface, at
+## "tig" (its GET); and for the EMS "rtgo" (nmi) and "vio" (m/s)
+## [simplified: the RTCC's own entry simulation gave the PAD's maximum
+## load and ranges]. Empty when the return doesn't come down to entry
+## interface.
+static func plan_entry(traj: Trajectory, lat_deg: float, lng_deg: float) -> Dictionary:
+	var p := EntryGuidance.predict(traj, EntryGuidance.target_of(lat_deg, lng_deg), 5.0 * 86400.0)
+	if p.is_empty():
+		return {}
+	return {"name": "ENTRY", "tig": p["ei_get"], "lat": lat_deg, "lng": lng_deg, "gmax": p["gmax"],
+		"v400k": p["vpred"], "gamma400k": p["gammaei"], "rtgo": p["rtgo"], "vio": p["vio"]}
 
 
 ## PAD text as CAPCOM would read it up.
 static func pad_text(pad: Dictionary) -> String:
 	if pad.is_empty():
 		return "NO SOLUTION"
+	if str(pad["name"]) == "ENTRY":
+		return "ENTRY PAD: N61 LAT %+.2f LONG %+.2f  MAX G %.1f  V400K %.0f ft/s  G400K %+.2f  RTGO %.1f nm  VIO %.0f ft/s  400K %s" % [
+			float(pad["lat"]), float(pad["lng"]), float(pad["gmax"]), float(pad["v400k"]) / Units.FT,
+			float(pad["gamma400k"]), float(pad["rtgo"]), float(pad["vio"]) / Units.FT, Units.hms(float(pad["tig"]))]
 	var dv: Vector3 = pad.get("dv_lvlh", Vector3.ZERO)
 	return "%s PAD: TIG %s  N81 DVX %+.1f DVY %+.1f DVZ %+.1f ft/s  DVT %.1f ft/s  BURN %.0f s" % [
 		pad["name"], Units.hms(float(pad["tig"])), dv.x / Units.FT, dv.y / Units.FT, dv.z / Units.FT,

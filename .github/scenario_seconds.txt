@@ -3,7 +3,8 @@
 # of slice 5b (46aa6d1's, a483249's and e3704c1's), whose runners took up
 # to twice as long as each other on a file; test_launch.gd and
 # test_cabin_checklists.gd the longer of slice 5d's two runs (f54a69b's),
-# and test_p40_steering.gd the longer of slice 5e's (184b736's).
+# and test_p40_steering.gd the longer of slice 5e's (184b736's);
+# test_entry.gd its time here, alone on a local run, until CI has run it.
 # A file not listed counts 60 s.
 # Add a new file's time once CI has run it, and measure again when the
 # parts drift apart.
@@ -13,6 +14,7 @@ test_cabin_mcc.gd 5
 test_cabin_wrist_menu.gd 5
 test_docking.gd 15
 test_doi.gd 31
+test_entry.gd 165
 test_imu_alignment.gd 74
 test_landing.gd 153
 test_launch.gd 42

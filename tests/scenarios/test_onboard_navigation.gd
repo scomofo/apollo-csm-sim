@@ -188,9 +188,7 @@ func _perigee_after(nav: Trajectory, tig: float) -> float:
 
 func test_p23_marks_keep_the_entry_corridor_without_an_uplink() -> void:
 	_rng.seed = 23
-	build("lunar_orbit")
-	Bus.set_value("ctl.seq.lm_jett", true)
-	run(1.0, false)
+	build("tei")
 	var agc := rt.agc()
 	# TEI flown on a platform half a degree off (no P52 before it), which
 	# no longer drifts.

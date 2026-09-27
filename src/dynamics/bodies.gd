@@ -167,6 +167,22 @@ static func geographic_to_fixed(lat_deg: float, lon_deg: float, radius: float) -
 	return PackedFloat64Array([radius * cos(la) * cos(lo), radius * cos(la) * sin(lo), radius * sin(la)])
 
 
+## The latitude and east longitude (deg) of [param p], a point in the
+## Earth-fixed frame, on the same sphere as geographic_to_fixed().
+static func fixed_to_geographic(p: Vector3) -> Vector2:
+	return Vector2(rad_to_deg(asin(clampf(p.z / maxf(p.length(), 1e-9), -1.0, 1.0))), rad_to_deg(atan2(p.y, p.x)))
+
+
+## The angle between two points on a sphere at latitudes and east
+## longitudes (deg) [param a] and [param b], rad: the haversine's, which
+## holds to the smallest distances.
+static func surface_angle(a: Vector2, b: Vector2) -> float:
+	var p1 := deg_to_rad(a.x)
+	var p2 := deg_to_rad(b.x)
+	var h := pow(sin((p2 - p1) / 2.0), 2.0) + cos(p1) * cos(p2) * pow(sin(deg_to_rad(b.y - a.y) / 2.0), 2.0)
+	return 2.0 * asin(sqrt(clampf(h, 0.0, 1.0)))
+
+
 static func _rot_z(a: float) -> PackedFloat64Array:
 	return PackedFloat64Array([cos(a), sin(a), 0.0, -sin(a), cos(a), 0.0, 0.0, 0.0, 1.0])
 

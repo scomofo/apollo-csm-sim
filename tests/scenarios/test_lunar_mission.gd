@@ -54,9 +54,7 @@ func test_midcourse_correction_and_lunar_orbit_insertion() -> void:
 
 
 func test_transearth_injection_targets_the_entry_corridor() -> void:
-	build("lunar_orbit")
-	Bus.set_value("ctl.seq.lm_jett", true)
-	run(1.0, false)
+	build("tei")
 	assert_eq(rt.dynamics.config, "csm")
 	var tei := rt.sequencer.request_pad("tei")
 	assert_false(tei.is_empty(), "TEI solution")
@@ -84,21 +82,30 @@ func test_transearth_injection_targets_the_entry_corridor() -> void:
 
 
 func test_entry_and_splashdown() -> void:
+	# Apollo 11's entry, to its target 1,500 nmi from entry interface, on the
+	# CMC's P61 to P67 (tests/scenarios/test_entry.gd flies a shorter and a
+	# longer range).
 	build("entry")
 	assert_eq(rt.dynamics.config, "csm")
-	Bus.set_value("ctl.seq.cm_sm_sep", true)
-	run(1.0, false)
-	assert_eq(rt.dynamics.config, "cm")
-	keys("V37E61E")
-	assert_eq(rt.agc().program, 61)
-	Bus.set_value("ctl.els.logic", true)
-	Bus.set_value("ctl.els.auto", true)
-	var landed := run_until(func() -> bool: return rt.dynamics.landed, 3.0 * 3600.0, 60.0)
-	assert_true(landed, "reached the surface")
-	gut.p("max g %.2f, splash %.1f m/s, events %s" % [rt.dynamics.max_g, rt.dynamics.landed_speed,
-		str(rt.sequencer.events.map(func(e): return e["id"]))])
+	var f := fly_entry()
+	var peaks: Array = f["peaks"]
+	gut.p("programs %s, peaks %s g, N67 %s; max g %.2f, splash %.1f m/s at %s, %.2f nmi from the target; events %s" % [
+		str(f["programs"]), str(peaks.map(func(x: float) -> float: return snappedf(x, 0.01))), str(f["n67"]),
+		rt.dynamics.max_g, rt.dynamics.landed_speed, Units.hms(SimClock.get_seconds),
+		float(Bus.get_value("mission.splash_miss_nmi", -1.0)), str(rt.sequencer.events.map(func(e): return e["id"]))])
+	assert_true(rt.dynamics.landed, "reached the surface")
 	assert_eq(rt.sequencer.phase, "splashdown")
 	assert_eq(Bus.get_value("mission.result"), "success")
-	assert_between(rt.dynamics.max_g, 3.0, 8.0, "entry load")
-	assert_lt(rt.dynamics.landed_speed, 12.0, "main-chute touchdown")
 	assert_true(rt.sequencer._has("phase_entry"))
+	# "You'll get P65, but no P66" (the entry PAD's remarks, 191:43:57)
+	# [published]: the up-control, then the final phase.
+	assert_eq(f["programs"], [61, 62, 63, 64, 65, 67, 0], "P65 and no P66")
+	# "Our first peak pulse was 6.5 [g] ... and the second one was 6.0"
+	# (Armstrong, the technical debrief) [published].
+	assert_almost_eq(float(peaks[0]), 6.5, 0.3, "the first peak")
+	assert_almost_eq(float(peaks[1]), 6.0, 0.4, "the second, as P67 dumps the range to spare")
+	# Down 1.7 nmi from the target by the CMC's reckoning, 13.30 N 169.15 W
+	# (the Apollo 11 Mission Report, MSC-00171), at 195:18:35 [published].
+	assert_lt(float(Bus.get_value("mission.splash_miss_nmi")), 3.0, "near the target")
+	assert_almost_eq(SimClock.get_seconds, MissionSequencer._get_s("195:18:35"), 120.0, "splashdown's time")
+	assert_lt(rt.dynamics.landed_speed, 12.0, "main-chute touchdown")

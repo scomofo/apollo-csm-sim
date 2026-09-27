@@ -11,9 +11,31 @@
 ##   P41  RCS thrusting: as P40, but the burn is +X translation on the SM
 ##        RCS (small corrections the SPS cannot resolve)
 ##   P47  Thrust monitor (manual burns): V16N83 body ΔV
-##   P61  Entry preparation: V16N64 (g, velocity, altitude)
-##   P64  Entry guidance (auto at 0.05 g): bank-angle drag control
-##   P67  Entry final phase (lift up)
+##   P61  Entry preparation: V06N61 the target (latitude, longitude; the
+##        ground's uplink, or the crew loads it with V25N61) and HEADSUP
+##        (+1 heads up, lift down; -1 lift up, preloaded); PRO for V06N60
+##        (the peak load expected, the speed and flight path angle at entry
+##        interface) and V06N63 (the EMS's range, speed and time to go at
+##        the EMS altitude); PRO for P62
+##   P62  CM/SM separation and the pre-entry maneuver: V50N25 00041 asks for
+##        CM/SM SEP; PRO for V06N61 again; PRO, and in CMC MODE AUTO the CM
+##        turns to the entry attitude (V06N22, its gimbal angles: the heat
+##        shield into the air, lift up or down by HEADSUP). Once within 45°
+##        of it, and 21 s on (Colossus's time for the rest of the maneuver),
+##        or at entry interface, P63
+##   P63  Entry initialization (V06N64: g, velocity, range to the target);
+##        at 0.05 g P64, and from there Colossus's entry guidance (the
+##        EntryGuidance port) rolls the lift, a pass every two seconds on
+##        the state vector and the accelerometers:
+##   P64  V06N74 (roll command, velocity, drag): the initial roll, constant
+##        drag, and the prediction of the up-control's range
+##   P65  Up-control: V16N69 (roll command, the exit drag and velocity)
+##        flashes once, PRO; then V06N74
+##   P66  Ballistic, above the air (V06N22)
+##   P67  The final phase (V06N66: roll command, crossrange and downrange
+##        errors); at 1,000 ft/s steering stops and V16N67 flashes (range
+##        to go, latitude, longitude); PRO for P00
+##        P63 to P67 follow from the guidance, not V37
 ##   P27  Update: the ground's uplinks (V71), the state vector and a PAD's
 ##        P30 loads, taken in P00 with the UP TLM CM switch in ACCEPT
 ##        (ctl.cmc.up_tlm); the DSKY shows P27 while UPLINK ACTY is lit
@@ -102,8 +124,20 @@
 class_name Agc
 extends AgcCore
 
-const ENTRY_G_REF := 4.0          ## g, constant-drag reference
-const ENTRY_FINAL_V := 3000.0     ## m/s, P67 below this
+## The entry's pad loads: the CM's L/D (LADPAD) and the final phase's
+## reference L/D (LODPAD) [published: the listing's nominal L/D, and half of
+## it for the final phase, as the F mission's entry summary gives it,
+## MSC-CF-P-69-7].
+const ENTRY_LAD := 0.3
+const ENTRY_LOD := 0.15
+## P62 hands over to P63 this long after the heat shield comes within
+## ENTRY_ALFA_DEG of the entry attitude, s: the rest of the maneuver at
+## 3°/s (the listing's WAKEP62) [published].
+const ENTRY_ALFA_DEG := 45.0
+const ENTRY_WAKE_S := 21.0
+## The entry's programs, and those of them its guidance moves on to itself.
+const ENTRY_PROGRAMS := [61, 62, 63, 64, 65, 66, 67]
+const ENTRY_GUIDANCE := [63, 64, 65, 66, 67]
 ## P52 takes stars no further than this from the optics' shaft axis, deg,
 ## clear of the Earth's and the Moon's limbs and of the Sun by these, deg,
 ## and pairs them this far apart, deg [estimated].
@@ -144,9 +178,26 @@ const CMC_NOUNS := {
 	91: {"name": "OCDU ANGLES", "c": [["SHAFT", "d2", 1.0], ["TRUN", "d3", 1.0], ["", "blank", 1.0]]},
 	93: {"name": "TORQUING ANGLES", "c": [["X", "d3", 1.0], ["Y", "d3", 1.0], ["Z", "d3", 1.0]]},
 	99: {"name": "RMS ERROR", "c": [["POS", "i", 1.0 / Dsky.FT], ["VEL", "d1", 1.0 / Dsky.FT], ["", "blank", 1.0]]},
+	# The entry's: ranges in nautical miles, loads and drag in g.
+	60: {"name": "GMAX/VPRED/GAMMAEI", "c": [["GMAX", "d2", 1.0], ["VPRED", "i", 1.0 / Dsky.FT], ["GAMMAEI", "d2", 1.0]]},
+	61: {"name": "LAT/LONG/HEADSUP", "c": [["LAT", "d2", 1.0], ["LONG", "d2", 1.0], ["HEADSUP", "i", 1.0]]},
+	63: {"name": "RTGO/VIO/TTE", "c": [["RTGO", "d1", 1.0], ["VIO", "i", 1.0 / Dsky.FT], ["TTE", "mmss", 1.0]]},
+	64: {"name": "G/VI/RTOGO", "c": [["G", "d2", 1.0], ["VI", "i", 1.0 / Dsky.FT], ["RTOGO", "d1", 1.0]]},
+	66: {"name": "ROLLC/XRNG/DNRNG", "c": [["ROLLC", "d2", 1.0], ["XRNGERR", "d1", 1.0], ["DNRNGERR", "d1", 1.0]]},
+	67: {"name": "RTOGO/LAT/LONG", "c": [["RTOGO", "d1", 1.0], ["LAT", "d2", 1.0], ["LONG", "d2", 1.0]]},
+	69: {"name": "ROLLC/DL/VL", "c": [["ROLLC", "d2", 1.0], ["DL", "d2", 1.0], ["VL", "i", 1.0 / Dsky.FT]]},
+	74: {"name": "ROLLC/VI/D", "c": [["ROLLC", "d2", 1.0], ["VI", "i", 1.0 / Dsky.FT], ["D", "d2", 1.0]]},
 }
 
-var entry_captured: bool = false
+## The entry: Colossus's guidance (P63 to P67); its target, N61's latitude
+## and longitude (deg), from the ground's uplink or the crew's load, and
+## HEADSUP (+1 lift down, -1 lift up); and P61's predictions
+## (EntryGuidance.predict()).
+var entry := EntryGuidance.new()
+var entry_lat: float = 0.0
+var entry_lng: float = 0.0
+var entry_headsup: int = -1
+var entry_pred: Dictionary = {}
 ## P40 and P41 steer as Colossus's did (cross_product()); false holds the
 ## ΔV's LVLH direction instead, as the simulator did before, to compare.
 var cross_product_steering: bool = true
@@ -188,10 +239,16 @@ var _rms_shown: Vector2 = Vector2.ZERO
 ## The ΔV Average-G has taken in since it started, m/s: at its end, the
 ## burn the filter carries its errors through.
 var _burn_dv: float = 0.0
+## The entry's accelerometer ΔV since its last pass, m/s, and that pass's
+## GET; and the GET P62 wakes P63 at (-1 until the CM is near the entry
+## attitude).
+var _entry_dv: Vector3 = Vector3.ZERO
+var _entry_pass: float = -1.0
+var _entry_wake: float = -1.0
 
 
 ## The programs whose Average-G puts the sensed ΔV into the state vector.
-const AVERAGE_G := [11, 40, 41, 47, 61, 64, 67]
+const AVERAGE_G := [11, 40, 41, 47, 61, 62, 63, 64, 65, 66, 67]
 
 
 func _init() -> void:
@@ -200,7 +257,7 @@ func _init() -> void:
 
 
 func programs() -> Array:
-	return [0, 11, 22, 23, 30, 37, 40, 41, 47, 51, 52, 61, 64, 67]
+	return [0, 11, 22, 23, 30, 37, 40, 41, 47, 51, 52] + ENTRY_PROGRAMS
 
 
 func thrusting_programs() -> Array:
@@ -260,8 +317,10 @@ func authority() -> Vector3:
 
 
 func start_program(p: int) -> void:
-	if p in [61, 64, 67]:
-		dsky.show(16, 64)
+	if p in ENTRY_PROGRAMS:
+		if not _restoring:
+			_start_entry(p)
+		return
 	if p == 11:
 		# Earth orbit insertion monitor: the speed, the altitude rate and the
 		# altitude [simplified: on V16, which the DSKY refreshes, for P11's
@@ -326,9 +385,10 @@ func uplink_state(tr: Trajectory) -> bool:
 
 
 ## As the core's, and when Average-G stops, the filter carries its errors
-## through the burn it took in.
+## through the burn it took in. The entry's passes take the ΔV in.
 func _navigate(dv: Vector3) -> void:
 	super._navigate(dv)
+	_entry_dv += dv
 	if avg_g():
 		_burn_dv += dv.length()
 	elif _burn_dv > 0.0:
@@ -341,6 +401,8 @@ func _navigate(dv: Vector3) -> void:
 ## and P41 where they leave the CSM (not where it was before their
 ## maneuver, which a hold would turn it back to).
 func change_program(p: int) -> bool:
+	if p in ENTRY_GUIDANCE and not _restoring:
+		return false
 	var steering := auto_active
 	var target := auto_target if program in [22, 23] else _att()
 	var ok := super.change_program(p)
@@ -363,6 +425,8 @@ func proceed() -> void:
 		_proceed_p51()
 	elif program in [22, 23, 37]:
 		_proceed_nav()
+	elif program in ENTRY_PROGRAMS:
+		_proceed_entry()
 	else:
 		super.proceed()
 		return
@@ -408,6 +472,10 @@ func noun_values(n: int) -> Variant:
 		22:
 			if _v41:
 				return [coarse_load.x, coarse_load.y, coarse_load.z]
+			if program in [62, 66]:
+				# The entry attitude's.
+				var e := gimbal_angles_of(_entry_q())
+				return [e.x, e.y, e.z]
 			var g := Imu.gimbal_angles(align_refsmmat * Basis(_att()))
 			return [g.x, g.y, g.z]
 		25:
@@ -430,6 +498,27 @@ func noun_values(n: int) -> Variant:
 			return [rad_to_deg(align_torque.x), rad_to_deg(align_torque.y), rad_to_deg(align_torque.z)]
 		99:
 			return [_rms_shown.x, _rms_shown.y, 0.0]
+		60:
+			return [float(entry_pred.get("gmax", 0.0)), float(entry_pred.get("vpred", 0.0)),
+				float(entry_pred.get("gammaei", 0.0))]
+		61:
+			return [entry_lat, entry_lng, float(entry_headsup)]
+		63:
+			return [float(entry_pred.get("rtgo", 0.0)), float(entry_pred.get("vio", 0.0)),
+				_now() - float(entry_pred.get("tte_get", _now()))]
+		64:
+			return [entry.d / EntryGuidance.G, entry.v * EntryGuidance.FT, entry.theta * EntryGuidance.ATK]
+		66:
+			return [entry.rollc_deg(), entry.latang * EntryGuidance.ATK, entry.dnrngerr]
+		67:
+			var tr := current_traj()
+			var p := Bodies.eci_to_earth_fixed([tr.pos().x, tr.pos().y, tr.pos().z], tr.t)
+			var ll := Bodies.fixed_to_geographic(Vector3(p[0], p[1], p[2]))
+			return [entry.theta * EntryGuidance.ATK, ll.x, ll.y]
+		69:
+			return [entry.rollc_deg(), entry.q7 / EntryGuidance.G, entry.vl * EntryGuidance.FT]
+		74:
+			return [entry.rollc_deg(), entry.v * EntryGuidance.FT, entry.d / EntryGuidance.G]
 	return super.noun_values(n)
 
 
@@ -461,6 +550,23 @@ func noun_load(n: int, idx: int, value: float) -> bool:
 			var lla := [s.x, s.y, s.z - Bodies.R_MOON]
 			lla[idx] = value * 2.0 if idx == 1 else value
 			sight_landmark_mf = Bodies.selenographic_to_fixed(lla[0], lla[1], Bodies.R_MOON + lla[2])
+			return true
+		61:
+			if not program in [61, 62] or step_name != "n61":
+				return false
+			match idx:
+				0:
+					if absf(value) > 90.0:
+						return false
+					entry_lat = value
+				1:
+					if absf(value) > 180.0:
+						return false
+					entry_lng = value
+				2:
+					if absf(absf(value) - 1.0) > 1e-6:
+						return false
+					entry_headsup = int(value)
 			return true
 		99:
 			if idx == 0 and value >= 1.0:
@@ -790,6 +896,11 @@ func snapshot() -> Dictionary:
 		"marks": sight_marks, "pending": pending, "rms_shown": [_rms_shown.x, _rms_shown.y], "burn_dv": _burn_dv,
 	}
 	d["nav_filter"] = nav_filter.snapshot()
+	d["entry"] = {
+		"guidance": entry.snapshot(), "lat": entry_lat, "lng": entry_lng, "headsup": entry_headsup,
+		"pred": entry_pred.duplicate(), "dv": [_entry_dv.x, _entry_dv.y, _entry_dv.z], "pass": _entry_pass,
+		"wake": _entry_wake,
+	}
 	return d
 
 
@@ -798,6 +909,7 @@ func restore(d: Dictionary) -> void:
 	super.restore(d)
 	_restoring = false
 	_restore_nav(d)
+	_restore_entry(d)
 	var a: Dictionary = d.get("align", {})
 	if a.is_empty():
 		return
@@ -1135,32 +1247,174 @@ func _restore_nav(d: Dictionary) -> void:
 		_show_nav_step()
 
 
-## Entry guidance flies on the sensed deceleration (g) and the state
-## vector's speed and altitude rate.
-func _entry_step() -> void:
-	if not program in [61, 64, 67]:
-		Bus.set_value("guid.bank_auto", false)
+# --- the entry ----------------------------------------------------------------
+
+## The ground's entry target (P27, with the entry PAD): N61's latitude and
+## longitude, deg. Returns false, loading nothing, when the computer doesn't
+## take uplinks now (accepts_uplink()).
+func uplink_entry_target(lat_deg: float, lng_deg: float) -> bool:
+	if not accepts_uplink():
+		return false
+	entry_lat = lat_deg
+	entry_lng = lng_deg
+	_uplink_shown()
+	return true
+
+
+## The target, a unit vector in the Earth-fixed frame.
+func entry_target_ef() -> Vector3:
+	return EntryGuidance.target_of(entry_lat, entry_lng)
+
+
+## P61 preloads HEADSUP (lift up) and flashes the target, N61; P62 asks for
+## CM/SM separation (V50N25 00041).
+func _start_entry(p: int) -> void:
+	_entry_pass = -1.0
+	_entry_wake = -1.0
+	if p == 61:
+		entry_headsup = -1
+		entry_pred = {}
+		step_name = "n61"
+		dsky.show(6, 61, true)
+	elif p == 62:
+		align_checklist = 41
+		step_name = "sep"
+		dsky.show(50, 25, true)
+
+
+func _proceed_entry() -> void:
+	match step_name:
+		"n61":
+			if program == 61:
+				entry_pred = EntryGuidance.predict(current_traj(), entry_target_ef())
+				step_name = "n60"
+				dsky.show(6, 60, true)
+			else:
+				# The roll to fly into the air by, and the maneuver to the
+				# entry attitude.
+				entry.rollc = 0.0 if entry_headsup < 0 else PI
+				auto_target = _entry_q()
+				_plan_via()
+				auto_active = true
+				step_name = "n22"
+				dsky.show(6, 22)
+		"n60":
+			step_name = "n63"
+			dsky.show(6, 63, true)
+		"n63":
+			change_program(62)
+		"sep":
+			step_name = "n61"
+			dsky.show(6, 61, true)
+		"n69":
+			step_name = ""
+			dsky.show(6, 74)
+		"n67":
+			change_program(0)
+
+
+func _restore_entry(d: Dictionary) -> void:
+	var e: Dictionary = d.get("entry", {})
+	if e.is_empty():
 		return
-	var g := float(Bus.get_value("dyn.g_load", 0.0))
-	if program == 61 and g >= 0.05:
-		change_program(64)
+	entry.restore(e["guidance"])
+	entry_lat = float(e["lat"])
+	entry_lng = float(e["lng"])
+	entry_headsup = int(e["headsup"])
+	entry_pred = {}
+	var pr: Dictionary = e["pred"]
+	for k in pr:
+		entry_pred[k] = float(pr[k])
+	var dv: Array = e["dv"]
+	_entry_dv = Vector3(dv[0], dv[1], dv[2])
+	_entry_pass = float(e["pass"])
+	_entry_wake = float(e["wake"])
+	if program in ENTRY_PROGRAMS:
+		match step_name:
+			"n61":
+				dsky.show(6, 61, true)
+			"n60":
+				dsky.show(6, 60, true)
+			"n63":
+				dsky.show(6, 63, true)
+			"sep":
+				dsky.show(50, 25, true)
+			"n22":
+				dsky.show(6, 22)
+			"n69":
+				dsky.show(16, 69, true)
+			"n67":
+				dsky.show(16, 67, true)
+			_:
+				dsky.show(6, {63: 64, 64: 74, 65: 74, 66: 22, 67: 66}.get(program, 64))
+
+
+## The entry attitude now: the heat shield into the air as the state vector
+## has it, the lift rolled to the roll command.
+func _entry_q() -> Quaternion:
 	var tr := current_traj()
-	if program == 64 and tr.speed() < ENTRY_FINAL_V:
-		change_program(67)
-	var auto := (program == 64 or program == 67) and att_source() == 0
+	var vhat := Atmosphere.air_velocity(tr.pos(), tr.vel()).normalized()
+	return Dynamics.trim_basis(tr.pos(), vhat, deg_to_rad(entry.bank_cmd_deg())).get_rotation_quaternion()
+
+
+## Each step: P62 and P63 keep the maneuver on the entry attitude as the
+## air turns, and P62 wakes P63 near it; from P63 a guidance pass every
+## two seconds, which moves the program on; the roll command to the entry
+## DAP (guid.bank_cmd_deg; guid.bank_over_top, Colossus's LATSW, once the
+## drag is heavy), which flies it while the SCS takes the CMC's attitude.
+func _entry_step() -> void:
+	var now := _now()
+	var in_air := bool(Bus.get_value(_ch("dyn.in_atmosphere"), false))
+	if program == 62 and step_name == "n22":
+		auto_target = _entry_q()
+		if in_air:
+			_entry_phase(63)
+		elif _entry_wake < 0.0:
+			var x_now := Basis(_att()) * Vector3.RIGHT
+			var x_to := Basis(auto_target) * Vector3.RIGHT
+			if x_now.angle_to(x_to) < deg_to_rad(ENTRY_ALFA_DEG):
+				_entry_wake = now + ENTRY_WAKE_S
+		elif now >= _entry_wake:
+			_entry_phase(63)
+	if program == 63 and not in_air:
+		auto_target = _entry_q()
+	if program in ENTRY_GUIDANCE and entry.mode != "done" and now >= _entry_pass + EntryGuidance.PASS_S - 1e-6 \
+			and nav != null:
+		var dt := now - _entry_pass
+		entry.step(nav.pos(), nav.vel(), _entry_dv, now, dt)
+		_entry_dv = Vector3.ZERO
+		_entry_pass = now
+		if entry.program != program:
+			_entry_phase(entry.program)
+		if entry.mode == "done" and step_name != "n67":
+			step_name = "n67"
+			dsky.show(16, 67, true)
+	var auto := program in ENTRY_PROGRAMS and program != 61 and step_name != "sep" and att_source() == 0
 	Bus.set_value("guid.bank_auto", auto)
-	if not auto:
-		return
-	var cmd := 0.0
-	if program == 64:
-		# Lift up until the drag builds to near the reference, then a
-		# constant-drag controller on the vertical lift fraction u = cos(bank):
-		# more lift when too deep (drag high, or sinking fast), less when
-		# shallow or climbing, so the CM neither digs in nor skips out.
-		if g >= ENTRY_G_REF * 0.75:
-			entry_captured = true
-		if entry_captured:
-			var hdot := tr.radial_rate()
-			var u := 0.2 + 1.5 * (g - ENTRY_G_REF) / ENTRY_G_REF - 0.01 * hdot
-			cmd = rad_to_deg(acos(clampf(u, -1.0, 1.0)))
-	Bus.set_value("guid.bank_cmd_deg", cmd)
+	Bus.set_value("guid.bank_cmd_deg", entry.bank_cmd_deg() if auto else 0.0)
+	Bus.set_value("guid.bank_over_top", auto and not entry.latsw)
+
+
+## The entry moves on to program [param p]: P63 starts the guidance on the
+## state vector; P64 to P67 are the guidance's phases.
+func _entry_phase(p: int) -> void:
+	program = p
+	step_name = ""
+	dsky.set_prog(p)
+	match p:
+		63:
+			var tr := current_traj()
+			entry.start(tr.pos(), tr.vel(), _now(), ENTRY_LAD, ENTRY_LOD, entry_target_ef(), entry_headsup)
+			_entry_dv = Vector3.ZERO
+			_entry_pass = _now() - EntryGuidance.PASS_S
+			dsky.show(6, 64)
+		64:
+			dsky.show(6, 74)
+		65:
+			step_name = "n69"
+			dsky.show(16, 69, true)
+		66:
+			dsky.show(6, 22)
+		67:
+			dsky.show(6, 66)
+	_publish()

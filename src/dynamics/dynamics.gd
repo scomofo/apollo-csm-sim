@@ -59,6 +59,9 @@ const LIFTOFF_MARGIN := 1.1
 const LIFTOFF_S := 0.5
 ## Above this height the Saturn V's drag is left out, m.
 const LV_AERO_TOP_M := 150000.0
+## The entry roll's time constant in its last degree, s: it settles on the
+## command without hunting.
+const BANK_SETTLE_S := 0.5
 
 var traj: Trajectory = Trajectory.new()
 var attitude: Attitude = Attitude.new()
@@ -66,8 +69,10 @@ var config: String = "stack"
 var mass: float = 0.0
 var landed: bool = false
 var landed_speed: float = 0.0
-## Entry bank angle (rad): the CM's lift-vector roll about the velocity.
+## Entry bank angle (rad): the CM's lift-vector roll about the velocity,
+## positive with the lift to the right; and its rate (rad/s).
 var bank: float = 0.0
+var bank_rate: float = 0.0
 var g_load: float = 0.0
 var max_g: float = 0.0
 ## Inertial non-gravitational ΔV accumulated since construction, m/s
@@ -108,6 +113,7 @@ func initialize(primary: String, get_s: float, pos: Vector3, vel: Vector3, cfg: 
 	lm_config = "lm"
 	landed = false
 	bank = 0.0
+	bank_rate = 0.0
 	max_g = 0.0
 	attitude.omega = Vector3.ZERO
 	_align_prograde()
@@ -580,36 +586,62 @@ func _aero_force() -> Vector3:
 
 ## Lift direction for the current bank angle: bank 0 is lift up.
 func _lift_dir(vhat: Vector3) -> Vector3:
-	var r := traj.pos().normalized()
-	var up := r - vhat * r.dot(vhat)
+	return lift_direction(traj.pos(), vhat, bank)
+
+
+## The lift's direction at [param r] flying along [param vhat] (the air's
+## velocity, a unit vector) banked [param p_bank] (rad): 0 is lift up,
+## positive to the right.
+static func lift_direction(r: Vector3, vhat: Vector3, p_bank: float) -> Vector3:
+	var u := r.normalized()
+	var up := u - vhat * u.dot(vhat)
 	if up.length() < 1e-6:
 		# Vertical descent: any horizontal direction will do.
 		up = vhat.cross(Vector3.RIGHT if absf(vhat.x) < 0.9 else Vector3.UP)
 	up = up.normalized()
 	var side := vhat.cross(up)
-	return (up * cos(bank) + side * sin(bank)).normalized()
+	return (up * cos(p_bank) + side * sin(p_bank)).normalized()
+
+
+## The CM's attitude trimmed in the air (body to ECI): the heat shield (−X)
+## into the air's velocity [param vhat] at [param r], the lift banked
+## [param p_bank] (rad), along body −Z.
+static func trim_basis(r: Vector3, vhat: Vector3, p_bank: float) -> Basis:
+	var x := -vhat
+	var zb := -lift_direction(r, vhat, p_bank)
+	var y := zb.cross(x).normalized()
+	return Basis(x, y, x.cross(y))
 
 
 ## During entry the CM flies trimmed, heat shield (−X) forward; the only
 ## attitude freedom is bank about the velocity vector, driven by the CMC
-## (guid.bank_cmd_deg while guid.bank_auto) or the RHC roll axis.
+## (guid.bank_cmd_deg while guid.bank_auto) or the RHC roll axis. The
+## CMC's entry DAP rolls at up to max_bank_rate_dps, speeding up at
+## bank_accel_dps2 and braking as one jet does, at half that; the shortest
+## way round, or through lift up (never lift down) while
+## guid.bank_over_top.
 func _entry_attitude(dt: float) -> void:
-	var rate := deg_to_rad(float(SpacecraftData.section("cm_aero")["max_bank_rate_dps"]))
+	var ad := SpacecraftData.section("cm_aero")
+	var rate := deg_to_rad(float(ad["max_bank_rate_dps"]))
 	var cm_rcs := float(Bus.get_value("rcs.cm_prop_kg", 1.0)) > 0.0
-	if cm_rcs:
-		if bool(Bus.get_value("guid.bank_auto", false)):
-			var cmd := deg_to_rad(float(Bus.get_value("guid.bank_cmd_deg", 0.0)))
-			var err := wrapf(cmd - bank, -PI, PI)
-			bank += clampf(err, -rate * dt, rate * dt)
-		else:
-			var rhc: Vector3 = Bus.get_value("ctl.rhc", Vector3.ZERO)
-			bank += rhc.x * rate * dt
-	bank = wrapf(bank, -PI, PI)
+	if not cm_rcs:
+		bank_rate = 0.0
+	elif bool(Bus.get_value("guid.bank_auto", false)):
+		var acc := deg_to_rad(float(ad["bank_accel_dps2"]))
+		var cmd := wrapf(deg_to_rad(float(Bus.get_value("guid.bank_cmd_deg", 0.0))), -PI, PI)
+		var err := wrapf(cmd - bank, -PI, PI)
+		if bool(Bus.get_value("guid.bank_over_top", false)):
+			err = cmd - bank
+		# The rate from which it still stops on the command, and within a
+		# degree of it proportionally less.
+		var want := signf(err) * minf(minf(rate, sqrt(acc * absf(err))), absf(err) / BANK_SETTLE_S)
+		bank_rate = move_toward(bank_rate, want, acc * dt)
+	else:
+		var rhc: Vector3 = Bus.get_value("ctl.rhc", Vector3.ZERO)
+		bank_rate = rhc.x * rate
+	bank = wrapf(bank + bank_rate * dt, -PI, PI)
 	var vhat := Atmosphere.air_velocity(traj.pos(), traj.vel()).normalized()
-	var x := -vhat
-	var zb := -_lift_dir(vhat)
-	var y := zb.cross(x).normalized()
-	attitude.align_to(Basis(x, y, x.cross(y)))
+	attitude.align_to(trim_basis(traj.pos(), vhat, bank))
 	attitude.omega = Vector3.ZERO
 
 
@@ -651,7 +683,7 @@ func snapshot() -> Dictionary:
 		"q": [attitude.q.x, attitude.q.y, attitude.q.z, attitude.q.w],
 		"omega": [attitude.omega.x, attitude.omega.y, attitude.omega.z],
 		"config": config, "landed": landed, "landed_speed": landed_speed,
-		"bank": bank, "max_g": max_g, "sensed_dv": Array(sensed_dv),
+		"bank": bank, "bank_rate": bank_rate, "max_g": max_g, "sensed_dv": Array(sensed_dv),
 		"lm_config": lm_config,
 		"vent_force": [vent_force.x, vent_force.y, vent_force.z],
 		"jet_imbalance": [jet_imbalance.x, jet_imbalance.y, jet_imbalance.z],
@@ -671,6 +703,7 @@ func restore(d: Dictionary, lm_d: Dictionary = {}) -> void:
 	landed = bool(d["landed"])
 	landed_speed = float(d.get("landed_speed", 0.0))
 	bank = float(d.get("bank", 0.0))
+	bank_rate = float(d.get("bank_rate", 0.0))
 	max_g = float(d.get("max_g", 0.0))
 	sensed_dv = PackedFloat64Array(d.get("sensed_dv", [0, 0, 0]))
 	lm_config = str(d.get("lm_config", "lm"))

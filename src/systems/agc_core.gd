@@ -675,25 +675,27 @@ func _predicted_apsides() -> Array:
 
 func _start_thrusting() -> void:
 	var g := maneuver_dv_inertial
+	var p := predict(maneuver_tig)
 	if cross_product():
-		var p := predict(maneuver_tig)
 		g = external_dv_vg(p.pos(), p.vel(), g, float(Bus.get_value(_ch("dyn.mass_kg"), 30000.0)), engine_thrust(program))
 	vg = PackedFloat64Array([g.x, g.y, g.z])
 	vg_left = maneuver_dv_lvlh.length()
 	dv_accum = 0.0
 	burn_dir = g.normalized()
-	auto_target = burn_attitude(burn_dir)
+	auto_target = burn_attitude(burn_dir, p.pos())
 	desired_q = auto_target
 	step_name = "v50n18"
 	dsky.show(50, 18, true)
 
 
 ## Burn attitude: body +X (the thrust axis) along [param dir]; roll chosen
-## so body +Z points as close to the local vertical (down) as possible
-## ("heads up" for the CSM's crew, [simplified]).
-func burn_attitude(dir: Vector3) -> Quaternion:
+## so body +Z points as close to the local vertical (down) at [param r] as
+## possible ("heads up" for the CSM's crew, [simplified]): at ignition
+## before the burn, as P30's preferred orientation takes it, and where the
+## CSM is during it.
+func burn_attitude(dir: Vector3, r: Vector3 = Vector3.ZERO) -> Quaternion:
 	var x := dir.normalized()
-	var down := -current_traj().pos().normalized()
+	var down := -(r if r != Vector3.ZERO else current_traj().pos()).normalized()
 	var z := down - x * down.dot(x)
 	if z.length() < 1e-3:
 		z = x.cross(Vector3.UP if absf(x.dot(Vector3.UP)) < 0.9 else Vector3.RIGHT)

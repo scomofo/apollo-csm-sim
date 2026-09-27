@@ -1129,12 +1129,11 @@ them after the core split in 3b.
 
 ## 5. The whole flight
 
-**Status: slices 5a to 5e are done: the Earth is oblate, the Sun
-pulls, the Moon has its mascons, the S-IVB flies TLI on the IU's
-iterative guidance, the Saturn V flies Apollo 11 from the pad into its
-parking orbit, and the CMC's P40 and P41 steer as Colossus's did.** What
-the README still lists as a simplification of the flight itself: entry
-guidance has no aim.
+**Status: done. The Earth is oblate, the Sun pulls, the Moon has its
+mascons, the S-IVB flies TLI on the IU's iterative guidance, the Saturn
+V flies Apollo 11 from the pad into its parking orbit, the CMC's P40 and
+P41 steer as Colossus's did, and the CMC flies the entry down on Apollo
+11's target on Colossus's P61 to P67.**
 
 - **Gravity** first, since it moves every number the suite checks. The
   Earth's oblateness turned Apollo 11's parking orbit 0.8° west before
@@ -1511,6 +1510,72 @@ Slice 5e gives P40 and P41 Colossus's steering, from its listing (Comanche
 - **Checkpoints** are schema 13: the thrust direction P40 holds in a
   burn's last seconds.
 
+Slice 5f gives the CMC Colossus's entry programs, from its listing
+(Comanche 055: the P61-P67 and REENTRY CONTROL log sections, and the
+Colossus 2 GSOP, R-577, section 5.7):
+
+- **TEI onto Apollo 11's return.** The RTCC solves TEI at the flown TIG,
+  135:23:41.56, from the flown N81 (+3,201.1, +681.8, -265.0 ft/s), for
+  three things of the return the mission report gives: entry interface
+  at 195:03:05.7, the return's inclination to the equator, 39.9° (from
+  entry interface's 3.19° S and heading of 50.18°), and the corridor's
+  vacuum perigee. It comes to 3,309 ft/s (Apollo 11: 3,284), and puts
+  entry interface at 195:03:05, 36,194 ft/s and 6.53° down at 3.23° S
+  171.88° E, 1,500 nmi from the target (Apollo 11: 36,194 ft/s, 6.48°,
+  3.19° S 171.96° E). A new start phase, `tei`, starts Columbia alone in
+  lunar orbit a minute before the TEI PAD, where TEI's tests fly from
+  instead of 54 hours of lunar orbit after LOI-2.
+- **The entry PAD.** At 191:43:57 the RTCC's entry PAD comes up with the
+  state vector and the target, Apollo 11's final one: 13.32° N 169.17° W
+  (mission.json "entry"). The entry start phase starts with it loaded.
+- **P61 and P62.** P61 flashes N61 (the target and HEADSUP, -1 for lift
+  up, which the crew can load with V25), then N60, the peak load
+  Colossus's formula expects and the speed and flight path angle at entry
+  interface, and N63, the EMS's range, speed and time to go at its
+  297,431 ft (S61.2, by integrating the state vector where Colossus used
+  conics [simplified]). Against Apollo 11's PAD: 6.7 g (6.4), 36,195 ft/s
+  (36,194), -6.53° (-6.49), 1,434 nmi (1,404.5, the RTCC's EMS range)
+  and 36,275 ft/s (36,275). P62 asks for CM/SM SEP (V50N25 00041),
+  flashes N61 again, and on PRO the CM turns to the entry attitude in
+  CMC AUTO, N22 its gimbal angles; 21 s after it comes within 45° of it
+  (WAKEP62) P63 starts the guidance.
+- **The guidance** (`src/systems/entry_guidance.gd`), a pass every two
+  seconds on the CMC's state vector and its accelerometers' ΔV, as the
+  SERVICER ran it. TARGETNG finds the range to the target on the turning
+  Earth. INITROLL holds lift up (or down, for a shallow entry) past 0.05
+  g until the drag reaches KAT, then flies constant drag. HUNTEST
+  predicts the range of an up-control, a skip and a second entry, and
+  iterates the up-control's L/D onto the target's range; within 25 nmi,
+  P65 steers onto that reference to the exit velocity VL. Below Q7's
+  drag, P66 holds the roll through the skip; P67 flies the stored
+  reference trajectory's range by linear perturbation to the target,
+  until 1,000 ft/s. LIMITL/D reverses the roll when the crossrange passes
+  its deadband, the G limiter keeps the load under 8 g, and in heavy
+  drag the lift never points down and a reversal rolls over the top
+  (LATSW). The final phase's altitude rate partials are stored "B-3" in
+  the listing, on a scale of 21,600/2VSAT nmi per ft/s (GSOP 5.7's table
+  of maxima): read without it, eight times too large, they fly P67 long
+  whenever the CM climbs. The displays are Colossus's: N64, N74, P65's
+  flashing N69, N66, and at the end the flashing N67.
+- **The entry DAP.** The roll command goes to the CM's bank, rolling at
+  up to 20°/s and at the entry DAP's 9.1°/s² (its VM and A), braking at
+  half that as one jet does, the shortest way or over the top.
+- **The check** (`test_entry.gd`, `test_lunar_mission.gd`). From entry
+  interface the CM comes down within 3 nmi of its target:
+  - Apollo 11's, 1,500 nmi: P64 at 195:03:34, P65, P67 with no P66 ("You'll
+    get P65, but no P66", the PAD's remarks), loads peaking at 6.5 and 6.1
+    g (Armstrong: 6.5 and 6.0), down at 195:19:04 at 13.33° N 169.18° W,
+    0.9 nmi from the target (Apollo 11: 195:18:35 at 13.30° N 169.15° W,
+    1.7 nmi by the CMC's reckoning);
+  - the shorter range Apollo 11 had planned, 1,266 nmi to 11.03° N 172.37°
+    W: P64 hands straight to P67, 1.0 nmi;
+  - 2,000 nmi, 18.61° N 162.42° W: the up-control lifts the CM out of the
+    air and P66 flies the skip, 1.2 nmi.
+
+  1,100 and 2,200 nmi came down 0.8 and 0.9 nmi from theirs.
+- **Checkpoints** are schema 14: the entry's programs and guidance, and
+  the CM's roll rate. A checkpoint taken mid-roll flies on as it did.
+
 ### Slices
 
 | Slice | Work | Check |
@@ -1520,7 +1585,7 @@ Slice 5e gives P40 and P41 Colossus's steering, from its listing (Comanche
 | 5c (done) S-IVB iterative guidance | The IU's iterative guidance mode for TLI: steering to the target conic the RTCC plans (its energy, eccentricity and plane), the time to go iterated as it burns, cutoff on the target. The fixed yaw goes | Test: TLI hits the target within a set limit, with its ΔV and plane change near Apollo 11's (about 3,180 m/s and 1.3°) |
 | 5d (done) The launch | Liftoff from Launch Complex 39A at 13:32:00 UTC: the S-IC's roll and tilt programs and its cutoffs, staging, the S-II and the S-IVB on iterative guidance, the launch escape tower's jettison, insertion. The atmosphere turns with the Earth. A start phase on the pad, and the cabin and the HUD through the ascent. Aborts are left for later | Test: insertion into Apollo 11's parking orbit (32.5°, about 100 nmi) at about 11:49 GET within set limits, each stage's burn near the flown times (the Saturn V flight evaluation report) |
 | 5e (done) P40 cross-product steering | Colossus's cross-product steering in P40 and P41, in place of holding the ΔV's LVLH direction | Test: LOI-1 on cross-product steering leaves an orbit nearer the RTCC's plan than LVLH steering does, and short burns come out as they did |
-| 5f Entry range targeting | Colossus's entry guidance (P62 to P67): the range to a splashdown target on the rotating Earth, up-control for long ranges, the final phase along a reference trajectory, and lateral roll reversals. The target comes with the entry PAD | Test: from entry interface the CM splashes down within a set limit of the target, from a short and a long range alike |
+| 5f (done) Entry range targeting | Colossus's entry guidance (P62 to P67): the range to a splashdown target on the rotating Earth, up-control for long ranges, the final phase along a reference trajectory, and lateral roll reversals. The target comes with the entry PAD | Test: from entry interface the CM splashes down within a set limit of the target, from a short and a long range alike |
 
 ### Order
 
