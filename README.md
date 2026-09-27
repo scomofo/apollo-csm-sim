@@ -727,7 +727,8 @@ The unit tests cover:
   and timeline, the CMC's state vector, the CSM's unmodelled forces and
   where MSFN's draws have got to, the CMC's IMU and a P52 between its
   marks, its navigation filter and a P23 mark waiting at N49, and the
-  Moon's field's samples each trajectory holds (schema 9). Older
+  Moon's field's samples each trajectory holds and the thrust they were
+  taken with (schema 10). Older
   checkpoints are rejected
 - The main scene, and in Eagle from `lunar_descent`: its HUD, the keys on
   its LGC, its two views, its checklist for the phase, and L between the

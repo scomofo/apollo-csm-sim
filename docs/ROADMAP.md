@@ -1293,9 +1293,10 @@ Slice 5b gives the Moon its mascons:
   shifted timeline left one flight, had piled up in the clock's
   accumulator a frame at a time, 17,500 frames and two minutes before it
   made a step.
-- **Checkpoints** are schema 9: each trajectory's field samples and the
-  thrust they were taken with, since a restored flight must interpolate
-  from the same ones. A restored
+- **Checkpoints** are schema 9: each trajectory's field samples, since
+  a restored flight must interpolate from the same ones. Schema 10 adds
+  the thrust they were taken with, so a restored flight takes the
+  samples ahead again where the original did. A restored
   run's first step is a fine one, so its coast steps fall 0.02 s off the
   uninterrupted run's; the field parts the two flights by millimetres
   in a quarter of an hour, where they stayed within a fifth of one, and
