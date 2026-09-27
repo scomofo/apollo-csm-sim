@@ -15,10 +15,14 @@
 ##        predicted apsides and ΔV (N42), then stores the maneuver
 ##   Thrusting programs: V50N18 auto maneuver to burn attitude, V16N40
 ##        countdown, V99N40 engine-on enable at TIG-5 s, cutoff on velocity
-##        to be gained, V16N85 residuals. Thrust is steered to hold the N81
-##        direction in the rotating LVLH frame [simplified: stands in for
-##        cross-product steering, which a long burn needs]. An RCS program
-##        (P41) burns +X translation instead of an engine
+##        to be gained, V16N85 residuals. The CMC steers as Colossus did
+##        (cross_product()): the velocity to be gained is the N81 ΔV set
+##        inertially at TIG and turned through half the burn's arc
+##        (external_dv_vg()), drawn down by the sensed ΔV, and the thrust
+##        is steered onto it until the last STEER_OFF_S. The LGC holds the
+##        N81 direction in the rotating LVLH frame [simplified: Luminary's
+##        External ΔV steered as Colossus's]. An RCS program (P41) burns +X
+##        translation instead of an engine
 ##   P47  Thrust monitor (manual burns): V16N83 body ΔV
 ##   V06/V16 display/monitor, V21-V25 load, V34 terminate, V35 lamp test,
 ##   V37 change program, V82 orbit parameters (V16N44)
@@ -67,6 +71,9 @@ extends Node
 const RATE_HOLD := 0.0349066      ## rad/s, 2 °/s hand controller full-scale rate
 const RATE_AUTO := 0.0174533      ## rad/s, 1 °/s auto-maneuver rate
 const ATT_DEADBAND := 0.00873     ## rad, 0.5°
+## Cross-product steering stops, the attitude held, once the time to go is
+## under this, s (Colossus's S40.81).
+const STEER_OFF_S := 4.0
 ## The rate the hold nulls down to before it leaves the jets off, rad/s:
 ## the attitude moves about 0.02° an hour on what is left.
 const REST_RATE := 1e-7
@@ -165,6 +172,32 @@ func programs() -> Array:
 ## The thrusting programs, which need a stored maneuver.
 func thrusting_programs() -> Array:
 	return [41]
+
+
+## The computer steers its External ΔV burns as Colossus's P40 and P41 do,
+## by cross-product steering on an inertial velocity to be gained; else it
+## holds the ΔV's direction in the rotating LVLH frame.
+func cross_product() -> bool:
+	return false
+
+
+## Colossus's velocity to be gained at ignition for an External ΔV
+## [param dv] (inertial, m/s) from the state at TIG ([param r], [param v]),
+## burned at [param thrust] N on [param mass] kg: the ΔV's part in the
+## orbit's plane turned about its normal, in the direction of motion,
+## through half the arc the vehicle sweeps in the burn, the burn's time
+## taken at constant mass, so that the burn held along it is centred on the
+## impulse (Comanche 055, S40.1) [published].
+static func external_dv_vg(r: Vector3, v: Vector3, dv: Vector3, mass: float, thrust: float) -> Vector3:
+	var up := v.cross(r)
+	var rate := up.length() / r.length_squared()
+	up = up.normalized()
+	var theta := 0.5 * rate * mass * dv.length() / thrust
+	var out_of_plane := up * dv.dot(up)
+	var in_plane := dv - out_of_plane
+	if in_plane.length() < 1e-9:
+		return dv
+	return in_plane * cos(theta) + in_plane.normalized().cross(up) * in_plane.length() * sin(theta) + out_of_plane
 
 
 ## Full thrust (N) and shutdown time constant (s) of program [param p]'s
@@ -616,10 +649,15 @@ func _store_maneuver() -> void:
 	maneuver_dv_lvlh = dv_lvlh_load
 	maneuver_tig = tig_load
 	maneuver_valid = dv_lvlh_load.length() > 0.0
-	# The preferred orientation for it, which P52 option 1 aligns to.
+	# The preferred orientation for it, which P52 option 1 aligns to: along
+	# the thrust at ignition, which on cross-product steering is P40's
+	# velocity to be gained there (UT, S40.2,3), on the SPS.
 	preferred_valid = maneuver_valid
 	if preferred_valid:
-		preferred_refsmmat = Imu.preferred(maneuver_dv_inertial, p.pos())
+		var ut := maneuver_dv_inertial
+		if cross_product():
+			ut = external_dv_vg(p.pos(), p.vel(), ut, float(Bus.get_value(_ch("dyn.mass_kg"), 30000.0)), engine_thrust(40))
+		preferred_refsmmat = Imu.preferred(ut, p.pos())
 	_publish_imu()
 
 
@@ -636,10 +674,14 @@ func _predicted_apsides() -> Array:
 
 
 func _start_thrusting() -> void:
-	vg = PackedFloat64Array([maneuver_dv_inertial.x, maneuver_dv_inertial.y, maneuver_dv_inertial.z])
+	var g := maneuver_dv_inertial
+	if cross_product():
+		var p := predict(maneuver_tig)
+		g = external_dv_vg(p.pos(), p.vel(), g, float(Bus.get_value(_ch("dyn.mass_kg"), 30000.0)), engine_thrust(program))
+	vg = PackedFloat64Array([g.x, g.y, g.z])
 	vg_left = maneuver_dv_lvlh.length()
 	dv_accum = 0.0
-	burn_dir = maneuver_dv_inertial.normalized()
+	burn_dir = g.normalized()
 	auto_target = burn_attitude(burn_dir)
 	desired_q = auto_target
 	step_name = "v50n18"
@@ -660,10 +702,20 @@ func burn_attitude(dir: Vector3) -> Quaternion:
 	return Basis(x, y, z).orthonormalized().get_rotation_quaternion()
 
 
-## Hold the maneuver's LVLH direction as the frame rotates.
+## Steer the thrust: onto the velocity to be gained, as Colossus's
+## cross-product steering brings it there, until the time to go is under
+## STEER_OFF_S [simplified: the DAP turns the thrust onto it at its own
+## rates, not on the cross product's gain]; or along the maneuver's LVLH
+## direction as the frame rotates.
 func _steer() -> void:
-	var tr := current_traj()
-	burn_dir = (Trajectory.lvlh_basis(tr.pos(), tr.vel()) * maneuver_dv_lvlh).normalized()
+	if cross_product():
+		var g := Vector3(vg[0], vg[1], vg[2])
+		var a := engine_thrust(program) / maxf(float(Bus.get_value(_ch("dyn.mass_kg"), 30000.0)), 1.0)
+		if g.length() > a * STEER_OFF_S:
+			burn_dir = g.normalized()
+	else:
+		var tr := current_traj()
+		burn_dir = (Trajectory.lvlh_basis(tr.pos(), tr.vel()) * maneuver_dv_lvlh).normalized()
 	auto_target = burn_attitude(burn_dir)
 	desired_q = auto_target
 
@@ -718,6 +770,13 @@ func _sense_step(step: Vector3) -> void:
 			# Residual trimming with the RCS works on the VG vector.
 			for i in 3:
 				vg[i] -= step[i]
+		elif cross_product():
+			# The whole sensed ΔV draws VG down (S40.8, with no b term for
+			# an External ΔV); the time to go runs on its part along the
+			# thrust.
+			for i in 3:
+				vg[i] -= step[i]
+			vg_left = Vector3(vg[0], vg[1], vg[2]).dot(burn_dir)
 		else:
 			vg_left -= step.dot(burn_dir)
 			var g := burn_dir * vg_left
@@ -972,7 +1031,7 @@ func snapshot() -> Dictionary:
 		"maneuver_dv": [maneuver_dv_inertial.x, maneuver_dv_inertial.y, maneuver_dv_inertial.z],
 		"maneuver_dv_lvlh": [maneuver_dv_lvlh.x, maneuver_dv_lvlh.y, maneuver_dv_lvlh.z], "vg_left": vg_left,
 		"vg": Array(vg), "dv_accum": dv_accum, "engine_enabled": engine_enabled, "engine_on": engine_on,
-		"ignition_get": ignition_get,
+		"ignition_get": ignition_get, "burn_dir": [burn_dir.x, burn_dir.y, burn_dir.z],
 		"auto_active": auto_active, "hold_q": [hold_q.x, hold_q.y, hold_q.z, hold_q.w],
 		"vias": maneuver_vias.map(func(q: Quaternion) -> Array: return [q.x, q.y, q.z, q.w]),
 		"auto_target": [auto_target.x, auto_target.y, auto_target.z, auto_target.w],
@@ -1005,6 +1064,8 @@ func restore(d: Dictionary) -> void:
 	engine_enabled = bool(d["engine_enabled"])
 	engine_on = bool(d.get("engine_on", d.get("sps_on", false)))
 	ignition_get = float(d.get("ignition_get", -1.0))
+	var bd: Array = d.get("burn_dir", [1.0, 0.0, 0.0])
+	burn_dir = Vector3(bd[0], bd[1], bd[2])
 	auto_active = bool(d["auto_active"])
 	var h: Array = d["hold_q"]
 	hold_q = Quaternion(h[0], h[1], h[2], h[3])

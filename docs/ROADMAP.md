@@ -1129,11 +1129,11 @@ them after the core split in 3b.
 
 ## 5. The whole flight
 
-**Status: slices 5a to 5d are done: the Earth is oblate, the Sun
+**Status: slices 5a to 5e are done: the Earth is oblate, the Sun
 pulls, the Moon has its mascons, the S-IVB flies TLI on the IU's
-iterative guidance, and the Saturn V flies Apollo 11 from the pad into
-its parking orbit.** What the README still lists as simplifications of
-the flight itself: P40 holds its ΔV direction in LVLH, and entry
+iterative guidance, the Saturn V flies Apollo 11 from the pad into its
+parking orbit, and the CMC's P40 and P41 steer as Colossus's did.** What
+the README still lists as a simplification of the flight itself: entry
 guidance has no aim.
 
 - **Gravity** first, since it moves every number the suite checks. The
@@ -1455,6 +1455,62 @@ Slice 5d gives the flight its launch:
   vehicle 113 m tall.
 - **Checkpoints** are schema 12: the launch vehicle's.
 
+Slice 5e gives P40 and P41 Colossus's steering, from its listing (Comanche
+055, the P40-P47 log section):
+
+- **The velocity to be gained at ignition** (S40.1). The P30 ΔV is taken
+  into inertial axes at TIG, and its part in the orbit's plane is turned
+  about the orbit's normal, the way the vehicle moves, through half the
+  arc the vehicle sweeps in the burn: θ = ½ (|R × V| / R²)(m|ΔV| / F),
+  the burn's time taken at constant mass, F the SPS's thrust in P40 and
+  the four +X jets' in P41. A burn held along it is centred on the
+  impulse the ΔV stands for. For 300 m/s in a 60 nmi lunar orbit it
+  points 0.12° from the retrograde at the burn's middle, where the ΔV as
+  loaded points 2.4° off (`test_agc.gd`). The burn attitude is along it,
+  and so is P30's preferred orientation for P52, as P40's S40.2,3 took it.
+- **The steering** (S40.8). Each cycle the sensed ΔV draws VG down. An
+  External ΔV has no b term (S40.1 zeroes BDT, which only Lambert
+  targeting sets), so VG keeps its direction in inertial space, and the
+  thrust is steered onto it. A cross-axis ΔV the attitude's errors leave
+  turns VG, and the steering with it. The DAP turns the thrust axis onto
+  VG at its own rates [simplified: not on the cross product's gain]. In
+  the last 4 s of time to go the steering stops, the attitude held
+  (S40.81), and the engine cuts off on VG's part along the thrust.
+- **The RTCC flies the same law** when it plans: every CMC burn it
+  sizes, the start phases' too, is thrust held along Colossus's velocity
+  to be gained. A thrust held fixed in inertial space through LOI-1's six
+  minutes pulls the perilune down, where the turning LVLH direction kept
+  it, so the RTCC now solves the ΔV's pitch too, for Apollo 11's 60 by
+  170 nmi (the mission report's Table 7-V has 60.0 by 169.7 flown). Its
+  size, its part out of the plane and its pitch are solved together,
+  with one coast to TIG where each trial coasted from eight hours out.
+  LOI-1 takes 2,885.6 ft/s, 37.5 ft/s of it toward the Moon, where held
+  along the LVLH direction it took 2,875.8 (Apollo 11: 2,917.5).
+- **The check** (`test_p40_steering.gd`). From the same state 8 h before
+  the Moon:
+  - on cross-product steering, LOI-1 leaves 57.6 × 169.7 nmi against the
+    RTCC's plan of 60.0 × 170.1;
+  - held along the LVLH direction, the same PAD leaves 57.8 × 162.3, 7.8
+    nmi short in apolune.
+
+  The perilune's 2.4 nmi either way is the navigation's: the plan came
+  from MSFN's state 8 h before, and the CMC sets VG from its own state
+  vector at TIG, 0.3° from the true one's. LOI-2, a quarter of a minute,
+  comes out within 0.08 nmi of its old self. A checkpoint taken in a
+  burn's last seconds, the steering stopped, flies on to the same
+  cutoff.
+- **What else moves.** TEI now leaves a vacuum perigee of 47 km against
+  its 37 km aim, where it left 107 km. The transearth MCC that follows
+  drops from 3.4 ft/s to 0.5. With P52's preferred orientation along the
+  burn's thrust, the maneuver to LOI's burn attitude keeps the middle
+  gimbal under 1.3°, where it reached 11.4°. On the P23 flight home,
+  P37's first correction is 4.7 m/s, where it was 5.8.
+- **The LGC** still holds the ΔV's LVLH direction [simplified]:
+  Luminary's External ΔV steered as Colossus's did, but the LM's burns
+  are short, DOI's 30 s the longest.
+- **Checkpoints** are schema 13: the thrust direction P40 holds in a
+  burn's last seconds.
+
 ### Slices
 
 | Slice | Work | Check |
@@ -1463,7 +1519,7 @@ Slice 5d gives the flight its launch:
 | 5b (done) The Moon's mascons | The Moon's gravity field from GRAIL, truncated by a script in `tools/` to the degree a 60 nmi orbit feels, for truth and the RTCC; the CMC and the LGC keep the simpler lunar model their programs flew with, sourced in the slice. The step's cost is measured and budgeted | Test: a low lunar orbit's apsides move as an independent integration of the same field predicts, and the flown LOI-2 orbit's change by the landing is compared with the mission report's. The landing and the rendezvous pass, the onboard state vectors now drifting from truth |
 | 5c (done) S-IVB iterative guidance | The IU's iterative guidance mode for TLI: steering to the target conic the RTCC plans (its energy, eccentricity and plane), the time to go iterated as it burns, cutoff on the target. The fixed yaw goes | Test: TLI hits the target within a set limit, with its ΔV and plane change near Apollo 11's (about 3,180 m/s and 1.3°) |
 | 5d (done) The launch | Liftoff from Launch Complex 39A at 13:32:00 UTC: the S-IC's roll and tilt programs and its cutoffs, staging, the S-II and the S-IVB on iterative guidance, the launch escape tower's jettison, insertion. The atmosphere turns with the Earth. A start phase on the pad, and the cabin and the HUD through the ascent. Aborts are left for later | Test: insertion into Apollo 11's parking orbit (32.5°, about 100 nmi) at about 11:49 GET within set limits, each stage's burn near the flown times (the Saturn V flight evaluation report) |
-| 5e P40 cross-product steering | Colossus's cross-product steering in P40 and P41, in place of holding the ΔV's LVLH direction | Test: LOI-1 on cross-product steering leaves an orbit nearer the RTCC's plan than LVLH steering does, and short burns come out as they did |
+| 5e (done) P40 cross-product steering | Colossus's cross-product steering in P40 and P41, in place of holding the ΔV's LVLH direction | Test: LOI-1 on cross-product steering leaves an orbit nearer the RTCC's plan than LVLH steering does, and short burns come out as they did |
 | 5f Entry range targeting | Colossus's entry guidance (P62 to P67): the range to a splashdown target on the rotating Earth, up-control for long ranges, the final phase along a reference trajectory, and lateral roll reversals. The target comes with the entry PAD | Test: from entry interface the CM splashes down within a set limit of the target, from a short and a long range alike |
 
 ### Order

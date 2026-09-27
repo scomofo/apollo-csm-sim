@@ -6,8 +6,8 @@
 ##
 ##   P00  CMC idling
 ##   P30  External ΔV
-##   P40  SPS thrusting [simplified: LVLH steering stands in for Colossus
-##        cross-product steering, which a long LOI burn needs]
+##   P40  SPS thrusting, on Colossus's cross-product steering (the core's
+##        cross_product())
 ##   P41  RCS thrusting: as P40, but the burn is +X translation on the SM
 ##        RCS (small corrections the SPS cannot resolve)
 ##   P47  Thrust monitor (manual burns): V16N83 body ΔV
@@ -147,6 +147,9 @@ const CMC_NOUNS := {
 }
 
 var entry_captured: bool = false
+## P40 and P41 steer as Colossus's did (cross_product()); false holds the
+## ΔV's LVLH direction instead, as the simulator did before, to compare.
+var cross_product_steering: bool = true
 ## P51 and P52: the option (P52's), the orientation a coarse align goes
 ## to, the two stars (codes), the marks taken (each star's direction as
 ## measured, stable member axes), the star angle difference (deg), the
@@ -204,8 +207,15 @@ func thrusting_programs() -> Array:
 	return [40, 41]
 
 
-func engine_thrust(_p: int) -> float:
+## The SPS's thrust, or in P41 the four +X jets'.
+func engine_thrust(p: int) -> float:
+	if p == 41:
+		return 4.0 * float(SpacecraftData.section("sm_rcs")["jet_thrust_n"])
 	return float(SpacecraftData.section("sps")["thrust_n"])
+
+
+func cross_product() -> bool:
+	return cross_product_steering
 
 
 func engine_tau_off(_p: int) -> float:

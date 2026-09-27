@@ -534,8 +534,9 @@ func request_pad(kind: String, earliest: float = -1.0) -> Dictionary:
 					float(mission.section("doi")["pericynthion_alt_km"]) * 1000.0, landing_site(),
 					float(mission.section("landing")["get_s"]), float(g["pdi_range_m"]), float(g["descent_s"]), now + 600.0)
 		"loi":
-			pad = Rtcc.plan_loi(tr, mass, float(mission.section("loi")["apolune_alt_km"]) * 1000.0,
-				landing_site(), float(mission.section("landing")["get_s"]))
+			var loi := mission.section("loi")
+			pad = Rtcc.plan_loi(tr, mass, float(loi["apolune_alt_km"]) * 1000.0, landing_site(),
+				float(mission.section("landing")["get_s"]), float(loi.get("perilune_alt_km", -1.0)) * 1000.0)
 		"circ":
 			var lo := mission.section("lunar_orbit")
 			var r_site := landing_site().length()
