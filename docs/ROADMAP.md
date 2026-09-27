@@ -1229,9 +1229,10 @@ Slice 5b gives the Moon its mascons:
   step), and a cubic through four samples gives it at each stage; the
   degree fades with distance, to the terms whose (R/r)ⁿ still exceed
   e⁻⁸, 3 at ten lunar radii. A day of a 60 nmi orbit comes 10 m from
-  one evaluated at every stage, its apsides under a metre. The scenario
-  parts took 7:31, 7:01 and 7:09 on the development machine, where they
-  took 6:11, 6:16 and 5:53 before.
+  one evaluated at every stage, its apsides under a metre. On CI the
+  scenario parts' tests took 6:09, 8:11 and 8:50 (5a's: 6:13, 6:24 and
+  6:46), still dealt by 5a's times, the slowest job 9:11; with 5b's in
+  `.github/scenario_seconds.txt` they deal 461, 463 and 459 s.
 - **The onboard model.** The CMC and the LGC fly R-2, the model their
   programs carried: the Moon's J2, J3, C22 and C31 at 1,738.09 km,
   applied within 16,093 km (Risdal's Boeing report; the Comanche 055 and
