@@ -375,6 +375,12 @@ func fly_stored(p52_option: int = 1) -> float:
 	keys("P")
 	Bus.set_value("ctl.sps.arm_a", false)
 	Bus.set_value("ctl.sps.arm_b", false)
+	# HOLD until the DAP has nulled the rate the burn left (an SPS burn
+	# leaves the stack rolling at up to a degree a second), so a long coast
+	# in FREE after it doesn't tumble into gimbal lock.
+	Bus.set_value("ctl.cmc.mode", 1)
+	run_until(func() -> bool: return rt.dynamics.attitude.omega.length() < 1e-6 and not Bus.get_value("guid.dap_busy", false),
+		300.0, 1.0, false)
 	Bus.set_value("ctl.cmc.mode", 0)
 	return dv
 

@@ -6,7 +6,8 @@
     "_lm_source": "LM-5 Eagle, 15,103 kg with full tanks [published]: the descent stage's dry mass and the propellant loads (dps, aps, lm_rcs) [published, rounded]; the ascent stage's dry mass, with the crew and their equipment, makes up the total [estimated]",
     "lm_descent_dry_kg": 2034.0,
     "lm_ascent_dry_kg": 2181.0,
-    "sivb_dry_kg": 11500.0
+    "_sivb_source": "Apollo 11's vehicle at the second S-IVB ignition, 134,051 kg [published: AS-506 flight evaluation report, MPR-SAT-FE-69-9, Table 20-7], less the CSM and the LM here and the S-IVB's propellant (sivb): the S-IVB dry with the Instrument Unit, the adapter and the residuals, all left behind at transposition [derived]",
+    "sivb_dry_kg": 15663.0
   },
   "sps": {
     "_source": "AJ10-137: 20,500 lbf vacuum thrust, Isp 314 s [published]",
@@ -29,10 +30,10 @@
     "ring_propellant_kg": 55.0
   },
   "sivb": {
-    "_source": "J-2 vacuum thrust ~1,000 kN, Isp ~421 s [published]; propellant remaining at TLI [estimated]",
-    "thrust_n": 1000000.0,
-    "isp_s": 421.0,
-    "propellant_kg": 75000.0
+    "_source": "The J-2 in Apollo 11's second S-IVB burn, TLI: 894,364 N and 4,204 N s/kg at the standard time slice, and 61,151 kg of LOX with 13,301 kg of LH2 at the second ignition [published: AS-506 flight evaluation report, MPR-SAT-FE-69-9, Tables 7-2 and 7-3, best estimates; the thrust and the specific impulse held through the burn: simplified]",
+    "thrust_n": 894364.0,
+    "isp_s": 428.69,
+    "propellant_kg": 74452.0
   },
   "dps": {
     "_source": "Descent engine: 10,125 lbf full thrust, throttleable from 10 % to 60 % [published]; Isp and propellant load [published, rounded]; transients [estimated]. P40 starts it at 10 % for 15 s and then burns at 40 %, as Apollo 11's DOI did [published]",

@@ -418,6 +418,10 @@ func test_a_landed_lm_turns_with_the_moon_and_can_lift_off() -> void:
 
 func test_loi_turns_the_orbit_over_the_site() -> void:
 	build("translunar_coast")
+	# The midcourse correction takes the coast off TLI's free return, to 60
+	# nmi on the node over the site, as Apollo 11's did.
+	assert_false(rt.sequencer.request_pad("mcc").is_empty(), "an MCC")
+	fly_pad()
 	var ap := Rtcc.lunar_approach(rt.dynamics.traj.clone(), SimClock.get_seconds + 5.0 * 86400.0)
 	run(float(ap["t"]) - 8.0 * 3600.0 - SimClock.get_seconds)
 	var loi := rt.sequencer.request_pad("loi")

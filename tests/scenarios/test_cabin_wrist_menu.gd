@@ -9,10 +9,7 @@ extends CabinTest
 
 func test_request_a_pad_from_the_wrist_menu_and_fly_on_down_the_checklist() -> void:
 	build("translunar_coast")
-	# As in test_cabin_mcc.gd: a TLI cutoff error, so there is an MCC to plan.
-	var tr := rt.dynamics.traj
-	tr.set_state(tr.primary, tr.t, tr.pos(), tr.vel() - tr.vel().normalized() * 0.8)
-	rt.dynamics.publish_state()
+	# The coast starts on TLI's free return, so there is an MCC to plan.
 	await setup_cabin("translunar_coast")
 	assert_string_starts_with(current_step(), "Mission Control: request the PAD")
 	assert_false(dsky.lamps["uplink_acty"].get("lit"))

@@ -322,11 +322,15 @@ func _navigate(dv: Vector3) -> void:
 		_burn_dv = 0.0
 
 
-## P22 and P23 leave the DAP holding the attitude they flew to.
+## P22 and P23 leave the DAP holding the attitude they flew to, and P40
+## and P41 where they leave the CSM (not where it was before their
+## maneuver, which a hold would turn it back to).
 func change_program(p: int) -> bool:
-	if program in [22, 23] and auto_active:
-		hold_q = auto_target
+	var steering := auto_active
+	var target := auto_target if program in [22, 23] else _att()
 	var ok := super.change_program(p)
+	if ok and steering:
+		hold_q = target
 	_publish_nav()
 	return ok
 

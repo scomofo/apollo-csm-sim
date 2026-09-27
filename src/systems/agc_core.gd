@@ -849,10 +849,15 @@ func _dap(_dt: float) -> void:
 	var rhc_active := hc.length() > 0.05
 	if not imu.operating():
 		# No attitude reference (NO ATT): the hand controller as in FREE,
-		# and otherwise the rates damped; the hold starts again where the
+		# and otherwise the rates damped, to REST_RATE and the jets off as
+		# the hold comes to rest (else they pulse on a trace of rate for
+		# good, and the clock can't coast); the hold starts again where the
 		# vehicle is once the IMU is back.
 		hold_q = _att()
-		cmd = hc if rhc_active else _rate_cmd(-w, alpha, tau)
+		if rhc_active:
+			cmd = hc
+		elif w.length() > REST_RATE:
+			cmd = _rate_cmd(-w, alpha, tau)
 		_rhc_was_active = rhc_active
 		Bus.set_value(_ch("guid.rcs_rot_cmd"), cmd)
 		Bus.set_value(_ch("guid.dap_busy"), rhc_active or cmd.length() > 1e-4)

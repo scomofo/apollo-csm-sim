@@ -18,7 +18,8 @@ extends RefCounted
 ##    truth's and the computers' state vectors' (slice 5b).
 ## 10: the thrust each trajectory's samples ahead were taken with, for
 ##    them to be taken again when a burn begins or ends (slice 5b).
-const SCHEMA_VERSION := 10
+## 11: the IU's target conic and its iterative guidance's state (slice 5c).
+const SCHEMA_VERSION := 11
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],

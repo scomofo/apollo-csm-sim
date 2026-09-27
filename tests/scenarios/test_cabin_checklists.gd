@@ -196,6 +196,10 @@ func _phase(p: String) -> Callable:
 func test_lunar_orbit_insertion_to_tei() -> void:
 	build("translunar_coast")
 	await setup_cabin("translunar_coast")
+	# The midcourse correction first, off TLI's free return to 60 nmi over
+	# the site, with the SPS burn checklist.
+	var mcc := await _burn("mcc", 0.5 * Units.FT)
+	assert_almost_eq(float(mcc["flown"]), float(mcc["dv"]), 0.5, "the MCC flown")
 	await open_checklist("Lunar orbit and TEI")
 	await expect_step("Request LOI PAD")
 	# Coast to about 8 h before pericynthion.
