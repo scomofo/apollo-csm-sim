@@ -262,6 +262,60 @@ func test_a_thrusting_trajectorys_samples_follow_the_thrust() -> void:
 	assert_gt((coasting - want).length(), 5.0 * (with_thrust - want).length(), "not where it would coast")
 
 
+## A burn begun or ended within one of the grid's intervals: the samples
+## ahead of the trajectory, taken for the coast before it (or the burn),
+## are taken again for the burn (or the coast), as a trajectory with none
+## in hand would take them. Those behind it, where it went, stay.
+func test_a_burns_start_and_end_take_the_samples_ahead_again() -> void:
+	var r := Bodies.R_MOON + 15000.0
+	var none := PackedFloat64Array()
+	var thrust := PackedFloat64Array([0.0, 3.0, 0.0])
+	var tr := Trajectory.new()
+	tr.set_state("moon", 369000.0 + 0.5 * Trajectory.FIELD_HOLD, Vector3(r, 0.0, 0.0), Vector3(0.0, -1690.0, 0.0))
+	# Ignition 10 s into an interval; cutoff a minute on, 10 s into another.
+	for leg: Array in [["ignition", 10.0, none, thrust], ["cutoff", 60.0, thrust, none]]:
+		var before: PackedFloat64Array = leg[2]
+		var after: PackedFloat64Array = leg[3]
+		var t_change := tr.t + float(leg[1])
+		while tr.t < t_change - 1e-6:
+			tr.step(0.1, before)
+		var k := tr.field_k
+		var held := tr.field_a.duplicate()
+		var fresh := tr.clone()
+		fresh.field_a = PackedFloat64Array()
+		fresh._field_samples(k, after)
+		var t_c := tr.t
+		tr.step(0.1, after)
+		assert_eq(tr.field_k, k, "the same intervals in hand at the %s" % leg[0])
+		for j in 4:
+			var got := Vector3(tr.field_a[3 * j], tr.field_a[3 * j + 1], tr.field_a[3 * j + 2])
+			var ahead := (float(k + j) + 0.5) * Trajectory.FIELD_HOLD > t_c
+			var src := fresh.field_a if ahead else held
+			assert_almost_eq(got.distance_to(Vector3(src[3 * j], src[3 * j + 1], src[3 * j + 2])), 0.0, 1e-15,
+				"at the %s, interval %d's sample %s" % [leg[0], k + j, "taken again" if ahead else "kept"])
+		# The sample two intervals on, where the trajectory does get to.
+		var mid := (float(k + 3) + 0.5) * Trajectory.FIELD_HOLD
+		var at := tr.clone()
+		while at.t < mid - 1e-6:
+			at.step(minf(0.1, mid - at.t), after)
+		var want := _field_where(at)
+		var taken := Vector3(tr.field_a[9], tr.field_a[10], tr.field_a[11])
+		var stale := Vector3(held[9], held[10], held[11])
+		gut.p("%.0f s after the %s, the sample %.2f um/s2 off, %.1f as held before it" % [mid - t_c, leg[0],
+			(taken - want).length() * 1e6, (stale - want).length() * 1e6])
+		assert_lt((taken - want).length(), 0.01 * want.length(), "at the %s, taken where the trajectory goes" % leg[0])
+		assert_gt((stale - want).length(), 5.0 * (taken - want).length(), "not where it went before the %s" % leg[0])
+
+
+## The Moon's field (GRAIL's, inertial m/s²) where [param at] is.
+func _field_where(at: Trajectory) -> Vector3:
+	var ax := Bodies.moon_fixed_axes(at.t)
+	var p := Bodies.to_moon_fixed([at.s[0], at.s[1], at.s[2]], at.t)
+	var g := MoonGravity.accel_fixed(p[0], p[1], p[2])
+	return Vector3(g[0] * ax[0] + g[1] * ax[3] + g[2] * ax[6], g[0] * ax[1] + g[1] * ax[4] + g[2] * ax[7],
+		g[0] * ax[2] + g[1] * ax[5] + g[2] * ax[8])
+
+
 func test_each_computer_flies_its_own_model() -> void:
 	var r := Bodies.R_MOON + 111000.0
 	var truth := Trajectory.new()

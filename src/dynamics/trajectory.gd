@@ -29,6 +29,15 @@ extends RefCounted
 ## tools/gravity/moon_gravity.py --hold], for a fraction of the cost.
 const FIELD_HOLD := 30.0
 
+## The change in a step's external acceleration, m/s², for which the
+## field's samples ahead of the trajectory are taken again: a burn's
+## start or end, or its throttle moved. A quarter of a m/s² held a
+## minute leaves a sample 450 m from where the trajectory gets to; a
+## DPS burn's 3 m/s², 5 km. Four RCS jets translating the docked stack
+## (0.04 m/s²) don't reach it; translating the ascent stage after
+## insertion (0.7 m/s²), they do.
+const FIELD_EXT_TOL := 0.25
+
 enum Model { TRUTH, CMC, LGC }
 
 ## The altitude over the primary below which the CMC's programs leave out
@@ -49,6 +58,9 @@ var model: Model = Model.TRUTH
 ## field_k to field_k + 3, twelve floats (none before the first sample).
 var field_a: PackedFloat64Array = PackedFloat64Array()
 var field_k: int = 0
+## The external acceleration (m/s², empty for none) the samples ahead of
+## the trajectory were taken with, all within FIELD_EXT_TOL of it.
+var field_e: PackedFloat64Array = PackedFloat64Array()
 
 
 func clone() -> Trajectory:
@@ -59,6 +71,7 @@ func clone() -> Trajectory:
 	c.model = model
 	c.field_a = field_a.duplicate()
 	c.field_k = field_k
+	c.field_e = field_e.duplicate()
 	return c
 
 
@@ -88,7 +101,7 @@ func as_onboard(m: Model) -> Trajectory:
 func field_snapshot() -> Dictionary:
 	if field_a.size() != 12:
 		return {}
-	return {"k": field_k, "a": Array(field_a)}
+	return {"k": field_k, "a": Array(field_a), "e": Array(field_e)}
 
 
 ## Restore the field's samples from field_snapshot()'s [param d].
@@ -98,6 +111,7 @@ func restore_field(d: Dictionary) -> void:
 		return
 	field_a = PackedFloat64Array(d["a"])
 	field_k = int(d["k"])
+	field_e = PackedFloat64Array(d.get("e", []))
 
 
 # --- state accessors -----------------------------------------------------
@@ -353,7 +367,8 @@ static func _plus(a: PackedFloat64Array, b: PackedFloat64Array) -> PackedFloat64
 ## any step's phase and a flight restored from a checkpoint flies as it
 ## did. Far from the Moon the degrees that have faded are left out. New
 ## samples are taken where the step's external acceleration [param ext]
-## (a thrust's) carries the trajectory too.
+## (a thrust's) carries the trajectory too, and when a burn begins or
+## ends the samples ahead are taken again.
 func _field_at(tau: float, ext: PackedFloat64Array) -> PackedFloat64Array:
 	var u := tau / FIELD_HOLD - 0.5
 	var k := int(floorf(u))
@@ -374,22 +389,50 @@ func _field_at(tau: float, ext: PackedFloat64Array) -> PackedFloat64Array:
 
 ## Makes field_a hold the samples for the grid's intervals [param k] to
 ## k + 3, keeping those it has and taking the others (with [param ext],
-## as _field_at()).
+## as _field_at()). When [param ext] has moved FIELD_EXT_TOL from the one
+## the samples ahead were taken with, a burn has begun or ended since, and
+## they're taken again.
 func _field_samples(k: int, ext: PackedFloat64Array) -> void:
-	if field_a.size() == 12:
-		if field_k == k:
-			return
+	if field_a.size() == 12 and absi(k - field_k) <= 1:
+		if _ext_moved(ext):
+			_retake_ahead(ext)
 		if field_k == k - 1:
 			field_a = field_a.slice(3, 12) + _field_sample(k + 3, ext)
 			field_k = k
-			return
-		if field_k == k + 1:
+		elif field_k == k + 1:
 			field_a = _field_sample(k, ext) + field_a.slice(0, 9)
 			field_k = k
-			return
+		return
 	field_a = _field_sample(k, ext) + _field_sample(k + 1, ext) + _field_sample(k + 2, ext) \
 		+ _field_sample(k + 3, ext)
 	field_k = k
+	field_e = ext.duplicate()
+
+
+## Whether [param ext] is FIELD_EXT_TOL or more from field_e (either
+## empty for none).
+func _ext_moved(ext: PackedFloat64Array) -> bool:
+	if ext.size() != 3 and field_e.size() != 3:
+		return false
+	var d := 0.0
+	for i in 3:
+		var x := (ext[i] if ext.size() == 3 else 0.0) - (field_e[i] if field_e.size() == 3 else 0.0)
+		d += x * x
+	return d >= FIELD_EXT_TOL * FIELD_EXT_TOL
+
+
+## Takes the samples in hand that lie ahead of the trajectory again, with
+## [param ext]: those taken before put the field where the trajectory
+## would have gone without the change. Those behind it are where it went.
+func _retake_ahead(ext: PackedFloat64Array) -> void:
+	for j in 4:
+		var h := (float(field_k + j) + 0.5) * FIELD_HOLD - t
+		if h > 0.0:
+			var a := _field_ahead(h, ext)
+			field_a[3 * j] = a[0]
+			field_a[3 * j + 1] = a[1]
+			field_a[3 * j + 2] = a[2]
+	field_e = ext.duplicate()
 
 
 ## The field's sample for the grid's interval [param k], at its middle.
