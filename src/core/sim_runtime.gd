@@ -20,7 +20,9 @@ extends RefCounted
 ##    them to be taken again when a burn begins or ends (slice 5b).
 ## 11: the IU's target conic and its iterative guidance's state (slice 5c).
 ## 12: the launch vehicle's (slice 5d).
-const SCHEMA_VERSION := 12
+## 13: the CMC's steered thrust direction, which cross-product steering
+##    holds in a burn's last seconds (slice 5e).
+const SCHEMA_VERSION := 13
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],

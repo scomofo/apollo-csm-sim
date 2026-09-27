@@ -2,8 +2,9 @@
 ## Control ran for every Apollo maneuver, reduced to what this simulator
 ## needs. Every solution is found by shooting with the same three-body
 ## propagator the vehicle flies (Trajectory) and the same burn laws the
-## vehicle executes (S-IVB energy cutoff, CMC P40 LVLH-held thrust, LGC P40
-## on the DPS's throttle schedule), so a PAD flown as uplinked lands close
+## vehicle executes (the S-IVB's iterative guidance, the CMC's P40 on
+## Colossus's External ΔV steering, the LGC's P40 on the DPS's throttle
+## schedule), so a PAD flown as uplinked lands close
 ## to its target; residuals are what midcourse corrections are for.
 ##
 ## A PAD is a Dictionary: {"name", "tig" (GET s), "dv_lvlh" (Vector3, m/s),
@@ -31,20 +32,23 @@ static func burn_time(mass: float, dv: float) -> float:
 	return mass * (1.0 - exp(-absf(dv) / ve)) / sps_mdot()
 
 
-## Fly a CMC P40 burn on [param traj]: SPS thrust held along the
-## [param dv_lvlh] direction in the moving LVLH frame until its magnitude
-## has been gained (the same law the CMC flies). Returns the mass after.
+## Fly a CMC P40 burn on [param traj], from its TIG, as the CMC flies it:
+## the SPS's thrust held along the velocity to be gained Colossus sets at
+## ignition (AgcCore.external_dv_vg(), the [param dv_lvlh] ΔV turned
+## through half the burn's arc), fixed in inertial space, until its
+## magnitude has been gained. Returns the mass after.
 static func simulate_sps_burn(traj: Trajectory, mass: float, dv_lvlh: Vector3, dt: float = 0.5) -> float:
 	var d := SpacecraftData.section("sps")
 	var f := float(d["thrust_n"])
 	var mdot := sps_mdot()
-	var u := dv_lvlh.normalized()
-	var left := dv_lvlh.length()
+	var g := AgcCore.external_dv_vg(traj.pos(), traj.vel(), lvlh_to_inertial(traj, dv_lvlh), mass, f)
+	var u := g.normalized()
+	var left := g.length()
 	var m := mass
 	while left > 1e-4:
 		var acc := f / m
 		var h := minf(dt, left / acc)
-		var a := lvlh_to_inertial(traj, u) * acc
+		var a := u * acc
 		traj.step(h, PackedFloat64Array([a.x, a.y, a.z]))
 		left -= acc * h
 		m -= mdot * h
@@ -502,13 +506,18 @@ static func _solve3(cols: Array[PackedFloat64Array], b: PackedFloat64Array) -> P
 
 # --- lunar orbit ---------------------------------------------------------------
 
-## LOI-1: retrograde External ΔV centred on pericynthion, sized (by
-## bisection on the finite burn) to leave an orbit with the requested
-## apolune. Apollo 11: 60 x 170 nmi. Given a landing site
-## [param site_mf] (Moon-fixed) and landing time [param t_land], an
-## out-of-plane component turns the orbit's plane about the burn point to
-## pass over the site at the landing time.
-static func plan_loi(traj: Trajectory, mass: float, apolune_alt: float, site_mf: Vector3 = Vector3.ZERO, t_land: float = 0.0) -> Dictionary:
+## LOI-1: a retrograde External ΔV centred on pericynthion, flown as the
+## CMC flies it (simulate_sps_burn()), to leave an orbit with the
+## requested apolune and, given [param perilune_alt] (not negative), that
+## perilune: the ΔV's pitch keeps it where a thrust held fixed in inertial
+## space through the burn's arc would move it. Apollo 11: 60 x 170 nmi.
+## Given a landing site [param site_mf] (Moon-fixed) and landing time
+## [param t_land], the ΔV's part out of the plane turns the orbit's plane
+## about the burn point to pass over the site at the landing time. The
+## ΔV's size comes first, by bisection on the apolune; then a Newton solve
+## on its size, its part out of the plane and its pitch together.
+static func plan_loi(traj: Trajectory, mass: float, apolune_alt: float, site_mf: Vector3 = Vector3.ZERO, t_land: float = 0.0,
+		perilune_alt: float = -1.0) -> Dictionary:
 	var tr := traj.clone()
 	var ap := lunar_approach(tr, traj.t + 5.0 * 86400.0)
 	if tr.primary != "moon" or ap["impact"]:
@@ -517,54 +526,58 @@ static func plan_loi(traj: Trajectory, mass: float, apolune_alt: float, site_mf:
 	var r := tr.radius()
 	var v := tr.speed()
 	var ra := Bodies.R_MOON + apolune_alt
-	var box := {"dvy": 0.0}
-	var outcome := func(dvm: float) -> Dictionary:
-		var dv := Vector3(-dvm, box["dvy"], 0)
+	var rp := Bodies.R_MOON + perilune_alt
+	var lo := maxf(v - sqrt(2.0 * Bodies.MU_MOON / r), 0.0)
+	var hi := (v - sqrt(Bodies.MU_MOON / r)) * 1.1
+	# One coast to before the earliest ignition a trial may have; each
+	# trial coasts on from there.
+	var pre := traj.clone()
+	pre.coast_to(t_peri - burn_time(mass, hi * 1.2) / 2.0 - 60.0, 60.0, FRAC)
+	var outcome := func(dv: Vector3) -> Dictionary:
 		var tb := burn_time(mass, dv.length())
-		var t2 := traj.clone()
+		var t2 := pre.clone()
 		t2.coast_to(t_peri - tb / 2.0, 60.0, FRAC)
 		simulate_sps_burn(t2, mass, dv)
 		var c := t2.conic()
-		var ra_now: float = c["ra"] if c["ra"] != INF else 1.0e12
 		var h: Vector3 = c["h"]
-		return {"tig": t_peri - tb / 2.0, "ra": ra_now, "rp": c["rp"], "tb": tb, "h": h.normalized()}
-	# ra(dv) falls monotonically from unbound (too little ΔV) to the burn
-	# radius (circular): bisect between those ends.
-	var size := func() -> float:
-		var lo := maxf(v - sqrt(2.0 * Bodies.MU_MOON / r), 0.0)
-		var hi := (v - sqrt(Bodies.MU_MOON / r)) * 1.1
-		for _i in 40:
-			var mid := (lo + hi) / 2.0
-			if float(outcome.call(mid)["ra"]) > ra:
-				lo = mid
-			else:
-				hi = mid
-			if hi - lo < 0.05:
-				break
-		return (lo + hi) / 2.0
-	var dv: float = size.call()
-	if site_mf != Vector3.ZERO:
-		# Secant on the out-of-plane ΔV until the plane holds the site at the
-		# landing time, re-sizing the retrograde part as it goes.
-		var s := site_at(site_mf, t_land).normalized()
-		var y0 := 0.0
-		var f0: float = (outcome.call(dv)["h"] as Vector3).dot(s)
-		var y1 := 10.0 * -signf(f0)
-		for _i in 8:
-			box["dvy"] = y1
-			var f1: float = (outcome.call(dv)["h"] as Vector3).dot(s)
-			if absf(f1) < 1e-7 or absf(f1 - f0) < 1e-12:
-				break
-			var y2 := y1 - f1 * (y1 - y0) / (f1 - f0)
-			y0 = y1
-			f0 = f1
-			y1 = y2
-		box["dvy"] = y1
-		dv = size.call()
-	var res: Dictionary = outcome.call(dv)
-	var dv_lvlh := Vector3(-dv, box["dvy"], 0)
-	return {"name": "LOI-1", "tig": res["tig"], "dv_lvlh": dv_lvlh, "dv": dv_lvlh.length(),
-		"burn_s": res["tb"], "ha": float(res["ra"]) - Bodies.R_MOON, "hp": float(res["rp"]) - Bodies.R_MOON}
+		return {"tig": t_peri - tb / 2.0, "ra": float(c["ra"]) if c["ra"] != INF else 1.0e12, "rp": float(c["rp"]),
+			"tb": tb, "h": h.normalized()}
+	# ra falls monotonically with the retrograde ΔV from unbound (too
+	# little) to the burn's radius (circular): bisect between those ends.
+	for _i in 40:
+		var mid := (lo + hi) / 2.0
+		if float(outcome.call(Vector3(-mid, 0.0, 0.0))["ra"]) > ra:
+			lo = mid
+		else:
+			hi = mid
+		if hi - lo < 0.05:
+			break
+	var x := Vector3(-(lo + hi) / 2.0, 0.0, 0.0)
+	var s := site_at(site_mf, t_land).normalized() if site_mf != Vector3.ZERO else Vector3.ZERO
+	# The misses: the apolune's (m), the site's height over the plane (per
+	# million) and the perilune's (m). A target not given misses by the ΔV's
+	# part that would reach it, which the solve leaves at zero.
+	var misses := func(o: Dictionary, dv: Vector3) -> PackedFloat64Array:
+		return PackedFloat64Array([float(o["ra"]) - ra, (o["h"] as Vector3).dot(s) * 1.0e6 if s != Vector3.ZERO else dv.y,
+			float(o["rp"]) - rp if perilune_alt >= 0.0 else dv.z])
+	var res: Dictionary = outcome.call(x)
+	for _i in 8:
+		var f: PackedFloat64Array = misses.call(res, x)
+		if absf(f[0]) < 50.0 and absf(f[1]) < 0.1 and absf(f[2]) < 50.0:
+			break
+		var cols: Array[PackedFloat64Array] = []
+		for k in 3:
+			var step := Vector3.ZERO
+			step[k] = 0.5
+			var fk: PackedFloat64Array = misses.call(outcome.call(x + step), x + step)
+			cols.append(PackedFloat64Array([(fk[0] - f[0]) / 0.5, (fk[1] - f[1]) / 0.5, (fk[2] - f[2]) / 0.5]))
+		var d := _solve3(cols, PackedFloat64Array([-f[0], -f[1], -f[2]]))
+		if d.is_empty():
+			break
+		x += Vector3(d[0], d[1], d[2])
+		res = outcome.call(x)
+	return {"name": "LOI-1", "tig": res["tig"], "dv_lvlh": x, "dv": x.length(), "burn_s": res["tb"],
+		"ha": float(res["ra"]) - Bodies.R_MOON, "hp": float(res["rp"]) - Bodies.R_MOON}
 
 
 ## Circularization (LOI-2 or any orbit trim) at the next periapsis or

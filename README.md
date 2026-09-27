@@ -530,9 +530,9 @@ A flown Apollo 11 profile in the simulator reproduces these values:
 | The free return after TLI | 896.5 nmi past the Moon at 75:05:23, 1.9° N 174.4° W; an Earth capture | 896.3 nmi at 75:05:21, 0.1° S 174.1° W; an Earth capture |
 | Translunar midcourse correction | 30.5 ft/s at 4:04 | 19.7 ft/s at 4:40 (the evasive maneuver) and 20.9 ft/s at 26:45 |
 | Translunar coast | 73.0 h | 73.0 h |
-| LOI-1 | GET 75:50:33, 877 m/s, 6.1 min, 58 × 170 nmi | 75:49:50, 889 m/s, 5.96 min, 60 × 170 nmi |
+| LOI-1 | GET 75:50:32, 880 m/s, 6.1 min, 58 × 170 nmi | 75:49:50, 889 m/s, 5.96 min, 60 × 170 nmi |
 | The orbit after LOI-2, above the landing site, flown through the Moon's field | 65.4 × 53.5 nmi at 80:11:54, 61.8 × 56.9 nmi at 126 h | 65.7 × 53.8 nmi, 62.4 × 56.6 nmi |
-| TEI | GET 135:16:22, 1,000 m/s | 135:23:42, 1,001 m/s |
+| TEI | GET 135:16:27, 1,000 m/s | 135:23:42, 1,001 m/s |
 | DOI | GET 101:34:52, 74.3 ft/s, 30 s | 101:36:14, ~76 ft/s, ~30 s |
 | Powered descent | 12 min 8 s, touchdown at 102:45:23, 165 m from the target (the LGC's crossrange error, which the radar can't see) | 12 min 35 s, touchdown at 102:45:40, about 6 km past the target |
 | The Sun at touchdown | 10.7° up | 10.8° up |
@@ -604,8 +604,13 @@ ones:
   preflight targeting gave; the RTCC solves the ignition time and the
   energy for the flown free return, and puts the conic's perigee
   mid-burn.
-- **P40 steering.** P40 holds the N81 direction in the rotating LVLH frame,
-  standing in for cross-product steering.
+- **P40 steering.** The CMC's P40 and P41 steer as Colossus's did: the
+  N81 ΔV set inertially at TIG and turned through half the burn's arc,
+  drawn down by the sensed ΔV, the thrust steered onto it until the last
+  4 s. The DAP turns the thrust onto it at its own rates, not on the cross
+  product's gain, and the burn's mass is the true one, where the crew
+  loaded it into the DAP. The LGC's P40 to P42 still hold the ΔV's
+  direction in the rotating LVLH frame.
 - **Entry guidance.** It is a constant-drag bank controller without range
   targeting.
 - **Atmosphere.** The 1976 U.S. Standard Atmosphere turns with the
@@ -771,7 +776,12 @@ The unit tests cover:
   LM's axes, and no data with the Moon in the way, beyond 400 nmi,
   docked or powered down
 - DSKY key logic, with V01 showing R1 alone
-- CMC programs
+- CMC programs, and Colossus's velocity to be gained for an External ΔV
+  (`tests/unit/test_agc.gd`): the ΔV's size and its part out of the
+  orbit's plane as loaded, the rest turned the way the vehicle moves
+  through half the burn's arc, which on a 300 m/s burn in a 60 nmi lunar
+  orbit points 0.12° from the retrograde at the burn's middle, where the
+  ΔV as loaded points 2.4° off
 - The navigation filter (`tests/unit/test_nav_filter.gd`): the
   star-horizon angle and its gradient against finite differences, a star
   behind the Earth, the landmark's line of sight, a scalar update, the
@@ -794,7 +804,8 @@ The unit tests cover:
   marks, its navigation filter and a P23 mark waiting at N49, and the
   Moon's field's samples each trajectory holds and the thrust they were
   taken with, the IU's target conic and its guidance's state, and the
-  launch vehicle's stages, time bases, guidance and events (schema 12).
+  launch vehicle's stages, time bases, guidance and events, and the
+  thrust direction P40 holds in a burn's last seconds (schema 13).
   Older
   checkpoints are rejected
 - The main scene, and in Eagle from `lunar_descent`: its HUD, the keys on
@@ -888,9 +899,19 @@ The scenario tests fly real segments through the crew interface:
   orientation, as every burn in the suite is. The MCC takes the free
   return to 60 nmi over the landing site at 75:53:35, where Apollo 11's
   first left it, with 30.5 ft/s (Apollo 11 took 19.7 and 20.9 ft/s in
-  two burns), and LOI-1 comes at 75:50:33 (75:49:50). By the LOI PAD the
+  two burns), and LOI-1 comes at 75:50:32 (75:49:50) with 2,885.6 ft/s
+  (2,917.5). By the LOI PAD the
   CMC's state vector is 18 km off, and the uplink brings it to 0.4 km.
   LOI-2's PAD targets Apollo 11's 65.7 × 53.7 nmi
+- P40's cross-product steering (`tests/scenarios/test_p40_steering.gd`),
+  slice 5e's check. From the same state 8 h before the Moon, LOI-1 on
+  cross-product steering leaves 57.6 × 169.7 nmi against the RTCC's plan
+  of 60.0 × 170.1 nmi; flown on the same PAD holding the ΔV's LVLH
+  direction instead, it leaves 57.8 × 162.3, 7.8 nmi short in apolune.
+  The perilune's 2.4 nmi either way is the CMC's navigation. LOI-2, a
+  quarter of a minute, comes out within 0.08 nmi either way. A checkpoint taken
+  in a burn's last seconds, the steering stopped, flies on to the same
+  cutoff
 - The Moon's mascons (`tests/scenarios/test_mascons.gd`), slice 5b's
   check. From LOI-2, GRAIL's field takes the orbit through the ground's
   tracking figures to 61.8 × 56.9 nmi at 126 h, where Apollo 11's was
@@ -902,14 +923,14 @@ The scenario tests fly real segments through the crew interface:
 - The IMU (`tests/scenarios/test_imu_alignment.gd`), slice 4c's check.
   Twelve hours of translunar coast drift the platform 0.215°, and P52 on
   two stars (Menkent and Altair) leaves 0.006°, under the 0.02° limit,
-  with N05 0.001°. A TEI flown on a platform 0.5° off goes 8.58 m/s off
-  the aligned flight, where the misalignment predicts 8.55 m/s, and the
+  with N05 0.001°. A TEI flown on a platform 0.5° off goes 8.59 m/s off
+  the aligned flight, where the misalignment predicts 8.56 m/s, and the
   CMC doesn't see it. A yaw in FREE lights GIMBAL LOCK at 70°, cages the
   IMU at 85° and loses the alignment; P52 and P40 refuse (00220), and P51
   finds the platform's orientation on two stars the crew names. P52
   won't coarse align to a new orientation in gimbal lock from where the
   CSM points (00401) until the CSM turns, and P40's maneuver to the burn
-  attitude keeps the middle gimbal to 11.4° at most. P52 option 1 puts
+  attitude keeps the middle gimbal to 1.3° at most. P52 option 1 puts
   the burn attitude at zero gimbal angles, and with the optics on the
   Moon it finds no stars (00405). Sixteen hours of attitude hold on the
   drifting platform cost 0.16 kg of RCS propellant
@@ -923,14 +944,14 @@ The scenario tests fly real segments through the crew interface:
   Moon's field drifts from the truth meanwhile
 - Onboard navigation (`tests/scenarios/test_onboard_navigation.gd`),
   slice 4d's check. A TEI flown on a platform 0.5° off leaves a vacuum
-  perigee of 327 km, far shallow of the 25 to 50 km corridor, and the
+  perigee of 269 km, far shallow of the 25 to 50 km corridor, and the
   CMC's state vector 3.8 km and 11.2 m/s off. With UP TLM CM in BLOCK
   from then on, the crew marks six stars with P23 every four hours from
   10 h after TEI, three on the Moon's horizon and three on the Earth's.
-  At 38.6 h P37 works out 5.8 m/s from the CMC's state, which, flown
-  after P52, leaves 43.9 km, where P37 from the unmarked state would
-  have left 354 km. After two more sessions a second P37 of 0.23 m/s
-  leaves 35.9 km. P23's dialogue: the codes it won't take, 00404 for a
+  At 38.6 h P37 works out 4.7 m/s from the CMC's state, which, flown
+  after P52, leaves 43.5 km, where P37 from the unmarked state would
+  have left 355 km. After two more sessions a second P37 of 0.19 m/s
+  leaves 37.1 km. P23's dialogue: the codes it won't take, 00404 for a
   star it can't lay on the horizon, the landmark line on the horizon
   under the star, V32 dropping a bad mark, a good one bringing a state
   vector 50 km off to 15 km, V67's RMS, and a load starting the filter
@@ -1017,7 +1038,7 @@ The scenario tests fly real segments through the crew interface:
     docks at 0.33 ft/s. Eagle's ΔV, 128.3 ft/s, is 7 % over the RTCC's
     plan (the check allows 20 %).
   - GO for jettison comes 2 h 5 min after docking. After LM JETT, the TEI
-    PAD plans TEI at 135:16:22, the opportunity nearest Apollo 11's
+    PAD plans TEI at 135:16:27, the opportunity nearest Apollo 11's
     135:23:42
 - Mission Control's timeline (`tests/scenarios/test_lunar_timeline.gd`),
   slice 3f. From `lunar_orbit`: GO for undocking at 100:00, the DOI PAD
@@ -1108,7 +1129,7 @@ realism. In the flight's remaining simplifications (milestone 5), the
 Earth is oblate and the Sun pulls (slice 5a), and the Moon has its
 mascons, which the onboard computers model as their flown R-2 did, so
 their state vectors drift from truth in lunar orbit (slice 5b), and the
-S-IVB flies TLI on the IU's iterative guidance (slice 5c), and the Saturn V
-flies Apollo 11 from the pad into its parking orbit (slice 5d). Next come
-P40's cross-product steering and entry range targeting, then sound (6) and
-the other missions (7).
+S-IVB flies TLI on the IU's iterative guidance (slice 5c), the Saturn V
+flies Apollo 11 from the pad into its parking orbit (slice 5d), and the
+CMC's P40 and P41 steer as Colossus's did (slice 5e). Next comes entry
+range targeting, then sound (6) and the other missions (7).

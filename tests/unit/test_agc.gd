@@ -75,3 +75,35 @@ func test_p41_rcs_burn_for_a_small_trim() -> void:
 	var dv := fly_pad()
 	assert_almost_eq(dv, 0.9, 0.05, "3 ft/s trim on the RCS")
 	assert_eq(int(Bus.get_value("sps.ignitions")), 0, "SPS never lit")
+
+
+## Colossus's velocity to be gained for an External ΔV (slice 5e): the
+## ΔV's part in the orbit's plane turned about its normal, the way the
+## vehicle moves, through half the arc it sweeps in the burn at constant
+## mass (Comanche 055's S40.1), its part out of the plane and its size as
+## loaded. On a 60 nmi lunar orbit a retrograde 300 m/s burn held along
+## it points within a fifth of a degree of the retrograde at the burn's
+## middle, where the ΔV as loaded points 2.4° off.
+func test_the_external_dv_is_centred_on_the_burn() -> void:
+	var r0 := Bodies.R_MOON + 60.0 * Units.NMI
+	var w := sqrt(Bodies.MU_MOON / r0) / r0
+	var mass := 30000.0
+	var sps := SpacecraftData.section("sps")
+	var f := float(sps["thrust_n"])
+	var dv := Vector3(0.0, -300.0, 20.0)
+	var g := AgcCore.external_dv_vg(Vector3(r0, 0, 0), Vector3(0, w * r0, 0), dv, mass, f)
+	var theta := 0.5 * w * mass * dv.length() / f
+	assert_almost_eq(g.length(), dv.length(), 1e-3, "its size as loaded")
+	assert_almost_eq(g.z, dv.z, 1e-4, "its part out of the plane as loaded")
+	assert_almost_eq(atan2(g.x, -g.y), theta, 1e-5, "turned outward, the way the orbit carries the retrograde")
+	var prograde := AgcCore.external_dv_vg(Vector3(r0, 0, 0), Vector3(0, w * r0, 0), Vector3(0, 300.0, 0), mass, f)
+	assert_almost_eq(atan2(-prograde.x, prograde.y), 0.5 * w * mass * 300.0 / f, 1e-5, "and the prograde inward")
+	# The burn's middle, from its time on the rocket equation.
+	var tb := Rtcc.burn_time(mass, dv.length())
+	var mid := w * tb / 2.0
+	var retro_mid := Vector3(sin(mid), -cos(mid), 0.0)
+	var in_plane := Vector3(g.x, g.y, 0.0)
+	gut.p("turned %.3f deg; %.3f deg from the retrograde at the burn's middle, where the ΔV as loaded is %.3f deg off" % [
+		rad_to_deg(theta), rad_to_deg(in_plane.angle_to(retro_mid)), rad_to_deg(Vector3(0, -1, 0).angle_to(retro_mid))])
+	assert_lt(rad_to_deg(in_plane.angle_to(retro_mid)), 0.2)
+	assert_gt(rad_to_deg(Vector3(0, -1, 0).angle_to(retro_mid)), 2.0)
