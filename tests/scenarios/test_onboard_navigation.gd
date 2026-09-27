@@ -209,7 +209,7 @@ func test_p23_marks_keep_the_entry_corridor_without_an_uplink() -> void:
 	var e0 := _nav_error()
 	gut.p("after TEI: vacuum perigee %.1f km, the CMC's %.1f km; its error %.2f km %.2f m/s" % [
 		p0, believed, e0.x / 1000.0, e0.y])
-	assert_lt(p0, 0.0, "the TEI left the CSM steep of the corridor")
+	assert_gt(absf(p0 - 37.5), 100.0, "the TEI left the CSM far outside the corridor")
 	assert_gt(e0.y, 5.0, "and the platform's half degree left the state vector metres per second off")
 	# P23 every 4 h, then P37.
 	_sessions(t_tei, 10.0, 38.0, 4.0)
@@ -243,10 +243,6 @@ func test_p22_landmark_marks_correct_the_lunar_orbit_state() -> void:
 	run(1.0, false)
 	var agc := rt.agc()
 	agc.imu.drift = Vector3.ZERO
-	# The CMC's state 2 km further along its orbit than it should be.
-	var ahead := agc.nav.clone()
-	ahead.coast_to(agc.nav.t + 2000.0 / agc.nav.speed())
-	agc.nav.set_state_d(agc.nav.primary, agc.nav.t, ahead.s)
 	keys("V37E22E")
 	assert_eq(agc.step_name, "n89", "V06N89: the landmark")
 	var lla: Array = agc.noun_values(89)
@@ -265,6 +261,11 @@ func test_p22_landmark_marks_correct_the_lunar_orbit_state() -> void:
 		return Optics.angles_for(Basis(rt.dynamics.attitude.q).inverse() * los).y < Optics.TRUNNION_MAX_DEG - 5.0
 	assert_true(run_until(seen, agc.sight_pass - SimClock.get_seconds, 5.0), "the landmark in the sextant's reach")
 	assert_true(bool(Bus.get_value("guid.optics.cmd")), "the CMC drives the optics to it")
+	# The CMC's state 2 km further along the orbit than the CSM is (its
+	# model of the Moon's field has moved it some way off already).
+	var ahead := rt.dynamics.traj.clone()
+	ahead.coast_to(ahead.t + 2000.0 / ahead.speed())
+	agc.nav.set_state_d(agc.nav.primary, rt.dynamics.traj.t, ahead.s)
 	var before := _nav_error()
 	for k in 5:
 		centre_landmark(_rng.randfn(0.0, 0.01))

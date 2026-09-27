@@ -14,7 +14,9 @@ extends RefCounted
 ## 7: the CMC's IMU (REFSMMAT, the platform, its drift) and alignment
 ##    programs, and the optics (slice 4c).
 ## 8: the CMC's navigation filter, and P22's and P23's sightings (slice 4d).
-const SCHEMA_VERSION := 8
+## 9: the Moon's gravity field's samples each trajectory holds, the
+##    truth's and the computers' state vectors' (slice 5b).
+const SCHEMA_VERSION := 9
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],

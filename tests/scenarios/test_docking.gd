@@ -1,10 +1,11 @@
 ## Slice 3a (docs/ROADMAP.md, milestone 3): the CSM and the LM as two
 ## vehicles. The LM undocks in lunar orbit; the CSM holds station behind it
-## and flies an equiperiod separation, a radial burn that changes the shape
-## of its orbit but not the period, so the vehicles meet again a revolution
-## later; a checkpoint taken mid-revolution flies on as the uninterrupted
-## run did; and the CSM docks again, flown on the translation controller.
-## Contacts outside the capture limits rebound.
+## and flies an equiperiod separation, a burn down across its velocity
+## (radial, on a round orbit) that changes the shape of its orbit but not
+## the period, so the vehicles meet again a revolution later; a checkpoint
+## taken mid-revolution flies on as the uninterrupted run did; and the CSM
+## docks again, flown on the translation controller. Contacts outside the
+## capture limits rebound.
 extends SimTest
 
 
@@ -59,8 +60,12 @@ func _station(station: Vector3, seconds: float) -> void:
 		csm_translate(rt.dynamics.attitude.body_from_eci() * _out(_frame(), -l[1]))
 
 
-## Burn [param dv] m/s radially down, the thrust kept on the local
-## vertical as it turns (the CSM's attitude holds still meanwhile).
+## Burn [param dv] m/s down across the CSM's velocity, in the orbit's
+## plane, the thrust kept there as it turns (the CSM's attitude holds still
+## meanwhile): the orbit's energy, and so its period, stay as they were.
+## On a round orbit it is the local vertical; on the flown one, out of
+## round, the vertical is off it by the flight path angle, and a burn on
+## the vertical would change the period.
 func _radial_burn(dv: float) -> void:
 	var cap := csm_step_dv()
 	var rate := minf(cap.y, cap.z) * 0.8
@@ -68,7 +73,9 @@ func _radial_burn(dv: float) -> void:
 	var given := 0.0
 	for i in 20000:
 		if given < dv:
-			var down := -rt.dynamics.traj.pos().normalized()
+			var r := rt.dynamics.traj.pos()
+			var v := rt.dynamics.traj.vel()
+			var down := -(r - v * (r.dot(v) / v.length_squared())).normalized()
 			var inc := minf(rate, dv - given)
 			owed += rt.dynamics.attitude.body_from_eci() * down * inc
 			given += inc
@@ -152,14 +159,16 @@ func test_equiperiod_separation_a_revolution_and_docking_again() -> void:
 	var period := float(rt.dynamics.lm.traj.conic()["period"])
 	var n := TAU / period
 	# Half a revolution on, the CSM is level with the LM and 4 dv/n farther
-	# ahead, as the linear (Clohessy-Wiltshire) solution has it.
+	# ahead, as the linear (Clohessy-Wiltshire) solution has it for a round
+	# orbit: on the flown one, out of round by 0.006, to within a few times
+	# that share of the motion's 1.4 km.
 	var steps0 := SimClock.step_count
 	run(t_sep + period / 2.0 - SimClock.get_seconds)
 	assert_lt(SimClock.step_count - steps0, 1500, "both vehicles coast on long steps")
 	var half: Vector3 = _local()[0]
 	gut.p("Half a revolution after the separation, the CSM is %.0f m ahead of the LM and %.1f m above it" % [half.y, half.x])
 	assert_almost_eq(half.y - at_sep.y, 4.0 * 0.6 / n, 0.01 * 4.0 * 0.6 / n, "4 dv/n farther ahead")
-	assert_almost_eq(half.x, 0.0, 10.0, "level")
+	assert_almost_eq(half.x, 0.0, 25.0, "level")
 	assert_almost_eq(float(Bus.get_value("dock.range_m")), half.length(), 15.0, "the docking ports as far apart")
 	# A checkpoint here flies on as the uninterrupted run does.
 	var text := JSON.stringify(rt.snapshot())

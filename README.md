@@ -39,7 +39,7 @@ From the repository root:
 ```
 godot --path .                                  # parking orbit, TLI ahead
 godot --path . -- --phase=translunar_coast      # after TLI and docking
-godot --path . -- --phase=lunar_orbit           # 60 nmi, Eagle docked
+godot --path . -- --phase=lunar_orbit           # after LOI-2, 54 × 66 nmi, Eagle docked
 godot --path . -- --phase=lunar_descent         # Eagle after DOI, 20 min before PDI
 godot --path . -- --phase=lunar_surface         # Eagle at Tranquility Base, 10 min after landing
 godot --path . -- --phase=lunar_ascent          # 20 min before liftoff, the ascent PAD in
@@ -117,8 +117,9 @@ undocking to TEI) and at entry.
      V16N40.
    - After cutoff, trim the V16N85 residuals with the THC, then press PRO.
 4. **LOI.** About 8 h before pericynthion, press **LOI-1** and fly it
-   (~875 m/s, 6 min, 53 × 170 nmi). Two revs later, fly **LOI-2** to
-   circularize.
+   (~875 m/s, 6 min, 53 × 170 nmi). Two revs later, fly **LOI-2** into
+   Apollo 11's 54 × 66 nmi orbit, out of round for the Moon's mascons to
+   round it toward 60 nmi by the rendezvous.
 5. **TEI.** Press **LM JETT**, then **TEI**, and fly it. Then fly one or two
    transearth **MCC**s until the vacuum perigee is about 37 km (20 nmi),
    or navigate on board with P23 and plan them with P37 (below).
@@ -130,7 +131,10 @@ undocking to TEI) and at entry.
 **State vectors.** The CMC flies on its own state vector. Its
 accelerometers feed it only in P40, P41, P47 and entry, and during TLI. In
 coast the SM's vents and the attitude jets' imbalance slowly move the CSM
-off it, and so does a translation in P00. Mission Control uplinks the
+off it, and so does a translation in P00. In lunar orbit the Moon's
+mascons move it kilometres off in a few revolutions, since the CMC
+integrates the simpler R-2 model its program flew with, as Eagle's LGC
+does too. Mission Control uplinks the
 state vector MSFN tracked with each of Columbia's PADs, and **SV** under
 Mission Control asks for one alone. The CMC takes them in P00, with UP TLM
 CM (panel 2, right of the DSKY) in ACCEPT. In BLOCK, CAPCOM reads the
@@ -490,17 +494,19 @@ A flown Apollo 11 profile in the simulator reproduces these values:
 |---|---|---|
 | TLI | GET 2:44:42, 3,182 m/s, the plane turned 1.9° | 2:44:16, ~3,180 m/s, 1.3° |
 | Translunar coast | 73.0 h | 73.0 h |
-| LOI-1 | GET 75:49:48, 876 m/s, 6.1 min, 53 × 170 nmi | 75:49:50, 889 m/s, 5.95 min, 61 × 169 nmi |
-| TEI | GET 135:20:40, 1,000 m/s | 135:23:42, 1,001 m/s |
-| DOI | GET 101:36:14, 73.1 ft/s, 30 s | 101:36:14, ~76 ft/s, ~30 s |
-| Powered descent | 12 min 6 s, touchdown at 102:45:39, 140 m from the target (the LGC's crossrange error, which the radar can't see) | 12 min 35 s, touchdown at 102:45:40, about 6 km past the target |
+| LOI-1 | GET 75:49:51, 876 m/s, 6.1 min, 53 × 170 nmi | 75:49:50, 889 m/s, 5.95 min, 61 × 169 nmi |
+| The orbit after LOI-2, above the landing site, flown through the Moon's field | 65.4 × 53.5 nmi at 80:11:54, 61.8 × 56.9 nmi at 126 h | 65.7 × 53.8 nmi, 62.4 × 56.6 nmi |
+| TEI | GET 135:16:22, 1,000 m/s | 135:23:42, 1,001 m/s |
+| DOI | GET 101:34:52, 74.3 ft/s, 30 s | 101:36:14, ~76 ft/s, ~30 s |
+| Powered descent | 12 min 8 s, touchdown at 102:45:23, 165 m from the target (the LGC's crossrange error, which the radar can't see) | 12 min 35 s, touchdown at 102:45:40, about 6 km past the target |
 | The Sun at touchdown | 10.7° up | 10.8° up |
-| Ascent, liftoff to cutoff | GET 124:25:40, 7 min 8 s, then 60,054 ft and 32.0 ft/s up, 9.0 × 45.1 nmi | 124:22:00, 7 min 17 s, then 60,666 ft and 32.8 ft/s up, 9.5 × 47.3 nmi |
-| CSI | 52.4 ft/s, 50 min 50 s after insertion | 51.5 ft/s, 50 min 18 s after insertion |
-| TPI | 24.0 ft/s, 2 h 34 min 20 s after insertion | ~25 ft/s, 2 h 34 min 35 s after insertion |
-| Midcourse corrections | 0.2 and 0.1 ft/s | ~1 ft/s each |
-| Braking, then station-keeping | 15 min 26 s, station-keeping 45 min after TPI | 15 min 8 s, station-keeping 48 min after TPI |
-| Docking | GET 127:57:26, 50 min after TPI | 128:03:00, 59 min after TPI |
+| Ascent, liftoff to cutoff | GET 124:22:23, 7 min 8 s, then 60,002 ft and 32.0 ft/s up, 9.0 × 44.8 nmi | 124:22:00, 7 min 17 s, then 60,666 ft and 32.8 ft/s up, 9.5 × 47.3 nmi |
+| CSI | 50.0 ft/s, 50 min 40 s after insertion | 51.5 ft/s, 50 min 18 s after insertion |
+| CDH, with Columbia's orbit out of round | 7.5 ft/s | 19.9 ft/s |
+| TPI | 26.2 ft/s, 2 h 31 min 58 s after insertion, 2 min 37 s before the plan's time | ~25 ft/s, 2 h 34 min 35 s after insertion, 6 min 39 s after the plan's |
+| Midcourse corrections | 2.7 and 0.5 ft/s | under 1 and about 1.5 ft/s |
+| Braking, then station-keeping | 15 min 43 s, station-keeping 46 min after TPI | 15 min 8 s, station-keeping 48 min after TPI |
+| Docking | GET 127:51:55, 50 min after TPI | 128:03:00, 59 min after TPI |
 | Entry peak load | 6.7 g | ~6.5 g |
 | Splashdown | 8.6 m/s | — |
 
@@ -511,8 +517,17 @@ ones:
   ephemeris (DE441) has them on Apollo 11's dates, and the Moon turns by
   the IAU's rotation model. The Earth is oblate to its zonal harmonics,
   J2 to J4, about its mean pole of date: its tesseral harmonics and
-  nutation are left out. The Moon pulls as a point, without its mascons.
-  The onboard computers and the RTCC integrate the same gravity.
+  nutation are left out. The Moon's field is GRAIL's, cut at degree 30,
+  which flies a 60 nmi orbit within 1.3 km of degree 100's in a day, and
+  fewer degrees farther out; it is sampled every 30 s along each
+  trajectory and interpolated between, 10 m off in a day. The onboard
+  computers carry the R-2 model they flew with: the Moon's J2, J3, C22
+  and C31, within 16,093 km of it. The CMC leaves out the Earth's and
+  the Sun's pull below 800 km, and the LGC leaves them out everywhere.
+  Their Earth is truth's, and their lunar GM GRAIL's (Colossus's differs
+  by 5 parts in a million). The RTCC integrates truth's field, where
+  the ground flew R-2 too, so its lunar orbit predictions don't go
+  wrong as the flight's did.
 - **Navigation.** Both computers fly on their own state vectors, which the
   ground's uplinks correct, and the CMC's own marks too. MSFN's tracking error is drawn fresh for each
   uplink, not from tracking arcs. The CSM's unmodelled forces are a
@@ -606,10 +621,11 @@ ones:
 - **The rendezvous.** The rendezvous radar is noise-free and finds
   Columbia wherever it is, without gimbal limits or a manual lock-on.
   P20 weights each mark by fixed gains, not Luminary's filter, and
-  updates only Columbia's state vector. The RTCC and P32 to P35 target
-  impulsive burns on the flight model, which P41 flies as finite ones,
-  and CDH comes half a revolution after CSI. MSFN's error in Columbia's
-  state vector and the braking gates are estimates.
+  updates only Columbia's state vector. The RTCC targets impulsive burns
+  on the truth's gravity and P32 to P35 on the LGC's own model, and P41
+  flies them as finite ones. CDH comes half a revolution after CSI.
+  MSFN's error in Columbia's state vector and the braking gates are
+  estimates.
 - **Docking.** Capture docks the vehicles hard at once, without a soft
   dock and probe retraction. Only the probe can touch the LM: the
   vehicles' bodies pass through each other. The docking geometry, the
@@ -630,9 +646,9 @@ godot --headless --path . --import
 godot --headless --path . -s addons/gut/gut_cmdln.gd -gexit
 ```
 
-That runs the whole suite, which takes a quarter of an hour, nearly all
-of it in the scenario tests. Add `-gdir=res://tests/unit/` to run only
-the unit tests, in about a minute, or `-gselect=<name>` to run only the
+That runs the whole suite, which takes about 25 minutes, nearly all of
+it in the scenario tests. Add `-gdir=res://tests/unit/` to run only the
+unit tests, in under two minutes, or `-gselect=<name>` to run only the
 scripts whose file names contain `<name>`. CI runs the suite in four
 parts side by side (`.github/workflows/ci.yml`): the unit tests, and the
 scenario tests dealt out over three jobs by each file's time on the
@@ -649,6 +665,19 @@ The unit tests cover:
   against its tide, the RTCC's vacuum perigee flown through the
   oblateness, above the surface and under it, and the Earth's pole of
   1969
+- The Moon's field (`tests/unit/test_moon_gravity.gd`): the mission
+  flies GRAIL's field to degree 30 with its GM; the recursion against
+  the direct sum's gradient, the mascons pulling up to 884 µm/s² round
+  the equator 60 nmi up; R-2 against its potential's gradient, and
+  nothing from it past 16,093 km; both bounded inside the Moon, where a
+  trial diving through the surface goes; the degree fading with
+  distance; 12 h of a 60 nmi orbit flown as
+  `tools/gravity/moon_gravity.py` integrates it independently, to a
+  tenth of a millimetre; the propagator sampling the field where the
+  trajectory is, and under thrust where the thrust carries it; and each
+  computer on its own model: the CMC without the Earth and the Sun below
+  800 km, the LGC without them anywhere, R-2 383 µm/s² off GRAIL's pull
+  60 nmi up
 - The Moon-fixed frame on the circular model: the Moon keeps a face to
   the Earth and turns once a sidereal month, and selenographic
   coordinates round-trip
@@ -695,8 +724,9 @@ The unit tests cover:
   systems, the LGC's rendezvous state, Mission Control's planned times
   and timeline, the CMC's state vector, the CSM's unmodelled forces and
   where MSFN's draws have got to, the CMC's IMU and a P52 between its
-  marks, and its navigation filter and a P23 mark waiting at N49
-  (schema 8). Older checkpoints are rejected
+  marks, its navigation filter and a P23 mark waiting at N49, and the
+  Moon's field's samples each trajectory holds (schema 9). Older
+  checkpoints are rejected
 - The main scene, and in Eagle from `lunar_descent`: its HUD, the keys on
   its LGC, its two views, its checklist for the phase, and L between the
   vehicles
@@ -763,12 +793,21 @@ The scenario tests fly real segments through the crew interface:
 - MCC, LOI-1 and LOI-2 into lunar orbit, each PAD uplinked with the
   state vector MSFN tracked (P27) and flown after a P52 to its preferred
   orientation, as every burn in the suite is. By the LOI PAD the CMC's
-  state vector is 93 km off, and the uplink brings it to 0.4 km
+  state vector is 93 km off, and the uplink brings it to 0.4 km. LOI-2's
+  PAD targets Apollo 11's 65.7 × 53.7 nmi
+- The Moon's mascons (`tests/scenarios/test_mascons.gd`), slice 5b's
+  check. From LOI-2, GRAIL's field takes the orbit through the ground's
+  tracking figures to 61.8 × 56.9 nmi at 126 h, where Apollo 11's was
+  62.4 × 56.6 (the mission report); through R-2 it rounds out to
+  59.5 × 59.0, where the ground's R-2 predicted 59.9 × 59.3. A round
+  60 nmi orbit, Apollo 10's approach, goes 13.5 nmi out of round by
+  then, where the report estimated 11.6. From the same state, the CMC's
+  model comes 3.5 km from the truth in two revolutions
 - The IMU (`tests/scenarios/test_imu_alignment.gd`), slice 4c's check.
   Twelve hours of translunar coast drift the platform 0.215°, and P52 on
   two stars (Menkent and Altair) leaves 0.004°, under the 0.02° limit,
-  with N05 0.005°. A TEI flown on a platform 0.5° off goes 8.59 m/s off
-  the aligned flight, where the misalignment predicts 8.56 m/s, and the
+  with N05 0.005°. A TEI flown on a platform 0.5° off goes 8.58 m/s off
+  the aligned flight, where the misalignment predicts 8.55 m/s, and the
   CMC doesn't see it. A yaw in FREE lights GIMBAL LOCK at 70°, cages the
   IMU at 85° and loses the alignment; P52 and P40 refuse (00220), and P51
   finds the platform's orientation on two stars the crew names. P52
@@ -780,26 +819,27 @@ The scenario tests fly real segments through the crew interface:
   drifting platform cost 0.16 kg of RCS propellant
 - The CMC's own state vector (`tests/scenarios/test_onboard_state.gd`),
   slice 4b's check. From a perfect state, a day's translunar coast leaves
-  it 537 m off, as far as the SM's vents move a copy of the CSM, and the
+  it 541 m off, as far as the SM's vents move a copy of the CSM, and the
   ground's uplink puts it back to MSFN's tracking error, with P27 and V71
   on the DSKY. The CMC takes uplinks only in P00 with UP TLM CM in
   ACCEPT; in BLOCK a PAD comes by voice. A translation in P00 isn't in its
-  state vector, and one in P47 is
+  state vector, and one in P47 is, all but the 3 mm/s its model of the
+  Moon's field drifts from the truth meanwhile
 - Onboard navigation (`tests/scenarios/test_onboard_navigation.gd`),
   slice 4d's check. A TEI flown on a platform 0.5° off leaves a vacuum
-  perigee of −117 km, steep of the 25 to 50 km corridor, and the CMC's
-  state vector 1.1 km and 8.9 m/s off. With UP TLM CM in BLOCK from then
-  on, the crew marks six stars with P23 every four hours from 10 h after
-  TEI, three on the Moon's horizon and three on the Earth's. At 38.6 h
-  P37 works out 4.1 m/s from the CMC's state, which, flown after P52,
-  leaves 27.1 km, where P37 from the unmarked state would have left
-  −41.6 km. After two more sessions a second P37 of 0.4 m/s leaves
-  38.1 km. P23's dialogue: the codes it won't take, 00404 for a star it
-  can't lay on the horizon, the landmark line on the horizon under the
-  star, V32 dropping a bad mark, a good one bringing a state vector 50 km
-  off to 15 km, V67's RMS, and a load starting the filter again. In lunar
-  orbit, five P22 marks on the landing site through one pass bring the
-  state vector from 2.2 km off to 53 m
+  perigee of 324 km, far shallow of the 25 to 50 km corridor, and the
+  CMC's state vector 3.8 km and 11.2 m/s off. With UP TLM CM in BLOCK
+  from then on, the crew marks six stars with P23 every four hours from
+  10 h after TEI, three on the Moon's horizon and three on the Earth's.
+  At 38.6 h P37 works out 5.8 m/s from the CMC's state, which, flown
+  after P52, leaves 45.0 km, where P37 from the unmarked state would
+  have left 355 km. After two more sessions a second P37 of 0.23 m/s
+  leaves 37.0 km. P23's dialogue: the codes it won't take, 00404 for a
+  star it can't lay on the horizon, the landmark line on the horizon
+  under the star, V32 dropping a bad mark, a good one bringing a state
+  vector 50 km off to 15 km, V67's RMS, and a load starting the filter
+  again. In lunar orbit, five P22 marks on the landing site through one
+  pass bring the state vector from 2.0 km off to 18 m
 - TEI and the transearth MCCs into the entry corridor
 - CM/SM separation, P61/P64 entry and splashdown
 - An MCC PAD flown with P30 and P41 using only the cabin's controls,
@@ -820,27 +860,31 @@ The scenario tests fly real segments through the crew interface:
   to splashdown. The cabin scenarios share `tests/cabin_test.gd`
 - Undocking and docking in lunar orbit (`tests/scenarios/test_docking.gd`).
   The stack splits with its momentum conserved. An equiperiod separation
-  (0.6 m/s radially down) carries the CSM 4ΔV/n ahead of the LM half a
-  revolution later, as the linear (Clohessy-Wiltshire) solution has it,
-  and brings it back within 5 m a revolution later. A checkpoint taken
-  mid-revolution flies on as the uninterrupted run does. The CSM docks
-  again on the translation controller, and contacts that close too fast
-  or misaligned rebound
+  (0.6 m/s down across the CSM's velocity, which on Apollo 11's
+  out-of-round orbit is off the local vertical) carries the CSM 4ΔV/n
+  ahead of the LM half a revolution later, as the linear
+  (Clohessy-Wiltshire) solution has it for a round orbit, and brings it
+  back within 5 m a revolution later. A checkpoint taken mid-revolution
+  flies on as the uninterrupted run does. The CSM docks again on the
+  translation controller, and contacts that close too fast or
+  misaligned rebound
 - DOI on the LGC (`tests/scenarios/test_doi.gd`), slice 3b's check. Eagle
   undocks, Mission Control uplinks a DOI PAD to the LGC, and P40 flies it
   on the descent engine, at 10 % and then 40 % throttle. Half a
   revolution later Eagle passes its pericynthion within 250 m of the
-  PAD's 50,000 ft above the site (15,217 m against 15,239 m), while
-  Columbia's orbit stays as it was
+  PAD's 50,000 ft above the site (15,221 m against 15,241 m), while
+  Columbia flies on in its own orbit
 - The landing at Tranquility Base (`tests/scenarios/test_landing.gd`),
   slice 3c's check, and slice 3f's for the `lunar_descent` start phase.
   LOI turns the orbit over the site, and the `lunar_orbit` phase starts
-  over it. From `lunar_descent`, the timeline's PDI PAD puts the LGC's
-  state vector off by the tracking error at PDI. From a checkpoint before
-  PDI:
+  over it, in Apollo 11's orbit after LOI-2. The RTCC places DOI for the
+  pericynthion to fall where PDI begins, though the Moon's field turns
+  the descent orbit's apsides by degrees in the half revolution. From
+  `lunar_descent`, the timeline's PDI PAD puts the LGC's state vector
+  off by the tracking error at PDI. From a checkpoint before PDI:
   - The automatic landing. The crew keys V57 when the radar's altitude
-    comes good, with ΔH at −948 m, and ΔH is −22 m by high gate. P63,
-    P64 and P65 land Eagle 140 m from the site at 0.8 m/s down and none
+    comes good, with ΔH at −897 m, and ΔH is −5 m by high gate. P63,
+    P64 and P65 land Eagle 165 m from the site at 0.8 m/s down and none
     across.
   - Without V57, Eagle hits the ground 4 km short at 24 m/s.
   - With a 900 m error along the track, the commander redesignates in
@@ -851,28 +895,31 @@ The scenario tests fly real segments through the crew interface:
   A landed LM turns with the Moon, and lifts off on its ascent engine.
 - The ascent (`tests/scenarios/test_ascent.gd`), slice 3d's check. Eagle
   is set down at the site. The RTCC times the liftoff for Columbia to
-  lead by 16.4° at insertion. P12 lifts off at that time, rises for 8 s,
-  and cuts off 7 min 8 s after liftoff. It inserts at 60,054 ft and
-  32.0 ft/s up into a 9.0 × 45.1 nmi orbit, within 0.001° of Columbia's
-  plane, with Columbia 16.42° ahead and 167 kg of propellant left. A
+  lead by 16.4° at insertion. P12 lifts off at that time, rises for 9 s,
+  and cuts off 7 min 8 s after liftoff. It inserts at 60,002 ft and
+  32.0 ft/s up into a 9.0 × 44.8 nmi orbit, within 0.02° of Columbia's
+  plane, with Columbia 16.43° ahead and 167 kg of propellant left. A
   checkpoint taken mid-ascent flies on to the same insertion
 - The rendezvous (`tests/scenarios/test_rendezvous.gd`), slice 3e's
   check, and slice 3f's for the `lunar_ascent` start phase. From that
-  phase, P12 lifts Eagle off at the ascent PAD's time, 124:25:40
+  phase, P12 lifts Eagle off at the ascent PAD's time, 124:22:23
   (Apollo 11: 124:22:00).
   - Five minutes after insertion the timeline's CSI PAD plans CSI at
-    52.3 ft/s (Apollo 11: 51.5), 15 nmi below Columbia, and TPI at
-    24.1 ft/s.
+    50.0 ft/s (Apollo 11: 51.5), 16.3 nmi below Columbia's out-of-round
+    orbit, and TPI at 26.8 ft/s.
   - Columbia's uplinked state vector is 914 m off, and after 12 marks
-    P20 has it within 0.2 m relative to Eagle.
-  - The LGC flies the sequence: CDH 2.1 ft/s onto 14.7 nmi below, TPI
-    15 s before the plan's time, and midcourse corrections of 0.2 ft/s
-    and under 0.1 ft/s.
+    P20 has it within 4 m relative to Eagle, the LGC's model of the
+    Moon's field moving both its state vectors off meanwhile.
+  - The LGC flies the sequence: CDH 7.5 ft/s onto 16.0 nmi below (Apollo
+    11's took 19.9 ft/s for Columbia's orbit), TPI 2 min 37 s before the
+    plan's time (Apollo 11's came 6 min 39 s after), P34 run again 12
+    minutes before it as Apollo 11's crew did, and midcourse corrections
+    of 2.7 and 0.5 ft/s (Apollo 11's: under 1 and about 1.5).
   - The commander brakes by the gates and stops 40 m out, and Collins
-    docks at 0.33 ft/s. Eagle's ΔV, 114.2 ft/s, is 5 % over the RTCC's
+    docks at 0.33 ft/s. Eagle's ΔV, 129.9 ft/s, is 8 % over the RTCC's
     plan (the check allows 20 %).
   - GO for jettison comes 2 h 5 min after docking. After LM JETT, the TEI
-    PAD plans TEI at 135:20:38, the opportunity nearest Apollo 11's
+    PAD plans TEI at 135:16:22, the opportunity nearest Apollo 11's
     135:23:42
 - Mission Control's timeline (`tests/scenarios/test_lunar_timeline.gd`),
   slice 3f. From `lunar_orbit`: GO for undocking at 100:00, the DOI PAD
@@ -896,15 +943,15 @@ The scenario tests fly real segments through the crew interface:
   of Eagle's four checklists is flown from its phase's start until the
   HUD, or the card, shows it complete, with the same numbers from both:
   - From `lunar_orbit`: UNDOCK in Columbia at GO for undocking, and DOI
-    to a pericynthion 15,265 m above the site.
-  - From `lunar_descent`: P63 to P68, and a landing 140 m from the site.
+    to a pericynthion 15,235 m above the site.
+  - From `lunar_descent`: P63 to P68, and a landing 165 m from the site.
     At high gate the site is 33.9° down the commander's window, and N64
     shows 34.
   - From `lunar_surface`: STAY for T3, the ascent PAD, and P12 to a
     9.0 × 45.0 nmi orbit.
-  - From `lunar_ascent`: the liftoff, then P20, CSI (52.4 ft/s), CDH,
-    TPI (24.0 ft/s) and the two midcourse corrections on P41, braking by
-    the gates on the TTCA's keys in 15 min 23 s, and, after L, Columbia
+  - From `lunar_ascent`: the liftoff, then P20, CSI (49.9 ft/s), CDH,
+    TPI (25.8 ft/s) and the two midcourse corrections on P41, braking by
+    the gates on the TTCA's keys in 15 min 37 s, and, after L, Columbia
     flown into the drogue on the THC's keys, capturing at 0.33 ft/s.
 
   The desktop scenarios share `tests/desktop_test.gd`
@@ -957,7 +1004,10 @@ IMU, which drifts and which P52 realigns on the stars through the optics
 at the lower equipment bay (slice 4c), and on its own sightings: P23's
 stars on the horizons keep the entry corridor without an uplink, and
 P22 marks landmarks in lunar orbit (slice 4d). That finishes navigation
-realism. Next come the flight's remaining simplifications (milestone
-5: gravity beyond two points, the S-IVB's iterative guidance, the
-launch, P40's cross-product steering and entry range targeting), sound
-(6) and the other missions (7).
+realism. In the flight's remaining simplifications (milestone 5), the
+Earth is oblate and the Sun pulls (slice 5a), and the Moon has its
+mascons, which the onboard computers model as their flown R-2 did, so
+their state vectors drift from truth in lunar orbit (slice 5b). Next
+come the S-IVB's iterative guidance, the launch, P40's cross-product
+steering and entry range targeting, then sound (6) and the other
+missions (7).

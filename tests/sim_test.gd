@@ -51,8 +51,16 @@ func run_until(cond: Callable, max_s: float, chunk: float = 60.0, fast: bool = t
 	while SimClock.get_seconds < end:
 		if cond.call():
 			return true
-		run(minf(chunk, end - SimClock.get_seconds), fast)
+		run(_chunk(chunk, end), fast)
 	return cond.call()
+
+
+## The next chunk toward GET [param end], at most [param chunk], and a
+## step at least: the clock steps whole FIXED_DTs, so a shorter remainder
+## would only pile up in its accumulator, a call at a time, until it made
+## a step (17,500 calls for a microsecond's remainder).
+func _chunk(chunk: float, end: float) -> float:
+	return maxf(minf(chunk, end - SimClock.get_seconds), SimClock.FIXED_DT)
 
 
 ## Fly [param seconds], in chunks with a frame between them, so the
@@ -69,7 +77,7 @@ func fly_until(cond: Callable, max_s: float, chunk: float = 60.0, fast: bool = t
 	while SimClock.get_seconds < end - 1e-6:
 		if cond.call():
 			return true
-		run(minf(chunk, end - SimClock.get_seconds), fast)
+		run(_chunk(chunk, end), fast)
 		await wait_process_frames(1)
 	return cond.call()
 
@@ -205,14 +213,32 @@ func p37() -> Vector3:
 ## the Earth; then back to the mode it was in, holding.
 func roll_over() -> void:
 	var agc := rt.agc()
+	_turn_to(agc._att() * Quaternion(Vector3(1, 0, 0), PI), "rolled over")
+
+
+## Turn the CSM's nose (body X) straight away from the body that fills
+## most of the sky, the Moon in lunar orbit, on the DAP as roll_over()
+## does: in any roll the optics, 57 degrees off the nose, then look at the
+## sky.
+func nose_away() -> void:
+	var agc := rt.agc()
+	var near := Agc._near_bodies(rt.dynamics.traj)
+	var big: Array = near[0] if float(near[0][1]) > float(near[1][1]) else near[1]
+	var q := agc._att()
+	var x := Basis(q) * Vector3.RIGHT
+	_turn_to((Quaternion(x, -(big[0] as Vector3)) * q).normalized(), "nose away")
+
+
+func _turn_to(target: Quaternion, what: String) -> void:
+	var agc := rt.agc()
 	var was := int(Bus.get_value("ctl.cmc.mode", 1))
-	agc.auto_target = agc._att() * Quaternion(Vector3(1, 0, 0), PI)
+	agc.auto_target = target
 	agc._plan_via()
 	agc.auto_active = true
 	Bus.set_value("ctl.cmc.mode", 2)
 	var done := run_until(func() -> bool: return agc._att_error(agc.auto_target) < deg_to_rad(1.0) \
 		and rt.dynamics.attitude.omega.length() < deg_to_rad(0.05), 600.0, 1.0, false)
-	assert_true(done, "rolled over")
+	assert_true(done, what)
 	agc.auto_active = false
 	agc.hold_q = agc._att()
 	Bus.set_value("ctl.cmc.mode", was)
@@ -275,6 +301,12 @@ func realign(option: int = 3) -> Dictionary:
 		# side of the sky. Roll heads down and try again.
 		keys("R")
 		roll_over()
+		keys("P")
+	if agc.step_name == "acquire" and agc.alarm_code == 405:
+		# Still none: the nose points into the Moon, which fills the sky
+		# round it in every roll. Turn it away.
+		keys("R")
+		nose_away()
 		keys("P")
 	assert_eq(agc.step_name, "star", "the CMC picked two stars")
 	var stars: Array = agc.align_stars.duplicate()

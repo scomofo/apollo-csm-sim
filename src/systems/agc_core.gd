@@ -291,6 +291,12 @@ func _omega() -> Vector3:
 	return Bus.get_value(_ch("dyn.omega"), Vector3.ZERO)
 
 
+## The gravity model this computer's programs integrate a state vector
+## with: the CMC's; Lgc overrides it.
+func nav_model() -> Trajectory.Model:
+	return Trajectory.Model.CMC
+
+
 ## The vehicle's true state, what the state vector starts from.
 func truth_traj() -> Trajectory:
 	var t := Trajectory.new()
@@ -298,6 +304,7 @@ func truth_traj() -> Trajectory:
 	var v: Array = Bus.get_value(_ch("dyn.v_mps"), [0.0, 7790.0, 0.0])
 	t.set_state_d(str(Bus.get_value(_ch("dyn.primary"), "earth")), _now(),
 		PackedFloat64Array([r[0], r[1], r[2], v[0], v[1], v[2]]))
+	t.as_onboard(nav_model())
 	return t
 
 
@@ -312,7 +319,7 @@ func current_traj() -> Trajectory:
 
 ## Set the state vector to [param tr] without an uplink (a start phase's).
 func init_nav(tr: Trajectory) -> void:
-	nav = tr.clone()
+	nav = tr.clone().as_onboard(nav_model())
 	nav_uplink_get = -1.0
 
 
@@ -323,7 +330,7 @@ func init_nav(tr: Trajectory) -> void:
 func uplink_state(tr: Trajectory) -> bool:
 	if not accepts_uplink():
 		return false
-	nav = tr.clone()
+	nav = tr.clone().as_onboard(nav_model())
 	nav_uplink_get = _now()
 	_uplink_shown()
 	return true
@@ -965,7 +972,7 @@ func snapshot() -> Dictionary:
 		"vias": maneuver_vias.map(func(q: Quaternion) -> Array: return [q.x, q.y, q.z, q.w]),
 		"auto_target": [auto_target.x, auto_target.y, auto_target.z, auto_target.w],
 		"desired_q": [desired_q.x, desired_q.y, desired_q.z, desired_q.w],
-		"nav": {"primary": nav.primary, "t": nav.t, "s": Array(nav.s)} if nav != null else {},
+		"nav": {"primary": nav.primary, "t": nav.t, "s": Array(nav.s), "field": nav.field_snapshot()} if nav != null else {},
 		"nav_uplink_get": nav_uplink_get,
 		"imu": imu.snapshot(),
 		"preferred": Imu.rows_of(preferred_refsmmat) if preferred_valid else [],
@@ -1010,8 +1017,9 @@ func restore(d: Dictionary) -> void:
 	nav = null
 	var nd: Dictionary = d.get("nav", {})
 	if not nd.is_empty():
-		nav = Trajectory.new()
+		nav = Trajectory.new().as_onboard(nav_model())
 		nav.set_state_d(str(nd["primary"]), float(nd["t"]), PackedFloat64Array(nd["s"]))
+		nav.restore_field(nd.get("field", {}))
 	nav_uplink_get = float(d.get("nav_uplink_get", -1.0))
 	var pr: Array = d.get("preferred", [])
 	preferred_valid = pr.size() == 9

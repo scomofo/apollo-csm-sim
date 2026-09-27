@@ -1128,11 +1128,11 @@ them after the core split in 3b.
 
 ## 5. The whole flight
 
-**Status: slice 5a is done: the Earth is oblate and the Sun pulls.** What
-the README still lists as simplifications of the flight itself: the
-missions start in parking orbit, the S-IVB flies TLI at a fixed yaw, the
-Moon pulls as a point, without its mascons, P40 holds its ΔV direction
-in LVLH, and entry guidance has no aim.
+**Status: slices 5a and 5b are done: the Earth is oblate, the Sun
+pulls, and the Moon has its mascons.** What the README still lists as
+simplifications of the flight itself: the missions start in parking
+orbit, the S-IVB flies TLI at a fixed yaw, P40 holds its ΔV direction in
+LVLH, and entry guidance has no aim.
 
 - **Gravity** first, since it moves every number the suite checks. The
   Earth's oblateness turned Apollo 11's parking orbit 0.8° west before
@@ -1151,9 +1151,10 @@ in LVLH, and entry guidance has no aim.
   brings: Colossus's entry guidance, aimed at a splashdown point.
 
 The onboard computers keep models of their own, as the flown ones did:
-the CMC and the LGC integrate the Earth's oblateness but not the
-mascons, so in lunar orbit their state vectors drift from truth as the
-flown ones did, and the ground's tracking and P22 matter more.
+the CMC and the LGC integrate the Earth's oblateness but only the R-2
+model of the Moon's field, so in lunar orbit their state vectors drift
+from truth as the flown ones did, and the ground's tracking and P22
+matter more.
 
 Slice 5a gives the Earth its shape and the Sun its pull:
 
@@ -1201,12 +1202,103 @@ Slice 5a gives the Earth its shape and the Sun its pull:
   and 6:47.
 - **Checkpoints** are schema 8, bumped here for 4d's navigation state.
 
+Slice 5b gives the Moon its mascons:
+
+- **The field.** GRAIL's GL1800F, in the mean Earth/polar axis frame the
+  simulator's Moon-fixed frame is, cut at degree 30 by
+  `tools/gravity/moon_gravity.py` (standard library only; it fetches the
+  coefficients from the PDS by range requests). The tool's study: 60 nmi
+  up, the degrees past 30 pull 67 µm/s² RMS, and a day of a 60 nmi
+  orbit on degree 30 comes within 1.3 km along the track and 0.16 km in
+  its apsides of degree 100's. `MoonGravity` evaluates it by
+  Cunningham's recursion on unnormalised coefficients (Montenbruck and
+  Gill), within 1e-6 of the direct sum's gradient; the tool's own
+  integration, by spherical Legendre functions, flies a 12 h reference
+  orbit that the propagator matches to a tenth of a millimetre. The
+  lunar GM becomes GRAIL's, 4,902.800 km³/s². Inside the Moon, where
+  only a trajectory diving through the surface goes (a trial burn of
+  the RTCC's DOI bisection, say), the series diverges: 20 km/s² where
+  one such trial got to 960 km from the centre, the integration
+  crawling on the steps it shrank to. Below 0.99 of the reference
+  radius, under the lowest ground, the field is taken straight above,
+  bounded and continuous.
+- **The cost.** Degree 30 costs 246 µs an evaluation, too much for
+  every stage of every step. So the field is sampled once every 30 s of
+  GET, at each interval's middle,
+  where the trajectory will be then (a third-order series along the
+  step), and a cubic through four samples gives it at each stage; the
+  degree fades with distance, to the terms whose (R/r)ⁿ still exceed
+  e⁻⁸, 3 at ten lunar radii. A day of a 60 nmi orbit comes 10 m from
+  one evaluated at every stage, its apsides under a metre. The scenario
+  parts took 7:31, 7:01 and 7:09 on the development machine, where they
+  took 6:11, 6:16 and 5:53 before.
+- **The onboard model.** The CMC and the LGC fly R-2, the model their
+  programs carried: the Moon's J2, J3, C22 and C31 at 1,738.09 km,
+  applied within 16,093 km (Risdal's Boeing report; the Comanche 055 and
+  Luminary 099 listings and padloads). The CMC leaves out the Earth's
+  and the Sun's pull below 800 km, and the LGC everywhere. 60 nmi up,
+  R-2's pull beyond the point is 388 µm/s² where GRAIL's is 655, 383
+  apart, and from one state the CMC's model comes 3.5 km from the truth
+  in two revolutions. The RTCC integrates truth's field [simplified: the
+  ground flew R-2 too].
+- **The flown orbit.** The `lunar_orbit` start phase now starts where
+  Apollo 11's LOI-2 cut off, at 80:11:54, in its 65.7 × 53.8 nmi orbit
+  above the landing site with the pericynthion at 80° W, phased to pass
+  over the site at the landing; LOI-2's PAD targets the flown 65.7 ×
+  53.7 nmi. Flown on through GRAIL's field it follows the ground's
+  tracking figures (the PAO's and the report's Table 7-V) within
+  1.5 nmi, to 61.8 × 56.9 nmi at 126 h, where the mission report has
+  62.4 × 56.6; through R-2 it rounds out to 59.5 × 59.0, where R-2
+  predicted 59.9 × 59.3. A round 60 nmi orbit, Apollo 10's approach,
+  goes 13.5 nmi out of round by then, where the report estimated 11.6.
+  (`test_mascons.gd`.)
+- **DOI and PDI.** In the half revolution from DOI the field turns the
+  descent orbit's apsides by some 4°, so the RTCC now moves DOI until
+  the pericynthion falls where PDI begins: DOI comes at 101:34:52
+  (Apollo 11: 101:36:14). The PDI PAD's state vector is coasted back
+  along the LGC's model, so the LGC comes to PDI off by the mission
+  data's error.
+- **The rendezvous** on the flown orbit behaves as Apollo 11's did:
+  with Columbia's orbit out of round, CDH takes 7.5 ft/s (Apollo 11's
+  took 19.9), and TPI comes 2 min 37 s before the plan's time (Apollo
+  11's came 6 min 39 s after). With the LGC's model drifting, a TPI
+  worked out half an hour ahead left 6.4 ft/s for the first midcourse
+  correction; recomputed 12 minutes before, as the crew did, the
+  corrections are 2.7 and 0.5 ft/s (Apollo 11's crew reported under 1
+  and about 1.5).
+- **The re-tune.** Measured where the field moves the truth: the DOI's
+  pericynthion by flying to it, not by the conic of the moment, which
+  the field swings by kilometres round the orbit; Columbia's orbit
+  after DOI by a copy flown beside it; an ascent-engine burn by its
+  apsides just before and after. The equiperiod separation burns across
+  the velocity, which on the flown orbit is off the local vertical. The
+  CMC's state vector is judged against a copy drifting on its model
+  alike (P47, the misaligned TEI). P22's error is set at the pass, where
+  the model's drift had cancelled part of it. The misaligned TEI now
+  leaves the CSM far shallow of the corridor, not steep. Three tests
+  held only by the timing of the old orbit: P52 before TEI finds no
+  stars in any roll with the nose on the Moon, so the crew turns the
+  nose away; P68 comes a step after touchdown, which the test now waits
+  for; and P12's tail-off, under a second, fell between the test's
+  one-second looks, so the test now looks finely from the steering's
+  hold on. And the tests' `fly_until()` and `run_until()` step at
+  least one clock step at a time: a remainder of a microsecond, which a
+  shifted timeline left one flight, had piled up in the clock's
+  accumulator a frame at a time, 17,500 frames and two minutes before it
+  made a step.
+- **Checkpoints** are schema 9: each trajectory's field samples, since
+  a restored flight must interpolate from the same ones. A restored
+  run's first step is a fine one, so its coast steps fall 0.02 s off the
+  uninterrupted run's; the field parts the two flights by millimetres
+  in a quarter of an hour, where they stayed within a fifth of one, and
+  the round trip's check on their times allows 0.1 ms.
+
 ### Slices
 
 | Slice | Work | Check |
 |---|---|---|
 | 5a (done) The Earth's oblateness and the Sun | The Earth's zonal harmonics (J2 to J4) about its pole of date, precessed from the ICRF, and the Sun's pull from the ephemeris, in the propagator: truth, the RTCC and the onboard computers alike. The suite gets a third scenario part if the step's cost takes a part past ten minutes | Test: the parking orbit's node moves west as flown before TLI (0.8°), and each new acceleration matches an independent evaluation. The suite passes, re-tuned only where the flight really changed; re-measure the Fidelity table |
-| 5b The Moon's mascons | The Moon's gravity field from GRAIL, truncated by a script in `tools/` to the degree a 60 nmi orbit feels, for truth and the RTCC; the CMC and the LGC keep the simpler lunar model their programs flew with, sourced in the slice. The step's cost is measured and budgeted | Test: a low lunar orbit's apsides move as an independent integration of the same field predicts, and the flown LOI-2 orbit's change by the landing is compared with the mission report's. The landing and the rendezvous pass, the onboard state vectors now drifting from truth |
+| 5b (done) The Moon's mascons | The Moon's gravity field from GRAIL, truncated by a script in `tools/` to the degree a 60 nmi orbit feels, for truth and the RTCC; the CMC and the LGC keep the simpler lunar model their programs flew with, sourced in the slice. The step's cost is measured and budgeted | Test: a low lunar orbit's apsides move as an independent integration of the same field predicts, and the flown LOI-2 orbit's change by the landing is compared with the mission report's. The landing and the rendezvous pass, the onboard state vectors now drifting from truth |
 | 5c S-IVB iterative guidance | The IU's iterative guidance mode for TLI: steering to the target conic the RTCC plans (its energy, eccentricity and plane), the time to go iterated as it burns, cutoff on the target. The fixed yaw goes | Test: TLI hits the target within a set limit, with its ΔV and plane change near Apollo 11's (about 3,180 m/s and 1.3°) |
 | 5d The launch | Liftoff from Launch Complex 39A at 13:32:00 UTC: the S-IC's roll and tilt programs and its cutoffs, staging, the S-II and the S-IVB on iterative guidance, the launch escape tower's jettison, insertion. The atmosphere turns with the Earth. A start phase on the pad, and the cabin and the HUD through the ascent. Aborts are left for later | Test: insertion into Apollo 11's parking orbit (32.5°, about 100 nmi) at about 11:49 GET within set limits, each stage's burn near the flown times (the Saturn V flight evaluation report) |
 | 5e P40 cross-product steering | Colossus's cross-product steering in P40 and P41, in place of holding the ΔV's LVLH direction | Test: LOI-1 on cross-product steering leaves an orbit nearer the RTCC's plan than LVLH steering does, and short burns come out as they did |
@@ -1215,7 +1307,7 @@ Slice 5a gives the Earth its shape and the Sun its pull:
 ### Order
 
 5a first: its re-tune is the suite's, and every later check is measured
-on it. 5b can follow at once or wait; nothing else needs the mascons.
+on it. 5b followed at once; nothing else needs the mascons.
 5c before 5d, whose guidance it is; 5d before 5f, whose rotating Earth
 it brings. 5e stands alone.
 

@@ -121,7 +121,7 @@ func test_p12_flies_eagle_to_insertion() -> void:
 	assert_eq(rt.dynamics.lm.config, "lm_ascent", "staged")
 	var seen := {"steps": [], "rise_s": 0.0, "rise_h": 0.0, "rate": 0.0}
 	var tig := float(pad["tig"])
-	var inserted := run_until(func() -> bool:
+	var watch := func() -> bool:
 		if SimClock.get_seconds - tig > 30.0:
 			seen["rate"] = maxf(seen["rate"], rad_to_deg(rt.dynamics.lm.attitude.omega.length()))
 		if not lgc.step_name in seen["steps"]:
@@ -132,7 +132,14 @@ func test_p12_flies_eagle_to_insertion() -> void:
 				seen["rise_s"] = SimClock.get_seconds - tig
 				seen["rise_h"] = lgc.current_traj().radius() - lgc.ascent_base
 				seen["rise_yaw"] = lgc.noun_values(74)[1]
-		return lgc.step_name == "post", 600.0, 1.0, false)
+		return lgc.step_name == "post"
+	# Second by second to the steering's hold; then finer, for the tail-off
+	# lasts under a second.
+	var held := run_until(func() -> bool:
+		watch.call()
+		return lgc.step_name in ["hold", "tailoff", "post"], 600.0, 1.0, false)
+	assert_true(held, "the steering held for the cutoff")
+	var inserted := run_until(watch, 60.0, 0.05, false)
 	assert_true(inserted, "cutoff")
 	var tr := rt.dynamics.lm.traj
 	var up := tr.pos().normalized()

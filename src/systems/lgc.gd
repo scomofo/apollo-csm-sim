@@ -313,11 +313,16 @@ func uplink_state(tr: Trajectory) -> bool:
 	return true
 
 
+## Luminary's gravity model: R-2 like Colossus's, with no third bodies.
+func nav_model() -> Trajectory.Model:
+	return Trajectory.Model.LGC
+
+
 ## Replace the CSM's state vector with the ground's [param tr] (P27). The
 ## LGC coasts it on from its time, and P20's next mark takes the radar's
 ## relative position outright.
 func uplink_csm_state(tr: Trajectory) -> void:
-	csm_nav = tr.clone()
+	csm_nav = tr.clone().as_onboard(Trajectory.Model.LGC)
 	_mark_first = true
 	_uplink_timer = 2.0
 	dsky.set_lamp("uplink_acty", true)
@@ -1176,7 +1181,7 @@ func snapshot() -> Dictionary:
 	d["ascent"] = {"targets": ascent_targets.duplicate(), "base": ascent_base,
 		"plane": [ascent_plane.x, ascent_plane.y, ascent_plane.z]}
 	if csm_nav != null:
-		d["csm_nav"] = {"primary": csm_nav.primary, "t": csm_nav.t, "s": Array(csm_nav.s)}
+		d["csm_nav"] = {"primary": csm_nav.primary, "t": csm_nav.t, "s": Array(csm_nav.s), "field": csm_nav.field_snapshot()}
 	d["rendezvous"] = {
 		"rr_nav": rr_nav, "marks": rr_marks, "last_dr": rr_last_dr, "last_dv": rr_last_dv,
 		"mark_get": _mark_get, "mark_first": _mark_first,
@@ -1199,8 +1204,9 @@ func restore(d: Dictionary) -> void:
 	csm_nav = null
 	var cd: Dictionary = d.get("csm_nav", {})
 	if not cd.is_empty():
-		csm_nav = Trajectory.new()
+		csm_nav = Trajectory.new().as_onboard(Trajectory.Model.LGC)
 		csm_nav.set_state_d(str(cd["primary"]), float(cd["t"]), PackedFloat64Array(cd["s"]))
+		csm_nav.restore_field(cd.get("field", {}))
 	var ad: Dictionary = d.get("ascent", {})
 	ascent_targets = (ad.get("targets", {}) as Dictionary).duplicate()
 	ascent_base = float(ad.get("base", 0.0))

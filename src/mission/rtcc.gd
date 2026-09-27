@@ -504,6 +504,63 @@ static func plan_circularize(traj: Trajectory, mass: float, at: String = "periap
 	return {"name": "CIRC", "tig": tr.t - tb / 2.0, "dv_lvlh": Vector3(dv, 0, 0), "dv": absf(dv), "burn_s": tb}
 
 
+## LOI-2 as Apollo 11 flew it: at the next periapsis of [param traj]'s orbit
+## about the Moon (the LOI-1 orbit's pericynthion), the in-plane ΔV that
+## leaves an orbit with apocynthion and pericynthion radii [param ra] and
+## [param rp], the burn point on its way down to the new pericynthion, some
+## 90° on. Apollo 11 targeted 65.7 by 53.7 nmi, noncircular, for the Moon's
+## field to round it toward 60 nmi by the rendezvous. Centred on the
+## periapsis; its ΔV has a component down (+Z).
+static func plan_loi2(traj: Trajectory, mass: float, ra: float, rp: float) -> Dictionary:
+	var tr := traj.clone()
+	var mu := Bodies.mu_of(tr.primary)
+	var box := {"prev": tr.radial_rate()}
+	var peri := func(t2: Trajectory) -> bool:
+		var rr := t2.radial_rate()
+		var hit: bool = box["prev"] < 0.0 and rr >= 0.0
+		box["prev"] = rr
+		return hit
+	tr.coast_until(peri, traj.t + 2.0 * float(traj.conic()["period"]), 20.0, 0.002)
+	var r := tr.radius()
+	var v := sqrt(mu * (2.0 / r - 2.0 / (ra + rp)))
+	var cos_g := clampf(sqrt(mu * 2.0 * ra * rp / (ra + rp)) / (r * v), -1.0, 1.0)
+	var sin_g := -sqrt(1.0 - cos_g * cos_g)
+	var vr := tr.radial_rate()
+	var vh := sqrt(maxf(0.0, tr.speed() * tr.speed() - vr * vr))
+	var dv := Vector3(v * cos_g - vh, 0.0, vr - v * sin_g)
+	var tb := burn_time(mass, dv.length())
+	return {"name": "LOI-2", "tig": tr.t - tb / 2.0, "dv_lvlh": dv, "dv": dv.length(), "burn_s": tb}
+
+
+## The state (m, m/s, doubles) on the ellipse about a body of [param mu]
+## with semi-major axis [param a] and eccentricity [param e], its
+## periapsis toward [param pdir] and its normal [param h] (the motion
+## right-handed about it), at mean anomaly [param m].
+static func conic_state(mu: float, a: float, e: float, pdir: Vector3, h: Vector3, m: float) -> PackedFloat64Array:
+	var ea := m
+	for _i in 30:
+		ea -= (ea - e * sin(ea) - m) / (1.0 - e * cos(ea))
+	var nu := 2.0 * atan2(sqrt(1.0 + e) * sin(ea / 2.0), sqrt(1.0 - e) * cos(ea / 2.0))
+	var p := a * (1.0 - e * e)
+	var r := p / (1.0 + e * cos(nu))
+	var k := sqrt(mu / p)
+	var x := pdir.normalized()
+	var y := h.normalized().cross(x)
+	var cr := r * cos(nu)
+	var sr := r * sin(nu)
+	var cv := -k * sin(nu)
+	var sv := k * (e + cos(nu))
+	return PackedFloat64Array([x.x * cr + y.x * sr, x.y * cr + y.y * sr, x.z * cr + y.z * sr,
+		x.x * cv + y.x * sv, x.y * cv + y.y * sv, x.z * cv + y.z * sv])
+
+
+## The mean anomaly at true anomaly [param nu] on an ellipse of
+## eccentricity [param e].
+static func mean_anomaly(nu: float, e: float) -> float:
+	var ea := 2.0 * atan2(sqrt(1.0 - e) * sin(nu / 2.0), sqrt(1.0 + e) * cos(nu / 2.0))
+	return ea - e * sin(ea)
+
+
 ## Coast [param traj] (modified) to its next periapsis, within a
 ## revolution and a half. Returns its altitude above the primary, m (the
 ## conic's there).
@@ -566,13 +623,13 @@ static func time_at_direction(traj: Trajectory, dir: Vector3, after: float) -> f
 ## Size a retrograde DOI at [param at] (the state at ignition): the
 ## bisection on the finite burn, flown on the DPS as the LGC's P40 flies it,
 ## that puts the next pericynthion at [param pericynthion_alt]. Returns
-## {"dv", "hp", "hp_get"}, or {} when even a burn that would reach the
-## surface can't.
+## {"dv", "hp", "hp_get", "hp_pos" (where, relative to the Moon)}, or {}
+## when even a burn that would reach the surface can't.
 static func size_doi(at: Trajectory, mass: float, pericynthion_alt: float) -> Dictionary:
 	var outcome := func(dvm: float) -> Array:
 		var t2 := at.clone()
 		simulate_dps_burn(t2, mass, Vector3(-dvm, 0, 0))
-		return [next_periapsis_alt(t2), t2.t]
+		return [next_periapsis_alt(t2), t2.t, t2.pos()]
 	var lo := 0.0
 	var hi := 0.5 * float(at.speed())
 	if float(outcome.call(lo)[0]) < pericynthion_alt:
@@ -587,19 +644,21 @@ static func size_doi(at: Trajectory, mass: float, pericynthion_alt: float) -> Di
 			break
 	var dv := (lo + hi) / 2.0
 	var res: Array = outcome.call(dv)
-	return {"dv": dv, "hp": res[0], "hp_get": res[1]}
+	return {"dv": dv, "hp": res[0], "hp_get": res[1], "hp_pos": res[2]}
 
 
 ## Descent orbit insertion for a landing at [param site_mf] (Moon-fixed):
 ## the LM's retrograde burn half a revolution before powered descent, on
 ## the pass that lands nearest GET [param t_land], and no earlier than
-## [param earliest]. The burn is centred on the point opposite the
-## pericynthion, which falls [param pdi_range] (ground range) before the
-## site, where powered descent begins, and is sized for a pericynthion
-## [param pericynthion_alt] above the site (Apollo 11: 50,000 ft). Powered
-## descent lasts [param t_descent]. Returns a PAD with the pericynthion's
-## height above the site ("hp") and time ("hp_get"), and the landing time
-## it plans for ("land_get").
+## [param earliest]. The burn is sized for a pericynthion
+## [param pericynthion_alt] above the site (Apollo 11: 50,000 ft), and
+## placed for the pericynthion to fall [param pdi_range] (ground range)
+## before the site, where powered descent begins: about opposite it, but
+## the Moon's field turns the descent orbit's apsides by degrees in its
+## half revolution, so the burn is moved until the pericynthion does fall
+## there. Powered descent lasts [param t_descent]. Returns a PAD with the
+## pericynthion's height above the site ("hp") and time ("hp_get"), and
+## the landing time it plans for ("land_get").
 static func plan_doi(traj: Trajectory, mass: float, pericynthion_alt: float, site_mf: Vector3, t_land: float,
 		pdi_range: float, t_descent: float, earliest: float) -> Dictionary:
 	if traj.primary != "moon":
@@ -613,26 +672,32 @@ static func plan_doi(traj: Trajectory, mass: float, pericynthion_alt: float, sit
 		base.coast_to(t_l - t_descent - 2.0 * period, 60.0, FRAC)
 	var res := {"dv": 22.0}
 	var t_doi := 0.0
-	for _i in 5:
+	# How far past the point opposite the burn the pericynthion falls, rad.
+	var lag := 0.0
+	for _i in 8:
 		var h := base.pos().cross(base.vel()).normalized()
-		var s := site_at(site_mf, t_l)
+		# The PDI point: the site where it stands at PDI, pdi_range back.
+		var s := site_at(site_mf, t_l - t_descent)
 		var sp := (s - h * s.dot(h)).normalized()
-		var doi_dir := -sp.rotated(h, -pdi_range / Bodies.R_MOON)
+		var pdi_dir := sp.rotated(h, -pdi_range / Bodies.R_MOON)
 		# The pass over the DOI point about half a revolution and the
 		# descent before the landing.
 		var probe := base.clone()
-		t_doi = time_at_direction(probe, doi_dir, maxf(earliest, t_l - t_descent - period))
+		t_doi = time_at_direction(probe, -pdi_dir.rotated(h, -lag), maxf(earliest, t_l - t_descent - period))
 		var tb := dps_burn_time(mass, float(res["dv"]))
 		var at := base.clone()
 		at.coast_to(t_doi - tb / 2.0, 60.0, FRAC)
 		res = size_doi(at, mass, pericynthion_alt + site_h)
 		if res.is_empty():
 			return {}
+		var hp_dir: Vector3 = (res["hp_pos"] as Vector3).normalized()
+		var off := atan2(pdi_dir.cross(hp_dir).dot(h), pdi_dir.dot(hp_dir))
+		lag += off
 		var t_next := float(res["hp_get"]) + t_descent
-		if absf(t_next - t_l) < 1.0:
-			t_l = t_next
-			break
+		var done := absf(t_next - t_l) < 1.0 and absf(off) * Bodies.R_MOON < 100.0
 		t_l = t_next
+		if done:
+			break
 	var dv := float(res["dv"])
 	var tb2 := dps_burn_time(mass, dv)
 	return {"name": "DOI", "tig": t_doi - tb2 / 2.0, "dv_lvlh": Vector3(-dv, 0, 0), "dv": dv,

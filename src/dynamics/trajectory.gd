@@ -7,11 +7,33 @@
 ## perturbation of the other body (direct and indirect terms). With
 ## Bodies.perturbed the Sun pulls as a third body too, and about the Earth
 ## its zonal harmonics (J2 to J4) act [simplified: not about the Moon,
-## where they come to under 1e-9 m/s²]. Crossing the lunar sphere of
+## where they come to under 1e-9 m/s²]. About the Moon its own gravity
+## field acts when one is loaded (MoonGravity), sampled every FIELD_HOLD
+## seconds and interpolated between. Crossing the lunar sphere of
 ## influence re-bases the state onto the other body, which keeps precision
 ## near the Moon without changing the physics.
+##
+## A trajectory flies truth's model, or an onboard computer's (model): the
+## CMC's and the LGC's programs had the R-2 lunar model for the Moon's
+## field, not GRAIL's, and no third bodies below 800 km over the primary,
+## the LGC's none at all [simplified: their Earth is truth's, and their
+## lunar GM GRAIL's, 5 parts in a million off Colossus's]. The RTCC flies
+## truth's [simplified: the ground's flew R-2 too].
 class_name Trajectory
 extends RefCounted
+
+## The spacing of the Moon's field's samples, s: a fixed grid of GET, the
+## field sampled at each interval's middle where the trajectory will be
+## then and interpolated between. A 60 nmi orbit comes 10 m from one
+## sampled at every stage in a day, its apsides under a metre [estimated:
+## tools/gravity/moon_gravity.py --hold], for a fraction of the cost.
+const FIELD_HOLD := 30.0
+
+enum Model { TRUTH, CMC, LGC }
+
+## The altitude over the primary below which the CMC's programs leave out
+## the third bodies' pulls (RME, RMM: 800 km) [published: Comanche 055].
+const CMC_THIRD_BODY_ALT := 800000.0
 
 var primary: String = "earth"
 ## GET of the state, s.
@@ -20,6 +42,13 @@ var t: float = 0.0
 var s: PackedFloat64Array = PackedFloat64Array([0, 0, 0, 0, 0, 0])
 ## Number of primary-body switches since construction (diagnostics).
 var soi_switches: int = 0
+## The gravity this trajectory flies: truth's (and the RTCC's), or an
+## onboard computer's model of it.
+var model: Model = Model.TRUTH
+## The field's samples in hand: inertial m/s², for the grid's intervals
+## field_k to field_k + 3, twelve floats (none before the first sample).
+var field_a: PackedFloat64Array = PackedFloat64Array()
+var field_k: int = 0
 
 
 func clone() -> Trajectory:
@@ -27,6 +56,9 @@ func clone() -> Trajectory:
 	c.primary = primary
 	c.t = t
 	c.s = s.duplicate()
+	c.model = model
+	c.field_a = field_a.duplicate()
+	c.field_k = field_k
 	return c
 
 
@@ -34,12 +66,38 @@ func set_state(p_primary: String, p_t: float, pos: Vector3, vel: Vector3) -> voi
 	primary = p_primary
 	t = p_t
 	s = PackedFloat64Array([pos.x, pos.y, pos.z, vel.x, vel.y, vel.z])
+	field_a = PackedFloat64Array()
 
 
 func set_state_d(p_primary: String, p_t: float, state: PackedFloat64Array) -> void:
 	primary = p_primary
 	t = p_t
 	s = state.duplicate()
+	field_a = PackedFloat64Array()
+
+
+## This trajectory as the state vector of the onboard computer whose
+## gravity model is [param m]. Returns self.
+func as_onboard(m: Model) -> Trajectory:
+	model = m
+	field_a = PackedFloat64Array()
+	return self
+
+
+## The field's samples in hand, for a checkpoint: {} when none.
+func field_snapshot() -> Dictionary:
+	if field_a.size() != 12:
+		return {}
+	return {"k": field_k, "a": Array(field_a)}
+
+
+## Restore the field's samples from field_snapshot()'s [param d].
+func restore_field(d: Dictionary) -> void:
+	if d.is_empty():
+		field_a = PackedFloat64Array()
+		return
+	field_a = PackedFloat64Array(d["a"])
+	field_k = int(d["k"])
 
 
 # --- state accessors -----------------------------------------------------
@@ -158,6 +216,15 @@ func _accel(tt: float, x: float, y: float, z: float, ext: PackedFloat64Array, su
 	var ax := -mu_p * x / r3
 	var ay := -mu_p * y / r3
 	var az := -mu_p * z / r3
+	if model != Model.TRUTH:
+		var floor_r := Bodies.radius_of(primary) + CMC_THIRD_BODY_ALT
+		if model == Model.LGC or r2 < floor_r * floor_r:
+			if Bodies.perturbed and primary == "earth":
+				var zon0 := _zonal(x, y, z, r2)
+				ax += zon0[0]; ay += zon0[1]; az += zon0[2]
+			if ext.size() == 3:
+				ax += ext[0]; ay += ext[1]; az += ext[2]
+			return PackedFloat64Array([ax, ay, az])
 	# Third body: direct term toward the body minus the indirect term (the
 	# acceleration of the primary itself toward the third body).
 	var dx := qx - x
@@ -217,18 +284,27 @@ func step(dt: float, ext: PackedFloat64Array = PackedFloat64Array()) -> void:
 	var x := s[0]; var y := s[1]; var z := s[2]
 	var vx := s[3]; var vy := s[4]; var vz := s[5]
 	var h := dt / 2.0
+	# The Moon's field at each stage's time, with the step's external
+	# acceleration.
+	var e1 := ext
+	var e2 := ext
+	var e4 := ext
+	if primary == "moon" and MoonGravity.degree >= 2:
+		e1 = _plus(ext, _field_at(t, ext))
+		e2 = _plus(ext, _field_at(t + h, ext))
+		e4 = _plus(ext, _field_at(t + dt, ext))
 	var sun := PackedFloat64Array()
 	if Bodies.perturbed:
 		sun = Bodies.sun_position(t + h)
 		if primary == "moon":
 			var mp := Bodies.moon_position(t + h)
 			sun[0] -= mp[0]; sun[1] -= mp[1]; sun[2] -= mp[2]
-	var a1 := _accel(t, x, y, z, ext, sun)
-	var a2 := _accel(t + h, x + vx * h, y + vy * h, z + vz * h, ext, sun)
+	var a1 := _accel(t, x, y, z, e1, sun)
+	var a2 := _accel(t + h, x + vx * h, y + vy * h, z + vz * h, e2, sun)
 	var v2x := vx + a1[0] * h; var v2y := vy + a1[1] * h; var v2z := vz + a1[2] * h
-	var a3 := _accel(t + h, x + v2x * h, y + v2y * h, z + v2z * h, ext, sun)
+	var a3 := _accel(t + h, x + v2x * h, y + v2y * h, z + v2z * h, e2, sun)
 	var v3x := vx + a2[0] * h; var v3y := vy + a2[1] * h; var v3z := vz + a2[2] * h
-	var a4 := _accel(t + dt, x + v3x * dt, y + v3y * dt, z + v3z * dt, ext, sun)
+	var a4 := _accel(t + dt, x + v3x * dt, y + v3y * dt, z + v3z * dt, e4, sun)
 	var v4x := vx + a3[0] * dt; var v4y := vy + a3[1] * dt; var v4z := vz + a3[2] * dt
 	var k := dt / 6.0
 	s[0] = x + k * (vx + 2.0 * v2x + 2.0 * v3x + v4x)
@@ -253,6 +329,7 @@ func _check_soi() -> void:
 				s[i] -= m[i]
 			primary = "moon"
 			soi_switches += 1
+			field_a = PackedFloat64Array()
 	else:
 		if s[0] * s[0] + s[1] * s[1] + s[2] * s[2] > Bodies.MOON_SOI * Bodies.MOON_SOI * 1.01 * 1.01:
 			var m := Bodies.moon_state(t)
@@ -260,6 +337,101 @@ func _check_soi() -> void:
 				s[i] += m[i]
 			primary = "earth"
 			soi_switches += 1
+			field_a = PackedFloat64Array()
+
+
+static func _plus(a: PackedFloat64Array, b: PackedFloat64Array) -> PackedFloat64Array:
+	if a.size() != 3:
+		return b
+	return PackedFloat64Array([a[0] + b[0], a[1] + b[1], a[2] + b[2]])
+
+
+## The Moon's field's pull (inertial m/s²) at GET [param tau]: a cubic
+## through the samples at the middles of the grid's FIELD_HOLD-second
+## intervals (Catmull-Rom's, from the two on each side), which makes it a
+## smooth function of time whatever the steps, so RK4 flies it alike from
+## any step's phase and a flight restored from a checkpoint flies as it
+## did. Far from the Moon the degrees that have faded are left out. New
+## samples are taken where the step's external acceleration [param ext]
+## (a thrust's) carries the trajectory too.
+func _field_at(tau: float, ext: PackedFloat64Array) -> PackedFloat64Array:
+	var u := tau / FIELD_HOLD - 0.5
+	var k := int(floorf(u))
+	var w := u - float(k)
+	_field_samples(k - 1, ext)
+	var a := field_a
+	var w2 := w * w
+	var w3 := w2 * w
+	var c0 := -0.5 * w3 + w2 - 0.5 * w
+	var c1 := 1.5 * w3 - 2.5 * w2 + 1.0
+	var c2 := -1.5 * w3 + 2.0 * w2 + 0.5 * w
+	var c3 := 0.5 * w3 - 0.5 * w2
+	return PackedFloat64Array([
+		c0 * a[0] + c1 * a[3] + c2 * a[6] + c3 * a[9],
+		c0 * a[1] + c1 * a[4] + c2 * a[7] + c3 * a[10],
+		c0 * a[2] + c1 * a[5] + c2 * a[8] + c3 * a[11]])
+
+
+## Makes field_a hold the samples for the grid's intervals [param k] to
+## k + 3, keeping those it has and taking the others (with [param ext],
+## as _field_at()).
+func _field_samples(k: int, ext: PackedFloat64Array) -> void:
+	if field_a.size() == 12:
+		if field_k == k:
+			return
+		if field_k == k - 1:
+			field_a = field_a.slice(3, 12) + _field_sample(k + 3, ext)
+			field_k = k
+			return
+		if field_k == k + 1:
+			field_a = _field_sample(k, ext) + field_a.slice(0, 9)
+			field_k = k
+			return
+	field_a = _field_sample(k, ext) + _field_sample(k + 1, ext) + _field_sample(k + 2, ext) \
+		+ _field_sample(k + 3, ext)
+	field_k = k
+
+
+## The field's sample for the grid's interval [param k], at its middle.
+func _field_sample(k: int, ext: PackedFloat64Array) -> PackedFloat64Array:
+	return _field_ahead((float(k) + 0.5) * FIELD_HOLD - t, ext)
+
+
+## The field's pull (inertial m/s²) where the trajectory will be in
+## [param h] seconds, GRAIL's or, for an onboard model, R-2's: its
+## position carried on by its velocity, the central pull and its rate (a
+## third-order series), which a 60 nmi orbit's field and third bodies
+## leave half a metre off in 30 s, and by [param ext], the step's
+## external acceleration, held: a descent's thrust would otherwise leave
+## it kilometres off a minute ahead.
+func _field_ahead(h: float, ext: PackedFloat64Array) -> PackedFloat64Array:
+	var r2 := s[0] * s[0] + s[1] * s[1] + s[2] * s[2]
+	var r3 := r2 * sqrt(r2)
+	var mu := Bodies.MU_MOON
+	var rv := (s[0] * s[3] + s[1] * s[4] + s[2] * s[5]) / r2
+	var ka := -0.5 * mu / r3 * h * h
+	var kj := -mu / r3 * h * h * h / 6.0
+	var px := s[0] + s[3] * h + s[0] * ka + kj * (s[3] - 3.0 * rv * s[0])
+	var py := s[1] + s[4] * h + s[1] * ka + kj * (s[4] - 3.0 * rv * s[1])
+	var pz := s[2] + s[5] * h + s[2] * ka + kj * (s[5] - 3.0 * rv * s[2])
+	if ext.size() == 3:
+		var kx := 0.5 * h * h
+		px += ext[0] * kx
+		py += ext[1] * kx
+		pz += ext[2] * kx
+	var a := Bodies.moon_fixed_axes(t + h)
+	var fx := px * a[0] + py * a[1] + pz * a[2]
+	var fy := px * a[3] + py * a[4] + pz * a[5]
+	var fz := px * a[6] + py * a[7] + pz * a[8]
+	var g: PackedFloat64Array
+	if model == Model.TRUTH:
+		g = MoonGravity.accel_fixed(fx, fy, fz, MoonGravity.degree_at(sqrt(fx * fx + fy * fy + fz * fz)))
+	else:
+		g = MoonGravity.r2_accel_fixed(fx, fy, fz, Bodies.MU_MOON)
+	return PackedFloat64Array([
+		g[0] * a[0] + g[1] * a[3] + g[2] * a[6],
+		g[0] * a[1] + g[1] * a[4] + g[2] * a[7],
+		g[0] * a[2] + g[1] * a[5] + g[2] * a[8]])
 
 
 ## Coast (no external force) to GET [param t_end] with adaptive steps no

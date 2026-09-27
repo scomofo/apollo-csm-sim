@@ -114,7 +114,7 @@ static func publish_motion(p: String, tr: Trajectory, att: Attitude, m: float, c
 func snapshot() -> Dictionary:
 	return {
 		"id": id, "config": config, "mass": mass,
-		"primary": traj.primary, "t": traj.t, "s": Array(traj.s),
+		"primary": traj.primary, "t": traj.t, "s": Array(traj.s), "field": traj.field_snapshot(),
 		"q": [attitude.q.x, attitude.q.y, attitude.q.z, attitude.q.w],
 		"omega": [attitude.omega.x, attitude.omega.y, attitude.omega.z],
 		"landed": landed, "landed_pos": [landed_pos.x, landed_pos.y, landed_pos.z],
@@ -126,6 +126,7 @@ func snapshot() -> Dictionary:
 static func from_snapshot(d: Dictionary) -> Vehicle:
 	var v := Vehicle.new(str(d["id"]), str(d["config"]), float(d["mass"]))
 	v.traj.set_state_d(str(d["primary"]), float(d["t"]), PackedFloat64Array(d["s"]))
+	v.traj.restore_field(d.get("field", {}))
 	var q: Array = d["q"]
 	v.attitude.q = Quaternion(q[0], q[1], q[2], q[3])
 	var w: Array = d["omega"]

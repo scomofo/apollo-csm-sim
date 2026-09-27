@@ -60,6 +60,10 @@ var systems: Dictionary = {}
 var phase: String = ""
 var events: Array = []
 var visited_lunar_orbit: bool = false
+## Where the lunar orbit start phase puts Columbia along its orbit (mean
+## anomaly at its start, rad), found once in a process for each mission
+## and model (_lunar_orbit_start()).
+static var _start_phase_cache: Dictionary = {}
 var tli_pad: Dictionary = {}
 var tli_cutoff_get: float = -1.0
 var last_pad: Dictionary = {}
@@ -169,28 +173,7 @@ func start(p_phase: String) -> void:
 	if p_phase in ["lunar_orbit", "transearth_coast", "entry"] + LM_PHASES:
 		visited_lunar_orbit = true
 		cfg = "csm_lm"
-		var r := Bodies.R_MOON + 111000.0
-		var v := sqrt(Bodies.MU_MOON / r)
-		var t0 := 75.0 * 3600.0 + 50.0 * 60.0
-		var t_land := float(mission.section("landing")["get_s"])
-		# Retrograde, in the plane LOI puts it in: over the landing site at
-		# the landing time, the site at the ground track's northernmost
-		# point. And phased so the flown timeline (undocking, DOI and PDI)
-		# lands at the landing time: Eagle lands a descent after PDI, at its
-		# descent orbit's pericynthion, pdi_range short of the site, and
-		# reaches it ahead of Columbia by the difference of their half
-		# periods, so Columbia passes over the site that much sooner.
-		var g := SpacecraftData.section("descent_guidance")
-		var n := v / r
-		var peri := landing_site().length() + float(mission.section("doi")["pericynthion_alt_km"]) * 1000.0
-		var a_lm := (r + peri) / 2.0
-		var lead := PI / n - PI * sqrt(a_lm * a_lm * a_lm / Bodies.MU_MOON)
-		var t_over := t_land - float(g["descent_s"]) + float(g["pdi_range_m"]) / Bodies.R_MOON / n + lead
-		var h := Rtcc.site_orbit_normal(landing_site(), t_land)
-		var over := Rtcc.site_at(landing_site(), t_over).normalized()
-		over = (over - h * over.dot(h)).normalized()
-		var at := over.rotated(h, -fposmod(n * (t_over - t0), TAU))
-		tr.set_state("moon", t0, at * r, h.cross(at) * v)
+		tr = _lunar_orbit_start()
 		var mass := SpacecraftData.total_mass("csm_lm", sps_prop, 560.0, 110.0, 0.0)
 		sps_prop -= mass * (1.0 - exp(-900.0 / (float(SpacecraftData.section("sps")["isp_s"]) * Units.G0)))
 	if p_phase in LM_PHASES:
@@ -248,7 +231,7 @@ func start(p_phase: String) -> void:
 		"translunar_coast":
 			_say("Columbia, Houston. Good trajectory. Request an MCC PAD when you are ready; LOI PAD about eight hours out.")
 		"lunar_orbit":
-			_say("Columbia, Houston. You are in a 60-mile orbit with Eagle docked. LM JETT, then request the TEI PAD.")
+			_say("Columbia, Houston. You are in a 54 by 66-mile orbit with Eagle docked. LM JETT, then request the TEI PAD.")
 		"lunar_descent":
 			_say("Eagle, Houston. You're on the descent orbit. Your state vector and GO for PDI are coming.")
 		"lunar_surface":
@@ -471,8 +454,10 @@ func request_pad(kind: String, earliest: float = -1.0) -> Dictionary:
 			pad = Rtcc.plan_loi(tr, mass, float(mission.section("loi")["apolune_alt_km"]) * 1000.0,
 				landing_site(), float(mission.section("landing")["get_s"]))
 		"circ":
-			pad = Rtcc.plan_circularize(tr, mass, "periapsis")
-			pad["name"] = "LOI-2"
+			var lo := mission.section("lunar_orbit")
+			var r_site := landing_site().length()
+			pad = Rtcc.plan_loi2(tr, mass, r_site + float(lo["loi2_apolune_nmi"]) * Units.NMI,
+				r_site + float(lo["loi2_perilune_nmi"]) * Units.NMI)
 		"tei":
 			var tei := mission.section("tei")
 			pad = Rtcc.plan_tei(tr, mass, float(tei["dv_mps"]), float(tei["entry_perigee_alt_km"]) * 1000.0,
@@ -593,8 +578,10 @@ func landing_site_refsmmat(tr: Trajectory) -> Basis:
 ## ignition algorithm and uplinks the LM's state vector (P27) as MSFN
 ## tracked it. The tracking error is given where it matters, at PDI
 ## (mission.json "pdi", LVLH): the uplinked state is on the orbit that is
-## off by that much there, coasted back to now. Returns {"name": "PDI",
-## "tig"}, or {} without a free LM that has its landing site.
+## off by that much there, coasted back to now through the LGC's own model
+## of the Moon's field, so that the LGC, coasting it forward, comes to PDI
+## off by just that. Returns {"name": "PDI", "tig"}, or {} without a free
+## LM that has its landing site.
 func pdi_pad() -> Dictionary:
 	var lgc: Lgc = systems.get("lgc")
 	if dynamics.lm == null or dynamics.lm.config != "lm" or lgc == null or lgc.landing_site == Vector3.ZERO:
@@ -613,6 +600,7 @@ func pdi_pad() -> Dictionary:
 		at.s[i] += dp[i]
 		at.s[3 + i] += dv[i]
 	# Back along that orbit to now, in the steps coasting takes forward.
+	at.as_onboard(lgc.nav_model())
 	while at.t > now.t + 1e-9:
 		at.step(-minf(clampf(0.005 * at.radius() / maxf(at.speed(), 1.0), 0.02, 60.0), at.t - now.t))
 	lgc.uplink_state(at)
@@ -913,6 +901,64 @@ func _set_lm_landed(t: float) -> void:
 
 
 # --- helpers ---------------------------------------------------------------------
+
+## Columbia and Eagle in Apollo 11's orbit after LOI-2 (mission.json
+## "lunar_orbit"): its apsides above the landing site's radius, its
+## pericynthion over the longitude the mission report gives, retrograde in
+## the plane LOI puts it in (over the landing site at the landing time,
+## the site at the ground track's northernmost point), and placed along it
+## so that the flown timeline (undocking, DOI and PDI) lands at the landing
+## time: Eagle lands a descent after PDI, at its descent orbit's
+## pericynthion, pdi_range short of the site, and reaches it ahead of
+## Columbia by the difference of their half periods, so Columbia passes
+## over the site that much sooner. The Moon's field moves Columbia along
+## its orbit by degrees in the day it coasts to there, so its place is
+## found by flying it, once in a process.
+func _lunar_orbit_start() -> Trajectory:
+	var lo := mission.section("lunar_orbit")
+	var t0 := _get_s(lo["start_get"])
+	var site := landing_site()
+	var r_site := site.length()
+	var rp := r_site + float(lo["perilune_nmi"]) * Units.NMI
+	var ra := r_site + float(lo["apolune_nmi"]) * Units.NMI
+	var a := (rp + ra) / 2.0
+	var e := (ra - rp) / (ra + rp)
+	var mu := Bodies.MU_MOON
+	var n := sqrt(mu / (a * a * a))
+	var t_land := float(mission.section("landing")["get_s"])
+	var g := SpacecraftData.section("descent_guidance")
+	var peri_lm := r_site + float(mission.section("doi")["pericynthion_alt_km"]) * 1000.0
+	var a_lm := (a + peri_lm) / 2.0
+	var lead := PI / n - PI * sqrt(a_lm * a_lm * a_lm / mu)
+	var t_over := t_land - float(g["descent_s"]) + float(g["pdi_range_m"]) / Bodies.R_MOON / n + lead
+	var h := Rtcc.site_orbit_normal(site, t_land)
+	var over := Rtcc.site_at(site, t_over).normalized()
+	over = (over - h * over.dot(h)).normalized()
+	# The pericynthion over its longitude on the equator, in the plane.
+	var lon := deg_to_rad(float(lo["perilune_lon_deg"]))
+	var pdir := Bodies.moon_fixed(t0) * Vector3(cos(lon), sin(lon), 0.0)
+	pdir = (pdir - h * pdir.dot(h)).normalized()
+	var key := "%s %.3f %d %s" % [mission.id(), t0, MoonGravity.degree, Bodies.ephemeris != null]
+	var m0: float
+	if _start_phase_cache.has(key):
+		m0 = _start_phase_cache[key]
+	else:
+		# A conic's guess, then flown to the pass and moved by what it
+		# missed by.
+		m0 = Rtcc.mean_anomaly(pdir.signed_angle_to(over, h), e) - n * (t_over - t0)
+		for _i in 5:
+			var fly := Trajectory.new()
+			fly.set_state_d("moon", t0, Rtcc.conic_state(mu, a, e, pdir, h, m0))
+			fly.coast_to(t_over, 60.0, Rtcc.FRAC)
+			var off := over.signed_angle_to(fly.pos().normalized(), h)
+			m0 -= off
+			if absf(off) < 1e-6:
+				break
+		_start_phase_cache[key] = m0
+	var tr := Trajectory.new()
+	tr.set_state_d("moon", t0, Rtcc.conic_state(mu, a, e, pdir, h, m0))
+	return tr
+
 
 ## A GET given in seconds, or as "hhh:mm:ss".
 static func _get_s(v: Variant) -> float:

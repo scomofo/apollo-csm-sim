@@ -81,7 +81,9 @@ func test_the_ground_plans_csi_and_p20_takes_out_the_tracking_error() -> void:
 	assert_between(float(pad["tig"]) - ins, 2700.0, 3600.0, "CSI at the first apolune (Apollo 11: 50 min 18 s after insertion)")
 	assert_almost_eq(float(pad["tpi_get"]) - ins, 9275.0, 0.01, "TPI 2 h 35 min after insertion")
 	assert_almost_eq(float(pad["dv"]) / Units.FT, 51.5, 3.0, "CSI (Apollo 11: 51.5 ft/s)")
-	assert_almost_eq(float(pad["dh"]) / Units.NMI, 15.0, 1.0, "15 nmi below Columbia")
+	# 15 nmi, as the flight plan had it for round orbits; Columbia's orbit,
+	# out of round (62 by 56 nmi), moves the height at CDH's point.
+	assert_almost_eq(float(pad["dh"]) / Units.NMI, 15.0, 1.5, "15 nmi below Columbia")
 	assert_almost_eq(float(pad["tpi_dv"]) / Units.FT, 25.0, 3.0, "TPI (Apollo 11: 25 ft/s)")
 	var lgc := rt.lgc()
 	assert_eq(lgc.rdv_csi_tig, float(pad["tig"]), "N11 uplinked")
@@ -206,14 +208,19 @@ func test_from_insertion_to_docking() -> void:
 	var dh := lgc.rdv_dh
 	keys("PP", lgc)
 	burns["CDH"] = fly_lm_pad(41, 0, Callable(), false)
-	# P34: the time the CSM comes up to 26.6°, and the transfer.
+	# P34: the time the CSM comes up to 26.6°, and the transfer, half an
+	# hour out; and the final computation 12 minutes before TIG, as Apollo
+	# 11's crew recycled it [MSC-00171, section 5].
 	run(float(pad["tpi_get"]) - 1800.0 - SimClock.get_seconds)
-	keys("V37E34EP", lgc)
-	assert_eq(lgc.step_name, "n37", "P34: V06N37, TPI's time")
+	for lead in [0.0, 720.0]:
+		if lead > 0.0:
+			run(lgc.rdv_tpi_tig - lead - SimClock.get_seconds)
+		keys("V37E34EP", lgc)
+		assert_eq(lgc.step_name, "n37", "P34: V06N37, TPI's time")
+		keys("P", lgc)
+		assert_eq(lgc.step_name, "n58", "V06N58")
+		keys("PP", lgc)
 	var tpi_tig := lgc.rdv_tpi_tig
-	keys("P", lgc)
-	assert_eq(lgc.step_name, "n58", "V06N58")
-	keys("PP", lgc)
 	burns["TPI"] = fly_lm_pad(41, 0, Callable(), false)
 	# P35 five minutes before each midcourse correction.
 	for after in rt.mission.section("rendezvous")["tpm_after_tpi_s"]:
@@ -258,12 +265,17 @@ func test_from_insertion_to_docking() -> void:
 	var period := float(rt.dynamics.traj.conic()["period"])
 	assert_almost_eq(float(tei.get("tig", 0.0)), 135.0 * 3600.0 + 23.0 * 60.0 + 42.0, 0.5 * period, "nearest Apollo 11's TEI")
 	# The checks: the sequence as planned, and the ΔV within 20 % of the plan.
+	# The LGC flies on its own model of the Moon's field and its own state
+	# vectors, the ground planned on the truth: with Columbia's orbit out of
+	# round, Apollo 11's TPI came 6 min 39 s after the plan's, and its
+	# midcourse corrections were 1.4 and 1.2 ft/s (the CMC's solutions)
+	# [MSC-00171, section 5 and table 5-VII].
 	assert_lt(err_csi, 5.0, "P20 had Columbia's state vector by CSI")
 	assert_almost_eq(csi_lgc, float(pad["dv"]), 0.3, "the LGC's CSI agrees with the ground's")
 	assert_almost_eq(burns["CSI"], float(pad["dv"]), 0.5, "CSI flown")
-	assert_almost_eq(dh / Units.NMI, 15.0, 1.0, "coelliptic 15 nmi below")
-	assert_almost_eq(tpi_tig, float(pad["tpi_get"]), 120.0, "TPI when the plan had it")
+	assert_almost_eq(dh / Units.NMI, 15.0, 1.5, "coelliptic 15 nmi below")
+	assert_almost_eq(tpi_tig, float(pad["tpi_get"]), 400.0, "TPI within minutes of the plan")
 	assert_almost_eq(burns["TPI"], float(pad["tpi_dv"]), 0.5, "TPI flown")
-	assert_lt(burns["TPM3"] + burns["TPM4"], 1.0, "small midcourse corrections")
+	assert_lt(burns["TPM3"] + burns["TPM4"], 1.5, "small midcourse corrections")
 	assert_between(lm_dv, float(pad["total_dv"]), 1.2 * float(pad["total_dv"]), "the LM's ΔV within 20 % of the plan")
 	assert_true(Bus.has_channel("mission.event.docking"))

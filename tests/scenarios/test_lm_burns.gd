@@ -164,10 +164,16 @@ func test_staging_and_p42_on_the_ascent_engine() -> void:
 	var aps0 := float(Bus.get_value("lm.aps.prop_kg"))
 	var m0 := d.lm.mass
 	rt.lgc().uplink_maneuver(SimClock.get_seconds + 600.0, Vector3(10.0, 0.0, 0.0))
-	var dv := fly_lm_pad(42, 1)
+	# The orbit's apsides at V99, just before the burn: the Moon's field
+	# swings the conic's by kilometres round the orbit, but not in seconds.
+	var box := {}
+	var dv := fly_lm_pad(42, 1, func() -> void:
+		if box.is_empty():
+			box["sum"] = float(Bus.get_value("lm.dyn.apo_alt_m")) + float(Bus.get_value("lm.dyn.peri_alt_m")))
 	assert_almost_eq(dv, 10.0, 0.05, "10 m/s on the APS")
 	assert_eq(int(Bus.get_value("lm.aps.ignitions")), 1, "one APS start")
 	assert_eq(int(Bus.get_value("lm.dps.ignitions")), 0, "the descent engine left behind unfired")
 	var used := aps0 - float(Bus.get_value("lm.aps.prop_kg"))
 	assert_almost_eq(used, _isp_dv_kg(m0, dv, 311.0), 0.5, "APS propellant as the rocket equation has it")
-	assert_almost_eq(float(Bus.get_value("lm.dyn.apo_alt_m")) / 1000.0, 157.0, 3.0, "a higher apocynthion")
+	var sum := float(Bus.get_value("lm.dyn.apo_alt_m")) + float(Bus.get_value("lm.dyn.peri_alt_m"))
+	assert_almost_eq((sum - float(box["sum"])) / 1000.0, 45.3, 1.0, "10 m/s posigrade: 45 km on the major axis")
