@@ -65,7 +65,13 @@ carrying a test article where Apollo 11's carried Eagle, ten lunar
 orbits, and Mission Control's timeline from TLI to the entry. Its start
 phases are `parking_orbit` (the default), `translunar_coast` (after CSM/LV
 SEP), `lunar_orbit` (after LOI-2, 60 × 61 nmi), `tei`,
-`transearth_coast` and `entry`. Each mission is data under
+`transearth_coast` and `entry`. `-- --mission=apollo_10` flies Apollo
+10: Snoopy flies the landing mission down to 8 nmi over the first
+landing's site without landing, stages in orbit and flies the rendezvous
+back to Charlie Brown. Its start phases are `parking_orbit` (the
+default), `translunar_coast`, `lunar_orbit` (after LOI-2, 61 × 59 nmi),
+`lunar_descent` (Snoopy on its descent orbit, 20 min before the low
+pass), `tei`, `transearth_coast` and `entry`. Each mission is data under
 `data/missions/<id>/`: its dates and the JPL ephemeris for them, its
 vehicles, its orbits, Mission Control's timeline, the call signs and the
 checklists.
@@ -199,6 +205,32 @@ flown time, and CAPCOM's calls at theirs:
 Fly each as above: the separation maneuvers and the small corrections on
 P41 (the RCS burn checklist), the rest on P40. Realign the platform
 before the entry, with P52 option 3.
+
+**Apollo 10.** With `-- --mission=apollo_10` the flight is Apollo 10's,
+from its parking orbit. The S-IVB flies TLI at the RTCC's TIG (GET 2:33),
+and transposition, docking and extraction follow by themselves 24 min
+after cutoff. The timeline's PADs come at the flown times:
+- the evasive maneuver on the SPS (4:39);
+- MCC-1 (26:33), and MCC-4 (70:56) if the tracking has the approach off;
+- LOI-1 at its PAD's TIG (75:56), which turns the orbit into the first
+  landing's plane over site 2, and LOI-2 (80:25);
+- Charlie Brown's separation PAD before the undocking at 98:12, for 2.5
+  ft/s radially down at 98:47;
+- Snoopy's DOI PAD after the undocking, for DOI at 99:46, down to 8 nmi
+  over the site at 100:44;
+- the phasing PAD (100:58), on the DPS at 10 % for 26 s, then full;
+- the insertion PAD (102:55) and a state vector for Snoopy, and GO for
+  staging: stage (ABORT STAGE) ten minutes before the insertion, then
+  fly it on the ascent engine (P42);
+- the CSI PAD after the insertion: CSI (103:46), CDH, TPI and the
+  midcourse corrections on P32 to P35, as from Apollo 11's
+  `lunar_ascent`, braking, and Charlie Brown docks;
+- GO for jettison two hours after docking, and TEI (137:36);
+- the transearth MCCs (176:50 and 188:50, if the corridor needs them)
+  and the entry PAD (190:49).
+
+Snoopy's checklists follow its flight: the undocking and DOI; the low
+pass, phasing and staging; the insertion and the rendezvous.
 
 **State vectors.** The CMC flies on its own state vector. Its
 accelerometers feed it only in P40, P41, P47 and entry, and during TLI. In
@@ -615,7 +647,7 @@ A flown Apollo 11 profile in the simulator reproduces these values:
 | CSI | 50.0 ft/s, 50 min 40 s after insertion | 51.5 ft/s, 50 min 18 s after insertion |
 | CDH, with Columbia's orbit out of round | 7.5 ft/s | 19.9 ft/s |
 | TPI | 26.2 ft/s, 2 h 31 min 57 s after insertion, 2 min 38 s before the plan's time | ~25 ft/s, 2 h 34 min 35 s after insertion, 6 min 39 s after the plan's |
-| Midcourse corrections | 2.6 and 0.5 ft/s | under 1 and about 1.5 ft/s |
+| Midcourse corrections | 2.6 and 0.4 ft/s | under 1 and about 1.5 ft/s |
 | Braking, then station-keeping | 15 min 44 s, station-keeping 46 min after TPI | 15 min 8 s, station-keeping 48 min after TPI |
 | Docking | GET 127:51:53, 50 min after TPI | 128:03:00, 59 min after TPI |
 | Entry interface | 195:03:05, 36,194 ft/s, 6.53° down, 3.23° S 171.88° E | 195:03:05.7, 36,194 ft/s, 6.48° down, 3.19° S 171.96° E |
@@ -652,6 +684,45 @@ The report's own figures don't all agree, and the table takes these:
   both come from TLI and a 1.1 ft/s burn: the S-IVB's venting moved the
   spacecraft before it separated. The RTCC aims TLI at the flight's
   pericynthion after the separations instead (below).
+
+Apollo 10 flown from its data alone, from its parking orbit to the
+splashdown (`tests/scenarios/test_apollo_10.gd`, which holds each row
+within set limits of the flight's figures), against the Apollo 10 Mission
+Report (MSC-00126), the AS-505 postflight trajectory (Boeing D5-15560-5)
+and the Apollo Flight Journal:
+
+| Quantity | Simulator | Apollo 10 |
+|---|---|---|
+| TLI, and the pericynthion after it | GET 2:33:13, 3,050 m/s in 341.4 s, C3 −1,298,719 m²/s²; 907.9 nmi at 76:10:17 | 2:33:28, 3,056 m/s in 342.9 s, C3 −1,308,471 m²/s²; 907.7 nmi at 76:10:18 |
+| The evasive maneuver, and the pericynthion after it | 19.7 ft/s on the SPS; 259.3 nmi at 76:41:52 | 18.8 ft/s (the PAD's 19.7); 286.1 nmi at 76:40:01 |
+| MCC-1, and the pericynthion after it | 52.1 ft/s at 26:32:56, N81 −40.8, +16.0, −28.2; 55.5 nmi at 76:00:17 | 48.7 ft/s at 26:32:56, N81 −39.8, +10.9, −25.8 (flown 49.2); 60.9 nmi at 76:00:15 |
+| MCC-4, and the pericynthion after it | 3.1 ft/s; 60.0 nmi at 76:00:15 | 2.8 ft/s, not flown; 60.7 nmi |
+| LOI-1 | 75:55:53, N81 −2,947.4, −837.9, −293.0; 3,078 ft/s in 379.9 s; 170.1 × 60.6 nmi, 1.44° to the lunar equator | 75:55:53, N81 −2,913.8, −561.2, −299.7; 2,982 ft/s in 356.1 s; 170.0 × 60.2 nmi, 1.2° planned |
+| LOI-2 | 80:22:28, 138.2 ft/s; 60.4 × 60.0 nmi | 80:25:08, 139.0 ft/s; 61.0 × 59.2 nmi |
+| The CSM's separation maneuver | 2.5 ft/s radially down; Charlie Brown in 62.4 × 57.8 nmi | 2.5 ft/s; 62.9 × 57.7 nmi |
+| DOI | 99:47:06, 68.8 ft/s in 28 s; 61.6 × 9.4 nmi | 99:46:01, 71.3 ft/s in 27.4 s; 60.9 × 8.5 nmi |
+| The low pass | 46,902 ft over the terrain at the lowest; 55,758 ft up over the site, 2.5 nmi south of it | 47,400 ft by the landing radar; 56,783 ft, about 5 miles south |
+| The phasing burn | 100:57:50, 176.8 ft/s in 41 s, 10 % at 10 s and full at 35 s; 192.3 × 11.7 nmi | 100:58:26, 176.0 ft/s in 40.0 s, 13.1 % and full; 190.1 × 12.1 nmi |
+| Staging and the insertion | the ascent stage 8,386 lb; 102:54:26, 220.8 ft/s in 18 s; 46.5 × 11.9 nmi | 8,273 lb; 102:55:02, 220.9 ft/s in 15.5 s; 46.5 × 11.0 nmi |
+| CSI | 103:44:24, 39.0 ft/s; 45.9 × 40.4 nmi | 103:45:55, 45.3 ft/s; 48.7 × 40.7 nmi |
+| CDH | 104:42:14, 6.1 ft/s, 17.6 nmi below Charlie Brown | 104:43:53, 3.0 ft/s, 15.0 nmi |
+| TPI, and the midcourse corrections | 105:12:45, 28.6 ft/s; 7.6 ft/s | 105:22:56, 24.1 ft/s; two small ones |
+| Docking | 106:04:06, the LM's RCS having given 126 ft/s from CSI | 106:22:02 |
+| TEI | 137:36:28, N81 +3,621.0, +137.9, −374.2; 3,643 ft/s in 174.0 s | 137:36:29, N81 +3,625.2, +40.0, +188.0; 3,630 ft/s in 164.8 s |
+| Transearth midcourse corrections | MCC-6 13.0 ft/s, MCC-7 4.7 ft/s | MCC-6 not flown, MCC-7 2.2 ft/s |
+| Entry interface | 191:48:55, 36,307 ft/s, 6.65° down, 23.57° S 174.07° E | 191:48:55, 36,314 ft/s, 6.54° down, 23.60° S 174.39° E |
+| The entry | P61 to P64, then P67; 7.13 g at the peak | P61 to P67; 6.78 g |
+| Splashdown | 192:04:14, 15.07° S 164.70° W, 1.9 nmi from the target | 192:03:23, 15.06° S 164.65° W, 1.3 nmi from it |
+
+Here too the report's figures don't all agree, and the table takes these:
+- Its TEI gave 3,680.3 ft/s by Table 6-V and 3,630.2 ft/s by the SPS's
+  own velocity gained (Table 7.6-V), which the TEI PAD's N81 matches: the
+  table takes Table 7.6-V's.
+- Its masses and the APS's thrust give the insertion's 220.9 ft/s in
+  17.6 s, where it burned 15.5 s (Table 6-IV); the simulator, flying
+  them, takes 18 s.
+- The phasing burn flew 176.0 ft/s against its PAD's 176.9: the test
+  holds the simulator to the PAD, which P40 flies.
 
 Deliberate simplifications are tagged `[simplified]` in the code. The main
 ones:
@@ -840,6 +911,29 @@ ones:
     count from the Moon's mean radius.
   - There is no launch for Apollo 8 yet: its start phases begin in the
     parking orbit.
+- **Apollo 10.**
+  - The phasing and insertion burns are the flown PADs, fixed maneuvers
+    timed from the low point the DOI PAD plans, where the ground's
+    two-impulse processor solved them for the rendezvous. The crew
+    throttled the DPS up by hand at the PAD's time; P40 flies the PAD's
+    throttle schedule instead.
+  - The LM carries its crew from TLI, 431 lb over its launch weight, for
+    its masses at separation, staging and insertion. The report's masses
+    and APS thrust give the insertion's 220.9 ft/s in 17.6 s, where it
+    burned 15.5 s.
+  - The descent stage is gone at staging, and the staging's gyrations
+    (the AGS's mode switch left in AUTO) aren't flown. Nor are the
+    unmanned ascent stage's separation and its APS burn to depletion after
+    LM JETT.
+  - MSFN's tracking error is drawn axis by axis. In lunar orbit its
+    radial part changes the orbit's period, which the ground's Doppler
+    tracking pinned closely, and at TEI it moves the return's perigee by
+    hundreds of kilometres: the flight's TEI came within 0.5° of the
+    corridor, the simulator's needs the transearth corrections.
+  - The ground deleted MCC-4, its 2.8 ft/s not needed; the RTCC here flies
+    it when the tracking has left the approach off.
+  - There is no launch for Apollo 10 yet: its start phases begin in the
+    parking orbit.
 
 ## Tests
 
@@ -850,12 +944,12 @@ godot --headless --path . --import
 godot --headless --path . -s addons/gut/gut_cmdln.gd -gexit
 ```
 
-That runs the whole suite, which takes about 25 minutes, nearly all of
+That runs the whole suite, which takes about 40 minutes, nearly all of
 it in the scenario tests. Add `-gdir=res://tests/unit/` to run only the
 unit tests, in under two minutes, or `-gselect=<name>` to run only the
-scripts whose file names contain `<name>`. CI runs the suite in six
+scripts whose file names contain `<name>`. CI runs the suite in seven
 parts side by side (`.github/workflows/ci.yml`): the unit tests, and the
-scenario tests dealt out over five jobs by each file's time on the
+scenario tests dealt out over six jobs by each file's time on the
 runners (`.github/scenario_seconds.txt`).
 
 The unit tests cover:
@@ -893,8 +987,8 @@ The unit tests cover:
   between segments, the Moon's spin as its frame turns, the Sun 10.7°
   over Tranquility Base at touchdown (the mission report has 10.8°), the
   Moon's pole 6.6° from its orbit's normal, a sidereal month of 27.32
-  days, and the mission choosing the model; Apollo 8's (slice 7a) against
-  its own held-out values, as close
+  days, and the mission choosing the model; Apollo 8's (slice 7a) and
+  Apollo 10's (slice 7b) against their own held-out values, as close
 - The missions (`tests/unit/test_missions.gd`), slice 7a: each under
   `data/missions/` flies its own world and vehicles, Apollo 8's stack
   126,867 kg at TLI's ignition, its CSM 63,524 lb at the separation and
@@ -903,7 +997,13 @@ The unit tests cover:
   Mission Control can make, and Apollo 8 has its own checklists and no
   LM's. CSM/LV SEP without an LM leaves the CSM alone, the test article
   and the S-IVB behind, and an Apollo 8 checkpoint keeps its mission and
-  no LM
+  no LM. Slice 7b: Apollo 10's stack 292,191 lb at TLI's ignition, its
+  CSM 63,560 lb, its CM 12,138 lb and Snoopy 31,166 lb at its separation,
+  with half an APS load; its checklists, Snoopy's for a flight without a
+  landing; and from `lunar_descent` the phasing and insertion PADs timed
+  from the low point, the phasing's throttle schedule in the LGC, and
+  staging in orbit into `lunar_ascent`, the ascent engine's burn there
+  its insertion
 - The terrain: Tranquility Base 1,927 m below the reference sphere, West
   crater 30 m deep east of the LM, and the maps blending without steps
 - The landing radar: its slant range to the ground in both antenna
@@ -978,8 +1078,8 @@ The unit tests cover:
   taken with, the IU's target conic and its guidance's state, and the
   launch vehicle's stages, time bases, guidance and events, the thrust
   direction P40 holds in a burn's last seconds, the CMC's entry guidance
-  and the CM's roll rate, and the master alarm circuit (schema 15). Older
-  checkpoints are rejected
+  and the CM's roll rate, the master alarm circuit, and the LGC's
+  throttle schedule for P40 (schema 16). Older checkpoints are rejected
 - The main scene, and in Eagle from `lunar_descent`: its HUD, the keys on
   its LGC, its two views, its checklist for the phase, and L between the
   vehicles; and the mission it's given, Apollo 8's with its own checklists
@@ -1254,7 +1354,8 @@ The scenario tests fly real segments through the crew interface:
 
   The desktop scenarios share `tests/desktop_test.gd`
 - The LM's other systems (`tests/scenarios/test_lm_burns.gd`): P41 on its
-  RCS, P47 on a translation, staging and P42 on the ascent engine, its
+  RCS, P47 on a translation, staging and P42 on the ascent engine, P40 on
+  the throttle schedule a PAD brings (Apollo 10's phasing burn), its
   autopilot turning and holding it, the LGC dark while the LM is docked,
   and the two computers each keeping its own DSKY
 - Apollo 8 (`tests/scenarios/test_apollo_8.gd`), slice 7a's check. It
@@ -1265,6 +1366,16 @@ The scenario tests fly real segments through the crew interface:
   corrections), then a P52 and the entry on P61 to P67. Each row of Apollo
   8's Fidelity table (above) is held within limits of the flight's
   figures, and CAPCOM's calls come at their times
+- Apollo 10 (`tests/scenarios/test_apollo_10.gd`), slice 7b's check. It
+  flies from its data alone, from the parking orbit to the splashdown:
+  TLI, the evasive maneuver, MCC-1 and MCC-4, LOI-1 and LOI-2; then
+  Snoopy's undocking, Charlie Brown's separation, DOI, the low pass over
+  site 2, the phasing burn on the PAD's throttle schedule, staging in
+  orbit and the insertion on the ascent engine; P20, CSI, CDH, TPI and the
+  midcourse corrections, braking and docking; then LM JETT, TEI, the
+  transearth corrections, a P52 and the entry on P61 to P67. Each row of
+  Apollo 10's Fidelity table (above) is held within limits of the
+  flight's figures, and CAPCOM's calls come at their times
 
 `tools/screenshot.tscn` renders the images above (`--view=0` window,
 `1` chase, `2` cabin; `--hud=0` leaves the HUD out, `--menu=1` shows the
@@ -1323,5 +1434,7 @@ the entry down on Apollo 11's target on Colossus's P61 to P67 (slice
 5f). That finishes the whole flight. The cabin has its sound (slice 6a),
 which waits on a listening pass. Of the other missions (milestone 7),
 Apollo 8 flies from its data alone (slice 7a): the CSM without an LM,
-from its parking orbit through ten lunar orbits to its splashdown.
-Apollo 10 comes next (7b).
+from its parking orbit through ten lunar orbits to its splashdown. So
+does Apollo 10 (slice 7b): Snoopy down to 8 nmi over the first
+landing's site, staged in orbit, and back to Charlie Brown by the
+landing mission's rendezvous. Apollo 12 comes next (7c).

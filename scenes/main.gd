@@ -32,8 +32,8 @@
 ##         player.xr_focus, player.xr_refresh_hz
 ##
 ## Mission: the exported mission_id, or "--mission=<id>" after "--" on the
-## command line, a mission under data/missions/ (apollo_11, apollo_8), with
-## its own checklists.
+## command line, a mission under data/missions/ (apollo_11, apollo_8,
+## apollo_10), with its own checklists.
 ##
 ## Start phase: the exported start_phase, or "--phase=<name>" after "--" on
 ## the command line (launch, parking_orbit, translunar_coast, lunar_orbit,

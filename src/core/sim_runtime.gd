@@ -25,7 +25,9 @@ extends RefCounted
 ## 14: the CMC's entry programs and guidance, and the CM's roll rate
 ##    (slice 5f).
 ## 15: the master alarm circuit (slice 6a).
-const SCHEMA_VERSION := 15
+## 16: the LGC's throttle schedule for P40, uplinked with a DPS burn's PAD
+##    (slice 7b).
+const SCHEMA_VERSION := 16
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],

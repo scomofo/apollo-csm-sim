@@ -60,6 +60,19 @@ func commanded() -> bool:
 		and str(Bus.get_value("dock.state", "")) == "free" and str(Bus.get_value("lm.dyn.config", "")) == "lm"
 
 
+## P40's throttle schedule, [start_s, start_throttle, throttle]: the start
+## throttle for the first start_s after ignition, then the burn throttle,
+## each a fraction of full thrust (one above the throttleable range is full
+## thrust). [param pad]'s, a PAD's own (Apollo 10's phasing burn: 26 s at
+## 10 %, then full), or given none spacecraft.json's (Apollo 11's DOI: 15 s
+## at 10 %, then 40 %).
+static func p40_schedule(pad: Array = []) -> Array:
+	if pad.size() == 3:
+		return [float(pad[0]), float(pad[1]), float(pad[2])]
+	var d := SpacecraftData.section("dps")
+	return [float(d["p40_start_s"]), float(d["p40_start_throttle"]), float(d["p40_throttle"])]
+
+
 ## The thrust level the throttle command [param cmd] asks for.
 static func throttle_target(cmd: float) -> float:
 	var d := SpacecraftData.section("dps")

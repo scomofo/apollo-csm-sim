@@ -41,9 +41,10 @@ ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", ".."))
 MISSION_ID = sys.argv[1] if len(sys.argv) > 1 else "apollo_11"
 MISSION = os.path.join(ROOT, "data", "missions", MISSION_ID, "mission.json")
 
-# Launch Complex 39A, geodetic (NASA KSC).
-PAD_LAT = 28.608389
-PAD_LON = -80.604333
+# Launch Complex 39A's pad, geodetic (NASA KSC); 39B's for the missions
+# that name it.
+PAD_39A = (28.608389, -80.604333)
+PAD_39B = (28.627306, -80.620869)
 # Each mission's Saturn V flight evaluation report: the flight azimuth (deg
 # east of north), the orbit at insertion (actual) and at TLI (the postflight
 # trajectory), nodes east of the launch meridian at range zero.
@@ -56,11 +57,18 @@ MISSIONS = {
     # Those tables count the nodes east of Greenwich at range zero, the
     # launch meridian's 80.604 deg west less (the IU targeted the parking
     # orbit's at 123.004 deg from the launch meridian, their 42.397 deg).
-    "apollo_8": {"flight_azimuth": 72.124, "inclination": 32.509, "descending_node": 42.415 - PAD_LON,
+    "apollo_8": {"flight_azimuth": 72.124, "inclination": 32.509, "descending_node": 42.415 - PAD_39A[1],
                  "insertion_s": 694.98, "insertion_lat": 32.649, "insertion_lon": -53.292,
-                 "insertion_alt_km": 191.36, "tli_inclination": 30.636, "tli_descending_node": 38.983 - PAD_LON},
+                 "insertion_alt_km": 191.36, "tli_inclination": 30.636, "tli_descending_node": 38.983 - PAD_39A[1]},
+    # AS-505, from Launch Complex 39B: the Apollo/Saturn V Postflight
+    # Trajectory, AS-505 (Boeing D5-15560-5): section 3 (the azimuth), Tables
+    # 4-II (insertion, the S-IVB's first cutoff plus 10 s) and 3-V (TLI).
+    "apollo_10": {"pad": PAD_39B, "flight_azimuth": 72.028, "inclination": 32.546, "descending_node": 123.132,
+                  "insertion_s": 713.76, "insertion_lat": 32.700, "insertion_lon": -52.526,
+                  "insertion_alt_km": 191.37, "tli_inclination": 31.698, "tli_descending_node": 123.515},
 }
 FIGURES = MISSIONS[MISSION_ID]
+PAD_LAT, PAD_LON = FIGURES.get("pad", PAD_39A)
 FLIGHT_AZIMUTH = FIGURES["flight_azimuth"]
 INCLINATION = FIGURES["inclination"]
 DESCENDING_NODE = FIGURES["descending_node"]

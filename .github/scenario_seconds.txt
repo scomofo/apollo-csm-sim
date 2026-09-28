@@ -2,10 +2,13 @@
 # scenario files out over its parts evenly: the longer of slice 5f's two
 # runs (8c10904's, on its push and its pull request), whose runners took
 # up to two fifths longer than each other on a file; test_apollo_8.gd's
-# the longer of slice 7a's two (41a24cc's).
+# the longer of slice 7a's two (41a24cc's); test_apollo_10.gd's estimated
+# until CI runs it (slice 7b): its local time, scaled by test_apollo_8.gd's
+# CI time over its local one.
 # A file not listed counts 60 s.
 # Add a new file's time once CI has run it, and measure again when the
 # parts drift apart.
+test_apollo_10.gd 300
 test_apollo_8.gd 130
 test_ascent.gd 46
 test_cabin_checklists.gd 159

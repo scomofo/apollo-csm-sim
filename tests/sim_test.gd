@@ -12,6 +12,15 @@ const CSM_THC_DETENT := 0.05
 ## Y and Z (src/systems/rcs.gd).
 const CSM_JETS := Vector3(4, 2, 2)
 
+## Translation jets per LM body axis, both systems: X four, Y and Z two;
+## and the TTCA's detent (src/systems/lm_rcs.gd).
+const LM_JETS := Vector3(4, 2, 2)
+const LM_TTCA_DETENT := 0.05
+## The LM commander's braking gates: the closing rate allowed from each
+## range in, m and m/s: 30 ft/s from a mile, 20 from 3,000 ft, 10 from
+## 1,500 ft, 5 from 500 ft, and a stop 40 m out [estimated].
+const LM_BRAKING_GATES := [[1852.0, 9.14], [914.0, 6.1], [457.0, 3.05], [152.0, 1.52], [40.0, 0.0]]
+
 var rt: SimRuntime
 var _held_keys: Array[Key] = []
 ## fly_pad()'s last burn: the truth (Trajectory) at V99 ("before") and once
@@ -374,20 +383,22 @@ func realign(option: int = 3) -> Dictionary:
 ## AUTO and P40 (SPS) or, below 10 ft/s, P41 (RCS) with auto maneuver; SPS
 ## armed, PRO at V99, PRO after residuals. The spacecraft drifts in CMC
 ## MODE FREE until P40 and after the burn: P40's steering, or an attitude
-## hold, keeps the clock to fixed steps. Returns the maneuver's sensed ΔV
+## hold, keeps the clock to fixed steps. P40 or P41 comes [param lead]
+## seconds before TIG (the checklists' quarter of an hour, or less, which
+## the auto maneuver's 1°/s allows). Returns the maneuver's sensed ΔV
 ## (m/s); burn_log has the truth at V99 and at the residuals.
-func fly_pad(p52_option: int = 1) -> float:
+func fly_pad(p52_option: int = 1, lead: float = 900.0) -> float:
 	var agc := rt.agc()
 	keys("V37E30E")
 	assert_eq(agc.program, 30, "P30 selected")
 	keys("PPP")
 	assert_true(agc.maneuver_valid, "maneuver stored")
-	return fly_stored(p52_option)
+	return fly_stored(p52_option, lead)
 
 
 ## Fly the maneuver the CMC has stored (P30's or P37's) from P52 on, as
 ## fly_pad() does.
-func fly_stored(p52_option: int = 1) -> float:
+func fly_stored(p52_option: int = 1, lead: float = 900.0) -> float:
 	var agc := rt.agc()
 	var tig := agc.maneuver_tig
 	Bus.set_value("ctl.cmc.mode", 0)
@@ -396,7 +407,7 @@ func fly_stored(p52_option: int = 1) -> float:
 		Bus.set_value("ctl.cmc.mode", 1)
 		realign(p52_option)
 		Bus.set_value("ctl.cmc.mode", 0)
-	run(maxf(tig - 900.0 - SimClock.get_seconds, 0.0))
+	run(maxf(tig - lead - SimClock.get_seconds, 0.0))
 	Bus.set_value("ctl.cmc.mode", 2)
 	var prog := 41 if agc.dv_lvlh_load.length() < 10.0 * Units.FT else 40
 	keys("V37E%dE" % prog)
@@ -428,15 +439,15 @@ func fly_stored(p52_option: int = 1) -> float:
 
 
 ## Fly a PAD uplinked to the LGC the way the LM crew does: P30 accept; a
-## quarter of an hour before TIG, LGC MODE AUTO and the thrusting program
-## [param prog] (P40 on the DPS, P41 on the RCS, P42 on the APS) with auto
-## maneuver; ENGINE ARM at
+## quarter of an hour before TIG (or [param lead] seconds), LGC MODE AUTO
+## and the thrusting program [param prog] (P40 on the DPS, P41 on the RCS,
+## P42 on the APS) with auto maneuver; ENGINE ARM at
 ## [param arm] (2 DES, 1 ASC, 0 for the RCS), PRO at V99, PRO after
 ## residuals; then ENGINE ARM OFF and MODE FREE. [param monitor], if
 ## given, is called at each second of the countdown and the burn. Without
 ## [param from_p30] the maneuver is one the LGC stored itself (P32 to
 ## P35). Returns the maneuver's sensed ΔV (m/s).
-func fly_lm_pad(prog: int, arm: int, monitor: Callable = Callable(), from_p30: bool = true) -> float:
+func fly_lm_pad(prog: int, arm: int, monitor: Callable = Callable(), from_p30: bool = true, lead: float = 900.0) -> float:
 	var lgc := rt.lgc()
 	if from_p30:
 		keys("V37E30E", lgc)
@@ -444,7 +455,7 @@ func fly_lm_pad(prog: int, arm: int, monitor: Callable = Callable(), from_p30: b
 		keys("PPP", lgc)
 	assert_true(lgc.maneuver_valid, "maneuver stored in the LGC")
 	var tig := lgc.maneuver_tig
-	run(maxf(tig - 900.0 - SimClock.get_seconds, 0.0))
+	run(maxf(tig - lead - SimClock.get_seconds, 0.0))
 	Bus.set_value("ctl.lm.mode", 2)
 	keys("V37E%dE" % prog, lgc)
 	assert_eq(lgc.program, prog, "P%d selected" % prog)
@@ -566,3 +577,81 @@ func csm_approach(speed: float, max_s: float = 300.0) -> bool:
 ## The last contact of the probe with the drogue (Docking.contact()).
 func dock_contact() -> Dictionary:
 	return Bus.get_value("dock.contact", {})
+
+
+## Give the LM the ΔV [param dv] (m/s, inertial) on the TTCA, a fixed step
+## at a time: each axis at the duty its share needs, or not at all below
+## the detent.
+func lm_translate(dv: Vector3) -> void:
+	var owed := dv
+	var f := float(SpacecraftData.section("lm_rcs")["jet_thrust_n"])
+	for i in 20000:
+		var cap := LM_JETS * (f * SimClock.FIXED_DT / rt.dynamics.lm.mass)
+		var body := Basis(rt.dynamics.lm.attitude.q).inverse() * owed
+		var thc := Vector3.ZERO
+		for k in 3:
+			var duty := clampf(body[k] / cap[k], -1.0, 1.0)
+			if absf(duty) >= LM_TTCA_DETENT:
+				thc[k] = duty
+		if thc == Vector3.ZERO:
+			break
+		Bus.set_value("ctl.lm.thc", thc)
+		run(SimClock.FIXED_DT, false)
+		owed -= rt.dynamics.lm.dv_step
+	Bus.set_value("ctl.lm.thc", Vector3.ZERO)
+
+
+## The LM commander's braking, from after the last midcourse correction:
+## each second, hold the closing rate to the gate for the range
+## (LM_BRAKING_GATES) and null the line of sight's drift, on the TTCA,
+## until the LM has stopped 40 m from the CSM. Returns whether it did.
+func lm_brake(max_s: float) -> bool:
+	Bus.set_value("ctl.lm.mode", 1)
+	var end := SimClock.get_seconds + max_s
+	while SimClock.get_seconds < end:
+		var lm := rt.dynamics.lm.traj
+		var rel := Rendezvous.rel_pos(lm, rt.dynamics.traj)
+		var vrel := Rendezvous.rel_vel(lm, rt.dynamics.traj)
+		var rng := rel.length()
+		var u := rel / rng
+		var closing := -vrel.dot(u)
+		if rng <= 45.0 and vrel.length() < 0.02:
+			return true
+		var gate := INF
+		for g in LM_BRAKING_GATES:
+			if rng <= float(g[0]):
+				gate = float(g[1])
+		var dv := Vector3.ZERO
+		if rng <= 45.0:
+			dv = vrel
+		else:
+			if closing > gate + 0.1:
+				dv -= u * (closing - gate)
+			var drift := vrel - u * vrel.dot(u)
+			if drift.length() > 0.03 + rng * 1e-4:
+				dv += drift
+		if dv != Vector3.ZERO:
+			lm_translate(dv)
+		run(1.0, false)
+	return false
+
+
+## Turn a vehicle on its hand controller, rate command in MODE HOLD, until
+## its +X axis points at [param target] (a Callable giving the inertial
+## direction), within half a degree: the LM (ACA) or the CSM (RHC).
+func face_x(lm: bool, target: Callable) -> void:
+	var rhc_ch := "ctl.lm.rhc" if lm else "ctl.rhc"
+	Bus.set_value("ctl.lm.mode" if lm else "ctl.cmc.mode", 1)
+	for i in 30000:
+		var q: Quaternion = rt.dynamics.lm.attitude.q if lm else rt.dynamics.attitude.q
+		var att := Basis(q)
+		var want: Vector3 = target.call()
+		var angle := att.x.angle_to(want)
+		if angle < deg_to_rad(0.5):
+			break
+		var err := att.inverse() * (att.x.cross(want).normalized() * angle)
+		var rhc := (err / (AgcCore.RATE_HOLD * 3.0)).clamp(-Vector3.ONE, Vector3.ONE)
+		Bus.set_value(rhc_ch, Vector3(0.0, rhc.y, rhc.z))
+		run(SimClock.FIXED_DT, false)
+	Bus.set_value(rhc_ch, Vector3.ZERO)
+	run(2.0, false)

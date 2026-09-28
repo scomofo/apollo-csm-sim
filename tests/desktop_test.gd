@@ -34,8 +34,6 @@ const LM_TTCA_KEYS := [[KEY_R, KEY_F], [KEY_RIGHT, KEY_LEFT], [KEY_UP, KEY_DOWN]
 ## the CSM's pitch and yaw, the LM's pitch and roll.
 const CSM_RHC_KEYS := {1: [KEY_S, KEY_W], 2: [KEY_D, KEY_A]}
 const LM_ACA_KEYS := {1: [KEY_S, KEY_W], 2: [KEY_E, KEY_Q]}
-## The LM's translation jets per body axis (src/systems/lm_rcs.gd).
-const LM_JETS := Vector3(4, 2, 2)
 ## The cabin DSKY's keys by the letters SimTest.keys() uses.
 const CABIN_KEYS := {"V": "VERB", "N": "NOUN", "E": "ENTR", "P": "PRO", "C": "CLR", "K": "KEY REL", "R": "RSET"}
 

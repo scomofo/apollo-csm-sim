@@ -13,15 +13,6 @@
 ## follow: GO for jettison, and the TEI PAD.
 extends SimTest
 
-## Translation jets per LM body axis, both systems: X four, Y and Z two;
-## and the TTCA's detent (src/systems/lm_rcs.gd).
-const LM_JETS := Vector3(4, 2, 2)
-const TTCA_DETENT := 0.05
-## The braking gates: the closing rate the commander allows from each
-## range in, m and m/s: 30 ft/s from a mile, 20 from 3,000 ft, 10 from
-## 1,500 ft, 5 from 500 ft, and a stop 40 m out [estimated].
-const GATES := [[1852.0, 9.14], [914.0, 6.1], [457.0, 3.05], [152.0, 1.52], [40.0, 0.0]]
-
 var _inserted := ""
 
 
@@ -104,86 +95,6 @@ func test_the_ground_plans_csi_and_p20_takes_out_the_tracking_error() -> void:
 	assert_almost_eq(float(n54[0]), rel.length(), 10.0, "N54: the range")
 
 
-# --- the crew -------------------------------------------------------------------------
-
-## Give the LM the ΔV [param dv] (m/s, inertial) on the TTCA, a fixed step
-## at a time: each axis at the duty its share needs, or not at all below
-## the detent.
-func _lm_translate(dv: Vector3) -> void:
-	var owed := dv
-	var f := float(SpacecraftData.section("lm_rcs")["jet_thrust_n"])
-	for i in 20000:
-		var cap := LM_JETS * (f * SimClock.FIXED_DT / rt.dynamics.lm.mass)
-		var body := Basis(rt.dynamics.lm.attitude.q).inverse() * owed
-		var thc := Vector3.ZERO
-		for k in 3:
-			var duty := clampf(body[k] / cap[k], -1.0, 1.0)
-			if absf(duty) >= TTCA_DETENT:
-				thc[k] = duty
-		if thc == Vector3.ZERO:
-			break
-		Bus.set_value("ctl.lm.thc", thc)
-		run(SimClock.FIXED_DT, false)
-		owed -= rt.dynamics.lm.dv_step
-	Bus.set_value("ctl.lm.thc", Vector3.ZERO)
-
-
-## The commander's braking, from after the last midcourse correction: each
-## second, hold the closing rate to the gate for the range and null the
-## line of sight's drift, on the TTCA, until Eagle has stopped 40 m from
-## Columbia. Returns whether it did.
-func _brake(max_s: float) -> bool:
-	Bus.set_value("ctl.lm.mode", 1)
-	var end := SimClock.get_seconds + max_s
-	while SimClock.get_seconds < end:
-		var lm := rt.dynamics.lm.traj
-		var rel := Rendezvous.rel_pos(lm, rt.dynamics.traj)
-		var vrel := Rendezvous.rel_vel(lm, rt.dynamics.traj)
-		var rng := rel.length()
-		var u := rel / rng
-		var closing := -vrel.dot(u)
-		if rng <= 45.0 and vrel.length() < 0.02:
-			return true
-		var gate := INF
-		for g in GATES:
-			if rng <= float(g[0]):
-				gate = float(g[1])
-		var dv := Vector3.ZERO
-		if rng <= 45.0:
-			dv = vrel
-		else:
-			if closing > gate + 0.1:
-				dv -= u * (closing - gate)
-			var drift := vrel - u * vrel.dot(u)
-			if drift.length() > 0.03 + rng * 1e-4:
-				dv += drift
-		if dv != Vector3.ZERO:
-			_lm_translate(dv)
-		run(1.0, false)
-	return false
-
-
-## Turn a vehicle on its hand controller, rate command in MODE HOLD, until
-## its +X axis points at [param target] (a Callable giving the inertial
-## direction), within half a degree: the LM (ACA) or the CSM (RHC).
-func _face(lm: bool, target: Callable) -> void:
-	var rhc_ch := "ctl.lm.rhc" if lm else "ctl.rhc"
-	Bus.set_value("ctl.lm.mode" if lm else "ctl.cmc.mode", 1)
-	for i in 30000:
-		var q: Quaternion = rt.dynamics.lm.attitude.q if lm else rt.dynamics.attitude.q
-		var att := Basis(q)
-		var want: Vector3 = target.call()
-		var angle := att.x.angle_to(want)
-		if angle < deg_to_rad(0.5):
-			break
-		var err := att.inverse() * (att.x.cross(want).normalized() * angle)
-		var rhc := (err / (AgcCore.RATE_HOLD * 3.0)).clamp(-Vector3.ONE, Vector3.ONE)
-		Bus.set_value(rhc_ch, Vector3(0.0, rhc.y, rhc.z))
-		run(SimClock.FIXED_DT, false)
-	Bus.set_value(rhc_ch, Vector3.ZERO)
-	run(2.0, false)
-
-
 func test_from_insertion_to_docking() -> void:
 	var pad := _csi_pad()
 	var lgc := rt.lgc()
@@ -228,7 +139,7 @@ func test_from_insertion_to_docking() -> void:
 		keys("V37E35EP", lgc)
 		burns["TPM%d" % burns.size()] = fly_lm_pad(41, 0, Callable(), false)
 	var t_brake := SimClock.get_seconds
-	assert_true(_brake(1800.0), "braked to station-keeping")
+	assert_true(lm_brake(1800.0), "braked to station-keeping")
 	var t_stop := SimClock.get_seconds
 	var lm_dv := rt.dynamics.lm.dv_total - lm0
 	gut.p("P20 had Columbia %.1f m off by CSI; CSI %.1f ft/s (LGC %.1f, PAD %.1f), CDH %.1f ft/s, dH %.1f nmi, TPI %s (PAD %s) %.1f ft/s, midcourses %.1f and %.1f ft/s; braking %.0f s; station-keeping at %s; the LM's ΔV %.1f ft/s against the plan's %.1f" % [
@@ -238,8 +149,8 @@ func test_from_insertion_to_docking() -> void:
 		float(pad["total_dv"]) / Units.FT])
 	# Collins docks: Eagle turns its docking port to Columbia, and Columbia
 	# its probe to Eagle.
-	_face(true, func() -> Vector3: return Rendezvous.rel_pos(rt.dynamics.lm.traj, rt.dynamics.traj).normalized())
-	_face(false, func() -> Vector3: return Rendezvous.rel_pos(rt.dynamics.traj, rt.dynamics.lm.traj).normalized())
+	face_x(true, func() -> Vector3: return Rendezvous.rel_pos(rt.dynamics.lm.traj, rt.dynamics.traj).normalized())
+	face_x(false, func() -> Vector3: return Rendezvous.rel_pos(rt.dynamics.traj, rt.dynamics.lm.traj).normalized())
 	csm_move_to(Vector3(10.0, 0.0, 0.0), 60.0)
 	assert_true(csm_approach(0.1), "the probe met the drogue")
 	var c := dock_contact()

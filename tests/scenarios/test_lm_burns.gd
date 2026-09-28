@@ -177,3 +177,31 @@ func test_staging_and_p42_on_the_ascent_engine() -> void:
 	assert_almost_eq(used, _isp_dv_kg(m0, dv, 311.0), 0.5, "APS propellant as the rocket equation has it")
 	var sum := float(Bus.get_value("lm.dyn.apo_alt_m")) + float(Bus.get_value("lm.dyn.peri_alt_m"))
 	assert_almost_eq((sum - float(box["sum"])) / 1000.0, 45.3, 1.0, "10 m/s posigrade: 45 km on the major axis")
+
+
+func test_p40_flies_the_throttle_schedule_its_pad_brings() -> void:
+	build("lunar_orbit")
+	_undock()
+	run(600.0)
+	var lgc := rt.lgc()
+	# Apollo 10's phasing burn: 10 % for 26 s, then full thrust (a command
+	# above the throttleable range), which the ground uplinks with its PAD.
+	var tig := SimClock.get_seconds + 1200.0
+	var dv := Vector3(50.8, 0.0, -18.1)
+	lgc.uplink_maneuver(tig, dv)
+	lgc.uplink_throttle([26.0, 0.1, 1.0])
+	var planned := Rtcc.dps_burn_time(rt.dynamics.lm.mass, dv.length(), [26.0, 0.1, 1.0])
+	var throttle := {}
+	var box := {"off": -1.0}
+	var flown := fly_lm_pad(40, 2, func() -> void:
+		throttle[roundi(SimClock.get_seconds - tig)] = float(Bus.get_value("lm.dps.throttle_pct"))
+		if lgc.step_name in ["tailoff", "post"] and box["off"] < 0.0:
+			box["off"] = SimClock.get_seconds)
+	assert_almost_eq(float(throttle.get(20, 0.0)), 10.0, 0.5, "10 % 20 s after ignition")
+	assert_almost_eq(float(throttle.get(30, 0.0)), 100.0, 0.5, "full thrust from 26 s")
+	assert_almost_eq(flown, dv.length(), 0.05, "the PAD's ΔV")
+	assert_almost_eq(float(box["off"]) - tig, planned, 1.5, "burning as long as the RTCC's model of it")
+	# The next PAD without a schedule of its own flies spacecraft.json's.
+	lgc.uplink_maneuver(SimClock.get_seconds + 1200.0, Vector3(-5.0, 0.0, 0.0))
+	lgc.uplink_throttle([])
+	assert_eq(lgc.p40_schedule, [15.0, 0.1, 0.4], "Apollo 11's DOI's: 15 s at 10 %, then 40 %")
