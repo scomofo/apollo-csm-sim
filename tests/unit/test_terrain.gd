@@ -1,6 +1,6 @@
 ## The surface around Tranquility Base: NASA's elevation maps
 ## (data/terrain/), blended from the Apollo 11 site's 4 m terrain model out
-## to LOLA's 1° map.
+## to LOLA's 1° map; and around the Surveyor III site, Apollo 12's.
 extends GutTest
 
 const LM_LAT := 0.67416
@@ -53,6 +53,18 @@ func test_the_approach_follows_the_mare() -> void:
 	assert_almost_eq(_at(10000.0, 0.0), -2015.0, 5.0)
 	assert_almost_eq(_at(40000.0, 0.0), -2101.0, 5.0)
 	assert_almost_eq(_at(150000.0, 0.0), -2206.0, 5.0)
+
+
+## Slice 7c: the Apollo 12 site, from its own terrain model (LROC's
+## NAC_DTM_APOLLO12) and SLDEM2015 around it: Surveyor III on its crater's
+## inner slope, and where Intrepid came down on the rim to its northwest,
+## 10 m higher.
+func test_the_surveyor_iii_site() -> void:
+	assert_almost_eq(Terrain.height(-3.0162, -23.4180), -1432.2, 0.5, "Surveyor III")
+	assert_eq(Terrain.source(-3.0162, -23.4180), "site12")
+	assert_almost_eq(Terrain.height(-3.0128, -23.4219), -1422.2, 0.5, "Intrepid's spot")
+	assert_eq(Terrain.source(-3.0162, -23.4180 + 10000.0 / M_PER_DEG), "near12", "SLDEM2015 at 59 m, 10 km along the approach")
+	assert_eq(Terrain.source(-3.2, -23.4180 + 60000.0 / M_PER_DEG), "approach12", "at 237 m, 60 km along it")
 
 
 func test_heights_under_a_moon_fixed_point() -> void:

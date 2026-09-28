@@ -36,8 +36,8 @@ picture).
 - **Start phases stay consistent.** A new `--phase` is built the way the
   existing ones are, from the RTCC's own solutions, so it continues the
   mission it claims to.
-- **CI stays fast.** The suite runs in seven jobs side by side: the unit
-  tests, and the scenario tests in six parts, dealt out by each file's
+- **CI stays fast.** The suite runs in eight jobs side by side: the unit
+  tests, and the scenario tests in seven parts, dealt out by each file's
   time on the runners (`.github/scenario_seconds.txt`). Keep each job
   under ten minutes: start a long scenario from a phase or checkpoint
   instead of flying the whole mission, record a new scenario file's
@@ -1614,8 +1614,9 @@ the pass, with `tools/render_voices.gd` to hear each voice on its own.
 
 ## 7. Other missions
 
-**Status: slice 7b done. Apollo 8 and Apollo 10 fly from their data
-alone, from their parking orbits to their splashdowns.** Each other
+**Status: slice 7c done. Apollo 8, Apollo 10 and Apollo 12 fly from
+their data alone, from their parking orbits to their splashdowns, and
+Intrepid lands beside Surveyor III.** Each other
 mission is data under `data/missions/`, not a code branch: its ephemeris
 fit for its dates, its parking orbit and REFSMMATs, its landing site,
 Mission Control's timeline and its vehicles. What a mission needs that
@@ -1665,11 +1666,44 @@ Slice 7b brought, for the missions after Apollo 10:
   plane through the site.
 - **CI's sixth scenario part**, for the whole flight's five minutes.
 
+Slice 7c brought, for the missions after Apollo 12:
+
+- **The landing site update, noun 69.** In P63 and P64 the LGC takes
+  V21N69 (to V25): it moves its landing site downrange, across and up in
+  the guidance frame, as Luminary 1B's did. After throttle-up the ground
+  reads the LGC's error along the track, as MSFN's powered flight
+  processor did, to the nearest 100 ft, and the crew key it in. The LGC
+  keeps whether it has in checkpoints (schema 17).
+- **A lunar orbit inclined to the equator.** The orbit over a landing
+  site may cross it heading its approach azimuth, rather than at its
+  ground track's farthest from the equator: Apollo 12's, 14.6° to the
+  lunar equator. The Moon's field turns such an orbit's plane in the day
+  to the landing, which leaves the site miles south of it at PDI, as
+  Apollo 12's was, and the descent guidance steers it out.
+- **LOI-2 at its PAD's TIG**, the burn point on its way up from the new
+  pericynthion, where the Moon's field rounds the orbit out toward the
+  rendezvous.
+- **The CSM's plane change**, the RTCC's: it puts the CSM's orbit over
+  the LM at the liftoff, after the Moon has turned under it and its field
+  has turned the plane, which the RTCC flies ahead to find. The LM's
+  start phases fly it before the ascent. Apollo 12's second, for the
+  photographs, is a fixed maneuver.
+- **TEI's ignition** may move from the flown one to where the burn needs
+  no part up or down, for a CSM that comes round to the flown TEI's place
+  minutes early.
+- **The PDI PAD before `lunar_descent`**: the state vector it brought,
+  error and all, is the LGC's at the start.
+- **Where the LM came down** (`landing`: `touchdown_lat_deg`,
+  `touchdown_lon_deg`), where the surface's start phases set it.
+- **The Apollo 12 site's terrain**, from LROC's model of it and
+  SLDEM2015.
+- **CI's seventh scenario part**, for the whole flight's six minutes.
+
 | Slice | Work | Check |
 |---|---|---|
 | 7a (done) Apollo 8 | No LM: the S-IVB carries a test article, and the CSM flies ten lunar orbits alone | Test: Apollo 8 flies from its data alone, parking orbit to splashdown, its Fidelity table within set limits of the flight |
 | 7b (done) Apollo 10 | The LM's descent to 8 nmi over the landing site, staging and the rendezvous, without a landing | Test: as 7a, for Apollo 10 |
-| 7c Apollo 12 | A pinpoint landing beside Surveyor III, the landing site updated in P63 as the flown LGC's noun 69 did | Test: as 7a, and Intrepid lands within a set limit of the Surveyor |
+| 7c (done) Apollo 12 | A pinpoint landing beside Surveyor III, the landing site updated in P63 as the flown LGC's noun 69 did | Test: as 7a, and Intrepid lands within a set limit of the Surveyor |
 | 7d Apollo 13 | The service module's oxygen tank, the LM as a lifeboat and the free return | Test: as 7a, from the tank's failure to splashdown |
 
 Apollo 14 flies as 12 did; the J missions (15 to 17), with the rover and

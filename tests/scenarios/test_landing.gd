@@ -72,23 +72,6 @@ func _nav_error(lgc: Lgc) -> Vector3:
 	return Trajectory.lvlh_basis(t.pos(), t.vel()).inverse() * (lgc.nav.pos() - t.pos())
 
 
-## Aldrin's part: once the radar's altitude is good (the ALT lamp out) and
-## N63 shows ΔH, key V57 to permit radar updates. [param seen] gets ΔH
-## then ("dh0") and the height over the ground ("dh0_agl").
-func _permit_updates(lgc: Lgc, seen: Dictionary) -> void:
-	if lgc.lr_update or bool(Bus.get_value("lm.dsky.lamp.alt", true)) or lgc.delta_h == 0.0:
-		return
-	seen["dh0"] = lgc.delta_h
-	seen["dh0_agl"] = _agl()
-	keys("V57EK", lgc)
-
-
-## The LM's centre of mass over the ground below it, m.
-func _agl() -> float:
-	var tr := rt.dynamics.lm.traj
-	return tr.radius() - Terrain.radius_under(Bodies.moon_fixed(tr.t).transposed() * tr.pos())
-
-
 func test_the_lunar_orbit_doi_and_pdi_are_planned_for_the_site() -> void:
 	build("lunar_orbit")
 	var t_land := float(rt.mission.section("landing")["get_s"])
@@ -123,7 +106,7 @@ func test_automatic_guidance_lands_at_tranquility_base() -> void:
 	var seen := {"programs": [], "ftp": false, "recovered": false, "hg": 0.0, "dh_hg": 0.0, "lamps_out": false}
 	var t_ig := lgc.pdi_tig
 	var landed := run_until(func() -> bool:
-		_permit_updates(lgc, seen)
+		permit_lr_updates(lgc, seen)
 		if lgc.lr_update and not Bus.get_value("lm.dsky.lamp.alt") and not Bus.get_value("lm.dsky.lamp.vel"):
 			seen["lamps_out"] = true
 		if not lgc.program in seen["programs"]:
@@ -211,6 +194,44 @@ func test_a_checkpoint_in_p63_before_ignition_keeps_the_burn_attitude() -> void:
 	assert_gt(rad_to_deg(thrust_axis.angle_to(rel)), 150.0, "retrograde")
 
 
+## Slice 7c: the ground's landing site correction. After throttle-up MSFN
+## finds how far along the track the LGC has Eagle from where it is (the
+## PDI PAD's 250 m), CAPCOM reads it to the nearest 100 ft, and V21N69
+## moves the site that far downrange, on its sphere, while P63 flies on.
+## Before P63 the LGC won't take it.
+func test_n69_moves_the_landing_site_downrange() -> void:
+	build("")
+	assert_eq(rt.restore(JSON.parse_string(_before_pdi)), "")
+	var lgc0 := rt.lgc()
+	keys("V21N69E+04200E", lgc0)
+	assert_true(lgc0.dsky.lamps.get("opr_err", false), "OPR ERR before P63")
+	var lgc := _to_ignition()
+	assert_true(run_until(func() -> bool: return SimClock.get_seconds > lgc.pdi_tig + 60.0, 120.0, 1.0, false), "throttled up")
+	var pad := rt.sequencer.request_pad("n69")
+	var err := _nav_error(lgc)
+	assert_eq(str(pad.get("name", "")), "N69")
+	assert_almost_eq(float(pad["dz_ft"]), err.x / Units.FT, 60.0, "the LGC's error along the track, to 100 ft")
+	var site0 := lgc.landing_site
+	keys("V21N69E+%05dE" % int(absf(float(pad["dz_ft"]))) if float(pad["dz_ft"]) >= 0.0 else "V21N69E-%05dE" % int(absf(float(pad["dz_ft"]))), lgc)
+	var moved := lgc.landing_site - site0
+	var down := lgc.guidance_frame.z
+	assert_almost_eq(moved.dot(down), float(pad["dz_ft"]) * Units.FT, 0.5, "the site moved downrange by R1")
+	assert_almost_eq(moved.dot(lgc.guidance_frame.y), 0.0, 0.1, "and not across")
+	assert_almost_eq(lgc.landing_site.length(), site0.length(), 0.01, "over its sphere")
+	assert_eq(lgc.program, 63, "P63 flies on")
+	run(1.0, false)
+	assert_true(Bus.get_value("lm.guid.ls_corrected", false), "the LGC's site moved since its uplink")
+	# A checkpoint keeps the moved site, and that it moved.
+	var site1 := lgc.landing_site
+	var text := JSON.stringify(rt.snapshot())
+	build("")
+	assert_eq(rt.restore(JSON.parse_string(text)), "")
+	assert_true(rt.lgc().ls_corrected, "restored: noun 69 loaded")
+	assert_lt((rt.lgc().landing_site - site1).length(), 0.01, "and the site where it moved it")
+	gut.p("N69: the LGC %.0f m along the track from truth; CAPCOM's %+.0f ft moved the site %.1f m downrange" % [
+		err.x, float(pad["dz_ft"]), moved.dot(down)])
+
+
 func test_without_radar_updates_the_lgc_flies_into_the_ground() -> void:
 	var lgc := _to_ignition()
 	var seen := {"dh_hg": 0.0}
@@ -218,7 +239,7 @@ func test_without_radar_updates_the_lgc_flies_into_the_ground() -> void:
 		if lgc.program == 64 and seen["dh_hg"] == 0.0:
 			seen["dh_hg"] = lgc.delta_h
 			seen["h_hg"] = lgc._h
-			seen["agl_hg"] = _agl()
+			seen["agl_hg"] = lm_agl()
 		return rt.dynamics.lm.landed, 1000.0, 1.0, false)
 	assert_true(landed, "it meets the ground")
 	var td: Dictionary = rt.dynamics.lm.touchdown
@@ -237,7 +258,7 @@ func test_p64_redesignation_puts_eagle_on_the_site() -> void:
 	var lgc := _to_ignition([900.0, 0.0, 0.0])
 	var seen := {}
 	assert_true(run_until(func() -> bool:
-		_permit_updates(lgc, seen)
+		permit_lr_updates(lgc, seen)
 		return lgc.program == 64, 900.0, 1.0, false), "P64")
 	var n64: Array = lgc.noun_values(64)
 	assert_almost_eq(float(n64[0]), 99000.0 + roundf(lgc._lpd), 1.0, "N64: 99+ s to redesignate, and the LPD angle")
@@ -245,7 +266,7 @@ func test_p64_redesignation_puts_eagle_on_the_site() -> void:
 	var site := rt.sequencer.landing_site()
 	var target0 := lgc.landing_site
 	var short := target0.angle_to(site) * Bodies.R_MOON
-	var clicks := _lpd_pilot(lgc, site)
+	var clicks := lpd_pilot(lgc, site)
 	var moved := lgc.landing_site.angle_to(target0) * Bodies.R_MOON
 	assert_true(run_until(func() -> bool: return rt.dynamics.lm.landed, 400.0, 1.0, false), "touchdown")
 	var td: Dictionary = rt.dynamics.lm.touchdown
@@ -259,56 +280,20 @@ func test_p64_redesignation_puts_eagle_on_the_site() -> void:
 	assert_false(td["hard"])
 
 
-## The commander in P64: each second, compare where the LPD points (the
-## LGC's landing point, along the window's reticle) with where
-## [param target_mf] (Moon-fixed) is out of the window, and click the ACA
-## once to bring the one toward the other: fore or aft for the LPD angle,
-## right or left for azimuth. Returns the clicks.
-func _lpd_pilot(lgc: Lgc, target_mf: Vector3) -> int:
-	var clicks := 0
-	while lgc.program == 64 and lgc.lpd_time() > 1.0:
-		var att := Basis(Bus.get_value("lm.dyn.att_q") as Quaternion)
-		var mf := Bodies.moon_fixed(SimClock.get_seconds)
-		var seen := _look(att.inverse() * (mf * target_mf - rt.dynamics.lm.traj.pos()))
-		var lpd := _look(att.inverse() * (mf * lgc.landing_site - lgc.nav.pos()))
-		var aca := Vector3.ZERO
-		if lpd.x - seen.x > 0.3:
-			aca.y = -1.0   # fore: farther
-		elif seen.x - lpd.x > 0.3:
-			aca.y = 1.0    # aft: nearer
-		elif seen.y - lpd.y > 1.2:
-			aca.z = 1.0    # right
-		elif lpd.y - seen.y > 1.2:
-			aca.z = -1.0   # left
-		if aca != Vector3.ZERO:
-			Bus.set_value("ctl.lm.rhc", aca)
-			run(SimClock.FIXED_DT, false)
-			Bus.set_value("ctl.lm.rhc", Vector3.ZERO)
-			clicks += 1
-		run(1.0, false)
-	return clicks
-
-
-## A line of sight in the LM's axes as the window shows it: its angle below
-## the +Z axis and to the right, degrees.
-static func _look(los: Vector3) -> Vector2:
-	return Vector2(rad_to_deg(atan2(-los.x, los.z)), rad_to_deg(atan2(los.y, los.z)))
-
-
 func test_p66_lands_on_the_hand_controller_and_the_rod_switch() -> void:
 	var lgc := _to_ignition()
 	var seen := {}
 	assert_true(run_until(func() -> bool:
-		_permit_updates(lgc, seen)
+		permit_lr_updates(lgc, seen)
 		return lgc.program == 64 and lgc._h < 150.0, 900.0, 1.0, false), "P64 below 150 m")
 	Bus.set_value("ctl.lm.mode", 1)
 	var hdot := lgc._hdot
-	_rod(-1)
+	rod_click(-1)
 	assert_eq(lgc.program, 66, "the first ROD click takes over in P66")
 	assert_almost_eq(lgc.rod_cmd, hdot - 0.3048, 0.2, "1 ft/s down on the rate it had")
 	var t0 := SimClock.get_seconds
 	while not rt.dynamics.lm.landed and SimClock.get_seconds - t0 < 400.0:
-		_fly_by_hand(lgc)
+		fly_by_hand(lgc)
 	Bus.set_value("ctl.lm.rhc", Vector3.ZERO)
 	# The LGC sees the touchdown at its next step.
 	run(SimClock.FIXED_DT, false)
@@ -321,44 +306,6 @@ func test_p66_lands_on_the_hand_controller_and_the_rod_switch() -> void:
 	assert_false(td["hard"])
 	assert_lt(_miss(), 500.0, "near the site")
 	assert_eq(lgc.program, 68)
-
-
-## One ROD click: +1 slows the descent by 1 ft/s, -1 speeds it up.
-func _rod(dir: int) -> void:
-	Bus.set_value("ctl.lm.rod", dir)
-	run(SimClock.FIXED_DT, false)
-	Bus.set_value("ctl.lm.rod", 0)
-	run(SimClock.FIXED_DT, false)
-
-
-## A fifth of a second of the pilot: the hand controller tilts the LM
-## against its horizontal velocity, as the cross-pointers show it, to stop
-## it in about 4 s and no more than 15° from upright; ROD clicks keep the
-## descent at a metre a second for every 20 m of height over the ground,
-## between 0.6 and 3 m/s.
-func _fly_by_hand(lgc: Lgc) -> void:
-	var r: Array = Bus.get_value("lm.dyn.r_m")
-	var v: Array = Bus.get_value("lm.dyn.v_mps")
-	var pos := Vector3(r[0], r[1], r[2])
-	var rel := Vector3(v[0], v[1], v[2]) - Bodies.moon_omega(SimClock.get_seconds).cross(pos)
-	var up := pos.normalized()
-	var h := _agl() - Dynamics.lm_cm_height("lm")
-	var g := Bodies.MU_MOON / pos.length_squared()
-	var ah := -(rel - up * rel.dot(up)) / 4.0
-	var ah_max := g * tan(deg_to_rad(15.0))
-	if ah.length() > ah_max:
-		ah = ah.normalized() * ah_max
-	var att: Quaternion = Bus.get_value("lm.dyn.att_q")
-	var err := Basis(att).inverse() * (Basis(att) * Vector3.RIGHT).cross((up * g + ah).normalized())
-	var rhc := (Vector3(0.0, err.y, err.z) / AgcCore.RATE_HOLD).clamp(-Vector3.ONE, Vector3.ONE)
-	Bus.set_value("ctl.lm.rhc", rhc if rhc.length() >= 0.06 else Vector3.ZERO)
-	var target := -clampf(h / 20.0, 0.6, 3.0)
-	if lgc.rod_cmd < target - 0.2:
-		_rod(1)
-	elif lgc.rod_cmd > target + 0.2:
-		_rod(-1)
-	else:
-		run(0.2, false)
 
 
 func test_a_landed_lm_turns_with_the_moon_and_can_lift_off() -> void:

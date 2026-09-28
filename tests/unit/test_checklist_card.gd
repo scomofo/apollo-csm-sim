@@ -181,6 +181,27 @@ func test_every_apollo_10_step_names_a_control_or_one_writes_its_check() -> void
 	assert_eq(framed, [43, 59], "Charlie Brown's and Snoopy's steps that point at a cabin control")
 
 
+func test_every_apollo_12_step_names_a_control_or_one_writes_its_check() -> void:
+	var cabin := _cabin()
+	var lm_cabin := LmCabin.create()
+	add_child_autofree(lm_cabin)
+	var framed := [0, 0]
+	for book in [ChecklistBook.load_default("apollo_12"), ChecklistBook.load_lm("apollo_12")]:
+		var lm: bool = book.lists[0].title.begins_with("Undocking")
+		var cab: Node = lm_cabin if lm else cabin
+		for c in book.lists:
+			for s in c.steps:
+				if s.has("control"):
+					assert_true(cab.items.has(s["control"]), "%s: control %s is in its cabin" % [s["text"], s["control"]])
+				var channel := str(s.get("check", {}).get("channel", ""))
+				var id := ChecklistHighlight.resolve(cab, {"control": str(s.get("control", "")), "channel": channel})
+				if channel.begins_with("ctl."):
+					assert_ne(id, "", "%s: a cabin control writes %s" % [s["text"], channel])
+				if id != "":
+					framed[1 if lm else 0] += 1
+	assert_eq(framed, [43, 58], "Yankee Clipper's and Intrepid's steps that point at a cabin control")
+
+
 func test_every_eagle_step_names_one_of_its_controls_or_one_writes_its_check() -> void:
 	var cabin := LmCabin.create()
 	add_child_autofree(cabin)

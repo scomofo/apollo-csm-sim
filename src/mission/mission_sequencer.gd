@@ -67,8 +67,8 @@ const CONDITIONS := ["", "separated", "docked", "lm_free", "lm_descent", "lm_lan
 ## The PADs a timeline entry may bring ("pad"): request_pad()'s, and for a
 ## maneuver the entry fixes itself (maneuver_pad()) "sep", the CSM's, or
 ## the LM's "phasing" and "insertion".
-const PAD_KINDS := ["mcc", "loi", "circ", "tei", "sv", "lm_sv", "doi", "pdi", "ascent", "csi", "entry", "sep",
-	"phasing", "insertion"]
+const PAD_KINDS := ["mcc", "loi", "circ", "plane", "tei", "sv", "lm_sv", "doi", "pdi", "n69", "ascent", "csi", "entry",
+	"sep", "phasing", "insertion"]
 ## The CSM's fixed maneuvers from this ΔV are the SPS's (P40), smaller ones
 ## the SM RCS's (P41), m/s.
 const SPS_MIN_MPS := 10.0 * Units.FT
@@ -569,15 +569,18 @@ func _plan_tei(tr: Trajectory, mass: float, earliest: float) -> Dictionary:
 	var n81: Array = tei.get("n81_ft_s", [0.0, 0.0, 0.0])
 	return Rtcc.plan_tei(tr, mass, float(tei["dv_mps"]), float(tei["entry_perigee_alt_km"]) * 1000.0, earliest,
 		float(tei.get("return_inclination_deg", -1.0)), _get_s(tei["ei_get"]) if tei.has("ei_get") else -1.0, near,
-		_v3(n81) * Units.FT)
+		_v3(n81) * Units.FT, bool(tei.get("tig_free", false)))
 
 
-## Solve and uplink a maneuver PAD: "mcc", "loi", "circ", "tei" for the
+## Solve and uplink a maneuver PAD: "mcc", "loi", "circ", "plane" (the
+## plane change that puts the CSM's orbit over the LM at its planned
+## liftoff, mission.json "ascent": planned_liftoff_get), "tei" for the
 ## CMC, planned from the CSM's tracked state and uplinked with it (P27;
 ## the PAD's "uplinked" says whether the CMC took them); "sv", that state
 ## alone (sv_uplink()); "lm_sv", the LM's for the LGC (lm_sv_uplink());
 ## "doi" for the LGC, while the LM flies free; "pdi",
-## the LGC's state vector for powered descent (pdi_pad()); "ascent", the
+## the LGC's state vector for powered descent (pdi_pad()); "n69", the
+## landing site correction in powered descent (_n69_pad()); "ascent", the
 ## liftoff time for the LGC's P12 (ascent_pad()); "csi", the rendezvous
 ## plan (csi_pad()). The TEI and the liftoff come no earlier than GET
 ## [param earliest], and a midcourse correction then, or a quarter of an
@@ -587,6 +590,8 @@ func request_pad(kind: String, earliest: float = -1.0) -> Dictionary:
 		return entry_pad()
 	if kind == "pdi":
 		return pdi_pad()
+	if kind == "n69":
+		return _n69_pad()
 	if kind == "ascent":
 		return ascent_pad(earliest)
 	if kind == "csi":
@@ -614,10 +619,19 @@ func request_pad(kind: String, earliest: float = -1.0) -> Dictionary:
 			pad = Rtcc.plan_loi(tr, mass, float(loi["apolune_alt_km"]) * 1000.0, landing_site(), site_get(),
 				float(loi.get("perilune_alt_km", -1.0)) * 1000.0, _get_s(loi["tig"]) if loi.has("tig") else -1.0)
 		"circ":
+			# At the flown PAD's TIG if given ("loi2_tig"), the new
+			# pericynthion behind the burn point with "loi2_rising".
 			var lo := mission.section("lunar_orbit")
 			var r_site := landing_site().length()
 			pad = Rtcc.plan_loi2(tr, mass, r_site + float(lo["loi2_apolune_nmi"]) * Units.NMI,
-				r_site + float(lo["loi2_perilune_nmi"]) * Units.NMI)
+				r_site + float(lo["loi2_perilune_nmi"]) * Units.NMI, _get_s(lo["loi2_tig"]) if lo.has("loi2_tig") else -1.0,
+				bool(lo.get("loi2_rising", false)))
+		"plane":
+			var asc := mission.section("ascent")
+			if asc.has("planned_liftoff_get"):
+				var lm := dynamics.lm
+				var site := lm.landed_pos if lm != null and lm.landed else landing_site()
+				pad = Rtcc.plan_plane_change(tr, mass, maxf(now + 900.0, earliest), site, _get_s(asc["planned_liftoff_get"]))
 		"tei":
 			pad = _plan_tei(tr, mass, maxf(now + 900.0, earliest))
 		"mcc":
@@ -631,7 +645,7 @@ func request_pad(kind: String, earliest: float = -1.0) -> Dictionary:
 				# into it.
 				var plane_n := Vector3.ZERO
 				if not mission.data.has("landing") or bool(t.get("node_targeting", false)):
-					plane_n = Rtcc.site_orbit_normal(landing_site(), site_get())
+					plane_n = _site_normal()
 				pad = Rtcc.plan_mcc(tr, mass, tig, "moon", target, now + 5.0 * 86400.0,
 					landing_site(), site_get(), _get_s(t["pericynthion_get"]), plane_n)
 			elif phase == "transearth_coast":
@@ -944,6 +958,41 @@ func pdi_pad() -> Dictionary:
 	return pad
 
 
+## The landing site correction in powered descent, N69: MSFN's powered
+## flight processor finds, from its tracking, how far along the ground
+## track the LGC has the LM from where it is, and CAPCOM reads the site's
+## move that makes up for it, to the nearest 100 ft, for the crew to load
+## (V21N69, R1) [published: Apollo 12's, 4,200 ft downrange, 1.5 min
+## after ignition, MSC-01855, section 4.2]. The processor's error along
+## the track is drawn for the request (mission.json "pdi": n69_sigma_m)
+## [estimated]; the crossrange part isn't read [simplified: as on Apollo
+## 12, where it wasn't needed]. Returns {"name": "N69", "tig": the GET,
+## "dz_ft"}, or {} unless the LGC flies P63 or P64.
+func _n69_pad() -> Dictionary:
+	var lgc: Lgc = systems.get("lgc")
+	var lm := dynamics.lm
+	if lm == null or lm.landed or lgc == null or lgc.nav == null or not lgc.program in [63, 64]:
+		_say("Houston: no landing site update.")
+		last_pad = {}
+		return {}
+	# Along the LM's own track: the landing radar takes out the height the
+	# LGC has wrong along the local vertical, and what it has wrong along
+	# the track is left to land long or short by.
+	var t := lm.traj
+	var along := Trajectory.lvlh_basis(t.pos(), t.vel()).x
+	var sigma := float(mission.section("pdi").get("n69_sigma_m", 0.0))
+	var dz := (lgc.nav.pos() - t.pos()).dot(along) + _rng.randfn(0.0, sigma)
+	var ft := roundf(dz / Units.FT / 100.0) * 100.0
+	var pad := {"name": "N69", "tig": SimClock.get_seconds, "dz_ft": ft}
+	last_pad = pad
+	pads["n69"] = pad
+	var reg := "%s%05d" % ["plus " if ft >= 0.0 else "minus ", int(absf(ft))]
+	Bus.set_value("mission.pad_text", "NOUN 69: R1 %s%05d (downrange, ft)" % ["+" if ft >= 0.0 else "-", int(absf(ft))])
+	_say("{lm}, Houston. Noun 69 " + reg + ". Over.")
+	_fire("pad_n69")
+	return pad
+
+
 ## The ascent PAD, with the LM on the surface: the RTCC times the liftoff
 ## for the CSM to lead the LM by the insertion phase angle (mission.json
 ## "ascent") at insertion, flying P12's own guidance, in the first window
@@ -1163,9 +1212,10 @@ func _condition(when: String) -> bool:
 ## timeline's PADs. Eagle undocks and flies the DOI PAD for the landing pass
 ## [simplified: the RTCC's model of P40's burn], and lunar_descent starts
 ## 20 minutes before PDI. Eagle lands at the site at the time DOI planned
-## for, and lunar_surface starts 10 minutes after. The ascent PAD comes at
-## its time, and lunar_ascent starts 20 minutes before the liftoff it
-## gives.
+## for, and lunar_surface starts 10 minutes after. The CSM flies the plane
+## changes the timeline brings before the ascent PAD (_advance_flying()),
+## the ascent PAD comes at its time, and lunar_ascent starts 20 minutes
+## before the liftoff it gives.
 func _lm_start(p_phase: String) -> void:
 	var lgc: Lgc = systems["lgc"]
 	# [simplified] Columbia drifts in CMC MODE FREE while Eagle flies.
@@ -1188,6 +1238,10 @@ func _lm_start(p_phase: String) -> void:
 	if p_phase == "lunar_descent":
 		_advance(float(plan["pdi_tig"]) - 1200.0)
 		lgc.nav = lm.traj.clone()
+		# The PDI PAD's state vector, if it came on the way (Apollo 12's
+		# half an hour out), as the LGC would have it now.
+		if pads.has("pdi"):
+			pdi_pad()
 		return
 	var t_land := float(doi["land_get"])
 	_advance(t_land)
@@ -1202,7 +1256,7 @@ func _lm_start(p_phase: String) -> void:
 	if p_phase == "lunar_surface":
 		_advance(t_land + 600.0)
 		return
-	_advance(_entry_time(_timeline_entry("ascent_pad")))
+	_advance_flying(_entry_time(_timeline_entry("ascent_pad")))
 	_advance(float(plan["liftoff_tig"]) - 1200.0)
 
 
@@ -1227,12 +1281,37 @@ func _advance(t: float) -> void:
 		_timeline()
 
 
-## Set Eagle down at the landing site at GET [param t], upright, facing
-## along Columbia's track.
+## _advance() to GET [param t], the CSM flying on the way each plane change
+## the timeline's PADs bring (request_pad(): "plane") at its TIG, as the
+## RTCC planned it [simplified: the RTCC's model of P40's burn]: Apollo
+## 12's first, which put Yankee Clipper's orbit back over Intrepid for the
+## liftoff.
+func _advance_flying(t: float) -> void:
+	for e in _timeline_entries():
+		var te := _entry_time(e)
+		if str(e.get("pad", "")) != "plane" or te < SimClock.get_seconds or te >= t:
+			continue
+		_advance(te)
+		var pad: Dictionary = pads.get("plane", {})
+		if pad.is_empty() or float(pad["tig"]) < SimClock.get_seconds or float(pad["tig"]) >= t:
+			continue
+		_advance(float(pad["tig"]))
+		var m0 := dynamics.mass
+		var m1 := Rtcc.simulate_sps_burn(dynamics.traj, m0, pad["dv_lvlh"])
+		var sps_prop := float(Bus.get_value("sps.prop_kg", _sps_load())) - (m0 - m1)
+		Bus.set_value("sps.prop_kg", sps_prop)
+		systems["sps"].prop_kg = sps_prop
+		dynamics.update_mass()
+		_advance(dynamics.traj.t)
+	_advance(t)
+
+
+## Set the LM down where the flight's came down (_touchdown_site()) at GET
+## [param t], upright, facing along the CSM's track.
 func _set_lm_landed(t: float) -> void:
 	var lm := dynamics.lm
 	var cm := Dynamics.lm_cm_height(lm.config)
-	var site := landing_site()
+	var site := _touchdown_site()
 	var up := Rtcc.site_at(site, t).normalized()
 	var pos := up * (site.length() + cm)
 	lm.traj.set_state("moon", t, pos, Bodies.moon_omega(t).cross(pos))
@@ -1250,12 +1329,12 @@ func _set_lm_landed(t: float) -> void:
 ## "lunar_orbit"): its apsides above the landing site's radius, its
 ## pericynthion over the longitude the mission report gives, retrograde in
 ## the plane LOI puts it in (over the landing site at the landing time,
-## the site at the ground track's northernmost point), and placed along it
-## so that the flown timeline (undocking, DOI and PDI) lands at the landing
-## time: Eagle lands a descent after PDI, at its descent orbit's
-## pericynthion, pdi_range short of the site, and reaches it ahead of
-## Columbia by the difference of their half periods, so Columbia passes
-## over the site that much sooner. The Moon's field moves Columbia along
+## heading the mission's approach azimuth there: _site_normal()), and
+## placed along it so that the flown timeline (undocking, DOI and PDI)
+## lands at the landing time: Eagle lands a descent after PDI, at its
+## descent orbit's pericynthion, pdi_range short of the site, and reaches
+## it ahead of Columbia by the difference of their half periods, so
+## Columbia passes over the site that much sooner. The Moon's field moves Columbia along
 ## its orbit by degrees in the day it coasts to there, so its place is
 ## found by flying it, once in a process.
 func _lunar_orbit_start() -> Trajectory:
@@ -1277,7 +1356,7 @@ func _lunar_orbit_start() -> Trajectory:
 	var a_lm := (a + peri_lm) / 2.0
 	var lead := PI / n - PI * sqrt(a_lm * a_lm * a_lm / mu)
 	var t_over := t_land - float(g["descent_s"]) + float(g["pdi_range_m"]) / Bodies.R_MOON / n + lead
-	var h := Rtcc.site_orbit_normal(site, t_land)
+	var h := _site_normal()
 	var over := Rtcc.site_at(site, t_over).normalized()
 	over = (over - h * over.dot(h)).normalized()
 	# The pericynthion over its longitude on the equator, in the plane.
@@ -1308,8 +1387,7 @@ func _lunar_orbit_start() -> Trajectory:
 
 ## Without an LM, the CSM's orbit after LOI-2 [param lo] (mission.json
 ## "lunar_orbit"): its apsides above the lunar site's radius, in the plane
-## over the site at its time, the site at the ground track's farthest from
-## the equator (Rtcc.site_orbit_normal()), from where it was at its start
+## over the site at its time (_site_normal()), from where it was at its start
 ## (start_lat_deg, start_lon_deg), put in the plane, its pericynthion
 ## there [simplified].
 func _csm_orbit_start(lo: Dictionary) -> Trajectory:
@@ -1317,7 +1395,7 @@ func _csm_orbit_start(lo: Dictionary) -> Trajectory:
 	var r_site := landing_site().length()
 	var rp := r_site + float(lo["perilune_nmi"]) * Units.NMI
 	var ra := r_site + float(lo["apolune_nmi"]) * Units.NMI
-	var h := Rtcc.site_orbit_normal(landing_site(), site_get())
+	var h := _site_normal()
 	var at := Bodies.selenographic_to_fixed(float(lo["start_lat_deg"]), float(lo["start_lon_deg"]), Bodies.R_MOON)
 	var p := Rtcc.site_at(at, t0).normalized()
 	p = (p - h * p.dot(h)).normalized()
@@ -1352,13 +1430,35 @@ func landing_site() -> Vector3:
 	return Bodies.selenographic_to_fixed(lat, lon, Bodies.R_MOON + Terrain.height(lat, lon))
 
 
-## When the lunar orbit's plane passes over the site, the ground track
-## there at its farthest from the equator: the landing time, or the lunar
-## site's time (mission.json "lunar_site": get).
+## Where the LM stands in the surface's start phases, on the surface there
+## (Moon-fixed, m): where the flight's came down (mission.json "landing":
+## touchdown_lat_deg, touchdown_lon_deg), or else the landing site. Apollo
+## 12's was the Surveyor's, and Intrepid came down 160 m from it.
+func _touchdown_site() -> Vector3:
+	var l := mission.section("landing")
+	if not l.has("touchdown_lat_deg"):
+		return landing_site()
+	var lat := float(l["touchdown_lat_deg"])
+	var lon := float(l["touchdown_lon_deg"])
+	return Bodies.selenographic_to_fixed(lat, lon, Bodies.R_MOON + Terrain.height(lat, lon))
+
+
+## When the lunar orbit's plane passes over the site (_site_normal()): the
+## landing time, or the lunar site's time (mission.json "lunar_site":
+## get).
 func site_get() -> float:
 	if not mission.data.has("landing"):
 		return _get_s(mission.section("lunar_site")["get"])
 	return float(mission.section("landing")["get_s"])
+
+
+## The normal of the lunar orbit's plane over the site at its time
+## (site_get()), its ground track heading the mission's approach azimuth
+## there (mission.json "landing" or "lunar_site": approach_azimuth_deg),
+## due west unless given (Rtcc.site_orbit_normal()).
+func _site_normal() -> Vector3:
+	var s := mission.section("landing") if mission.data.has("landing") else mission.section("lunar_site")
+	return Rtcc.site_orbit_normal(landing_site(), site_get(), float(s.get("approach_azimuth_deg", 270.0)))
 
 
 ## The GET event [param id] fired at, or -1 if it hasn't.

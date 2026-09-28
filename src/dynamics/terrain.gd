@@ -1,9 +1,11 @@
 ## The lunar surface: heights from NASA's elevation maps (data/terrain/,
 ## built by tools/terrain/build_terrain.py; sources in NOTICE). Around
 ## Tranquility Base it is LROC's 2 m terrain model of the Apollo 11 site,
-## resampled to 4 m, with West crater and Little West in it. Along the
-## approach it is SLDEM2015 (59 m, then 118 m); elsewhere LOLA at 1°.
-## Finer maps are blended into coarser ones over a margin at their edges.
+## resampled to 4 m, with West crater and Little West in it, and around
+## Apollo 12's LROC's of its site, with Surveyor crater. Along each
+## approach it is SLDEM2015 (59 m, then 118 m for Apollo 11's and 237 m
+## for Apollo 12's); elsewhere LOLA at 1°. Finer maps are blended into
+## coarser ones over a margin at their edges.
 ##
 ## Heights are relative to the 1737.4 km reference sphere (Bodies.R_MOON),
 ## in the Moon-fixed frame (Bodies.moon_fixed()). Tranquility Base lies

@@ -1,9 +1,48 @@
 {
  "_comment": "Heights relative to the 1737.4 km reference sphere: DN * scale_m + offset_m, int16 little-endian, row-major, row 0 northmost. Row r's centre is at lat_top - r / ppd, column c's at lon_left + c / ppd (degrees east). Built by tools/terrain/build_terrain.py; sources in NOTICE.",
- "_source": "LROC NAC_DTM_APOLLO11 (NASA/GSFC/Arizona State University); SLDEM2015 (Barker et al., 2016, LOLA and SELENE TC); LOLA LDEM_4 (NASA/GSFC)",
+ "_source": "LROC NAC_DTM_APOLLO11 and NAC_DTM_APOLLO12 (NASA/GSFC/Arizona State University); SLDEM2015 (Barker et al., 2016, LOLA and SELENE TC); LOLA LDEM_4 (NASA/GSFC)",
  "lm_lat_deg": 0.67416,
  "lm_lon_deg": 23.47314,
  "layers": [
+  {
+   "name": "site12",
+   "file": "site12.bin",
+   "rows": 400,
+   "cols": 675,
+   "lat_top": -2.9864176910265536,
+   "lon_left": 336.52863317067477,
+   "ppd": 7580.83760603737,
+   "blend_px": 25,
+   "offset_m": -1430.0,
+   "scale_m": 0.01,
+   "wrap": false
+  },
+  {
+   "name": "near12",
+   "file": "near12.bin",
+   "rows": 205,
+   "cols": 712,
+   "lat_top": -2.9189453125,
+   "lon_left": 336.3095703125,
+   "ppd": 512.0,
+   "blend_px": 8,
+   "offset_m": -2000.0,
+   "scale_m": 0.1,
+   "wrap": false
+  },
+  {
+   "name": "approach12",
+   "file": "approach12.bin",
+   "rows": 308,
+   "cols": 1088,
+   "lat_top": -2.84765625,
+   "lon_left": 336.25390625,
+   "ppd": 128.0,
+   "blend_px": 8,
+   "offset_m": -2000.0,
+   "scale_m": 0.1,
+   "wrap": false
+  },
   {
    "name": "site",
    "file": "site.bin",
