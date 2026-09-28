@@ -13,7 +13,8 @@
 ## shares the same ChecklistBook. The comfort aids, the gaze tooltip, the
 ## frame-time monitor and the headset acceptance recorder
 ## (docs/HEADSET_RUN.md) come up on both rigs; the recorder writes its
-## record only in a headset.
+## record only in a headset. So does the audio director, the cabin's sound
+## (docs/LISTENING_PASS.md); a checkpoint's load (F9) makes none.
 ##
 ## The player moves to the LM as it undocks (VehicleSwitch), and L changes
 ## vehicles while it flies free: the HUD, the space view, the hand
@@ -33,7 +34,10 @@
 ## Start phase: the exported start_phase, or "--phase=<name>" after "--" on
 ## the command line (launch, parking_orbit, translunar_coast, lunar_orbit,
 ## lunar_descent, lunar_surface, lunar_ascent, tei, transearth_coast,
-## entry). The LM's phases start in the LM.
+## entry). The LM's phases start in the LM. "--o2-failure-in=<s>" fails
+## the SM's oxygen tank 2 that many seconds after the start, as Apollo
+## 13's did: its fuel cells' lights sound the master alarm (the listening
+## pass's, docs/LISTENING_PASS.md).
 extends Node3D
 
 const CHECKPOINT_PATH := "user://apollo_checkpoint.json"
@@ -68,6 +72,8 @@ var comfort: Comfort
 var tooltip: GazeTooltip
 var perf: PerfMonitor
 var recorder: VrAcceptanceRecorder
+## The cabin's sound, on the desktop and in a headset alike.
+var audio: AudioDirector
 ## The OpenXR interface, found at start. A test can set a stand-in first
 ## (initialised, with OpenXR's session signals) to run the headset branch
 ## without a runtime.
@@ -79,11 +85,17 @@ var _reject_held: bool = false
 
 
 func _ready() -> void:
+	var o2_failure_in := -1.0
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--phase="):
 			start_phase = arg.trim_prefix("--phase=")
+		elif arg.begins_with("--o2-failure-in="):
+			o2_failure_in = float(arg.trim_prefix("--o2-failure-in="))
 	rt = SimRuntime.build(self)
 	rt.sequencer.start(start_phase)
+	if o2_failure_in >= 0.0:
+		rt.mission.data["failures"] = rt.mission.section("failures").merged(
+			{"o2_tank_2_get_s": SimClock.get_seconds + o2_failure_in}, true)
 	view = SpaceView.new()
 	view.name = "SpaceView"
 	add_child(view)
@@ -147,6 +159,10 @@ func _ready() -> void:
 	vehicles.changed.connect(_on_vehicle)
 	vehicles.boarded.connect(_on_boarded)
 	add_child(vehicles)
+	# Last, so that nothing set up above clicks.
+	audio = AudioDirector.new()
+	audio.name = "AudioDirector"
+	add_child(audio)
 
 
 ## The cabin of vehicle [param v]: Eagle's for "lm", Columbia's otherwise.
@@ -307,5 +323,5 @@ func _unhandled_input(event: InputEvent) -> void:
 				var err := rt.save_file(CHECKPOINT_PATH)
 				print("checkpoint saved" if err == OK else "checkpoint save failed: %s" % err)
 			KEY_F9:
-				var msg := rt.load_file(CHECKPOINT_PATH)
+				var msg: String = audio.hush(rt.load_file.bind(CHECKPOINT_PATH))
 				print("checkpoint loaded" if msg == "" else msg)

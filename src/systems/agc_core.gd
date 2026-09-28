@@ -64,7 +64,8 @@
 ##         imu.preferred (REFSMMAT is P30's preferred orientation), and
 ##         the DSKY's display: dsky.prog, dsky.verb, dsky.noun,
 ##         dsky.r1-dsky.r3 (blank while unpowered), dsky.flash,
-##         dsky.comp_acty, dsky.lamp.<lamp>
+##         dsky.comp_acty, dsky.lamp.<lamp>, and its keys pressed so far,
+##         dsky.key_presses
 class_name AgcCore
 extends Node
 
@@ -1023,6 +1024,7 @@ func _publish_dsky() -> void:
 	Bus.set_value(_ch("dsky.comp_acty"), on and dsky.mode != "")
 	for l in dsky.lamp_names:
 		Bus.set_value(_ch("dsky.lamp." + l), bool(dsky.lamps.get(l, false)))
+	Bus.set_value(_ch("dsky.key_presses"), dsky.presses)
 
 
 func snapshot() -> Dictionary:

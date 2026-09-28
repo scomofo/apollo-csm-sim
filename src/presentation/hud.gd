@@ -312,6 +312,7 @@ func _switch_panel() -> PanelContainer:
 	_momentary(g, "UNDOCK", "ctl.seq.undock")
 	_momentary(g, "LM JETT", "ctl.seq.lm_jett")
 	_momentary(g, "CM/SM SEP", "ctl.seq.cm_sm_sep")
+	_momentary(g, "MASTER ALARM", "ctl.cw.master_alarm")
 	return p
 
 
@@ -632,7 +633,7 @@ CMC  P%02d %s  VG %.1f ft/s  %s""" % [
 		Units.kg_to_lb(float(Bus.get_value("eps.o2_tank1_kg", 0.0))), Units.kg_to_lb(float(Bus.get_value("eps.o2_tank2_kg", 0.0))),
 		Units.kg_to_lb(float(Bus.get_value("eps.h2_tank1_kg", 0.0)) + float(Bus.get_value("eps.h2_tank2_kg", 0.0))),
 		float(Bus.get_value("eps.batt_a_ah", 0.0)), float(Bus.get_value("eps.batt_b_ah", 0.0)), float(Bus.get_value("eps.batt_c_ah", 0.0)),
-		"MASTER ALARM" if bool(Bus.get_value("sys.master_alarm.eps", false)) else "",
+		"MASTER ALARM" if bool(Bus.get_value("sys.master_alarm", false)) else "",
 		int(Bus.get_value("guid.program", 0)), str(Bus.get_value("guid.step", "")),
 		float(Bus.get_value("guid.vg_mps", 0.0)) / ft,
 		"MNVR LOADED TIG " + Units.hms(float(Bus.get_value("guid.maneuver_tig", 0.0))) if bool(Bus.get_value("guid.maneuver_valid", false)) else ""]

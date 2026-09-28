@@ -15,6 +15,8 @@ func test_main_scene_builds_and_keyboard_drives_the_dsky() -> void:
 	assert_not_null(main.view)
 	assert_not_null(main.get_node_or_null("HandControllerInput"), "the keys reach ctl.rhc and ctl.thc through it")
 	assert_eq(Bus.get_value("mission.phase"), "lunar_orbit")
+	assert_not_null(main.audio, "the cabin's sound")
+	assert_eq(Bus.get_value("audio.events", {}), {}, "nothing set up clicks")
 	for kc in [KEY_V, KEY_1, KEY_6, KEY_N, KEY_6, KEY_2, KEY_ENTER]:
 		var ev := InputEventKey.new()
 		ev.keycode = kc
@@ -22,6 +24,7 @@ func test_main_scene_builds_and_keyboard_drives_the_dsky() -> void:
 		main._unhandled_input(ev)
 	assert_eq(main.rt.agc().dsky.verb, "16")
 	assert_eq(main.rt.agc().dsky.noun, "62")
+	assert_eq(main.audio.counts.get("key", 0), 7, "each key clicks")
 	main.rt.free_nodes()
 
 
