@@ -208,6 +208,46 @@ func p37() -> Vector3:
 	return dv
 
 
+## The entry from here, as its checklist flies it: V37E61E and PRO through
+## P61's N61, N60 and N63; P62's V50N25 00041 answered with CM/SM SEP and
+## PRO, its N61 with PRO in CMC MODE AUTO; ELS LOGIC and AUTO; PRO at P65's
+## N69 and P67's N67; on to the splashdown, or [param max_s]. Returns
+## {"programs": the programs flown, in turn; "peaks": the load's peaks
+## over 1 g (g), each pass's; "n67": N67's range to go, latitude and
+## longitude}.
+func fly_entry(max_s: float = 3.0 * 3600.0) -> Dictionary:
+	var agc := rt.agc()
+	keys("V37E61E")
+	keys("PPP")
+	assert_eq([agc.program, agc.dsky.verb, agc.dsky.noun], [62, "50", "25"], "P62: V50N25 for CM/SM SEP")
+	Bus.set_value("ctl.seq.cm_sm_sep", true)
+	run(1.0, false)
+	assert_eq(rt.dynamics.config, "cm")
+	keys("P")
+	Bus.set_value("ctl.cmc.mode", 2)
+	keys("P")
+	Bus.set_value("ctl.els.logic", true)
+	Bus.set_value("ctl.els.auto", true)
+	var programs := [61, 62]
+	var g: Array[float] = []
+	var n67 := []
+	var end := SimClock.get_seconds + max_s
+	while not rt.dynamics.landed and SimClock.get_seconds < end:
+		run(EntryGuidance.PASS_S if rt.dynamics.in_atmosphere() else 30.0)
+		if agc.program != programs[-1]:
+			programs.append(agc.program)
+		g.append(rt.dynamics.g_load)
+		if agc.step_name == "n67":
+			n67 = agc.noun_values(67)
+		if agc.step_name in ["n69", "n67"]:
+			keys("P")
+	var peaks := []
+	for i in range(1, g.size() - 1):
+		if g[i] > 1.0 and g[i] > g[i - 1] and g[i] >= g[i + 1]:
+			peaks.append(g[i])
+	return {"programs": programs, "peaks": peaks, "n67": n67}
+
+
 ## Roll the CSM half a turn about its X axis on the DAP (CMC MODE AUTO),
 ## as the crew turns the optics, on the CM's +Z side, away from the Moon or
 ## the Earth; then back to the mode it was in, holding.

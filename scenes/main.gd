@@ -31,9 +31,9 @@
 ##         player.xr_focus, player.xr_refresh_hz
 ##
 ## Start phase: the exported start_phase, or "--phase=<name>" after "--" on
-## the command line (parking_orbit, translunar_coast, lunar_orbit,
-## lunar_descent, lunar_surface, lunar_ascent, transearth_coast, entry). The
-## LM's phases start in the LM.
+## the command line (launch, parking_orbit, translunar_coast, lunar_orbit,
+## lunar_descent, lunar_surface, lunar_ascent, tei, transearth_coast,
+## entry). The LM's phases start in the LM.
 extends Node3D
 
 const CHECKPOINT_PATH := "user://apollo_checkpoint.json"

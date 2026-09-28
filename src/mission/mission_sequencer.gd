@@ -35,7 +35,7 @@ signal event_fired(id: String)
 signal capcom(text: String)
 
 const PHASES := ["launch", "parking_orbit", "tli", "translunar_coast", "lunar_orbit", "lunar_descent",
-	"lunar_surface", "lunar_ascent", "transearth_coast", "entry", "splashdown", "lost"]
+	"lunar_surface", "lunar_ascent", "tei", "transearth_coast", "entry", "splashdown", "lost"]
 ## Mission Control's calls through the launch, by the vehicle's events
 ## [published: the Apollo 11 air-to-ground, the PAO's mission commentary].
 const LAUNCH_CALLS := {
@@ -200,7 +200,7 @@ func start(p_phase: String) -> void:
 		sivb_prop = Sivb.simulate_burn(tr, _stack_mass(), sivb_prop, pad["target"])
 		tr.coast_to(tr.t + float(mission.data.get("tde_delay_s", 3600.0)), 60.0)
 		cfg = "csm_lm"
-	if p_phase in ["lunar_orbit", "transearth_coast", "entry"] + LM_PHASES:
+	if p_phase in ["lunar_orbit", "tei", "transearth_coast", "entry"] + LM_PHASES:
 		visited_lunar_orbit = true
 		cfg = "csm_lm"
 		tr = _lunar_orbit_start()
@@ -209,11 +209,17 @@ func start(p_phase: String) -> void:
 	if p_phase in LM_PHASES:
 		# Docked until Apollo 11's undocking.
 		tr.coast_to(_get_s(mission.section("lunar_timeline")["undocking_get"]), 60.0)
+	if p_phase == "tei":
+		# Columbia alone, a minute before the timeline's TEI PAD.
+		cfg = "csm"
+		tr.coast_to(_entry_time(_timeline_entry("tei_pad")) - 60.0, 30.0)
 	if p_phase in ["transearth_coast", "entry"]:
 		cfg = "csm"
 		var mass := SpacecraftData.total_mass("csm", sps_prop, 560.0, 110.0, 0.0)
 		var tei := mission.section("tei")
-		var pad := Rtcc.plan_tei(tr, mass, float(tei["dv_mps"]), float(tei["entry_perigee_alt_km"]) * 1000.0, tr.t + 600.0)
+		if tei.has("tig_near"):
+			tr.coast_to(_get_s(tei["tig_near"]) - 1800.0, 30.0)
+		var pad := _plan_tei(tr, mass, tr.t + 600.0)
 		assert(not pad.is_empty(), "no TEI solution")
 		tr.coast_to(float(pad["tig"]), 30.0)
 		var after := Rtcc.simulate_sps_burn(tr, mass, pad["dv_lvlh"])
@@ -249,6 +255,11 @@ func start(p_phase: String) -> void:
 		agc.imu.align(start_refsmmat(p_phase))
 		agc.landing_site_mf = landing_site()
 		agc.landing_get = float(mission.section("landing")["get_s"])
+		if SimClock.get_seconds > _entry_time(_timeline_entry("entry_pad")):
+			# The target the entry PAD's uplink brought.
+			var target := entry_target()
+			agc.entry_lat = target.x
+			agc.entry_lng = target.y
 	if cfg == "stack":
 		tli_pad = _plan_tli(dynamics.traj)
 		if not tli_pad.is_empty():
@@ -272,10 +283,12 @@ func start(p_phase: String) -> void:
 		"lunar_ascent":
 			_say("Eagle, Houston. Your ascent PAD is in: liftoff at %s. P12 when you're ready." % Units.hms(
 				float(plan.get("liftoff_tig", 0.0))))
+		"tei":
+			_say("Columbia, Houston. The LM is gone, and your TEI PAD is on its way up.")
 		"transearth_coast":
 			_say("Houston: TEI was good. Request MCC PADs to put you in the entry corridor.")
 		"entry":
-			_say("Houston: entry interface in about fifteen minutes. CM/SM SEP, P61, ELS LOGIC and AUTO.")
+			_say("Houston: entry interface in about twenty minutes. P61, CM/SM SEP when P62 asks, ELS LOGIC and AUTO.")
 
 
 # --- per step -------------------------------------------------------------------
@@ -421,7 +434,10 @@ func _update_phase() -> void:
 			_say("Columbia, Houston. We confirm lunar orbit.")
 		elif phase == "splashdown":
 			Bus.set_value("mission.result", "success")
-			_say("Splashdown! Welcome home, Apollo 11. Peak load %.1f g, touchdown %.1f m/s." % [dynamics.max_g, dynamics.landed_speed])
+			var miss := Bodies.surface_angle(geographic(), entry_target()) * Bodies.R_EARTH / Units.NMI
+			Bus.set_value("mission.splash_miss_nmi", miss)
+			_say("Splashdown! Welcome home, Apollo 11. %.1f nmi from the target; peak load %.1f g, touchdown %.1f m/s." % [
+				miss, dynamics.max_g, dynamics.landed_speed])
 		elif phase == "lost":
 			Bus.set_value("mission.result", "lost")
 			_say("Houston... we have lost the spacecraft.")
@@ -502,6 +518,21 @@ func _on_pad_request(kind: Variant) -> void:
 	Bus.set_value("ctl.ground.pad_request", "")
 
 
+## TEI, planned by the RTCC onto the mission's return (its "tei" section:
+## the return's inclination, entry interface's GET, the corridor) at the
+## first opportunity after [param earliest], and none before the one
+## nearest the flown TEI.
+func _plan_tei(tr: Trajectory, mass: float, earliest: float) -> Dictionary:
+	var tei := mission.section("tei")
+	var near := _get_s(tei["tig_near"]) if tei.has("tig_near") else -1.0
+	if near >= 0.0:
+		earliest = maxf(earliest, near - 0.5 * float(tr.conic()["period"]))
+	var n81: Array = tei.get("n81_ft_s", [0.0, 0.0, 0.0])
+	return Rtcc.plan_tei(tr, mass, float(tei["dv_mps"]), float(tei["entry_perigee_alt_km"]) * 1000.0, earliest,
+		float(tei.get("return_inclination_deg", -1.0)), _get_s(tei["ei_get"]) if tei.has("ei_get") else -1.0, near,
+		_v3(n81) * Units.FT)
+
+
 ## Solve and uplink a maneuver PAD: "mcc", "loi", "circ", "tei" for the
 ## CMC, planned from the CSM's tracked state and uplinked with it (P27;
 ## the PAD's "uplinked" says whether the CMC took them); "sv", that state
@@ -511,6 +542,8 @@ func _on_pad_request(kind: Variant) -> void:
 ## plan (csi_pad()). The TEI and the liftoff come no earlier than GET
 ## [param earliest].
 func request_pad(kind: String, earliest: float = -1.0) -> Dictionary:
+	if kind == "entry":
+		return entry_pad()
 	if kind == "pdi":
 		return pdi_pad()
 	if kind == "ascent":
@@ -543,9 +576,7 @@ func request_pad(kind: String, earliest: float = -1.0) -> Dictionary:
 			pad = Rtcc.plan_loi2(tr, mass, r_site + float(lo["loi2_apolune_nmi"]) * Units.NMI,
 				r_site + float(lo["loi2_perilune_nmi"]) * Units.NMI)
 		"tei":
-			var tei := mission.section("tei")
-			pad = Rtcc.plan_tei(tr, mass, float(tei["dv_mps"]), float(tei["entry_perigee_alt_km"]) * 1000.0,
-				maxf(now + 900.0, earliest))
+			pad = _plan_tei(tr, mass, maxf(now + 900.0, earliest))
 		"mcc":
 			var tig := now + 900.0
 			if phase == "translunar_coast":
@@ -610,6 +641,47 @@ func sv_uplink() -> Dictionary:
 	return pad
 
 
+## The entry PAD (Rtcc.plan_entry()) for the target (mission.json "entry"),
+## from the state MSFN tracked, uplinked to the CMC with that state and the
+## target (P27) when it takes them. Returns the PAD with "state" and
+## "uplinked", or empty when the return doesn't come down to entry
+## interface.
+func entry_pad() -> Dictionary:
+	var agc: Agc = systems.get("agc")
+	var tracked := tracked_state(dynamics.traj)
+	var target := entry_target()
+	var pad := Rtcc.plan_entry(tracked, target.x, target.y)
+	if pad.is_empty():
+		_say("Houston: Columbia, no entry PAD: you're not coming down to entry interface.")
+		return {}
+	pad["state"] = tracked
+	pad["uplinked"] = agc != null and agc.uplink_state(tracked) and agc.uplink_entry_target(target.x, target.y)
+	last_pad = pad
+	pads["entry"] = pad
+	var text := Rtcc.pad_text(pad)
+	Bus.set_value("mission.pad_text", text)
+	if pad["uplinked"]:
+		_say("Houston, uplinking your state vector and target. " + text)
+	else:
+		_say("Houston: Columbia, we can't uplink, we need P00 and UP TLM to ACCEPT. By voice: " + text)
+	_fire("pad_entry")
+	return pad
+
+
+## Where Columbia is over the Earth: latitude and east longitude, deg.
+func geographic() -> Vector2:
+	var tr := dynamics.traj
+	var p := Bodies.eci_to_earth_fixed([tr.s[0], tr.s[1], tr.s[2]], tr.t)
+	return Bodies.fixed_to_geographic(Vector3(p[0], p[1], p[2]))
+
+
+## The entry's target: latitude and east longitude, deg (mission.json
+## "entry").
+func entry_target() -> Vector2:
+	var e := mission.section("entry")
+	return Vector2(float(e["target_lat_deg"]), float(e["target_lon_deg"]))
+
+
 ## The state MSFN tracked for [param tr]: its truth, off by a tracking
 ## error drawn for this request (mission.json "msfn": standard deviations in
 ## LVLH, by the body [param tr]'s orbit is about).
@@ -644,7 +716,7 @@ func _disperse() -> void:
 ## the start (P52's nominal orientation).
 func start_refsmmat(p_phase: String) -> Basis:
 	var tr := dynamics.traj
-	if p_phase in ["lunar_orbit"] + LM_PHASES:
+	if p_phase in ["lunar_orbit", "tei"] + LM_PHASES:
 		return landing_site_refsmmat(tr)
 	if p_phase in ["transearth_coast", "entry"]:
 		return Imu.nominal(tr.pos(), tr.vel())
@@ -894,6 +966,9 @@ func _condition(when: String) -> bool:
 		"csm_orbit":
 			# Columbia alone in lunar orbit, the LM jettisoned.
 			ok = in_orbit and dynamics.config == "csm" and lm == null
+		"earth_return":
+			# Columbia on the way home, past the Moon's sphere of influence.
+			ok = tr.primary == "earth" and dynamics.config == "csm" and visited_lunar_orbit
 	return ok
 
 

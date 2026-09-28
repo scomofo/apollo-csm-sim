@@ -66,14 +66,12 @@ func dsky_lamp(lamp: String) -> bool:
 	return bool(Bus.get_value("dsky.lamp." + lamp, false))
 
 
-## TEI from the lunar_orbit start on a platform that doesn't drift, turned
-## by [param tilt] (rad about the stable member's axes) and flown without a
+## TEI from the tei start on a platform that doesn't drift, turned by
+## [param tilt] (rad about the stable member's axes) and flown without a
 ## realign. Returns fly_pad()'s burn_log, with the CMC's misalignment at
 ## the burn ("m", rad, ECI) and its state vector after it ("nav").
 func _tei(tilt: Vector3) -> Dictionary:
-	build("lunar_orbit")
-	Bus.set_value("ctl.seq.lm_jett", true)
-	run(1.0, false)
+	build("tei")
 	var agc := rt.agc()
 	agc.imu.drift = Vector3.ZERO
 	agc.imu.torque(tilt)
@@ -209,9 +207,7 @@ func test_gimbal_lock_loses_the_alignment_and_p51_finds_it_again() -> void:
 
 
 func test_p52_aligns_to_the_preferred_orientation_for_a_burn() -> void:
-	build("lunar_orbit")
-	Bus.set_value("ctl.seq.lm_jett", true)
-	run(1.0, false)
+	build("tei")
 	var agc := rt.agc()
 	assert_false(rt.sequencer.request_pad("tei").is_empty(), "a TEI PAD")
 	keys("V37E30E")

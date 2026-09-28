@@ -248,8 +248,8 @@ func test_from_insertion_to_docking() -> void:
 	assert_eq(str(Bus.get_value("dock.state")), "docked")
 	assert_eq(rt.sequencer.phase, "lunar_orbit", "docked again")
 	# The timeline's last calls: GO for jettison two hours after docking
-	# (Apollo 11: 2 h 5 min), and after LM JETT the TEI PAD, for the
-	# opportunity nearest Apollo 11's 135:23:42.
+	# (Apollo 11: 2 h 5 min), and after LM JETT the TEI PAD, for Apollo 11's
+	# TEI at 135:23:41.56 (mission.json "tei").
 	Bus.set_value("ctl.cmc.mode", 0)
 	var docked := rt.sequencer.event_get("docking")
 	run(docked + 7489.0 + 10.0 - SimClock.get_seconds)
@@ -262,8 +262,7 @@ func test_from_insertion_to_docking() -> void:
 	var tei: Dictionary = rt.sequencer.pads.get("tei", {})
 	assert_eq(str(tei.get("name", "")), "TEI", "the TEI PAD at 134:01:16")
 	gut.p("GO for jettison at %s; %s" % [Units.hms(float(rt.sequencer.timeline_done["go_jettison"])), Rtcc.pad_text(tei)])
-	var period := float(rt.dynamics.traj.conic()["period"])
-	assert_almost_eq(float(tei.get("tig", 0.0)), 135.0 * 3600.0 + 23.0 * 60.0 + 42.0, 0.5 * period, "nearest Apollo 11's TEI")
+	assert_almost_eq(float(tei.get("tig", 0.0)), MissionSequencer._get_s("135:23:41.56"), 0.01, "Apollo 11's TEI")
 	# The checks: the sequence as planned, and the ΔV within 20 % of the plan.
 	# The LGC flies on its own model of the Moon's field and its own state
 	# vectors, the ground planned on the truth: with Columbia's orbit out of

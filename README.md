@@ -47,8 +47,9 @@ godot --path . -- --phase=lunar_orbit           # after LOI-2, 54 × 66 nmi, Eag
 godot --path . -- --phase=lunar_descent         # Eagle after DOI, 20 min before PDI
 godot --path . -- --phase=lunar_surface         # Eagle at Tranquility Base, 10 min after landing
 godot --path . -- --phase=lunar_ascent          # 20 min before liftoff, the ascent PAD in
+godot --path . -- --phase=tei                   # Columbia alone, a minute before the TEI PAD
 godot --path . -- --phase=transearth_coast      # after TEI
-godot --path . -- --phase=entry                 # ~15 min before entry interface
+godot --path . -- --phase=entry                 # ~20 min before entry interface, the target in
 ```
 
 Later start phases are made by flying the earlier ones through the RTCC's own
@@ -142,9 +143,18 @@ undocking to TEI) and at entry.
    transearth **MCC**s until the vacuum perigee is about 37 km (20 nmi),
    or navigate on board with P23 and plan them with P37 (below).
    Before LM JETT you can undock and dock again (below).
-7. **Entry.** Press **CM/SM SEP** and select `V37E61E`. Set ELS LOGIC and
-   ELS AUTO on. P64 steers the bank angle at 0.05 g, P67 takes over below
-   3 km/s, and the drogue and main parachutes deploy automatically.
+7. **Entry.** Select `V37E61E`. P61 flashes N61, the target the entry
+   PAD's uplink brought, and HEADSUP (-1, lift up); PRO, and PRO again at
+   N60 (the peak load expected, and the speed and flight path angle at
+   entry interface) and N63 (the EMS's range, speed and time to go). P62
+   asks for CM/SM SEP (V50N25 00041): press **CM/SM SEP**, then PRO. At
+   N61, set CMC MODE AUTO and PRO: the CM turns to the entry attitude,
+   and P63 takes over once it is near. Set ELS LOGIC and ELS AUTO on. At
+   0.05 g P64 starts Colossus's entry guidance, which rolls the lift to
+   bring the CM down on the target: P65's up-control (PRO at its flashing
+   N69), P66's skip on a long range, and P67's final phase, which ends at
+   1,000 ft/s with N67 flashing the range to go and where the CM is (PRO
+   for P00). The drogue and main parachutes deploy automatically.
 
 **State vectors.** The CMC flies on its own state vector. Its
 accelerometers feed it only in P40, P41, P47 and entry, and during TLI. In
@@ -300,8 +310,8 @@ the commander brakes on the TTCA, holding the closing rate to the range
 gates, and stops about 40 m from Columbia. Collins then flies the probe
 into the drogue, as he did.
 
-**Mission Control's timeline.** From undocking to TEI, Mission Control
-keeps Apollo 11's timeline (mission.json "lunar_timeline"):
+**Mission Control's timeline.** From undocking to the entry, Mission
+Control keeps Apollo 11's timeline (mission.json "lunar_timeline"):
 - **Undocking and DOI.** CAPCOM gives GO for undocking at 100:00. The DOI
   PAD comes 8½ minutes after Eagle undocks, and GO for DOI 18 minutes
   before the burn.
@@ -313,8 +323,12 @@ keeps Apollo 11's timeline (mission.json "lunar_timeline"):
 - **Rendezvous.** The CSI PAD comes 5 minutes after insertion, and GO for
   CSI 13 minutes before the burn.
 - **Jettison and TEI.** GO for jettison comes two hours after docking.
-  After LM JETT, the TEI PAD comes at 134:01, for the opportunity nearest
-  Apollo 11's 135:23:42 (here 135:20:38).
+  After LM JETT, the TEI PAD comes at 134:01, for Apollo 11's TEI at
+  135:23:41, solved for its return: entry interface at 195:03:06, the
+  return's inclination and the corridor's middle.
+- **The entry PAD.** At 191:43:57 the entry PAD comes up with the state
+  vector and Apollo 11's final target, 13.32° N 169.17° W, some 1,500
+  nmi from entry interface.
 
 Each PAD comes only when the vehicles can use it, and not while the
 ground's last PAD of its kind is still to be flown. An undocking a day
@@ -532,7 +546,7 @@ A flown Apollo 11 profile in the simulator reproduces these values:
 | Translunar coast | 73.0 h | 73.0 h |
 | LOI-1 | GET 75:50:32, 880 m/s, 6.1 min, 58 × 170 nmi | 75:49:50, 889 m/s, 5.96 min, 60 × 170 nmi |
 | The orbit after LOI-2, above the landing site, flown through the Moon's field | 65.4 × 53.5 nmi at 80:11:54, 61.8 × 56.9 nmi at 126 h | 65.7 × 53.8 nmi, 62.4 × 56.6 nmi |
-| TEI | GET 135:16:27, 1,000 m/s | 135:23:42, 1,001 m/s |
+| TEI | GET 135:23:41, 3,309 ft/s | 135:23:42, 3,284 ft/s |
 | DOI | GET 101:34:52, 74.3 ft/s, 30 s | 101:36:14, ~76 ft/s, ~30 s |
 | Powered descent | 12 min 8 s, touchdown at 102:45:23, 165 m from the target (the LGC's crossrange error, which the radar can't see) | 12 min 35 s, touchdown at 102:45:40, about 6 km past the target |
 | The Sun at touchdown | 10.7° up | 10.8° up |
@@ -543,8 +557,10 @@ A flown Apollo 11 profile in the simulator reproduces these values:
 | Midcourse corrections | 2.6 and 0.5 ft/s | under 1 and about 1.5 ft/s |
 | Braking, then station-keeping | 15 min 44 s, station-keeping 46 min after TPI | 15 min 8 s, station-keeping 48 min after TPI |
 | Docking | GET 127:51:53, 50 min after TPI | 128:03:00, 59 min after TPI |
-| Entry peak load | 6.9 g | ~6.5 g |
-| Splashdown | 8.5 m/s | — |
+| Entry interface | 195:03:05, 36,194 ft/s, 6.53° down, 3.23° S 171.88° E | 195:03:05.7, 36,194 ft/s, 6.48° down, 3.19° S 171.96° E |
+| Entry: 0.05 g, and the two peak loads | 195:03:34; 6.5 and 6.1 g | about 195:03:34; 6.5 and 6.0 g |
+| Drogues | 195:12:39 | 195:12:07 |
+| Splashdown | 195:19:04, 13.33° N 169.18° W, 0.9 nmi from the target, at 8.5 m/s | 195:18:35, 13.30° N 169.15° W, 1.7 nmi from it by the CMC's reckoning |
 
 Deliberate simplifications are tagged `[simplified]` in the code. The main
 ones:
@@ -611,8 +627,17 @@ ones:
   product's gain, and the burn's mass is the true one, where the crew
   loaded it into the DAP. The LGC's P40 to P42 still hold the ΔV's
   direction in the rotating LVLH frame.
-- **Entry guidance.** It is a constant-drag bank controller without range
-  targeting.
+- **Entry guidance.** The CMC flies Colossus's entry guidance, ported
+  from its listing, on its own state vector and accelerometers. P61
+  predicts the entry by integrating the state vector, where Colossus
+  worked in conics, and the entry PAD's predictions are the CMC's, not
+  the RTCC's own entry simulation. The target sits on the simulator's
+  round Earth, its geodetic latitude taken for geocentric. The CM trims
+  with the heat shield square to the air. The entry DAP rolls at up to
+  20°/s, speeding up and braking at the rates its roll control assumed,
+  not on the jets' phase plane, and P62 hands over to P63 21 s after the
+  CM comes within 45° of the entry attitude, the rest of the maneuver
+  taken as done.
 - **Atmosphere.** The 1976 U.S. Standard Atmosphere turns with the
   Earth, without winds. Its density is a log-linear table of the
   standard's values; its pressure and speed of sound come from the
@@ -958,7 +983,14 @@ The scenario tests fly real segments through the crew interface:
   again. In lunar orbit, five P22 marks on the landing site through one
   pass bring the state vector from 2.0 km off to 18 m
 - TEI and the transearth MCCs into the entry corridor
-- CM/SM separation, P61/P64 entry and splashdown
+- The entry on P61 to P67 (`tests/scenarios/test_entry.gd`), slice 5f's
+  check. P61's N60 and N63 read Apollo 11's entry PAD, and from entry
+  interface the CM comes down within 3 nmi of its target: Apollo 11's,
+  1,500 nmi out, through P65 and P67 with no P66 and loads peaking at 6.5
+  and 6.1 g, 0.9 nmi from it (`test_lunar_mission.gd`); the shorter range
+  Apollo 11 had planned, 1,266 nmi, through P67 without an up-control,
+  1.0 nmi; and 2,000 nmi, skipping out through P66, 1.2 nmi. A checkpoint
+  taken mid-roll flies on as it did
 - An MCC PAD flown with P30 and P41 using only the cabin's controls,
   each one clicked through the desktop rig
 - A PAD requested from the wrist menu through the desktop rig: UPLINK
@@ -975,8 +1007,9 @@ The scenario tests fly real segments through the crew interface:
   LOI-2 and TEI each
   down the SPS burn checklist on P40 with a residual trimmed on the translation
   controller, each after the IMU realign checklist at the lower
-  equipment bay (SEAT, its DSKY, the optics and MARK), LM JETT, and entry
-  to splashdown. The cabin scenarios share `tests/cabin_test.gd`
+  equipment bay (SEAT, its DSKY, the optics and MARK), LM JETT, TEI from
+  its start phase, and entry to splashdown on P61 to P67. The cabin
+  scenarios share `tests/cabin_test.gd`
 - Undocking and docking in lunar orbit (`tests/scenarios/test_docking.gd`).
   The stack splits with its momentum conserved. An equiperiod separation
   (0.6 m/s down across the CSM's velocity, which on Apollo 11's
@@ -1038,8 +1071,7 @@ The scenario tests fly real segments through the crew interface:
     docks at 0.33 ft/s. Eagle's ΔV, 128.3 ft/s, is 7 % over the RTCC's
     plan (the check allows 20 %).
   - GO for jettison comes 2 h 5 min after docking. After LM JETT, the TEI
-    PAD plans TEI at 135:16:27, the opportunity nearest Apollo 11's
-    135:23:42
+    PAD plans TEI at 135:23:41, Apollo 11's
 - Mission Control's timeline (`tests/scenarios/test_lunar_timeline.gd`),
   slice 3f. From `lunar_orbit`: GO for undocking at 100:00, the DOI PAD
   8 min 29 s after Eagle undocks, and GO for DOI 18 min 21 s before the
@@ -1130,6 +1162,8 @@ Earth is oblate and the Sun pulls (slice 5a), and the Moon has its
 mascons, which the onboard computers model as their flown R-2 did, so
 their state vectors drift from truth in lunar orbit (slice 5b), and the
 S-IVB flies TLI on the IU's iterative guidance (slice 5c), the Saturn V
-flies Apollo 11 from the pad into its parking orbit (slice 5d), and the
-CMC's P40 and P41 steer as Colossus's did (slice 5e). Next comes entry
-range targeting, then sound (6) and the other missions (7).
+flies Apollo 11 from the pad into its parking orbit (slice 5d), the
+CMC's P40 and P41 steer as Colossus's did (slice 5e), and the CMC flies
+the entry down on Apollo 11's target on Colossus's P61 to P67 (slice
+5f). That finishes the whole flight; next come sound (6) and the other
+missions (7).

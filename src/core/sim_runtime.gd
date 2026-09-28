@@ -22,7 +22,9 @@ extends RefCounted
 ## 12: the launch vehicle's (slice 5d).
 ## 13: the CMC's steered thrust direction, which cross-product steering
 ##    holds in a burn's last seconds (slice 5e).
-const SCHEMA_VERSION := 13
+## 14: the CMC's entry programs and guidance, and the CM's roll rate
+##    (slice 5f).
+const SCHEMA_VERSION := 14
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],
