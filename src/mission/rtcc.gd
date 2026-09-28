@@ -63,21 +63,23 @@ static func simulate_sps_burn(traj: Trajectory, mass: float, dv_lvlh: Vector3, d
 
 
 ## Fly an LGC P40 burn on the DPS on [param traj]: thrust held along the
-## [param dv_lvlh] direction in the moving LVLH frame, at the start
-## throttle for the first p40_start_s and the burn throttle after, until
-## its magnitude has been gained (the law the LGC flies). Returns the mass
-## after.
-static func simulate_dps_burn(traj: Trajectory, mass: float, dv_lvlh: Vector3, dt: float = 0.5) -> float:
+## [param dv_lvlh] direction in the moving LVLH frame, on the throttle
+## schedule [param schedule] (Dps.p40_schedule(): spacecraft.json's when
+## empty), until its magnitude has been gained (the law the LGC flies).
+## Returns the mass after.
+static func simulate_dps_burn(traj: Trajectory, mass: float, dv_lvlh: Vector3, dt: float = 0.5,
+		schedule: Array = []) -> float:
 	var d := SpacecraftData.section("dps")
 	var f := float(d["thrust_n"])
 	var mdot := f / (float(d["isp_s"]) * Units.G0)
-	var t_start := float(d["p40_start_s"])
+	var sch := Dps.p40_schedule(schedule)
+	var t_start := float(sch[0])
 	var u := dv_lvlh.normalized()
 	var left := dv_lvlh.length()
 	var m := mass
 	var t := 0.0
 	while left > 1e-4:
-		var k := float(d["p40_start_throttle"]) if t < t_start else float(d["p40_throttle"])
+		var k := Dps.throttle_target(float(sch[1]) if t < t_start else float(sch[2]))
 		var acc := f * k / m
 		var h := minf(dt, left / acc)
 		if t < t_start:
@@ -90,17 +92,20 @@ static func simulate_dps_burn(traj: Trajectory, mass: float, dv_lvlh: Vector3, d
 	return m
 
 
-## How long an LGC P40 burn of [param dv] on the DPS lasts, s.
-static func dps_burn_time(mass: float, dv: float) -> float:
+## How long an LGC P40 burn of [param dv] on the DPS lasts, s, on the
+## throttle schedule [param schedule] (Dps.p40_schedule()).
+static func dps_burn_time(mass: float, dv: float, schedule: Array = []) -> float:
 	var d := SpacecraftData.section("dps")
 	var ve := float(d["isp_s"]) * Units.G0
 	var mdot := float(d["thrust_n"]) / ve
-	var t_start := float(d["p40_start_s"])
-	var m_start := mass - mdot * float(d["p40_start_throttle"]) * t_start
+	var sch := Dps.p40_schedule(schedule)
+	var t_start := float(sch[0])
+	var k_start := Dps.throttle_target(float(sch[1]))
+	var m_start := mass - mdot * k_start * t_start
 	var dv_start := ve * log(mass / m_start)
 	if absf(dv) <= dv_start:
-		return mass * (1.0 - exp(-absf(dv) / ve)) / (mdot * float(d["p40_start_throttle"]))
-	return t_start + m_start * (1.0 - exp(-(absf(dv) - dv_start) / ve)) / (mdot * float(d["p40_throttle"]))
+		return mass * (1.0 - exp(-absf(dv) / ve)) / (mdot * k_start)
+	return t_start + m_start * (1.0 - exp(-(absf(dv) - dv_start) / ve)) / (mdot * Dps.throttle_target(float(sch[2])))
 
 
 static func lvlh_to_inertial(traj: Trajectory, dv_lvlh: Vector3) -> Vector3:

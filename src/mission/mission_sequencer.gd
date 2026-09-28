@@ -26,7 +26,9 @@
 ##
 ## In lunar orbit the flight phase follows the LM: lunar_descent from DOI
 ## (the LM's perilune brought low) to touchdown, lunar_surface while it is
-## landed, and lunar_ascent from liftoff until it docks.
+## landed, and lunar_ascent from liftoff until it docks. An LM that doesn't
+## land (Apollo 10) stages in orbit: lunar_ascent from staging, and its
+## ascent engine's burn there is its insertion.
 ##
 ## Reads:  ctl.seq.csm_sep, ctl.seq.undock, ctl.seq.lm_jett,
 ##         ctl.seq.cm_sm_sep, ctl.lm.stage (crew pushbuttons,
@@ -62,9 +64,14 @@ const DESCENT_LEAD_S := 6.0 * 3600.0
 ## phase (_condition()).
 const CONDITIONS := ["", "separated", "docked", "lm_free", "lm_descent", "lm_landed", "lm_orbit", "docked_ascent",
 	"csm_orbit", "earth_return"]
-## The PADs a timeline entry may bring ("pad"): request_pad()'s, and "sep"
-## for a maneuver the entry fixes itself (maneuver_pad()).
-const PAD_KINDS := ["mcc", "loi", "circ", "tei", "sv", "doi", "pdi", "ascent", "csi", "entry", "sep"]
+## The PADs a timeline entry may bring ("pad"): request_pad()'s, and for a
+## maneuver the entry fixes itself (maneuver_pad()) "sep", the CSM's, or
+## the LM's "phasing" and "insertion".
+const PAD_KINDS := ["mcc", "loi", "circ", "tei", "sv", "lm_sv", "doi", "pdi", "ascent", "csi", "entry", "sep",
+	"phasing", "insertion"]
+## The CSM's fixed maneuvers from this ΔV are the SPS's (P40), smaller ones
+## the SM RCS's (P41), m/s.
+const SPS_MIN_MPS := 10.0 * Units.FT
 
 var mission: Mission
 var dynamics: Dynamics
@@ -82,8 +89,9 @@ var tli_cutoff_get: float = -1.0
 var last_pad: Dictionary = {}
 ## The last PAD of each kind (not in checkpoints).
 var pads: Dictionary = {}
-## The GETs the ground has planned, which the timeline counts back from:
-## doi_tig, pdi_tig, liftoff_tig, csi_tig, tpi_tig, tei_tig.
+## The GETs the ground has planned, which the timeline counts from:
+## doi_tig, pdi_tig, liftoff_tig, csi_tig, tpi_tig, tei_tig, and each fixed
+## maneuver's, <its PAD's kind>_tig.
 var plan: Dictionary = {}
 ## The timeline's entries done: id to the GET each happened at, or -1 for
 ## one passed by (its condition didn't hold then, or the start came after).
@@ -372,11 +380,13 @@ func _on_lm_liftoff(_get_s: float) -> void:
 	_say("Houston: we have liftoff. {lm}, you're looking good.")
 
 
-## After the liftoff, the ascent engine is off with the LM in orbit:
-## insertion. The orbit's apsides are above the landing site.
+## After the liftoff, or after staging in orbit once the ascent engine has
+## burned, the ascent engine is off with the LM in orbit: insertion. The
+## orbit's apsides are above the landing site.
 func _check_insertion() -> void:
 	var lm := dynamics.lm
-	if lm == null or lm.landed or not _has("lm_liftoff") or _has("lm_insertion") or lm.traj.primary != "moon" \
+	var ascended := _has("lm_liftoff") or (_has("lm_staging") and int(Bus.get_value("lm.aps.ignitions", 0)) > 0)
+	if lm == null or lm.landed or not ascended or _has("lm_insertion") or lm.traj.primary != "moon" \
 			or bool(Bus.get_value("lm.aps.on", false)):
 		return
 	var c := lm.traj.conic()
@@ -522,14 +532,15 @@ func _insert() -> void:
 
 ## In lunar orbit, the LM's part of the flight: its descent (from DOI, its
 ## perilune low, to touchdown), its stay on the surface, and its ascent
-## (from liftoff until it docks); otherwise lunar orbit.
+## (from liftoff, or from staging in orbit, until it docks); otherwise
+## lunar orbit.
 func _lunar_phase() -> String:
 	var lm := dynamics.lm
 	if lm == null:
 		return "lunar_orbit"
 	if lm.landed:
 		return "lunar_surface"
-	if _has("lm_liftoff"):
+	if _has("lm_liftoff") or lm.config == "lm_ascent":
 		return "lunar_ascent"
 	if not _has("lm_landing") and lm.traj.primary == "moon" \
 			and float(lm.traj.conic()["rp"]) - Bodies.R_MOON < DESCENT_PERILUNE_M:
@@ -564,7 +575,8 @@ func _plan_tei(tr: Trajectory, mass: float, earliest: float) -> Dictionary:
 ## Solve and uplink a maneuver PAD: "mcc", "loi", "circ", "tei" for the
 ## CMC, planned from the CSM's tracked state and uplinked with it (P27;
 ## the PAD's "uplinked" says whether the CMC took them); "sv", that state
-## alone (sv_uplink()); "doi" for the LGC, while the LM flies free; "pdi",
+## alone (sv_uplink()); "lm_sv", the LM's for the LGC (lm_sv_uplink());
+## "doi" for the LGC, while the LM flies free; "pdi",
 ## the LGC's state vector for powered descent (pdi_pad()); "ascent", the
 ## liftoff time for the LGC's P12 (ascent_pad()); "csi", the rendezvous
 ## plan (csi_pad()). The TEI and the liftoff come no earlier than GET
@@ -581,6 +593,8 @@ func request_pad(kind: String, earliest: float = -1.0) -> Dictionary:
 		return csi_pad()
 	if kind == "sv":
 		return sv_uplink()
+	if kind == "lm_sv":
+		return lm_sv_uplink()
 	var tracked: Trajectory = null
 	if kind != "doi":
 		tracked = tracked_state(dynamics.traj)
@@ -611,10 +625,12 @@ func request_pad(kind: String, earliest: float = -1.0) -> Dictionary:
 			if phase == "translunar_coast":
 				var t := mission.section("tli")
 				var target := -(Bodies.R_MOON + float(t["pericynthion_alt_km"]) * 1000.0)
-				# Without a landing, the lunar site sets the orbit's whole
-				# plane.
+				# Without a landing, or with nodal targeting (tli
+				# "node_targeting"), the site sets the orbit's whole plane:
+				# the pericynthion goes in it, where LOI-1 turns the orbit
+				# into it.
 				var plane_n := Vector3.ZERO
-				if not mission.data.has("landing"):
+				if not mission.data.has("landing") or bool(t.get("node_targeting", false)):
 					plane_n = Rtcc.site_orbit_normal(landing_site(), site_get())
 				pad = Rtcc.plan_mcc(tr, mass, tig, "moon", target, now + 5.0 * 86400.0,
 					landing_site(), site_get(), _get_s(t["pericynthion_get"]), plane_n)
@@ -641,6 +657,7 @@ func request_pad(kind: String, earliest: float = -1.0) -> Dictionary:
 	Bus.set_value("mission.pad_text", text)
 	if systems.has("lgc"):
 		systems["lgc"].uplink_maneuver(float(pad["tig"]), pad["dv_lvlh"])
+		systems["lgc"].uplink_throttle([])
 		systems["lgc"].uplink_landing_site(landing_site())
 	_say("Houston, uplinking " + text)
 	_fire("pad_" + kind)
@@ -648,26 +665,90 @@ func request_pad(kind: String, earliest: float = -1.0) -> Dictionary:
 
 
 ## A maneuver the flight plan fixes rather than the RTCC solves: timeline
-## entry [param e]'s ΔV ("n81_ft_s", LVLH) at its TIG ("tig"), named by
-## its "name" [published for Apollo 8: the separation maneuvers from the
-## S-IVB, radially up, which the crew flew on the THC by the EMS;
-## simplified: P41 flies them from the PAD]. Uplinked to the CMC with the
-## CSM's tracked state as the RTCC's PADs are. Returns the PAD.
+## entry [param e]'s ΔV ("n81_ft_s", LVLH) at its TIG (_fixed_tig()),
+## named by its "name". The CSM's are uplinked to the CMC with its tracked
+## state as the RTCC's PADs are [published for Apollo 8: the separation
+## maneuvers from the S-IVB, radially up, which the crew flew on the THC by
+## the EMS; simplified: P41 flies them from the PAD]. The LM's, which name
+## its engine ("engine": "dps" or "aps"), are uplinked to the LGC with the
+## DPS's throttle schedule ("throttle", Dps.p40_schedule()) [published for
+## Apollo 10: the phasing and insertion PADs, which the ground solved for
+## the rendezvous]. The PAD's GET goes in the plan, <its kind>_tig.
+## Returns the PAD.
 func maneuver_pad(e: Dictionary) -> Dictionary:
 	var m := _fixed_maneuver(e)
-	var pad := {"name": str(e.get("name", "MANEUVER")), "tig": _get_s(e["tig"]), "dv_lvlh": m["dv_lvlh"],
+	var kind := str(e["pad"])
+	var pad := {"name": str(e.get("name", "MANEUVER")), "tig": _fixed_tig(e), "dv_lvlh": m["dv_lvlh"],
 		"dv": (m["dv_lvlh"] as Vector3).length(), "burn_s": m["burn_s"]}
-	return _uplink(str(e["pad"]), pad, tracked_state(dynamics.traj))
+	plan[kind + "_tig"] = pad["tig"]
+	if not e.has("engine"):
+		return _uplink(kind, pad, tracked_state(dynamics.traj))
+	return _uplink_lgc(kind, pad, e.get("throttle", []))
 
 
-## Timeline entry [param e]'s fixed maneuver on the SM RCS's four +X jets,
-## for the CSM alone: {"dv_lvlh", "burn_s", "t" (its middle, GET)}.
+## Uplink [param pad] of [param kind] to the LGC (P30's loads), with the
+## DPS's throttle schedule [param schedule] (Dps.p40_schedule()); the
+## PAD's GET goes in the plan, <kind>_tig. Returns the PAD, with
+## "uplinked".
+func _uplink_lgc(kind: String, pad: Dictionary, schedule: Array = []) -> Dictionary:
+	last_pad = pad
+	pads[kind] = pad
+	plan[kind + "_tig"] = pad["tig"]
+	var lgc: Lgc = systems.get("lgc")
+	pad["uplinked"] = lgc != null and lgc.uplink_maneuver(float(pad["tig"]), pad["dv_lvlh"])
+	if pad["uplinked"]:
+		lgc.uplink_throttle(schedule)
+	var text := Rtcc.pad_text(pad)
+	Bus.set_value("mission.pad_text", text)
+	_say("Houston: {lm}, uplinking your " + text)
+	_fire("pad_" + kind)
+	return pad
+
+
+## Timeline entry [param e]'s fixed maneuver: {"dv_lvlh", "burn_s", "t"
+## (its middle, GET)}. The LM's on its engine ("engine"), the DPS on the
+## entry's throttle schedule; the CSM's on the SPS from SPS_MIN_MPS, or
+## on the SM RCS's four +X jets, for the CSM as it is, or as it will be
+## after CSM/LV SEP (with the LM when it carries one).
 func _fixed_maneuver(e: Dictionary) -> Dictionary:
 	var dv := _v3(e["n81_ft_s"]) * Units.FT
-	var jets := 4.0 * float(SpacecraftData.section("sm_rcs")["jet_thrust_n"])
-	var mass := SpacecraftData.total_mass("csm", _sps_load(), _sm_rcs_load(), _cm_rcs_load(), 0.0)
-	var burn := mass * dv.length() / jets
-	return {"dv_lvlh": dv, "burn_s": burn, "t": _get_s(e["tig"]) + burn / 2.0}
+	var burn := 0.0
+	match str(e.get("engine", "")):
+		"dps":
+			burn = Rtcc.dps_burn_time(_lm_mass("lm"), dv.length(), e.get("throttle", []))
+		"aps":
+			var aps := SpacecraftData.section("aps")
+			var ve := float(aps["isp_s"]) * Units.G0
+			burn = _lm_mass("lm_ascent") * (1.0 - exp(-dv.length() / ve)) * ve / float(aps["thrust_n"])
+		_:
+			var mass := dynamics.mass
+			if not dynamics.config in ["csm_lm", "csm"]:
+				mass = SpacecraftData.total_mass("csm_lm" if SpacecraftData.carries_lm() else "csm", _sps_load(),
+					_sm_rcs_load(), _cm_rcs_load(), 0.0)
+			if dv.length() >= SPS_MIN_MPS:
+				burn = Rtcc.burn_time(mass, dv.length())
+			else:
+				burn = mass * dv.length() / (4.0 * float(SpacecraftData.section("sm_rcs")["jet_thrust_n"]))
+	return {"dv_lvlh": dv, "burn_s": burn, "t": _fixed_tig(e) + burn / 2.0}
+
+
+## A fixed maneuver's TIG: its GET ("tig"), or "tig_s" seconds after a time
+## the ground has planned ("tig_after", a key of plan: Apollo 10's phasing
+## and insertion come after pdi_tig, the low point DOI aims the LM's orbit
+## at); -1 while that time isn't planned.
+func _fixed_tig(e: Dictionary) -> float:
+	if e.has("tig_after"):
+		var t := float(plan.get(str(e["tig_after"]), -1.0))
+		return t + float(e["tig_s"]) if t >= 0.0 else -1.0
+	return _get_s(e["tig"])
+
+
+## The LM's mass in [param cfg] ("lm" or "lm_ascent") with the propellant
+## it has now, kg.
+func _lm_mass(cfg: String) -> float:
+	var f := SpacecraftData.lm_full_loads()
+	return SpacecraftData.lm_total_mass(cfg, float(Bus.get_value("lm.dps.prop_kg", f[0])),
+		float(Bus.get_value("lm.aps.prop_kg", f[1])), float(Bus.get_value("lm.rcs.prop_kg", f[2])))
 
 
 ## Uplink [param pad] of [param kind] to the CMC with the CSM's
@@ -706,6 +787,27 @@ func sv_uplink() -> Dictionary:
 	else:
 		_say("Houston: {csm}, we have a state vector for you, P00 and UP TLM to ACCEPT please.")
 	_fire("pad_sv")
+	return pad
+
+
+## The LM's state vector for the LGC (P27), while it flies free: the state
+## MSFN tracked (tracked_state(), the CSM's tracking error [estimated]).
+## Returns {"name": "LM SV", "tig": the GET, "state", "uplinked"}, or {}
+## without a free LM.
+func lm_sv_uplink() -> Dictionary:
+	var lgc: Lgc = systems.get("lgc")
+	var lm := dynamics.lm
+	if lm == null or lm.landed or lgc == null:
+		last_pad = {}
+		_say("Houston: we have no state vector for the LM.")
+		return {}
+	var tracked := tracked_state(lm.traj)
+	var pad := {"name": "LM SV", "tig": SimClock.get_seconds, "state": tracked, "uplinked": lgc.uplink_state(tracked)}
+	last_pad = pad
+	pads["lm_sv"] = pad
+	Bus.set_value("mission.pad_text", "LM STATE VECTOR uplinked at %s" % Units.hms(SimClock.get_seconds))
+	_say("Houston: {lm}, your state vector is in.")
+	_fire("pad_lm_sv")
 	return pad
 
 
@@ -941,12 +1043,14 @@ func _timeline_entry(id: String) -> Dictionary:
 
 
 ## An entry's GET: its own, or its offset from a mission event or a planned
-## time; -1 while that event hasn't happened or that time isn't planned.
+## time (a key of plan, which "after" may name too); -1 while that event
+## hasn't happened or that time isn't planned.
 func _entry_time(e: Dictionary) -> float:
 	if e.has("get"):
 		return _get_s(e["get"])
 	if e.has("after"):
-		var t := event_get(str(e["after"]))
+		var k := str(e["after"])
+		var t := float(plan[k]) if plan.has(k) else event_get(k)
 		return t + float(e["s"]) if t >= 0.0 else -1.0
 	if e.has("before"):
 		var t := float(plan.get(str(e["before"]), -1.0))

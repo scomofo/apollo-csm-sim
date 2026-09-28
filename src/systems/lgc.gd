@@ -27,9 +27,11 @@
 ##        and the transfer that meets it after it has flown 130°; V06N58
 ##        (perilune, ΔV TPI and braking), V06N81
 ##   P35  Midcourse correction, 5 min ahead, to the same meeting: V06N81
-##   P40  DPS thrusting: the engine starts at 10 % throttle and burns at
-##        40 % after 15 s, as Apollo 11's DOI did [simplified: the crew
-##        throttled up by hand]
+##   P40  DPS thrusting, on the burn's throttle schedule, which the ground
+##        uplinks with its PAD (Dps.p40_schedule()): Apollo 11's DOI started
+##        at 10 % and burned at 40 % after 15 s, Apollo 10's phasing burn
+##        at full thrust after 26 s [simplified: the crew throttled up by
+##        hand, as the PAD said]
 ##   P41  RCS thrusting: +X translation on the LM RCS
 ##   P42  APS thrusting (the ascent stage, after staging)
 ##   P47  Thrust monitor (manual burns): V16N83 body ΔV
@@ -136,6 +138,9 @@ var pdi_tig: float = 0.0
 var tgo: float = 0.0
 ## The DPS throttle the descent commands, a fraction of full thrust.
 var descent_throttle: float = 0.1
+## P40's throttle schedule for the stored burn (Dps.p40_schedule()),
+## uplinked with its PAD.
+var p40_schedule: Array = Dps.p40_schedule()
 ## P66's altitude rate, m/s (negative down).
 var rod_cmd: float = 0.0
 ## Where the LGC has the LM on the surface (Moon-fixed), once landed. (Its
@@ -237,15 +242,14 @@ func publish_engine(on: bool) -> void:
 
 
 ## The DPS throttle the LGC commands, a fraction of full thrust: in
-## powered descent the guidance's; in P40 the start throttle for
-## p40_start_s after ignition, then the burn throttle.
+## powered descent the guidance's; in P40 the schedule's, its start
+## throttle for its first seconds after ignition, then its burn throttle.
 func throttle() -> float:
 	if program in DESCENT_BURN:
 		return descent_throttle
-	var d := SpacecraftData.section("dps")
-	if ignition_get < 0.0 or _now() - ignition_get < float(d["p40_start_s"]):
-		return float(d["p40_start_throttle"])
-	return float(d["p40_throttle"])
+	if ignition_get < 0.0 or _now() - ignition_get < float(p40_schedule[0]):
+		return float(p40_schedule[1])
+	return float(p40_schedule[2])
 
 
 func mode() -> int:
@@ -335,6 +339,12 @@ func uplink_rendezvous(csi_tig: float, tpi_tig: float) -> void:
 	rdv_tpi_tig = tpi_tig
 	_uplink_timer = 2.0
 	dsky.set_lamp("uplink_acty", true)
+
+
+## Load P40's throttle schedule from the ground's PAD for a DPS burn
+## ([start_s, start_throttle, throttle]; spacecraft.json's when empty).
+func uplink_throttle(schedule: Array) -> void:
+	p40_schedule = Dps.p40_schedule(schedule)
 
 
 ## Load the liftoff time from the ground's ascent PAD: P12's TIG (N33).
@@ -1178,6 +1188,7 @@ func snapshot() -> Dictionary:
 		"lr_update": lr_update, "delta_h": delta_h, "lr_timer": _lr_timer,
 	}
 	d["nav_landed_mf"] = [nav_landed_mf.x, nav_landed_mf.y, nav_landed_mf.z]
+	d["p40_schedule"] = p40_schedule.duplicate()
 	d["ascent"] = {"targets": ascent_targets.duplicate(), "base": ascent_base,
 		"plane": [ascent_plane.x, ascent_plane.y, ascent_plane.z]}
 	if csm_nav != null:
@@ -1201,6 +1212,7 @@ func restore(d: Dictionary) -> void:
 	super.restore(d)
 	_restoring = false
 	nav_landed_mf = _v3(d.get("nav_landed_mf", [0.0, 0.0, 0.0]))
+	p40_schedule = Dps.p40_schedule(d.get("p40_schedule", []))
 	csm_nav = null
 	var cd: Dictionary = d.get("csm_nav", {})
 	if not cd.is_empty():

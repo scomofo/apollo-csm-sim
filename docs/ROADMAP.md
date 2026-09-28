@@ -36,8 +36,8 @@ picture).
 - **Start phases stay consistent.** A new `--phase` is built the way the
   existing ones are, from the RTCC's own solutions, so it continues the
   mission it claims to.
-- **CI stays fast.** The suite runs in six jobs side by side: the unit
-  tests, and the scenario tests in five parts, dealt out by each file's
+- **CI stays fast.** The suite runs in seven jobs side by side: the unit
+  tests, and the scenario tests in six parts, dealt out by each file's
   time on the runners (`.github/scenario_seconds.txt`). Keep each job
   under ten minutes: start a long scenario from a phase or checkpoint
   instead of flying the whole mission, record a new scenario file's
@@ -1614,12 +1614,13 @@ the pass, with `tools/render_voices.gd` to hear each voice on its own.
 
 ## 7. Other missions
 
-**Status: slice 7a done. Apollo 8 flies from its data alone, from its
-parking orbit to its splashdown.** Each other mission is data under
-`data/missions/`, not a code branch: its ephemeris fit for its dates,
-its parking orbit and REFSMMATs, its landing site, Mission Control's
-timeline and its vehicles. What a mission needs that the simulator can't
-do yet comes in its slice, for every mission after it.
+**Status: slice 7b done. Apollo 8 and Apollo 10 fly from their data
+alone, from their parking orbits to their splashdowns.** Each other
+mission is data under `data/missions/`, not a code branch: its ephemeris
+fit for its dates, its parking orbit and REFSMMATs, its landing site,
+Mission Control's timeline and its vehicles. What a mission needs that
+the simulator can't do yet comes in its slice, for every mission after
+it.
 
 A mission is its directory: `mission.json` and its checklists.
 `scenes/main.gd` flies the one `--mission=<id>` names, Apollo 11 by
@@ -1643,10 +1644,31 @@ missions after Apollo 8:
   midcourse correction, once needed, is solved to a tenth of its
   tolerance (to 500 m at the Earth's perigee).
 
+Slice 7b brought, for the missions after Apollo 10:
+
+- **An LM that doesn't land.** Its descent orbit takes it low and the
+  flight phase is `lunar_descent`, but no powered descent follows. It
+  stages in orbit, `lunar_ascent` from there, and its ascent engine's
+  first burn is its insertion, after which the timeline's CSI PAD and
+  the rendezvous follow as after a liftoff.
+- **The LM's fixed maneuvers.** A timeline entry's fixed maneuver that
+  names the LM's engine, the DPS or the APS, goes to the LGC with a
+  throttle schedule for P40 (the crew's hand throttling, the phasing
+  burn's 26 s at 10 % and then full), and its TIG may count from a time
+  the ground has planned, as its own time may: Apollo 10's phasing and
+  insertion come as long after the low point the DOI PAD plans as the
+  flight's did after its PDI abort PAD's. The ground uplinks the LM's
+  state vector too.
+- **Nodal targeting.** The translunar MCCs may put the pericynthion in
+  the plane of the lunar orbit over the landing site, where LOI-1 turns
+  the orbit into it, as Apollo 10's did, instead of aiming the approach's
+  plane through the site.
+- **CI's sixth scenario part**, for the whole flight's five minutes.
+
 | Slice | Work | Check |
 |---|---|---|
 | 7a (done) Apollo 8 | No LM: the S-IVB carries a test article, and the CSM flies ten lunar orbits alone | Test: Apollo 8 flies from its data alone, parking orbit to splashdown, its Fidelity table within set limits of the flight |
-| 7b Apollo 10 | The LM's descent to 8 nmi over the landing site, staging and the rendezvous, without a landing | Test: as 7a, for Apollo 10 |
+| 7b (done) Apollo 10 | The LM's descent to 8 nmi over the landing site, staging and the rendezvous, without a landing | Test: as 7a, for Apollo 10 |
 | 7c Apollo 12 | A pinpoint landing beside Surveyor III, the landing site updated in P63 as the flown LGC's noun 69 did | Test: as 7a, and Intrepid lands within a set limit of the Surveyor |
 | 7d Apollo 13 | The service module's oxygen tank, the LM as a lifeboat and the free return | Test: as 7a, from the tank's failure to splashdown |
 
