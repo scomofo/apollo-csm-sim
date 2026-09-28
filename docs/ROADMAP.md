@@ -1596,13 +1596,21 @@ it brings. 5e stands alone.
 
 ## 6. Sound
 
-**Status: not started.** The cabin is silent. gemini-capsule
-synthesises its cabin sounds from Bus events in
-`src/presentation/audio_director.gd`, with nothing recorded to license.
+**Status: slice 6a done but for its listening pass, which needs a
+person with headphones and a headset.** gemini-capsule's audio director
+is ported at `e0a5bd5` (`src/presentation/audio_director.gd`; README.md
+lists the changes). It synthesises every voice from Bus events, with
+nothing recorded to license, and renders them once as it starts, so
+nothing is synthesised per frame. The master alarm it sounds is a new
+caution and warning system's (`src/systems/caution_warning.gd`), as the
+Operations Handbook describes it. The EPS's status lights sound it, each
+new one again after the crew's reset, and a MASTER ALARM switch-light on
+MDC-1 or MDC-3 silences it. [LISTENING_PASS.md](LISTENING_PASS.md) is
+the pass, with `tools/render_voices.gd` to hear each voice on its own.
 
 | Slice | Work | Check |
 |---|---|---|
-| 6a The audio director | Port it: the SPS, the S-IVB and the attitude jets, the DSKY's keys, the master alarm, pyros, the parachutes and the cabin fans; in Eagle, its descent and ascent engines. On the desktop and in the headset alike | Test: Bus events start and stop the director's voices. A recorded listening pass |
+| 6a (done; the listening pass to record) The audio director | Port it: the SPS, the S-IVB and the attitude jets, the DSKY's keys, the master alarm, pyros, the parachutes and the cabin fans; in Eagle, its descent and ascent engines. On the desktop and in the headset alike | Test: Bus events start and stop the director's voices. A recorded listening pass |
 
 ## 7. Other missions
 

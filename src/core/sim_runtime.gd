@@ -24,7 +24,8 @@ extends RefCounted
 ##    holds in a burn's last seconds (slice 5e).
 ## 14: the CMC's entry programs and guidance, and the CM's roll rate
 ##    (slice 5f).
-const SCHEMA_VERSION := 14
+## 15: the master alarm circuit (slice 6a).
+const SCHEMA_VERSION := 15
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],
@@ -35,6 +36,7 @@ const SYSTEMS := [
 	["sivb", "res://src/systems/sivb.gd"],
 	["els", "res://src/systems/els.gd"],
 	["optics", "res://src/systems/optics.gd"],
+	["cw", "res://src/systems/caution_warning.gd"],
 ]
 ## The LM's systems. They come after the CSM's, so in each clock stage
 ## they tick after the CSM's.
@@ -55,7 +57,7 @@ const CONTROL_DEFAULTS := {
 	"ctl.optics.mark": false, "ctl.optics.mark_reject": false,
 	"ctl.sps.arm_a": false, "ctl.sps.arm_b": false, "ctl.sps.thrust_on": false,
 	"ctl.rhc": Vector3.ZERO, "ctl.thc": Vector3.ZERO,
-	"ctl.els.logic": false, "ctl.els.auto": false,
+	"ctl.els.logic": false, "ctl.els.auto": false, "ctl.cw.master_alarm": false,
 	"ctl.eps.fc1": true, "ctl.eps.fc2": true, "ctl.eps.fc3": true,
 	"ctl.seq.csm_sep": false, "ctl.seq.undock": false, "ctl.seq.lm_jett": false, "ctl.seq.cm_sm_sep": false,
 	"ctl.ground.pad_request": "",

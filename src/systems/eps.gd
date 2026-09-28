@@ -16,7 +16,8 @@
 ##         entry batteries to the mains), dyn.config
 ## Writes: eps.bus_a_v, eps.bus_b_v, eps.fc<n>_kw, eps.fc<n>_ok,
 ##         eps.o2_tank<n>_kg, eps.h2_tank<n>_kg, eps.batt_<x>_ah,
-##         eps.load_w, sys.powered, sys.master_alarm.eps
+##         eps.load_w, sys.powered (CautionWarning lights the buses'
+##         undervolts and the fuel cells' failures)
 extends Node
 
 const NOMINAL_V := 28.0
@@ -128,7 +129,6 @@ func publish_state(volts: float, load: float, kw_per_cell: float, cells: Array[i
 		Bus.set_value("eps.h2_tank%d_kg" % (n + 1), h2_kg[n])
 	for n in 3:
 		Bus.set_value("eps.batt_%s_ah" % ["a", "b", "c"][n], batt_ah[n])
-	Bus.set_value("sys.master_alarm.eps", volts < 26.25 or not (fc_ok[0] and fc_ok[1] and fc_ok[2]))
 
 
 func snapshot() -> Dictionary:

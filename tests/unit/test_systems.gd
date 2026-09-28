@@ -41,11 +41,66 @@ func test_eps_reactant_use_and_apollo_13_failure() -> void:
 	assert_false(bool(Bus.get_value("eps.fc1_ok")))
 	assert_false(bool(Bus.get_value("eps.fc3_ok")))
 	assert_true(bool(Bus.get_value("eps.fc2_ok")))
-	assert_true(bool(Bus.get_value("sys.master_alarm.eps")))
+	assert_true(bool(Bus.get_value("cw.fc1")), "FC 1")
+	assert_true(bool(Bus.get_value("cw.fc3")), "FC 3")
+	assert_false(bool(Bus.get_value("cw.fc2")))
+	assert_true(bool(Bus.get_value("sys.master_alarm")))
 	# One fuel cell cannot carry the load: the batteries start draining.
 	var batt0 := float(Bus.get_value("eps.batt_a_ah"))
 	run(600.0, false)
 	assert_lt(float(Bus.get_value("eps.batt_a_ah")), batt0)
+
+
+func test_each_new_status_light_sounds_the_master_alarm_until_reset() -> void:
+	build("translunar_coast")
+	run(60.0)
+	assert_false(bool(Bus.get_value("sys.master_alarm")), "all well")
+	rt.systems["eps"].fail_o2_tank(2)
+	run(100.0, false)
+	assert_true(bool(Bus.get_value("cw.fc1")), "FC 1, 90 s after the tank")
+	assert_true(bool(Bus.get_value("sys.master_alarm")))
+	_press_master_alarm()
+	assert_false(bool(Bus.get_value("sys.master_alarm")), "reset")
+	assert_true(bool(Bus.get_value("cw.fc1")), "FC 1 stays lit")
+	var snap := rt.snapshot()
+	run(60.0, false)
+	assert_true(bool(Bus.get_value("cw.fc3")), "FC 3, 150 s after the tank")
+	assert_true(bool(Bus.get_value("sys.master_alarm")), "a new light sounds it again")
+	# A checkpoint from before FC 3 comes back reset, with FC 1 lit.
+	assert_eq(rt.restore(JSON.parse_string(JSON.stringify(snap))), "")
+	assert_false(bool(Bus.get_value("sys.master_alarm")))
+	run(1.0, false)
+	assert_false(bool(Bus.get_value("sys.master_alarm")), "FC 1 was lit already")
+	run(60.0, false)
+	assert_true(bool(Bus.get_value("sys.master_alarm")), "FC 3 again")
+
+
+func test_a_main_bus_undervolt_and_the_dead_unit() -> void:
+	Bus.reset()
+	SimClock.reset()
+	var cw: CautionWarning = add_child_autofree(CautionWarning.new())
+	Bus.set_value("sys.powered", true)
+	Bus.set_value("eps.bus_a_v", 28.3)
+	Bus.set_value("eps.bus_b_v", 28.3)
+	cw.tick(0.02)
+	assert_false(bool(Bus.get_value("sys.master_alarm")))
+	Bus.set_value("eps.bus_b_v", 26.2)
+	cw.tick(0.02)
+	assert_true(bool(Bus.get_value("cw.mn_bus_b_undervolt")), "under 26.25 V")
+	assert_false(bool(Bus.get_value("cw.mn_bus_a_undervolt")))
+	assert_true(bool(Bus.get_value("sys.master_alarm")))
+	# The unit runs on the buses: dead, it is dark.
+	Bus.set_value("sys.powered", false)
+	cw.tick(0.02)
+	assert_false(bool(Bus.get_value("sys.master_alarm")))
+	assert_false(bool(Bus.get_value("cw.mn_bus_b_undervolt")))
+
+
+func _press_master_alarm() -> void:
+	Bus.set_value("ctl.cw.master_alarm", true)
+	run(0.1, false)
+	Bus.set_value("ctl.cw.master_alarm", false)
+	run(0.1, false)
 
 
 func test_entry_batteries_power_the_cm() -> void:

@@ -13,6 +13,7 @@ P1_FDAI,MDC1,fdai,FDAI,-150,70,0,guid.indicator.attitude,scale=1.8,AOH SCS 2.3,D
 P1_DV_THRUST_A,MDC1,toggle,DELTA-V THRUST A,40,170,0,ctl.sps.arm_a,guarded=true;labels=OFF|NORMAL,AOH SPS 2.4-37,D,implemented,historical
 P1_DV_THRUST_B,MDC1,toggle,DELTA-V THRUST B,110,170,0,ctl.sps.arm_b,guarded=true;labels=OFF|NORMAL,AOH SPS 2.4-37,D,implemented,historical
 P1_THRUST_ON,MDC1,lamp,SPS THRUST ON,200,170,0,sps.thrust_n,,AOH SPS 2.4-40,D,implemented,historical
+P1_MASTER_ALARM,MDC1,pushbutton,MASTER ALARM,265,170,0,ctl.cw.master_alarm,lamp_channel=sys.master_alarm;lamp_colour=ff2a1a,AOH C&W 2.10,D,implemented,historical
 P1_ATT_SOURCE,MDC1,rotary,ATT SOURCE,60,50,0,ctl.scs.att_source,positions=3;labels=CMC|SCS|DIRECT;start_angle_deg=-45;detent_deg=45,AOH SCS 2.3,D,implemented,proxy
 P1_CMC_MODE,MDC1,toggle,CMC MODE,160,50,0,ctl.cmc.mode,positions=3;labels=FREE|HOLD|AUTO,AOH §3,D,implemented,historical
 P1_CSM_LV_SEP,MDC1,pushbutton,CSM/LV SEP,40,-70,0,ctl.seq.csm_sep,,AOH §3,D,implemented,proxy
@@ -41,7 +42,7 @@ P3_FC1,MDC3,toggle,FC 1,-200,120,0,ctl.eps.fc1,,AOH §3,D,implemented,proxy
 P3_FC2,MDC3,toggle,FC 2,-130,120,0,ctl.eps.fc2,,AOH §3,D,implemented,proxy
 P3_FC3,MDC3,toggle,FC 3,-60,120,0,ctl.eps.fc3,,AOH §3,D,implemented,proxy
 P3_BATT_BUS,MDC3,toggle,BATT TO BUS,40,120,0,ctl.eps.batt_bus,,AOH §3,D,implemented,proxy
-P3_MASTER_ALARM,MDC3,lamp,MASTER ALARM,200,180,0,sys.master_alarm.eps,colour=ff2a1a;scale=1.5,AOH C&W,D,implemented,proxy
+P3_MASTER_ALARM,MDC3,pushbutton,MASTER ALARM,200,180,0,ctl.cw.master_alarm,lamp_channel=sys.master_alarm;lamp_colour=ff2a1a,AOH C&W 2.10,D,implemented,historical
 P3_BUS_A_VOLTS,MDC3,numeric,MAIN BUS A V,-120,-40,0,eps.bus_a_v,format=%4.1f;blank_text=----,estimated,D,implemented,historical
 P3_BUS_B_VOLTS,MDC3,numeric,MAIN BUS B V,40,-40,0,eps.bus_b_v,format=%4.1f;blank_text=----,estimated,D,implemented,historical
 P3_FDAI,MDC3,fdai,FDAI 2,190,-60,0,guid.indicator.attitude,scale=1.8,AOH SCS 2.3,D,implemented,historical

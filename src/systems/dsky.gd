@@ -58,6 +58,9 @@ var flashing: bool = false
 var lamps: Dictionary = {}
 ## The lamps this DSKY has: LAMPS, and the LM's ALT and VEL.
 var lamp_names: Array = LAMPS
+## Keys pressed so far, powered or not: each one clicks (the audio
+## director's key voice).
+var presses: int = 0
 ## "" | "verb" | "noun" | "data" | "program"
 var mode: String = ""
 var _buffer: String = ""
@@ -220,6 +223,7 @@ func restore_program_display() -> void:
 ## Press a DSKY key: "0".."9", "+", "-", "VERB", "NOUN", "ENTR", "CLR",
 ## "PRO", "KEY REL", "RSET".
 func press(key: String) -> void:
+	presses += 1
 	match key:
 		"VERB":
 			_crew_takes_display()

@@ -194,6 +194,15 @@ func in_atmosphere() -> bool:
 	return traj.primary == "earth" and traj.altitude() < Bodies.ENTRY_INTERFACE_ALT
 
 
+## The air's dynamic pressure on the vehicle, Pa: zero outside the Earth's
+## air.
+func dynamic_pressure() -> float:
+	if not in_atmosphere():
+		return 0.0
+	var v := air_speed()
+	return 0.5 * Atmosphere.density(traj.altitude()) * v * v
+
+
 func tick(dt: float) -> void:
 	if landed:
 		_step_lm(dt)
@@ -670,6 +679,7 @@ func publish_state() -> void:
 	Bus.set_value("dyn.landed_speed_mps", landed_speed)
 	Bus.set_value("dyn.in_atmosphere", in_atmosphere())
 	Bus.set_value("dyn.air_speed_mps", air_speed() if traj.primary == "earth" else traj.speed())
+	Bus.set_value("dyn.q_pa", dynamic_pressure())
 	var e := traj.earth_state()
 	var m := traj.moon_state_rel()
 	Bus.set_value("dyn.earth_dist_m", Vector3(e[0], e[1], e[2]).length())

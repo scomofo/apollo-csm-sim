@@ -70,6 +70,21 @@ the PC VR exports in `export_presets.cfg`;
 [docs/VR_INTERACTION.md](docs/VR_INTERACTION.md) describes how the cabins
 work in a headset.
 
+The cabin has sound, on the desktop and in a headset alike:
+- the Saturn V's stages, the S-IVB, the SPS, and in Eagle its descent and
+  ascent engines;
+- the attitude jets, and the air in the launch and the entry;
+- the pyros, the docking latches and the parachutes' mortars;
+- the switches and the DSKY keys, and the cabin fans;
+- the master alarm's tone, which a MASTER ALARM switch-light (on MDC-1,
+  MDC-3 or the HUD) silences until the next caution light comes on.
+
+Every voice is synthesised. `-- --o2-failure-in=<s>` fails the SM's oxygen
+tank 2 that many seconds into the start phase, as Apollo 13's did, which
+sounds the master alarm. No listening pass has been recorded yet
+([docs/LISTENING_PASS.md](docs/LISTENING_PASS.md) is its checklist, with a
+tool that renders each voice to a file).
+
 | Input | Action |
 |---|---|
 | W/S, A/D, Q/E | Rotational hand controller: pitch, yaw, roll (hold Shift for 10 %); in Eagle, its ACA |
@@ -503,6 +518,23 @@ are transcribed.
 [v-vr-docs]: https://github.com/scomofo/gemini-capsule/tree/40e449cfb8c35111de47a33bd351b2d945e6fa52/docs
 [v-export]: https://github.com/scomofo/gemini-capsule/blob/40e449cfb8c35111de47a33bd351b2d945e6fa52/export_presets.cfg
 
+### The audio director
+
+The cabin's sound ([docs/ROADMAP.md](docs/ROADMAP.md), slice 6a) is
+gemini-capsule's audio director, taken at commit
+[`e0a5bd5`](https://github.com/scomofo/gemini-capsule/tree/e0a5bd58f2d84512de1315f29c7534d438da26bb).
+The caution and warning system that sounds the master alarm
+(`src/systems/caution_warning.gd`) and the render tool
+(`tools/render_voices.gd`) are new.
+
+| Gemini capsule | Apollo CSM | Changes |
+|---|---|---|
+| [`src/presentation/audio_director.gd`][a-director] | same path | Apollo's voices, from Apollo's channels. The one-shots are the switches (each control's type from the cockpit layouts, where Gemini guessed from the channel's name), DSKY keys, jets starting, the flight's pyros and latches, the parachutes' mortars, touchdown and splashdown. The continuous voices are the Saturn V's stages, the S-IVB, the SPS, Eagle's engines, the jets firing, the air, the fans, breathing and the master alarm's tone. Each is heard in its own vehicle's cabin, or in both while they're docked. Each voice is rendered once, on a worker thread, and the continuous ones loop, where Gemini synthesised its layers every frame and its one-shots at each play. They play through a limited bus, and a checkpoint's load makes no sound. Gemini's registry of recorded samples, its archive recordings, CAPCOM's quindar tones and its retro-rockets stay behind |
+| [`tests/unit/test_presentation.gd`][a-tests] (its audio cases) | `tests/unit/test_audio_director.gd` | Rewritten for Apollo's voices, with the renders checked against their recipes |
+
+[a-director]: https://github.com/scomofo/gemini-capsule/blob/e0a5bd58f2d84512de1315f29c7534d438da26bb/src/presentation/audio_director.gd
+[a-tests]: https://github.com/scomofo/gemini-capsule/blob/e0a5bd58f2d84512de1315f29c7534d438da26bb/tests/unit/test_presentation.gd
+
 ## Fidelity
 
 These parts are modelled from published figures (rounded; see
@@ -718,6 +750,19 @@ ones:
   `reference/nasa-history-diagrams/` (the Operations Handbook's
   Figure 3-1, sheets 1-6, with its position grid). It gives control
   identity and placement, not physical dimensions.
+- **Sound.** Every voice is synthesised from an estimated recipe, with
+  nothing recorded, and its level against the others is estimated too.
+  Only the master alarm's tone is the Operations Handbook's. No voice is
+  placed in the cabin: each plays in both ears, in its own vehicle's
+  cabin, and at full level through the tunnel while the two are docked.
+  The fans run while the CM's buses are powered, and Eagle's while it
+  flies, since the ECS isn't modelled.
+- **Caution and warning.** Only the EPS has status lights: FC 1 to 3,
+  for a failed fuel cell rather than the handbook's flow, temperature and
+  pH limits, and MN BUS A and B UNDERVOLT. They are on the Bus, not on a
+  panel, and there are no CSM/CM, NORMAL/BOOST/ACK or lamp test
+  switches. MDC-1's and MDC-3's MASTER ALARM switch-lights are in the
+  cabin, but not the lower equipment bay's.
 
 ## Tests
 
@@ -821,7 +866,22 @@ The unit tests cover:
   the optics' line of sight, modes and limits, the optics view's
   projection, and the DSKY's octal and three-decimal registers
 - Systems: SPS arming, EPS consumption and the Apollo 13 failure, SCS/CMC
-  autopilot, the coast-step policy
+  autopilot, the coast-step policy, and the caution and warning lights:
+  each new one sounds the master alarm until a MASTER ALARM switch-light
+  resets it, a main bus undervolts under 26.25 V, and the unit is dark
+  with the buses dead
+- The audio director (`tests/unit/test_audio_director.gd`), slice 6a's
+  check: the Bus's events start and stop its voices. Each kind of switch
+  clicks as it should (a pushbutton's release silent, the hand
+  controllers never), and so does every DSKY key. The jets thump as they
+  start and hiss while they fire. The engines' voices follow their thrust
+  and the air's its dynamic pressure, and the fans, the breathing and the
+  master alarm's tone come and go with their channels. Every event the
+  flight fires has a sound or is listed as silent. Each vehicle's voices
+  are heard in its own cabin, both while docked, and nothing plays while
+  paused or as a checkpoint loads. Each voice renders as its recipe says:
+  the one-shots die away, the loops repeat without a seam or clipping,
+  and the master alarm's tone is 750 Hz and then 2,000 Hz
 - Checkpoint round-trip, with a map of vehicles, each with its own
   systems, the LGC's rendezvous state, Mission Control's planned times
   and timeline, the CMC's state vector, the CSM's unmodelled forces and
@@ -829,9 +889,9 @@ The unit tests cover:
   marks, its navigation filter and a P23 mark waiting at N49, and the
   Moon's field's samples each trajectory holds and the thrust they were
   taken with, the IU's target conic and its guidance's state, and the
-  launch vehicle's stages, time bases, guidance and events, and the
-  thrust direction P40 holds in a burn's last seconds (schema 13).
-  Older
+  launch vehicle's stages, time bases, guidance and events, the thrust
+  direction P40 holds in a burn's last seconds, the CMC's entry guidance
+  and the CM's roll rate, and the master alarm circuit (schema 15). Older
   checkpoints are rejected
 - The main scene, and in Eagle from `lunar_descent`: its HUD, the keys on
   its LGC, its two views, its checklist for the phase, and L between the
@@ -1165,5 +1225,5 @@ S-IVB flies TLI on the IU's iterative guidance (slice 5c), the Saturn V
 flies Apollo 11 from the pad into its parking orbit (slice 5d), the
 CMC's P40 and P41 steer as Colossus's did (slice 5e), and the CMC flies
 the entry down on Apollo 11's target on Colossus's P61 to P67 (slice
-5f). That finishes the whole flight; next come sound (6) and the other
-missions (7).
+5f). That finishes the whole flight. The cabin has its sound (slice 6a),
+which waits on a listening pass; next come the other missions (7).
