@@ -5,6 +5,7 @@
 # A file not listed counts 60 s.
 # Add a new file's time once CI has run it, and measure again when the
 # parts drift apart.
+test_apollo_8.gd 270
 test_ascent.gd 46
 test_cabin_checklists.gd 159
 test_cabin_mcc.gd 6

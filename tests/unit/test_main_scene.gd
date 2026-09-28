@@ -1,5 +1,7 @@
 extends GutTest
 
+const MAIN_SCENE := "res://scenes/main.tscn"
+
 
 func before_each() -> void:
 	Bus.reset()
@@ -7,7 +9,7 @@ func before_each() -> void:
 
 
 func test_main_scene_builds_and_keyboard_drives_the_dsky() -> void:
-	var main: Node = load("res://scenes/main.tscn").instantiate()
+	var main: Node = load(MAIN_SCENE).instantiate()
 	main.start_phase = "lunar_orbit"
 	add_child_autofree(main)
 	await wait_process_frames(3)
@@ -28,8 +30,27 @@ func test_main_scene_builds_and_keyboard_drives_the_dsky() -> void:
 	main.rt.free_nodes()
 
 
+func test_the_main_scene_flies_the_mission_it_is_given() -> void:
+	# --mission=apollo_8 on the command line sets it; so does the export.
+	var main: Node = load(MAIN_SCENE).instantiate()
+	main.mission_id = "apollo_8"
+	main.start_phase = "lunar_orbit"
+	add_child_autofree(main)
+	await wait_process_frames(2)
+	assert_eq(main.rt.mission.id(), "apollo_8")
+	assert_eq(Bus.get_value("mission.phase"), "lunar_orbit")
+	assert_eq(main.rt.dynamics.config, "csm", "Apollo 8's CSM, alone")
+	assert_eq(main.book.list().title, "Lunar orbit and TEI", "its own checklists, open for the phase")
+	assert_eq(main.hud.book, main.book, "on the HUD too")
+	assert_true(main.lm_book.lists.is_empty(), "and no LM's")
+	assert_string_contains(str(Bus.get_value("mission.capcom")), "Apollo 8, Houston.")
+	main.rt.free_nodes()
+	# Back to Apollo 11's world for the tests after.
+	Mission.load_default()
+
+
 func test_c_cycles_the_window_chase_and_cabin_views() -> void:
-	var main: Node = load("res://scenes/main.tscn").instantiate()
+	var main: Node = load(MAIN_SCENE).instantiate()
 	main.start_phase = "lunar_orbit"
 	add_child_autofree(main)
 	await wait_process_frames(2)
@@ -61,7 +82,7 @@ func test_c_cycles_the_window_chase_and_cabin_views() -> void:
 
 
 func test_the_cabin_has_the_checklist_card_highlight_and_wrist_menu() -> void:
-	var main: Node = load("res://scenes/main.tscn").instantiate()
+	var main: Node = load(MAIN_SCENE).instantiate()
 	main.start_phase = "lunar_orbit"
 	add_child_autofree(main)
 	await wait_process_frames(2)
@@ -79,7 +100,7 @@ func test_the_cabin_has_the_checklist_card_highlight_and_wrist_menu() -> void:
 
 
 func test_undock_on_the_hud_frees_the_lm_for_the_view_and_the_hud_readout() -> void:
-	var main: Node = load("res://scenes/main.tscn").instantiate()
+	var main: Node = load(MAIN_SCENE).instantiate()
 	main.start_phase = "lunar_orbit"
 	add_child_autofree(main)
 	await wait_process_frames(2)
@@ -112,7 +133,7 @@ func test_undock_on_the_hud_frees_the_lm_for_the_view_and_the_hud_readout() -> v
 
 
 func test_the_lm_phases_start_in_the_lm_and_l_changes_vehicles() -> void:
-	var main: Node = load("res://scenes/main.tscn").instantiate()
+	var main: Node = load(MAIN_SCENE).instantiate()
 	main.start_phase = "lunar_descent"
 	add_child_autofree(main)
 	await wait_process_frames(2)

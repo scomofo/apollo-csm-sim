@@ -1,57 +1,75 @@
-"""Apollo 11's parking orbit in the frame the ephemeris uses (the ICRF),
-for data/missions/apollo_11/mission.json's parking_orbit block.
+"""A mission's parking orbit in the frame the ephemeris uses (the ICRF),
+for its mission.json's parking_orbit block.
 
-    python3 tools/ephemeris/parking_orbit.py
+    python3 tools/ephemeris/parking_orbit.py [mission]
 
-The Saturn V flight evaluation report for AS-506 (MPR-SAT-FE-69-9, Table
-4-5) gives the orbit at insertion, 709.3 s after range zero: inclination
-32.521 deg, descending node 123.088 deg (in the equator, eastward from the
-launch meridian at range zero), and the insertion point, 32.672 N 52.694 W
-(geodetic) at 191.1 km. This script places the launch meridian by
-Greenwich mean sidereal time at range zero (IAU 1982; UT1 is taken as
-UTC), takes the plane from the mean equator of date to J2000 by the IAU
-1976 precession, and prints the orbit's inclination, right ascension of the
-ascending node and the insertion's argument of latitude in the ICRF.
-Nutation, polar motion and the ICRF's offset from J2000 are left out:
-each is under 0.01 deg here. It checks the insertion point lies in the
-plane.
+The mission is apollo_11 unless named (MISSIONS below holds each one's
+figures). The Saturn V flight evaluation report gives the orbit at
+insertion: its inclination, its descending node (in the equator, eastward
+from the launch meridian at range zero), the insertion's time after range
+zero and its point (geodetic latitude and longitude, altitude). Apollo
+11's (AS-506, MPR-SAT-FE-69-9, Table 4-5): 32.521 deg, 123.088 deg,
+709.3 s, 32.672 N 52.694 W at 191.1 km. This script places the launch
+meridian by Greenwich mean sidereal time at range zero (IAU 1982; UT1 is
+taken as UTC), takes the plane from the mean equator of date to J2000 by
+the IAU 1976 precession, and prints the orbit's inclination, right
+ascension of the ascending node and the insertion's argument of latitude
+in the ICRF. Nutation, polar motion and the ICRF's offset from J2000 are
+left out: each is under 0.01 deg here. It checks the insertion point lies
+in the plane.
 
-It prints the plane Apollo 11's TLI left the stack in, for mission.json's
-tli block (plane_normal): Table 10-6 of the same report gives it at TLI,
-10 s after the S-IVB's second cutoff signal, on the postflight
-trajectory, inclination 31.383 deg and descending node 121.847 deg, in
-the same frame as the parking orbit's. The IU's guidance flies TLI into
-it (Rtcc.plan_tli()).
+It prints the plane TLI left the stack in, for mission.json's tli block
+(plane_normal): the same report gives it at TLI, 10 s after the S-IVB's
+second cutoff signal, on the postflight trajectory, in the same frame as
+the parking orbit's (Apollo 11's, Table 10-6: 31.383 deg and 121.847
+deg). The IU's guidance flies TLI into it (Rtcc.plan_tli()).
 
 It also prints the launch pad REFSMMAT for mission.json's
 launch_refsmmat block: the orientation the CMC's IMU was released at
-liftoff, X horizontal along the flight azimuth (72.058 deg east of north,
-the flight evaluation report's), Z down along the pad's geodetic vertical
-and Y = Z x X, each row a stable member axis in the ICRF.
+liftoff, X horizontal along the flight azimuth (the report's), Z down
+along the pad's geodetic vertical and Y = Z x X, each row a stable member
+axis in the ICRF.
 """
 import json
 import math
 import os
+import sys
+
+from fit_ephemeris import tt_minus_utc
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", ".."))
-MISSION = os.path.join(ROOT, "data", "missions", "apollo_11", "mission.json")
+MISSION_ID = sys.argv[1] if len(sys.argv) > 1 else "apollo_11"
+MISSION = os.path.join(ROOT, "data", "missions", MISSION_ID, "mission.json")
 
 # Launch Complex 39A, geodetic (NASA KSC).
 PAD_LAT = 28.608389
 PAD_LON = -80.604333
-# AS-506 flight evaluation report: the flight azimuth, deg east of north.
-FLIGHT_AZIMUTH = 72.058
-# AS-506 flight evaluation report, Table 4-5, actual.
-INCLINATION = 32.521
-DESCENDING_NODE = 123.088
-INSERTION_S = 709.3
-INSERTION_LAT = 32.672
-INSERTION_LON = -52.694
-INSERTION_ALT_KM = 191.1
-# AS-506 flight evaluation report, Table 10-6, the postflight trajectory
-# at TLI.
-TLI_INCLINATION = 31.383
-TLI_DESCENDING_NODE = 121.847
+# Each mission's Saturn V flight evaluation report: the flight azimuth (deg
+# east of north), the orbit at insertion (actual) and at TLI (the postflight
+# trajectory), nodes east of the launch meridian at range zero.
+MISSIONS = {
+    # AS-506, MPR-SAT-FE-69-9: section 4 (the azimuth), Tables 4-5 and 10-6.
+    "apollo_11": {"flight_azimuth": 72.058, "inclination": 32.521, "descending_node": 123.088,
+                  "insertion_s": 709.3, "insertion_lat": 32.672, "insertion_lon": -52.694,
+                  "insertion_alt_km": 191.1, "tli_inclination": 31.383, "tli_descending_node": 121.847},
+    # AS-503, MPR-SAT-FE-69-1: section 4.1 (the azimuth), Tables 4-6 and 4-7.
+    # Those tables count the nodes east of Greenwich at range zero, the
+    # launch meridian's 80.604 deg west less (the IU targeted the parking
+    # orbit's at 123.004 deg from the launch meridian, their 42.397 deg).
+    "apollo_8": {"flight_azimuth": 72.124, "inclination": 32.509, "descending_node": 42.415 - PAD_LON,
+                 "insertion_s": 694.98, "insertion_lat": 32.649, "insertion_lon": -53.292,
+                 "insertion_alt_km": 191.36, "tli_inclination": 30.636, "tli_descending_node": 38.983 - PAD_LON},
+}
+FIGURES = MISSIONS[MISSION_ID]
+FLIGHT_AZIMUTH = FIGURES["flight_azimuth"]
+INCLINATION = FIGURES["inclination"]
+DESCENDING_NODE = FIGURES["descending_node"]
+INSERTION_S = FIGURES["insertion_s"]
+INSERTION_LAT = FIGURES["insertion_lat"]
+INSERTION_LON = FIGURES["insertion_lon"]
+INSERTION_ALT_KM = FIGURES["insertion_alt_km"]
+TLI_INCLINATION = FIGURES["tli_inclination"]
+TLI_DESCENDING_NODE = FIGURES["tli_descending_node"]
 # WGS 84.
 A_KM = 6378.137
 F = 1.0 / 298.257223563
@@ -111,7 +129,7 @@ def plane_normal(epoch, to_j2000, inclination, descending_node):
 def main():
     with open(MISSION) as f:
         epoch = float(json.load(f)["liftoff_jd"])
-    tt = epoch + 39.75 / 86400.0
+    tt = epoch + tt_minus_utc(epoch) / 86400.0
     to_j2000 = transpose(precession(tt))
     normal = plane_normal(epoch, to_j2000, INCLINATION, DESCENDING_NODE)
     raan = math.degrees(math.atan2(normal[0], -normal[1])) % 360.0

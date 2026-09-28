@@ -1,12 +1,13 @@
-"""Fit the Moon's and the Sun's ephemeris for Apollo 11 (data/ephemeris/)
+"""Fit the Moon's and the Sun's ephemeris for a mission (data/ephemeris/)
 from JPL's.
 
-    python3 tools/ephemeris/fit_ephemeris.py
+    python3 tools/ephemeris/fit_ephemeris.py [mission]
 
-The simulator flies in an Earth-centred inertial frame, the ICRF (the J2000
+The mission is a directory of data/missions/, apollo_11 unless named. The
+simulator flies in an Earth-centred inertial frame, the ICRF (the J2000
 equator and equinox), with time as ground elapsed time (GET): seconds after
-Apollo 11's range zero, the mission's liftoff_jd (1969-07-16 13:32:00 UTC).
-This script writes, for GET -2 to +30 days in 4-day segments:
+the mission's range zero, its liftoff_jd (Apollo 11's 1969-07-16 13:32:00
+UTC). This script writes, for GET -2 to +30 days in 4-day segments:
 
     moon              the Moon's geocentric position (m), from JPL Horizons
                       (DE441). Its velocity is the series' derivative.
@@ -22,7 +23,8 @@ This script writes, for GET -2 to +30 days in 4-day segments:
 Each is a Chebyshev series per segment, fitted by interpolation at the
 Chebyshev nodes. The script then checks every series against vectors and
 angles held out of the fit, prints the worst errors, and writes a sample of
-them to tests/fixtures/ephemeris_check.json for tests/unit/test_ephemeris.gd.
+them to tests/fixtures/ephemeris_check.json (Apollo 11's;
+ephemeris_check_<mission>.json for another) for tests/unit/test_ephemeris.gd.
 
 Needs network access (ssd.jpl.nasa.gov, naif.jpl.nasa.gov) and nothing
 beyond the Python standard library.
@@ -31,13 +33,16 @@ import json
 import math
 import os
 import re
+import sys
 import urllib.parse
 import urllib.request
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", ".."))
-MISSION = os.path.join(ROOT, "data", "missions", "apollo_11", "mission.json")
-OUT = os.path.join(ROOT, "data", "ephemeris", "apollo_11.json")
-CHECK_OUT = os.path.join(ROOT, "tests", "fixtures", "ephemeris_check.json")
+MISSION_ID = sys.argv[1] if len(sys.argv) > 1 else "apollo_11"
+MISSION = os.path.join(ROOT, "data", "missions", MISSION_ID, "mission.json")
+OUT = os.path.join(ROOT, "data", "ephemeris", MISSION_ID + ".json")
+CHECK_OUT = os.path.join(ROOT, "tests", "fixtures", "ephemeris_check%s.json"
+                         % ("" if MISSION_ID == "apollo_11" else "_" + MISSION_ID))
 
 HORIZONS = "https://ssd.jpl.nasa.gov/api/horizons.api"
 PCK = "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/pck00010.tpc"
@@ -209,7 +214,9 @@ def moon_angles(pck, jd_tdb):
 
 def main():
     with open(MISSION) as f:
-        epoch = float(json.load(f)["liftoff_jd"])
+        mission = json.load(f)
+    epoch = float(mission["liftoff_jd"])
+    name = str(mission.get("name", "Apollo 11"))
     with urllib.request.urlopen(PCK, timeout=120) as r:
         pck = pck_values(r.read().decode())
 
@@ -285,7 +292,7 @@ def main():
     assert worst["sub_earth_deg"] < 0.02, worst
 
     out = {
-        "_comment": ("The Moon's and the Sun's geocentric positions and the Moon's orientation for Apollo 11, "
+        "_comment": ("The Moon's and the Sun's geocentric positions and the Moon's orientation for " + name + ", "
                      "fitted by tools/ephemeris/fit_ephemeris.py. Frame: ICRF (J2000 equator and equinox), "
                      "Earth-centred. Time: GET, s after the mission's liftoff_jd (UTC). Each quantity is a "
                      "Chebyshev series in each segment of segment_s from start_get_s: for x in [-1, 1] "

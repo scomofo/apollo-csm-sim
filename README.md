@@ -60,6 +60,16 @@ from there (below), with you in Eagle. Starting in any phase after
 `lunar_orbit` takes a few seconds while the ground computes the
 trajectory.
 
+`-- --mission=apollo_8` flies Apollo 8 instead: the CSM alone, the S-IVB
+carrying a test article where Apollo 11's carried Eagle, ten lunar
+orbits, and Mission Control's timeline from TLI to the entry. Its start
+phases are `parking_orbit` (the default), `translunar_coast` (after CSM/LV
+SEP), `lunar_orbit` (after LOI-2, 60 × 61 nmi), `tei`,
+`transearth_coast` and `entry`. Each mission is data under
+`data/missions/<id>/`: its dates and the JPL ephemeris for them, its
+vehicles, its orbits, Mission Control's timeline, the call signs and the
+checklists.
+
 `godot --path . --xr-mode on` starts OpenXR, which is off by default, and
 puts you in the commander's couch in a headset, or, once Eagle undocks
 and in its start phases, at Eagle's commander's station. No headset run
@@ -170,6 +180,25 @@ undocking to TEI) and at entry.
    N69), P66's skip on a long range, and P67's final phase, which ends at
    1,000 ft/s with N67 flashing the range to go and where the CM is (PRO
    for P00). The drogue and main parachutes deploy automatically.
+
+**Apollo 8.** With `-- --mission=apollo_8` the flight is Apollo 8's, from
+its parking orbit (it has no launch yet). The S-IVB flies TLI at the
+RTCC's TIG (GET 2:50), and CSM/LV SEP leaves the S-IVB and its test
+article behind, with nothing to dock with (it happens by itself 25 min
+after cutoff). Mission Control's timeline then brings each PAD at the
+flown time, and CAPCOM's calls at theirs:
+- the two separation maneuvers from the S-IVB, radially up (3:40 and
+  4:45, the second the unplanned one);
+- MCC-1 (11:00) and MCC-2 (61:00);
+- LOI-1 (69:08) and LOI-2 two revolutions on (73:35);
+- TEI on the tenth revolution (89:19);
+- the transearth MCCs (104:00, and 122:00 and 144:46 only if the corridor
+  needs them);
+- the entry PAD (145:12).
+
+Fly each as above: the separation maneuvers and the small corrections on
+P41 (the RCS burn checklist), the rest on P40. Realign the platform
+before the entry, with P52 option 3.
 
 **State vectors.** The CMC flies on its own state vector. Its
 accelerometers feed it only in P40, P41, P47 and entry, and during TLI. In
@@ -594,12 +623,42 @@ A flown Apollo 11 profile in the simulator reproduces these values:
 | Drogues | 195:12:39 | 195:12:07 |
 | Splashdown | 195:19:04, 13.33° N 169.18° W, 0.9 nmi from the target, at 8.5 m/s | 195:18:35, 13.30° N 169.15° W, 1.7 nmi from it by the CMC's reckoning |
 
+Apollo 8 flown from its data alone, from its parking orbit to the
+splashdown (`tests/scenarios/test_apollo_8.gd`, which holds each row
+within set limits of the flight's figures), against the Apollo 8 Mission
+Report (MSC-PA-R-69-1), the AS-503 flight evaluation report
+(MPR-SAT-FE-69-1) and the Apollo Flight Journal:
+
+| Quantity | Simulator | Apollo 8 |
+|---|---|---|
+| TLI | GET 2:50:11, 3,046 m/s in 317.2 s, C3 −1,420,280 m²/s² | 2:50:37, 3,040 m/s in 318.4 s, C3 −1,478,917 m²/s² |
+| The separation maneuvers, and the pericynthion after them | 1.1 and 7.7 ft/s radially up; 464.2 nmi at 69:01:20 | 1.1 and 7.7 ft/s; 458.1 nmi at 68:57:40 |
+| MCC-1, and the pericynthion after it | 25.1 ft/s at 10:59:58, N81 +16.5, +1.6, +18.9; 68.1 nmi at 69:10:30 | 24.8 ft/s at 10:59:58, N81 +13.6, −4.5, +20.2 (flown 20.4); 66.3 nmi at 69:10:40 |
+| MCC-2, and the pericynthion after it | 2.5 ft/s; 66.0 nmi at 69:10:38 | 2.0 ft/s (flown 1.4); 65.8 nmi at 69:10:39 |
+| LOI-1 | 69:08:19, N81 −2,988.9, +247.7, +118.7; 3,001 ft/s in 250.9 s, 1.1° down at cutoff; 169.3 × 59.9 nmi, 12.29° to the lunar equator | 69:08:20, N81 −2,984.0, +239.0, +105.3; 2,997 ft/s in 246.9 s, 0.79° down; 168.5 × 60.0 nmi, 12.29° |
+| LOI-2, two revolutions on | 73:37:12, 134.0 ft/s; 62.5 × 59.6 nmi | 73:35:07, 134.8 ft/s; 60.7 × 59.7 nmi |
+| The lunar orbit before TEI, flown through the Moon's field | 64.1 × 57.5 nmi after 10.2 revolutions | 63.6 × 58.6 nmi after 10 |
+| TEI | 89:19:15, N81 +3,522.0, −189.4, +89.2; 3,528 ft/s in 211.4 s | 89:19:16, N81 +3,518.6, −151.2, −52.0; 3,519 ft/s in 203.7 s |
+| Transearth midcourse corrections | MCC-5 3.0 ft/s, MCC-6 none, MCC-7 2.7 ft/s | MCC-5 4.8 ft/s, MCC-6 and MCC-7 scrubbed |
+| Entry interface | 146:46:58, 36,217 ft/s, 6.56° down, 20.79° N 176.56° E | 146:46:13, 36,221 ft/s, 6.50° down, 20.72° N 176.89° E |
+| The entry | P61 to P64, then P67; 6.89 g at the peak | P61 to P64, P67, no P65; 6.84 g |
+| Splashdown | 147:02:16, 8.15° N 165.02° W, 1.5 nmi from the target | 147:00:42, 8.10° N 165.01° W, 2.3 nmi from it |
+
+The report's own figures don't all agree, and the table takes these:
+- Its entry interface's longitude, 179.89° W (Table 5-V), is 3° from the
+  CMC's own state then (Table 6.9-III), 176.89° E, which the simulator's
+  return meets; its time, speed and angle agree.
+- Its pericynthions after TLI and the first separation (Table 5-III) can't
+  both come from TLI and a 1.1 ft/s burn: the S-IVB's venting moved the
+  spacecraft before it separated. The RTCC aims TLI at the flight's
+  pericynthion after the separations instead (below).
+
 Deliberate simplifications are tagged `[simplified]` in the code. The main
 ones:
 
 - **Gravity.** The Earth, the Moon and the Sun pull where JPL's
-  ephemeris (DE441) has them on Apollo 11's dates, and the Moon turns by
-  the IAU's rotation model. The Earth is oblate to its zonal harmonics,
+  ephemeris (DE441) has them on each mission's dates, and the Moon turns
+  by the IAU's rotation model. The Earth is oblate to its zonal harmonics,
   J2 to J4, about its mean pole of date: its tesseral harmonics and
   nutation are left out. The Moon's field is GRAIL's, cut at degree 30,
   which flies a 60 nmi orbit within 1.3 km of degree 100's in a day, and
@@ -763,6 +822,24 @@ ones:
   panel, and there are no CSM/CM, NORMAL/BOOST/ACK or lamp test
   switches. MDC-1's and MDC-3's MASTER ALARM switch-lights are in the
   cabin, but not the lower equipment bay's.
+- **Apollo 8.**
+  - The S-IVB's venting after TLI isn't modelled. So the RTCC aims TLI at
+    the flight's pericynthion after the separation maneuvers, flying them
+    in its trials as impulses: 464.0 nmi at 69:01:20, where the report's
+    state at MCC-1's ignition passes the Moon here. TLI's C3 comes out 4 %
+    over the flight's.
+  - The separation maneuvers are PADs flown on P41, where the crew flew
+    them on the THC by the EMS.
+  - LOI-1 burns at its PAD's TIG, which set where its perilune lay for
+    LOI-2.
+  - The SPS gives a short burn's ΔV in full, where MCC-1's 2.4 s gave
+    20.4 ft/s of the 24.8 on its low thrust.
+  - A site on the ground track (its farthest south, at LOI-2's cutoff)
+    sets the lunar orbit's plane where a landing site would. Its REFSMMAT
+    is the site's rather than LOI-2's burn attitude, and its altitudes
+    count from the Moon's mean radius.
+  - There is no launch for Apollo 8 yet: its start phases begin in the
+    parking orbit.
 
 ## Tests
 
@@ -776,9 +853,9 @@ godot --headless --path . -s addons/gut/gut_cmdln.gd -gexit
 That runs the whole suite, which takes about 25 minutes, nearly all of
 it in the scenario tests. Add `-gdir=res://tests/unit/` to run only the
 unit tests, in under two minutes, or `-gselect=<name>` to run only the
-scripts whose file names contain `<name>`. CI runs the suite in five
+scripts whose file names contain `<name>`. CI runs the suite in six
 parts side by side (`.github/workflows/ci.yml`): the unit tests, and the
-scenario tests dealt out over four jobs by each file's time on the
+scenario tests dealt out over five jobs by each file's time on the
 runners (`.github/scenario_seconds.txt`).
 
 The unit tests cover:
@@ -816,7 +893,17 @@ The unit tests cover:
   between segments, the Moon's spin as its frame turns, the Sun 10.7°
   over Tranquility Base at touchdown (the mission report has 10.8°), the
   Moon's pole 6.6° from its orbit's normal, a sidereal month of 27.32
-  days, and the mission choosing the model
+  days, and the mission choosing the model; Apollo 8's (slice 7a) against
+  its own held-out values, as close
+- The missions (`tests/unit/test_missions.gd`), slice 7a: each under
+  `data/missions/` flies its own world and vehicles, Apollo 8's stack
+  126,867 kg at TLI's ignition, its CSM 63,524 lb at the separation and
+  its CM 12,179 lb for the entry, and Apollo 11's again after it. CAPCOM
+  calls each vehicle by its call sign, every timeline entry is one
+  Mission Control can make, and Apollo 8 has its own checklists and no
+  LM's. CSM/LV SEP without an LM leaves the CSM alone, the test article
+  and the S-IVB behind, and an Apollo 8 checkpoint keeps its mission and
+  no LM
 - The terrain: Tranquility Base 1,927 m below the reference sphere, West
   crater 30 m deep east of the LM, and the maps blending without steps
 - The landing radar: its slant range to the ground in both antenna
@@ -895,7 +982,7 @@ The unit tests cover:
   checkpoints are rejected
 - The main scene, and in Eagle from `lunar_descent`: its HUD, the keys on
   its LGC, its two views, its checklist for the phase, and L between the
-  vehicles
+  vehicles; and the mission it's given, Apollo 8's with its own checklists
 - The hand controllers, from the keys and from the XR thumbsticks, with
   the thumbstick deadzone, and in Eagle its ACA and TTCA about its own
   axes, as its FDAI reads them
@@ -1170,6 +1257,14 @@ The scenario tests fly real segments through the crew interface:
   RCS, P47 on a translation, staging and P42 on the ascent engine, its
   autopilot turning and holding it, the LGC dark while the LM is docked,
   and the two computers each keeping its own DSKY
+- Apollo 8 (`tests/scenarios/test_apollo_8.gd`), slice 7a's check. It
+  flies from its data alone, from the parking orbit to the splashdown:
+  TLI, CSM/LV SEP with nothing to dock with, and every PAD the timeline
+  brings, flown as the crew flew it (the separation maneuvers, MCC-1 and
+  MCC-2, LOI-1 and LOI-2, TEI after ten lunar orbits, the transearth
+  corrections), then a P52 and the entry on P61 to P67. Each row of Apollo
+  8's Fidelity table (above) is held within limits of the flight's
+  figures, and CAPCOM's calls come at their times
 
 `tools/screenshot.tscn` renders the images above (`--view=0` window,
 `1` chase, `2` cabin; `--hud=0` leaves the HUD out, `--menu=1` shows the
@@ -1226,4 +1321,7 @@ flies Apollo 11 from the pad into its parking orbit (slice 5d), the
 CMC's P40 and P41 steer as Colossus's did (slice 5e), and the CMC flies
 the entry down on Apollo 11's target on Colossus's P61 to P67 (slice
 5f). That finishes the whole flight. The cabin has its sound (slice 6a),
-which waits on a listening pass; next come the other missions (7).
+which waits on a listening pass. Of the other missions (milestone 7),
+Apollo 8 flies from its data alone (slice 7a): the CSM without an LM,
+from its parking orbit through ten lunar orbits to its splashdown.
+Apollo 10 comes next (7b).

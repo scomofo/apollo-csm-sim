@@ -31,13 +31,17 @@
 ## Writes: player.rig ("xr" or "desktop"), player.xr_session,
 ##         player.xr_focus, player.xr_refresh_hz
 ##
+## Mission: the exported mission_id, or "--mission=<id>" after "--" on the
+## command line, a mission under data/missions/ (apollo_11, apollo_8), with
+## its own checklists.
+##
 ## Start phase: the exported start_phase, or "--phase=<name>" after "--" on
 ## the command line (launch, parking_orbit, translunar_coast, lunar_orbit,
 ## lunar_descent, lunar_surface, lunar_ascent, tei, transearth_coast,
-## entry). The LM's phases start in the LM. "--o2-failure-in=<s>" fails
-## the SM's oxygen tank 2 that many seconds after the start, as Apollo
-## 13's did: its fuel cells' lights sound the master alarm (the listening
-## pass's, docs/LISTENING_PASS.md).
+## entry: the mission's start_phases). The LM's phases start in the LM.
+## "--o2-failure-in=<s>" fails the SM's oxygen tank 2 that many seconds
+## after the start, as Apollo 13's did: its fuel cells' lights sound the
+## master alarm (the listening pass's, docs/LISTENING_PASS.md).
 extends Node3D
 
 const CHECKPOINT_PATH := "user://apollo_checkpoint.json"
@@ -46,6 +50,7 @@ const DESKTOP_RIG := preload("res://scenes/player/desktop_rig.tscn")
 const XR_RIG := preload("res://scenes/player/xr_rig.tscn")
 const VIEW_CABIN := 2
 
+@export var mission_id: String = Mission.DEFAULT_ID
 @export var start_phase: String = "parking_orbit"
 
 var rt: SimRuntime
@@ -89,9 +94,14 @@ func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--phase="):
 			start_phase = arg.trim_prefix("--phase=")
+		elif arg.begins_with("--mission="):
+			mission_id = arg.trim_prefix("--mission=")
 		elif arg.begins_with("--o2-failure-in="):
 			o2_failure_in = float(arg.trim_prefix("--o2-failure-in="))
-	rt = SimRuntime.build(self)
+	if not mission_id in Mission.ids():
+		push_error("main: no mission '%s' under %s; flying %s" % [mission_id, Mission.DIR, Mission.DEFAULT_ID])
+		mission_id = Mission.DEFAULT_ID
+	rt = SimRuntime.build(self, Mission.path_of(mission_id))
 	rt.sequencer.start(start_phase)
 	if o2_failure_in >= 0.0:
 		rt.mission.data["failures"] = rt.mission.section("failures").merged(
@@ -107,8 +117,8 @@ func _ready() -> void:
 	add_child(lm_cabin)
 	lm_cabin.connect_runtime(rt)
 	_place_rig()
-	book = ChecklistBook.load_default()
-	lm_book = ChecklistBook.load_lm()
+	book = ChecklistBook.load_default(mission_id)
+	lm_book = ChecklistBook.load_lm(mission_id)
 	card = ChecklistCard.new()
 	card.name = "ChecklistCard"
 	card.book = book

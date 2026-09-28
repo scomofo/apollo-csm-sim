@@ -36,8 +36,8 @@ picture).
 - **Start phases stay consistent.** A new `--phase` is built the way the
   existing ones are, from the RTCC's own solutions, so it continues the
   mission it claims to.
-- **CI stays fast.** The suite runs in five jobs side by side: the unit
-  tests, and the scenario tests in four parts, dealt out by each file's
+- **CI stays fast.** The suite runs in six jobs side by side: the unit
+  tests, and the scenario tests in five parts, dealt out by each file's
   time on the runners (`.github/scenario_seconds.txt`). Keep each job
   under ten minutes: start a long scenario from a phase or checkpoint
   instead of flying the whole mission, record a new scenario file's
@@ -1614,15 +1614,38 @@ the pass, with `tools/render_voices.gd` to hear each voice on its own.
 
 ## 7. Other missions
 
-**Status: not started.** Only Apollo 11 flies. Each other mission is
-data under `data/missions/`, not a code branch: its ephemeris fit for
-its dates, its parking orbit and REFSMMATs, its landing site, Mission
-Control's timeline and its vehicles. What a mission needs that the
-simulator can't do yet comes in its slice, for every mission after it.
+**Status: slice 7a done. Apollo 8 flies from its data alone, from its
+parking orbit to its splashdown.** Each other mission is data under
+`data/missions/`, not a code branch: its ephemeris fit for its dates,
+its parking orbit and REFSMMATs, its landing site, Mission Control's
+timeline and its vehicles. What a mission needs that the simulator can't
+do yet comes in its slice, for every mission after it.
+
+A mission is its directory: `mission.json` and its checklists.
+`scenes/main.gd` flies the one `--mission=<id>` names, Apollo 11 by
+default, and a checkpoint keeps its mission. Slice 7a brought, for the
+missions after Apollo 8:
+
+- **A CSM without an LM.** A mission's `vehicles` override
+  `data/spacecraft.json` key by key. A `payload_kg` in their mass puts
+  a test article in the S-IVB's adapter in place of an LM, which CSM/LV
+  SEP leaves behind with the S-IVB; the LM's start phases and checklists
+  have no place in such a mission.
+- **Mission Control's timeline** calls each vehicle by the mission's
+  call signs, starts its entries on a flight phase as well as a
+  condition, and flies fixed maneuvers, such as the separations from the
+  S-IVB, from their TIG and N81.
+- **TLI's aim** takes the maneuvers flown after it, as impulses in the
+  RTCC's trials, and the TLI perigee's place in the burn.
+- **A lunar orbit without a landing.** A site on its ground track sets
+  its plane, which the translunar MCCs put the approach into for LOI-1
+  to keep. LOI-1 burns at its PAD's TIG where one is given, and a
+  midcourse correction, once needed, is solved to a tenth of its
+  tolerance (to 500 m at the Earth's perigee).
 
 | Slice | Work | Check |
 |---|---|---|
-| 7a Apollo 8 | No LM: the S-IVB carries a test article, and the CSM flies ten lunar orbits alone | Test: Apollo 8 flies from its data alone, parking orbit to splashdown, its Fidelity table within set limits of the flight |
+| 7a (done) Apollo 8 | No LM: the S-IVB carries a test article, and the CSM flies ten lunar orbits alone | Test: Apollo 8 flies from its data alone, parking orbit to splashdown, its Fidelity table within set limits of the flight |
 | 7b Apollo 10 | The LM's descent to 8 nmi over the landing site, staging and the rendezvous, without a landing | Test: as 7a, for Apollo 10 |
 | 7c Apollo 12 | A pinpoint landing beside Surveyor III, the landing site updated in P63 as the flown LGC's noun 69 did | Test: as 7a, and Intrepid lands within a set limit of the Surveyor |
 | 7d Apollo 13 | The service module's oxygen tank, the LM as a lifeboat and the free return | Test: as 7a, from the tank's failure to splashdown |

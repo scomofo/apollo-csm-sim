@@ -9,6 +9,12 @@
 ## and the LM's, while it flies free of the CSM:
 ##   lm         the whole LM
 ##   lm_ascent  its ascent stage, after staging
+## A mission that carries no LM (mission.json "vehicles": mass.payload_kg,
+## Apollo 8's test article) flies stack, then csm after CSM/LV SEP.
+##
+## The file's figures are Apollo 11's vehicles. A mission flies its own:
+## its "vehicles" block replaces the keys it names, section by section
+## (use_mission(), which Mission.load_file() calls).
 class_name SpacecraftData
 extends RefCounted
 
@@ -17,6 +23,10 @@ const CONFIGS := ["saturn_v", "stack", "csm_lm", "csm", "cm"]
 const LM_CONFIGS := ["lm", "lm_ascent"]
 
 static var _data: Dictionary = {}
+## The mission's vehicles: its sections' keys over the file's.
+static var _mission: Dictionary = {}
+## Each section as the mission has it, merged on first use.
+static var _sections: Dictionary = {}
 
 
 static func data() -> Dictionary:
@@ -27,8 +37,21 @@ static func data() -> Dictionary:
 	return _data
 
 
+## Fly the vehicles of the mission whose "vehicles" block is
+## [param vehicles] (empty for the file's, Apollo 11's).
+static func use_mission(vehicles: Dictionary) -> void:
+	_mission = vehicles.duplicate(true)
+	_sections = {}
+
+
 static func section(name: String) -> Dictionary:
-	return data()[name]
+	if not _sections.has(name):
+		var s: Dictionary = data()[name].duplicate() if data().has(name) else {}
+		var over = _mission.get(name, {})
+		if over is Dictionary:
+			s.merge(over, true)
+		_sections[name] = s
+	return _sections[name]
 
 
 static func config(name: String) -> Dictionary:
@@ -36,25 +59,38 @@ static func config(name: String) -> Dictionary:
 
 
 ## Total mass for [param cfg] given the propellant loads (kg), with the
-## LM's mass [param lm_kg] (full tanks when negative).
+## LM's mass [param lm_kg] (full tanks when negative), or without an LM
+## the test article's.
 static func total_mass(cfg: String, sps_kg: float, sm_rcs_kg: float, cm_rcs_kg: float, sivb_kg: float, lm_kg: float = -1.0) -> float:
-	var m: Dictionary = data()["mass"]
+	var m := section("mass")
 	var cm := float(m["cm_dry_kg"]) + cm_rcs_kg
 	if cfg == "cm":
 		return cm
 	var csm := cm + float(m["sm_dry_kg"]) + sm_rcs_kg + sps_kg
 	if cfg == "csm":
 		return csm
-	var csm_lm := csm + (lm_kg if lm_kg >= 0.0 else lm_mass())
+	var csm_lm := csm + (lm_kg if lm_kg >= 0.0 else payload_mass())
 	if cfg == "csm_lm":
 		return csm_lm
 	return csm_lm + float(m["sivb_dry_kg"]) + sivb_kg
 
 
+## The mission carries an LM, in the S-IVB's adapter until transposition
+## and docking; without one, the adapter holds a test article.
+static func carries_lm() -> bool:
+	return not section("mass").has("payload_kg")
+
+
+## What rides in the S-IVB's adapter: the LM with full tanks, or the test
+## article (with the adapter), kg.
+static func payload_mass() -> float:
+	return lm_mass() if carries_lm() else float(section("mass")["payload_kg"])
+
+
 ## The LM's mass in [param cfg] ("lm" or "lm_ascent") given its
 ## propellant loads (kg).
 static func lm_total_mass(cfg: String, dps_kg: float, aps_kg: float, rcs_kg: float) -> float:
-	var m: Dictionary = data()["mass"]
+	var m := section("mass")
 	var ascent := float(m["lm_ascent_dry_kg"]) + aps_kg + rcs_kg
 	if cfg == "lm_ascent":
 		return ascent

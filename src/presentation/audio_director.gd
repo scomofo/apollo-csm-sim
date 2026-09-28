@@ -113,6 +113,7 @@ const EVENTS := {
 	"les_jettison": ["pyro", "csm"],             # the launch escape tower
 	"s2_staging": ["pyro", "csm"],               # the S-II's separation
 	"transposition_docking": ["pyro", "csm"],    # CSM/LV SEP and the adapter's panels
+	"csm_lv_sep": ["pyro", "csm"],               # the same, with no LM to dock with
 	"docking_contact": ["latch", "both"],        # the probe meets the drogue
 	"docking": ["latch", "both"],                # the capture latches
 	"undocking": ["latch", "both"],

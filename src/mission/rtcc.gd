@@ -286,12 +286,13 @@ static func bplane_target(bp: Dictionary, rp: float, site_mf: Vector3, t_land: f
 ## (Earth primary, at the ignition) on a stack of [param stack_mass] kg:
 ## [param energy] (J/kg, as Sivb.energy_of()), in the plane of unit normal
 ## [param plane_n], with its perigee [param perigee_r] (m) from the
-## Earth's centre where the burn is half done, a quarter of its arc on
+## Earth's centre [param perigee_frac] of the way through the burn's arc
 ## [simplified: the IU's targeting gave the perigee's place as a
-## polynomial in the launch time; mid-burn is where the flown one was,
-## 13.5 degrees on of the ignition's 27]. Returns Sivb.igm()'s target.
+## polynomial in the launch time; the fraction is where the flown one was,
+## Apollo 11's half way, 13.5 degrees on of the ignition's 27, and Apollo
+## 8's 0.43 of the way]. Returns Sivb.igm()'s target.
 static func tli_target(at_tig: Trajectory, stack_mass: float, energy: float, perigee_r: float,
-		plane_n: Vector3) -> Dictionary:
+		plane_n: Vector3, perigee_frac: float = 0.5) -> Dictionary:
 	var r0 := at_tig.pos()
 	var v0 := at_tig.vel()
 	var n0 := r0.cross(v0).normalized()
@@ -305,36 +306,48 @@ static func tli_target(at_tig: Trajectory, stack_mass: float, energy: float, per
 	var l := ve * log(tau / (tau - t_burn))
 	var arc := (v0.length() * t_burn + l * t_burn - (l * tau - ve * t_burn)) / r0.length()
 	var n := plane_n.normalized()
-	var mid := r0.normalized().rotated(n0, arc / 2.0)
+	var mid := r0.normalized().rotated(n0, arc * perigee_frac)
 	var pe := (mid - n * mid.dot(n)).normalized()
 	var e := 1.0 + 2.0 * energy * perigee_r / Bodies.MU_EARTH
 	return {"energy": energy, "e": e, "n": [n.x, n.y, n.z], "pe": [pe.x, pe.y, pe.z]}
 
 
 ## Plan the S-IVB's TLI: its ignition time and the energy of the conic it
-## puts the stack on, for the free return Apollo 11's TLI left it on: past
-## the Moon at [param pericynthion_alt] on the retrograde side at GET
-## [param pericynthion_get] [published: MSC-00171, Table 7-III and
-## section 7.4.1: 896.3 nmi at 75:05:21 after TLI, where the preflight plan
-## had 718.9 nmi, the free return capturing at the Earth; the midcourse
-## correction at TLI + 24 h then took the spacecraft off it to 60 nmi, on
-## its node for the landing site]. The ignition time sets where the
-## trajectory passes the Moon, the energy when. The conic's plane is
-## [param plane_n], the one the IU's targeting gave, and its perigee
-## [param perigee_r] from the Earth's centre, the flown one's. The search
-## starts from [param energy], the flown conic's, the RTCC's energy coming
-## out within a metre a second of it at the cutoff. [param traj] is the
-## parking-orbit state (Earth primary), not modified.
+## puts the stack on, for the pericynthion the flown trajectory had
+## (mission.json "tli"): past the Moon at [param pericynthion_alt] on the
+## retrograde side at GET [param pericynthion_get], below the surface for
+## a path into the Moon (the conic's pericynthion it falls toward,
+## _pericynthion_time()). Apollo 11's TLI left a free return 896.3 nmi up.
+## The ignition time sets where the trajectory passes the Moon, the energy
+## when. The conic's plane is [param plane_n], the one the IU's targeting
+## gave, and its perigee [param perigee_r] from the Earth's centre, the
+## flown one's. The search starts from [param energy], the flown conic's,
+## the RTCC's energy coming out within a metre a second of it at the
+## cutoff. [param traj] is the parking-orbit state (Earth primary), not
+## modified. [param aim] may hold:
+## - "perigee_frac": where the perigee lies through the burn's arc
+##   (tli_target(), half way unless given);
+## - "after": maneuvers the flight made before that pericynthion was
+##   reckoned, each {"t" (GET), "dv_lvlh"}, flown as impulses (Apollo 8's
+##   separation maneuvers).
 static func plan_tli(traj: Trajectory, stack_mass: float, sivb_prop: float, energy: float, perigee_r: float,
-		plane_n: Vector3, pericynthion_alt: float, pericynthion_get: float, earliest: float) -> Dictionary:
+		plane_n: Vector3, pericynthion_alt: float, pericynthion_get: float, earliest: float,
+		aim: Dictionary = {}) -> Dictionary:
 	var rp := Bodies.R_MOON + pericynthion_alt
+	var frac := float(aim.get("perigee_frac", 0.5))
+	var after: Array = aim.get("after", [])
 	var period: float = traj.conic()["period"]
 	var start := traj.clone()
 	start.coast_to(earliest, 30.0, FRAC)
 	var fly := func(tig: float, en: float) -> Trajectory:
 		var tr := start.clone()
 		tr.coast_to(tig, 30.0, FRAC)
-		Sivb.simulate_burn(tr, stack_mass, sivb_prop, tli_target(tr, stack_mass, en, perigee_r, plane_n))
+		Sivb.simulate_burn(tr, stack_mass, sivb_prop, tli_target(tr, stack_mass, en, perigee_r, plane_n, frac))
+		for m: Dictionary in after:
+			tr.coast_to(float(m["t"]), 60.0, FRAC)
+			var dv := lvlh_to_inertial(tr, m["dv_lvlh"])
+			for i in 3:
+				tr.s[3 + i] += dv[i]
 		return tr
 	# The B vector's miss along the B-plane's T axis (in the Moon's orbit
 	# plane) from a pass at the pericynthion in that plane: where the
@@ -345,11 +358,12 @@ static func plan_tli(traj: Trajectory, stack_mass: float, sivb_prop: float, ener
 			return NAN
 		var d: Vector3 = (bp["b"] as Vector3) - bplane_target(bp, rp, Vector3.ZERO, 0.0)
 		return d.dot((bp["s"] as Vector3).cross(Bodies.moon_normal()).normalized())
-	# The misses: the signed pericynthion (m) and its time (s).
+	# The misses: the signed pericynthion (m) and its time (s), below the
+	# surface on a path into the Moon.
 	var miss := func(tig: float, en: float) -> Vector2:
 		var tr: Trajectory = fly.call(tig, en)
 		var ap := lunar_approach(tr, tig + 6.0 * 86400.0)
-		if not ap["reached"] or ap["impact"]:
+		if not ap["reached"]:
 			return Vector2(NAN, NAN)
 		return Vector2(float(ap["f"]) + rp, _pericynthion_time(tr) - pericynthion_get)
 	var tig := solve_scan(along, earliest, earliest + 1.5 * period, 18, 0.5)
@@ -374,7 +388,7 @@ static func plan_tli(traj: Trajectory, stack_mass: float, sivb_prop: float, ener
 	var tr := start.clone()
 	tr.coast_to(tig, 30.0, FRAC)
 	var turn := tr.pos().cross(tr.vel()).angle_to(plane_n)
-	var target := tli_target(tr, stack_mass, en, perigee_r, plane_n)
+	var target := tli_target(tr, stack_mass, en, perigee_r, plane_n, frac)
 	var v0 := tr.speed()
 	var left := Sivb.simulate_burn(tr, stack_mass, sivb_prop, target)
 	var cutoff := tr.t
@@ -387,15 +401,40 @@ static func plan_tli(traj: Trajectory, stack_mass: float, sivb_prop: float, ener
 
 ## When [param traj], just past its closest approach to the Moon, was at
 ## it: its radius's rate over its acceleration there, the orbit taken as
-## a parabola in time about the pericynthion.
+## a parabola in time about the pericynthion. On a path into the Moon,
+## stopped at the surface still falling, when its conic would come to its
+## pericynthion below.
 static func _pericynthion_time(traj: Trajectory) -> float:
 	var m := traj.moon_state_rel()
 	var r := Vector3(m[0], m[1], m[2])
 	var v := Vector3(m[3], m[4], m[5])
 	var rn := r.length()
 	var r_dot := r.dot(v) / rn
+	if rn <= Bodies.R_MOON and r_dot < 0.0:
+		return traj.t + time_to_periapsis(r, v, Bodies.MU_MOON)
 	var r_ddot := (v.length_squared() - r_dot * r_dot) / rn - Bodies.MU_MOON / (rn * rn)
 	return traj.t - r_dot / r_ddot if r_ddot > 0.0 else traj.t
+
+
+## The time from the state [param r], [param v] about a body of GM
+## [param mu] to its conic's periapsis, s: ahead while it closes on it,
+## behind (negative) once past. By Kepler's equation, on an ellipse or a
+## hyperbola.
+static func time_to_periapsis(r: Vector3, v: Vector3, mu: float) -> float:
+	var rn := r.length()
+	var energy := v.length_squared() / 2.0 - mu / rn
+	var a := -mu / (2.0 * energy)
+	var rv := r.dot(v)
+	if energy < 0.0:
+		var ec := 1.0 - rn / a
+		var es := rv / sqrt(mu * a)
+		var ecc_e := atan2(es, ec)
+		return -(ecc_e - es) / sqrt(mu / (a * a * a))
+	var ch := 1.0 - rn / a
+	var sh := rv / sqrt(-mu * a)
+	var e := sqrt(maxf(ch * ch - sh * sh, 1.0))
+	var hyp := asinh(sh / e)
+	return -(e * sinh(hyp) - hyp) / sqrt(-mu / (a * a * a))
 
 
 # --- midcourse corrections ---------------------------------------------------
@@ -404,23 +443,27 @@ static func _pericynthion_time(traj: Trajectory) -> float:
 ## [param target_kind] ("moon": signed pericynthion; "earth": signed
 ## perigee) to [param target_f]. Toward the Moon with a landing site
 ## [param site_mf], it also keeps the approach's plane on the site at GET
-## [param t_land], out of plane (Y) as need be; and given
-## [param t_peri], it brings the pericynthion at that GET, the three
-## misses taking the whole correction [published: Apollo 11's midcourse
-## corrections aimed at the pericynthion's altitude and the node's
-## position, MSC-00171, section 7.4.3]. Returns a PAD; dv 0 when not
-## required.
+## [param t_land], out of plane (Y) as need be; or given the lunar orbit's
+## plane [param plane_n] (its unit normal), it puts the pericynthion in
+## that plane, where LOI-1 turns the orbit into it about the burn point
+## (plan_loi()). Given [param t_peri], it brings the pericynthion at that
+## GET, the three misses taking the whole correction [published: Apollo
+## 11's midcourse corrections aimed at the pericynthion's altitude and the
+## node's position, MSC-00171, section 7.4.3]. Returns a PAD; dv 0 when
+## not required.
 static func plan_mcc(traj: Trajectory, mass: float, tig: float, target_kind: String, target_f: float, t_max: float,
-		site_mf: Vector3 = Vector3.ZERO, t_land: float = 0.0, t_peri: float = -1.0) -> Dictionary:
+		site_mf: Vector3 = Vector3.ZERO, t_land: float = 0.0, t_peri: float = -1.0,
+		plane_n: Vector3 = Vector3.ZERO) -> Dictionary:
 	var at := traj.clone()
 	at.coast_to(tig, 60.0, FRAC)
-	var plane := target_kind == "moon" and site_mf != Vector3.ZERO
+	var plane := target_kind == "moon" and (site_mf != Vector3.ZERO or plane_n != Vector3.ZERO)
 	var timed := plane and t_peri > 0.0
 	var site := site_at(site_mf, t_land).normalized() if plane else Vector3.ZERO
 	var rp := absf(target_f)
 	# The misses: the signed pericynthion (or perigee), how far the
-	# approach's plane passes from the site, m at the pericynthion's
-	# radius, and how late the pericynthion comes, s.
+	# approach's plane passes from the site (or the pericynthion from the
+	# orbit's plane), m at the pericynthion's radius, and how late the
+	# pericynthion comes, s.
 	var misses := func(dv_lvlh: Vector3) -> PackedFloat64Array:
 		var tr := at.clone()
 		if dv_lvlh.length() > 1e-6:
@@ -429,7 +472,11 @@ static func plan_mcc(traj: Trajectory, mass: float, tig: float, target_kind: Str
 		var off := 0.0
 		if plane:
 			var rel := tr.moon_state_rel()
-			off = Vector3(rel[0], rel[1], rel[2]).cross(Vector3(rel[3], rel[4], rel[5])).normalized().dot(site) * rp
+			var r := Vector3(rel[0], rel[1], rel[2])
+			if plane_n != Vector3.ZERO:
+				off = r.normalized().dot(plane_n) * rp
+			else:
+				off = r.cross(Vector3(rel[3], rel[4], rel[5])).normalized().dot(site) * rp
 		var late := _pericynthion_time(tr) - t_peri if timed else 0.0
 		return PackedFloat64Array([float(res["f"]) - target_f, off, late])
 	var metric := func(dv_lvlh: Vector3) -> Vector2:
@@ -439,7 +486,11 @@ static func plan_mcc(traj: Trajectory, mass: float, tig: float, target_kind: Str
 		return _plan_mcc_timed(misses, tig, mass)
 	var dv := Vector3.ZERO
 	var err: Vector2 = metric.call(dv)
+	# A miss within the tolerance needs no burn; a burn, once needed, is
+	# solved to a tenth of it.
 	var tol := 20000.0 if target_kind == "moon" else 5000.0
+	if absf(err.x) >= tol or absf(err.y) >= tol:
+		tol /= 10.0
 	for _i in 8:
 		if absf(err.x) < tol and absf(err.y) < tol:
 			break
@@ -522,9 +573,12 @@ static func _solve3(cols: Array[PackedFloat64Array], b: PackedFloat64Array) -> P
 ## [param t_land], the ΔV's part out of the plane turns the orbit's plane
 ## about the burn point to pass over the site at the landing time. The
 ## ΔV's size comes first, by bisection on the apolune; then a Newton solve
-## on its size, its part out of the plane and its pitch together.
+## on its size, its part out of the plane and its pitch together. Given a
+## TIG [param tig] (the flown PAD's), the burn starts then instead: where
+## it starts sets where the orbit's perilune lies (Apollo 8's LOI-1 left it
+## 16 deg past the cutoff, where LOI-2 burned two revolutions on).
 static func plan_loi(traj: Trajectory, mass: float, apolune_alt: float, site_mf: Vector3 = Vector3.ZERO, t_land: float = 0.0,
-		perilune_alt: float = -1.0) -> Dictionary:
+		perilune_alt: float = -1.0, tig: float = -1.0) -> Dictionary:
 	var tr := traj.clone()
 	var ap := lunar_approach(tr, traj.t + 5.0 * 86400.0)
 	if tr.primary != "moon" or ap["impact"]:
@@ -539,15 +593,17 @@ static func plan_loi(traj: Trajectory, mass: float, apolune_alt: float, site_mf:
 	# One coast to before the earliest ignition a trial may have; each
 	# trial coasts on from there.
 	var pre := traj.clone()
-	pre.coast_to(t_peri - burn_time(mass, hi * 1.2) / 2.0 - 60.0, 60.0, FRAC)
+	var first := t_peri - burn_time(mass, hi * 1.2) / 2.0 - 60.0
+	pre.coast_to(minf(first, tig - 60.0) if tig >= 0.0 else first, 60.0, FRAC)
 	var outcome := func(dv: Vector3) -> Dictionary:
 		var tb := burn_time(mass, dv.length())
+		var t_ig := tig if tig >= 0.0 else t_peri - tb / 2.0
 		var t2 := pre.clone()
-		t2.coast_to(t_peri - tb / 2.0, 60.0, FRAC)
+		t2.coast_to(t_ig, 60.0, FRAC)
 		simulate_sps_burn(t2, mass, dv)
 		var c := t2.conic()
 		var h: Vector3 = c["h"]
-		return {"tig": t_peri - tb / 2.0, "ra": float(c["ra"]) if c["ra"] != INF else 1.0e12, "rp": float(c["rp"]),
+		return {"tig": t_ig, "ra": float(c["ra"]) if c["ra"] != INF else 1.0e12, "rp": float(c["rp"]),
 			"tb": tb, "h": h.normalized()}
 	# ra falls monotonically with the retrograde ΔV from unbound (too
 	# little) to the burn's radius (circular): bisect between those ends.
