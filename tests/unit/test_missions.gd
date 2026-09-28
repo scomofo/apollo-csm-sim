@@ -5,7 +5,8 @@
 ## article, and the CSM flies alone. Its flight from the parking orbit to
 ## the splashdown is tests/scenarios/test_apollo_8.gd's. Apollo 10's LM
 ## (slice 7b) flies down to 8 nmi without landing, stages in orbit and
-## flies the rendezvous: tests/scenarios/test_apollo_10.gd.
+## flies the rendezvous: tests/scenarios/test_apollo_10.gd. Apollo 12's
+## (slice 7c) lands beside Surveyor III: tests/scenarios/test_apollo_12.gd.
 extends SimTest
 
 const LB := 0.45359237
@@ -16,11 +17,12 @@ func after_all() -> void:
 	Mission.load_default()
 
 
-func test_the_missions_are_apollo_8_10_and_11() -> void:
+func test_the_missions_are_apollo_8_10_11_and_12() -> void:
 	var ids := Mission.ids()
 	assert_true("apollo_11" in ids, "Apollo 11")
 	assert_true("apollo_10" in ids, "Apollo 10")
 	assert_true("apollo_8" in ids, "Apollo 8")
+	assert_true("apollo_12" in ids, "Apollo 12")
 	for id in ids:
 		var m := Mission.load_file(Mission.path_of(id))
 		assert_eq(m.id(), id, "%s's file names it" % id)
@@ -75,12 +77,42 @@ func test_apollo_10_flies_its_own_vehicles() -> void:
 	assert_almost_eq(SpacecraftData.lm_mass(), 15103.0, 1.0, "and Eagle again")
 
 
+func test_apollo_12_flies_its_own_vehicles() -> void:
+	Mission.load_file(Mission.path_of("apollo_12"))
+	assert_true(SpacecraftData.carries_lm(), "Apollo 12 carries Intrepid")
+	var sps := float(SpacecraftData.section("sps")["propellant_kg"])
+	var sm := 4.0 * float(SpacecraftData.section("sm_rcs")["quad_propellant_kg"])
+	var cm := 2.0 * float(SpacecraftData.section("cm_rcs")["ring_propellant_kg"])
+	var sivb := float(SpacecraftData.section("sivb")["propellant_kg"])
+	var f := SpacecraftData.lm_full_loads()
+	# The stack at the S-IVB's second ignition (MPR-SAT-FE-70-1, Table
+	# 17-10), the CSM at transposition and docking, the CM after CM/SM SEP,
+	# Intrepid at its separation, lunar lift-off and landing (MSC-01855,
+	# Table A-I) [published].
+	assert_almost_eq(SpacecraftData.total_mass("stack", sps, sm, cm, sivb), 134986.0, 1.0, "134,986 kg at TLI's ignition")
+	assert_almost_eq(SpacecraftData.total_mass("csm", sps, sm, cm, 0.0), 63535.6 * LB, 1.0, "63,535.6 lb at docking")
+	assert_almost_eq(SpacecraftData.total_mass("cm", sps, sm, cm, 0.0), 12283.5 * LB, 1.0, "12,283.5 lb for the entry")
+	assert_almost_eq(SpacecraftData.lm_mass(), 33985.5 * LB, 1.0, "Intrepid, 33,985.5 lb at its separation")
+	var rcs := 459.0 * LB
+	assert_almost_eq(SpacecraftData.lm_total_mass("lm_ascent", 0.0, f[1], rcs), 10749.6 * LB, 1.0,
+		"10,749.6 lb at lift-off, a full ascent load and the RCS's 459 lb")
+	assert_almost_eq(SpacecraftData.lm_total_mass("lm", 1175.0 * LB, f[1], rcs), 16564.2 * LB, 10.0 * LB,
+		"16,564.2 lb on the surface, the descent engine's 1,175 lb left")
+	assert_almost_eq(float(SpacecraftData.section("ascent_guidance")["insertion_hdot_mps"]) / Units.FT, 37.0, 0.01,
+		"insertion climbing at the PAD's 37 ft/s")
+	Mission.load_default()
+	assert_almost_eq(SpacecraftData.lm_mass(), 15103.0, 1.0, "and Eagle again")
+
+
 func test_capcom_calls_each_vehicle_by_its_call_sign() -> void:
 	var a8 := Mission.load_file(Mission.path_of("apollo_8"))
 	assert_eq(a8.words("{csm}, Houston. Welcome home, {mission}."), "Apollo 8, Houston. Welcome home, Apollo 8.")
 	var a10 := Mission.load_file(Mission.path_of("apollo_10"))
 	assert_eq(a10.words("{csm} and {lm} are docked. Welcome home, {mission}."),
 		"Charlie Brown and Snoopy are docked. Welcome home, Apollo 10.")
+	var a12 := Mission.load_file(Mission.path_of("apollo_12"))
+	assert_eq(a12.words("{csm} and {lm} are docked. {lm_landed}, Houston."),
+		"Yankee Clipper and Intrepid are docked. Intrepid, Houston.")
 	var a11 := Mission.load_default()
 	assert_eq(a11.words("{csm} and {lm} are docked. {lm_landed}, Houston."),
 		"Columbia and Eagle are docked. Tranquility Base, Houston.")
@@ -160,6 +192,72 @@ func test_apollo_10_has_its_own_checklists_for_a_flight_without_a_landing() -> v
 				assert_true(Mission.load_file(Mission.path_of("apollo_10")).section("timeline")["entries"].any(
 					func(e: Dictionary) -> bool: return "timeline_" + str(e["id"]) == ch.trim_prefix("mission.event.")),
 					"%s: %s is on the timeline" % [c.title, ch])
+	Mission.load_default()
+
+
+func test_apollo_12_has_its_own_checklists_with_the_landing_site_update() -> void:
+	var csm := ChecklistBook.load_default("apollo_12")
+	var titles := csm.lists.map(func(c: Checklist) -> String: return c.title)
+	assert_eq(titles, ["Parking orbit and TLI", "SPS burn (P30 / P40)", "RCS burn (P30 / P41)",
+		"Lunar orbit, Intrepid's landing and TEI", "Entry", "IMU realign (P52)"])
+	for phase in ["parking_orbit", "translunar_coast", "lunar_orbit", "lunar_descent", "lunar_surface", "lunar_ascent",
+			"transearth_coast", "entry"]:
+		csm.select_for_phase(phase)
+		assert_true(csm.list().phases.has(phase), "Yankee Clipper's for %s" % phase)
+	var lm := ChecklistBook.load_lm("apollo_12")
+	var lm_for := {"lunar_orbit": "Undocking and DOI (P30 / P40)", "lunar_descent": "Powered descent (P63 to P68)",
+		"lunar_surface": "Lunar surface and liftoff (P12)", "lunar_ascent": "Rendezvous and docking (P20, P32 to P35)"}
+	assert_eq(lm.lists.size(), 4, "Intrepid's four")
+	for phase in lm_for:
+		lm.select_for_phase(phase)
+		assert_eq(lm.list().title, lm_for[phase], "Intrepid's for %s" % phase)
+	var timeline: Array = Mission.load_file(Mission.path_of("apollo_12")).section("timeline")["entries"]
+	var n69 := 0
+	for book in [csm, lm]:
+		for c in book.lists:
+			for step in c.steps:
+				assert_false(str(step["text"]).contains("Eagle") or str(step["text"]).contains("Columbia"), "%s: Apollo 12's" % c.title)
+				var ch := str(step.get("check", {}).get("channel", ""))
+				if ch == "lm.guid.ls_corrected":
+					n69 += 1
+				if ch.begins_with("mission.event.timeline_"):
+					assert_true(timeline.any(func(e: Dictionary) -> bool: return "timeline_" + str(e["id"]) == ch.trim_prefix("mission.event.")),
+						"%s: %s is on the timeline" % [c.title, ch])
+	assert_eq(n69, 1, "the powered descent's noun 69")
+	Mission.load_default()
+
+
+## Slice 7c: Apollo 12's PDI PAD comes half an hour before PDI, before the
+## lunar_descent start, whose LGC keeps the state vector it brought: off by
+## 4,400 ft along the track at PDI (mission.json "pdi").
+func test_apollo_12s_lunar_descent_keeps_the_pdi_pads_state_vector() -> void:
+	build("lunar_descent", "apollo_12")
+	var sq := rt.sequencer
+	assert_true(sq.pads.has("pdi"), "the PDI PAD before the start")
+	var lgc := rt.lgc()
+	run(float(sq.plan["pdi_tig"]) - SimClock.get_seconds)
+	var t := rt.dynamics.lm.traj
+	var err := Trajectory.lvlh_basis(t.pos(), t.vel()).inverse() * (lgc.nav.pos() - t.pos())
+	assert_almost_eq(err, Vector3(1341.1, 0.0, 40.0), Vector3.ONE * 5.0, "the LGC's error at PDI")
+	Mission.load_default()
+
+
+## Slice 7c: the lunar_ascent start flies the CSM's plane change the
+## timeline brings on the way (Apollo 12's first, 119:47): at the liftoff
+## the RTCC times, Yankee Clipper's orbit passes over Intrepid.
+func test_apollo_12s_lunar_ascent_starts_with_yankee_clipper_over_intrepid() -> void:
+	build("lunar_ascent", "apollo_12")
+	var sq := rt.sequencer
+	assert_eq(sq.phase, "lunar_surface")
+	assert_true(sq.pads.has("plane") and sq.pads.has("ascent"), "the plane change's PAD and the ascent's")
+	assert_lt(float(Bus.get_value("sps.prop_kg")), float(SpacecraftData.section("sps")["propellant_kg"]) - 5000.0, "the SPS burned")
+	var tr := rt.dynamics.traj.clone()
+	var tig := float(sq.plan["liftoff_tig"])
+	tr.coast_to(tig, 60.0)
+	var off := tr.pos().cross(tr.vel()).normalized().dot(Bodies.moon_fixed(tig) * rt.dynamics.lm.landed_pos)
+	gut.p("At the liftoff, %s, Intrepid is %.2f km from Yankee Clipper's plane" % [Units.hms(tig), off / 1000.0])
+	assert_lt(absf(off), 1500.0, "over Intrepid for the liftoff")
+	assert_almost_eq(tig, MissionSequencer._get_s("142:01:17.9"), 90.0, "the liftoff near the flight plan's")
 	Mission.load_default()
 
 

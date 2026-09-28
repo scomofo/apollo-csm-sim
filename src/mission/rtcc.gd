@@ -23,6 +23,8 @@ const VACUUM_FLOOR := 0.5 * Bodies.R_EARTH
 const EI_ALT_M := 121920.0
 ## The largest step tei_components() takes on TEI's ΔV, m/s.
 const TEI_STEP_MPS := 150.0
+## How far _tei_free_tig() moves TEI's ignition from the flown one, s.
+const TEI_TIG_FREE_S := 600.0
 ## A corridor return's time from entry interface to its vacuum perigee, s:
 ## Barker's equation for a 37 km perigee [derived].
 const EI_TO_PERIGEE_S := 133.0
@@ -671,26 +673,36 @@ static func plan_circularize(traj: Trajectory, mass: float, at: String = "periap
 ## [param rp], the burn point on its way down to the new pericynthion, some
 ## 90° on. Apollo 11 targeted 65.7 by 53.7 nmi, noncircular, for the Moon's
 ## field to round it toward 60 nmi by the rendezvous. Centred on the
-## periapsis; its ΔV has a component down (+Z).
-static func plan_loi2(traj: Trajectory, mass: float, ra: float, rp: float) -> Dictionary:
+## periapsis; its ΔV has a component down (+Z). Given a TIG [param tig]
+## (the flown PAD's), the burn starts then instead, and with
+## [param rising] the burn point is on its way up from the new
+## pericynthion: Apollo 12's, 105° past it, its ΔV with a part up (-Z).
+static func plan_loi2(traj: Trajectory, mass: float, ra: float, rp: float, tig: float = -1.0,
+		rising: bool = false) -> Dictionary:
 	var tr := traj.clone()
 	var mu := Bodies.mu_of(tr.primary)
-	var box := {"prev": tr.radial_rate()}
-	var peri := func(t2: Trajectory) -> bool:
-		var rr := t2.radial_rate()
-		var hit: bool = box["prev"] < 0.0 and rr >= 0.0
-		box["prev"] = rr
-		return hit
-	tr.coast_until(peri, traj.t + 2.0 * float(traj.conic()["period"]), 20.0, 0.002)
+	if tig >= 0.0:
+		# Centred on the burn's middle, a conic's burn time on.
+		tr.coast_to(tig, 60.0, FRAC)
+		var v1 := sqrt(mu * (2.0 / tr.radius() - 2.0 / (ra + rp)))
+		tr.coast_to(tig + burn_time(mass, absf(tr.speed() - v1)) / 2.0, 60.0, FRAC)
+	else:
+		var box := {"prev": tr.radial_rate()}
+		var peri := func(t2: Trajectory) -> bool:
+			var rr := t2.radial_rate()
+			var hit: bool = box["prev"] < 0.0 and rr >= 0.0
+			box["prev"] = rr
+			return hit
+		tr.coast_until(peri, traj.t + 2.0 * float(traj.conic()["period"]), 20.0, 0.002)
 	var r := tr.radius()
 	var v := sqrt(mu * (2.0 / r - 2.0 / (ra + rp)))
 	var cos_g := clampf(sqrt(mu * 2.0 * ra * rp / (ra + rp)) / (r * v), -1.0, 1.0)
-	var sin_g := -sqrt(1.0 - cos_g * cos_g)
+	var sin_g := sqrt(1.0 - cos_g * cos_g) * (1.0 if rising else -1.0)
 	var vr := tr.radial_rate()
 	var vh := sqrt(maxf(0.0, tr.speed() * tr.speed() - vr * vr))
 	var dv := Vector3(v * cos_g - vh, 0.0, vr - v * sin_g)
 	var tb := burn_time(mass, dv.length())
-	return {"name": "LOI-2", "tig": tr.t - tb / 2.0, "dv_lvlh": dv, "dv": dv.length(), "burn_s": tb}
+	return {"name": "LOI-2", "tig": tig if tig >= 0.0 else tr.t - tb / 2.0, "dv_lvlh": dv, "dv": dv.length(), "burn_s": tb}
 
 
 ## The state (m, m/s, doubles) on the ellipse about a body of [param mu]
@@ -744,17 +756,105 @@ static func site_at(site_mf: Vector3, t: float) -> Vector3:
 	return Bodies.moon_fixed(t) * site_mf
 
 
-## The normal of a retrograde lunar orbit whose ground track reaches its
-## northernmost (or southernmost) point over the site at GET [param t]:
-## the plane stays over the site for revolutions either side.
-static func site_orbit_normal(site_mf: Vector3, t: float) -> Vector3:
+## The normal of a retrograde lunar orbit over the site at GET [param t],
+## its ground track heading [param azimuth_deg] there (east of north,
+## inertial). Due west, the default, the track reaches its northernmost
+## (or southernmost) point over the site, and the plane stays over it for
+## revolutions either side; Apollo 12's crossed its site heading 284 deg,
+## 14.6 deg to the lunar equator.
+static func site_orbit_normal(site_mf: Vector3, t: float, azimuth_deg: float = 270.0) -> Vector3:
 	var s := site_at(site_mf, t).normalized()
 	var w := Bodies.moon_pole(t)
 	var e := s - w * s.dot(w)
 	if e.length() < 1e-9:
 		return -w
 	var lat := asin(clampf(s.dot(w), -1.0, 1.0))
-	return (e.normalized() * sin(lat) - w * cos(lat)).normalized()
+	if azimuth_deg == 270.0:
+		return (e.normalized() * sin(lat) - w * cos(lat)).normalized()
+	# Moving along north cos(az) + east sin(az), the normal is up x that.
+	var east := w.cross(s).normalized()
+	var north := s.cross(east)
+	var az := deg_to_rad(azimuth_deg)
+	return (-east * cos(az) + north * sin(az)).normalized()
+
+
+## A plane change for the CSM's orbit [param traj] (modified: coasted to
+## GET [param earliest]): the least rotation of its plane about the line
+## where it meets the plane through the site [param site_mf] (Moon-fixed)
+## at GET [param t_site], burned where the orbit crosses that line, the
+## first time after [param earliest] (_plane_change_to()). The Moon's field
+## turns the plane on in the hours to [param t_site]: the RTCC flies the
+## orbit there and aims at the site taken back by that turn, twice over, as
+## a day of tracking in lunar orbit let the ground predict it
+## [simplified]. Apollo 12's first put Yankee Clipper's plane over Intrepid
+## at its liftoff, 3.8 deg on, 349.9 ft/s (MSC-01855, Table 5-VI), the
+## ascent PAD's crossrange 0.2 nmi (Apollo Flight Journal, 140:19:25).
+## Returns the PAD: {"name", "tig", "dv_lvlh", "dv", "burn_s",
+## "angle_deg"}.
+static func plan_plane_change(traj: Trajectory, mass: float, earliest: float, site_mf: Vector3, t_site: float) -> Dictionary:
+	if traj.t < earliest:
+		traj.coast_to(earliest, 60.0, FRAC)
+	var s := site_at(site_mf, t_site).normalized()
+	var aim := s
+	var pad := {}
+	for i in 3:
+		pad = _plane_change_to(traj, mass, aim)
+		if i == 2:
+			break
+		# The plane the burn leaves, and the plane the field has turned it
+		# to by t_site: the site taken back by that turn is in the one when
+		# it is in the other.
+		var t3 := traj.clone()
+		t3.coast_to(float(pad["tig"]), 60.0, FRAC)
+		simulate_sps_burn(t3, mass, pad["dv_lvlh"])
+		var after := t3.pos().cross(t3.vel()).normalized()
+		t3.coast_to(t_site, 60.0, FRAC)
+		var then := t3.pos().cross(t3.vel()).normalized()
+		aim = (Quaternion(then, after) * s).normalized()
+	return pad
+
+
+## The plane change from [param traj] (at its GET, the earliest) that puts
+## the unit vector [param s] (inertial) in the orbit's plane: the ΔV turns
+## the velocity's horizontal part through the angle to it at the first
+## node after, the finite burn corrected so [param s] ends in the plane.
+static func _plane_change_to(traj: Trajectory, mass: float, s: Vector3) -> Dictionary:
+	var h := traj.pos().cross(traj.vel()).normalized()
+	var target := (h - s * h.dot(s)).normalized()
+	var node := h.cross(target).normalized()
+	var ta := traj.clone()
+	var tb := traj.clone()
+	var t_a := time_at_direction(ta, node, traj.t)
+	var t_b := time_at_direction(tb, -node, traj.t)
+	var t_node := minf(t_a, t_b)
+	var at := ta if t_a <= t_b else tb
+	var r := at.pos()
+	var v := at.vel()
+	h = r.cross(v).normalized()
+	target = (h - s * h.dot(s)).normalized()
+	var vh := v - r.normalized() * v.dot(r.normalized())
+	var dv := ((target - h).cross(r.normalized())) * vh.length()
+	var lv := Trajectory.lvlh_basis(r, v)
+	var x := lv.transposed() * dv
+	# A finite burn centred on the node: move its out-of-plane part until
+	# the site is in the plane after it (the miss per unit ΔV found by a
+	# step).
+	var miss := func(dv_lvlh: Vector3) -> float:
+		var t2 := traj.clone()
+		t2.coast_to(t_node - burn_time(mass, dv_lvlh.length()) / 2.0, 60.0, FRAC)
+		simulate_sps_burn(t2, mass, dv_lvlh)
+		return t2.pos().cross(t2.vel()).normalized().dot(s)
+	for _i in 4:
+		var m0: float = miss.call(x)
+		if absf(m0) < 1e-6:
+			break
+		var m1: float = miss.call(x + Vector3(0.0, 0.5, 0.0))
+		if absf(m1 - m0) < 1e-12:
+			break
+		x.y -= m0 * 0.5 / (m1 - m0)
+	var bt := burn_time(mass, x.length())
+	return {"name": "PLANE CHANGE", "tig": t_node - bt / 2.0, "dv_lvlh": x, "dv": x.length(), "burn_s": bt,
+		"angle_deg": rad_to_deg(h.angle_to(target))}
 
 
 ## The time [param traj] passes direction [param dir] (a unit vector near
@@ -1057,9 +1157,14 @@ static func plan_rendezvous(lm: Trajectory, csm: Trajectory, mass: float, t_tpi:
 ## three LVLH components are then solved together at that ignition time
 ## (tei_components()), from [param guess] if given (the flown TEI's): its
 ## part out of the plane turns the return's plane, its size and pitch set
-## the time home and the corridor.
+## the time home and the corridor. With [param tig_free] the ignition moves
+## from the flown one to where the burn needs no part up or down, about
+## where it is least, for a CSM that comes round to the flown TEI's place
+## minutes before or after its time (_tei_free_tig()) [simplified: the
+## RTCC chose the TIG for the least ΔV].
 static func plan_tei(traj: Trajectory, mass: float, dv: float, perigee_alt: float, earliest: float,
-		incl_deg: float = -1.0, ei_get: float = -1.0, tig_near: float = -1.0, guess: Vector3 = Vector3.ZERO) -> Dictionary:
+		incl_deg: float = -1.0, ei_get: float = -1.0, tig_near: float = -1.0, guess: Vector3 = Vector3.ZERO,
+		tig_free: bool = false) -> Dictionary:
 	var period: float = traj.conic()["period"]
 	var start := traj.clone()
 	start.coast_to(earliest, 30.0, FRAC)
@@ -1087,6 +1192,12 @@ static func plan_tei(traj: Trajectory, mass: float, dv: float, perigee_alt: floa
 			incl_deg, ei_get + revs * period)
 		if sol.is_empty():
 			return {}
+		if tig_free:
+			var free := _tei_free_tig(start, tig, sol, mass, perigee_alt, incl_deg, ei_get + revs * period)
+			if not free.is_empty():
+				sol = free
+				tig = float(free["tig"])
+				pad["tig"] = tig
 		dv_lvlh = sol["dv_lvlh"]
 		pad["ei_get"] = sol["ei_get"]
 		pad["incl"] = sol["incl"]
@@ -1099,6 +1210,44 @@ static func plan_tei(traj: Trajectory, mass: float, dv: float, perigee_alt: floa
 	pad["burn_s"] = burn_time(mass, dv_lvlh.length())
 	pad["perigee_alt"] = float(er["rp"]) - Bodies.R_EARTH
 	return pad
+
+
+## TEI's ignition moved from [param tig] (its solution [param sol],
+## tei_components()) to where the solution's radial part is zero, by the
+## secant method on the TIG, 150 s a step at most and within
+## TEI_TIG_FREE_S of it; each solve starts from the solutions' trend
+## carried to its TIG. Returns the solution there with its "tig", or {} if
+## none.
+static func _tei_free_tig(start: Trajectory, tig: float, sol: Dictionary, mass: float, perigee_alt: float,
+		incl_deg: float, ei_get: float) -> Dictionary:
+	var t0 := tig
+	var s0 := sol
+	var t1 := tig - 60.0
+	var s1 := tei_components(start, t1, mass, sol["dv_lvlh"], perigee_alt, incl_deg, ei_get)
+	if s1.is_empty():
+		return {}
+	for _i in 8:
+		var z0: float = (s0["dv_lvlh"] as Vector3).z
+		var z1: float = (s1["dv_lvlh"] as Vector3).z
+		if absf(z1) < 0.3:
+			break
+		if absf(z1 - z0) < 1e-6:
+			return {}
+		var t2 := clampf(t1 - z1 * (t1 - t0) / (z1 - z0), t1 - 150.0, t1 + 150.0)
+		t2 = clampf(t2, tig - TEI_TIG_FREE_S, tig + TEI_TIG_FREE_S)
+		var trend: Vector3 = ((s1["dv_lvlh"] as Vector3) - (s0["dv_lvlh"] as Vector3)) / (t1 - t0)
+		var s2 := tei_components(start, t2, mass, (s1["dv_lvlh"] as Vector3) + trend * (t2 - t1), perigee_alt,
+			incl_deg, ei_get)
+		if s2.is_empty():
+			return {}
+		t0 = t1
+		s0 = s1
+		t1 = t2
+		s1 = s2
+	if absf((s1["dv_lvlh"] as Vector3).z) > 1.0:
+		return {}
+	s1["tig"] = t1
+	return s1
 
 
 ## TEI's ΔV at [param tig] from [param start] (a lunar orbit before it),

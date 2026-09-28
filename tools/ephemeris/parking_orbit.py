@@ -66,6 +66,12 @@ MISSIONS = {
     "apollo_10": {"pad": PAD_39B, "flight_azimuth": 72.028, "inclination": 32.546, "descending_node": 123.132,
                   "insertion_s": 713.76, "insertion_lat": 32.700, "insertion_lon": -52.526,
                   "insertion_alt_km": 191.37, "tli_inclination": 31.698, "tli_descending_node": 123.515},
+    # AS-507, from Launch Complex 39A: the Saturn V flight evaluation report
+    # (MPR-SAT-FE-70-1): section 4.1 (the azimuth), Tables 4-5 (insertion)
+    # and 4-6 (TLI).
+    "apollo_12": {"flight_azimuth": 72.029, "inclination": 32.540, "descending_node": 123.126,
+                  "insertion_s": 703.91, "insertion_lat": 32.682, "insertion_lon": -51.131,
+                  "insertion_alt_km": 190.9, "tli_inclination": 30.355, "tli_descending_node": 120.338},
 }
 FIGURES = MISSIONS[MISSION_ID]
 PAD_LAT, PAD_LON = FIGURES.get("pad", PAD_39A)

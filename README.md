@@ -71,7 +71,15 @@ landing's site without landing, stages in orbit and flies the rendezvous
 back to Charlie Brown. Its start phases are `parking_orbit` (the
 default), `translunar_coast`, `lunar_orbit` (after LOI-2, 61 × 59 nmi),
 `lunar_descent` (Snoopy on its descent orbit, 20 min before the low
-pass), `tei`, `transearth_coast` and `entry`. Each mission is data under
+pass), `tei`, `transearth_coast` and `entry`. `-- --mission=apollo_12`
+flies Apollo 12: Intrepid lands beside Surveyor III in the Ocean of
+Storms, the landing site moved in powered descent by the ground's noun
+69. Its start phases are `parking_orbit` (the default),
+`translunar_coast`, `lunar_orbit` (after LOI-2, 66 × 54 nmi),
+`lunar_descent` (Intrepid on its descent orbit, 20 min before PDI),
+`lunar_surface` (10 min after the landing), `lunar_ascent` (20 min before
+the liftoff, Yankee Clipper's first plane change flown), `tei`,
+`transearth_coast` and `entry`. Each mission is data under
 `data/missions/<id>/`: its dates and the JPL ephemeris for them, its
 vehicles, its orbits, Mission Control's timeline, the call signs and the
 checklists.
@@ -231,6 +239,42 @@ after cutoff. The timeline's PADs come at the flown times:
 
 Snoopy's checklists follow its flight: the undocking and DOI; the low
 pass, phasing and staging; the insertion and the rendezvous.
+
+**Apollo 12.** With `-- --mission=apollo_12` the flight is Apollo 12's,
+from its parking orbit. The S-IVB flies TLI onto the free return at the
+RTCC's TIG (GET 2:47), and transposition, docking and extraction follow
+25 min after cutoff. The timeline's PADs come at the flown times:
+- MCC-2 (30:53), which takes the stack off the free return onto the
+  hybrid, and MCC-4 (78:25) if the tracking has the approach off;
+- LOI-1 at its PAD's TIG (83:25), which turns the orbit into the plane
+  over the landing site, some 14° to the lunar equator, and LOI-2 at its
+  own (87:49);
+- Yankee Clipper's separation PAD before the undocking at 107:54, for 2.5
+  ft/s radially down at 108:25;
+- Intrepid's DOI PAD after the undocking, for DOI at 109:20; the PDI PAD
+  and its state vector half an hour before PDI (110:20), and GO for PDI;
+- after throttle-up, the ground's noun 69: key V21N69E and R1 as CAPCOM
+  reads it (+ or −, ft), and the LGC moves its landing site that far
+  downrange;
+- STAY for T1 and T3; Yankee Clipper's first plane change (119:45), which
+  puts its orbit over Intrepid for the liftoff; the ascent PAD (140:19)
+  and the liftoff (142:01);
+- the CSI PAD after the insertion, and the rendezvous as from Apollo 11's
+  `lunar_ascent`; GO for Pyro Arm two hours after docking;
+- the second plane change (159:05), for the photographs, a fixed
+  maneuver on the SPS;
+- TEI (172:24), the transearth MCCs (188:27 and 241:22, if the corridor
+  needs them) and the entry PAD (239:32).
+
+The landing site is the Surveyor's, on the inner slope of its crater,
+1,432 m below the reference sphere on LROC's model of the site; Intrepid
+came down 535 ft from it, on the rim to its northwest. The orbit has
+drifted north of the site by PDI, and P63 steers across to it. In P64
+the LPD on the window shows where the LGC is taking you: redesignate
+with the ACA onto the crater, then take over with the ROD switch (P66)
+at a few hundred feet and fly to your spot. Intrepid's checklists follow
+its flight, with noun 69 in the powered descent's; Yankee Clipper's has
+the plane changes.
 
 **State vectors.** The CMC flies on its own state vector. Its
 accelerometers feed it only in P40, P41, P47 and entry, and during TLI. In
@@ -724,6 +768,49 @@ Here too the report's figures don't all agree, and the table takes these:
 - The phasing burn flew 176.0 ft/s against its PAD's 176.9: the test
   holds the simulator to the PAD, which P40 flies.
 
+Apollo 12 flown from its data alone, from its parking orbit to the
+splashdown (`tests/scenarios/test_apollo_12.gd`, which holds each row
+within set limits of the flight's figures), against the Apollo 12 Mission
+Report (MSC-01855), the AS-507 flight evaluation report (MPR-SAT-FE-70-1),
+the Apollo Flight Journal and the Apollo Lunar Surface Journal:
+
+| Quantity | Simulator | Apollo 12 |
+|---|---|---|
+| TLI, and the pericynthion after it | GET 2:47:21, 10,560 ft/s from the J-2 in 343.6 s, C3 −1,821,247 m²/s²; 279.5 nmi at 83:44:04 | 2:47:23, 10,515 ft/s in 341.3 s, C3 −1,834,425 m²/s²; 280.2 nmi at 83:44:04 |
+| MCC-2, off the free return | 57.8 ft/s at 30:52:43, N81 −56.0, −8.8, −11.0; 69.0 nmi at 83:28:37 | 61.7 ft/s at 30:52:44, N81 −60.1, −12.6, +5.6 (flown 61.8); 65.1 nmi at 83:28:39 |
+| MCC-4 | 2.2 ft/s; 67.1 nmi at 83:28:42 | not needed |
+| LOI-1 | 83:25:18, N81 −2,855.6, +786.7, +162.1; 2,966 ft/s in 379.0 s; 169.7 × 59.9 nmi, 13.6° to the lunar equator | 83:25:19, N81 −2,821.3, +603.6, +112.4; 2,889.5 ft/s in 352.3 s; 168.8 × 62.6 nmi, 14.6° |
+| LOI-2 | 87:48:42, N81 −136.8, 0.0, −136.6, 193.2 ft/s; 66.2 × 53.9 nmi | 87:48:48, N81 −139.2, +0.1, −89.5, 165.2 ft/s; 66.1 × 54.3 nmi |
+| The CSM's separation maneuver | 2.5 ft/s radially down; Yankee Clipper in 64.1 × 55.8 nmi | 2.4 ft/s (the PAD's 2.5); 63.5 × 56.3 nmi |
+| DOI | 109:20:07, 69.3 ft/s in 30 s; 60.9 × 9.0 nmi | 109:23:40, 72.4 ft/s in 29.0 s; 60.6 × 8.1 nmi |
+| PDI, and the crossrange | 110:19:50; the site 4.3 nmi south of the orbit's plane, the lateral velocity up to 86 ft/s 225 s on | 110:20:38; about 5 miles south, up to 78 ft/s about 5 min on |
+| Noun 69, and the landing radar | +4,400 ft 80 s after PDI; ΔH −883 ft at 35,631 ft | +4,200 ft 79 s after PDI; ΔH −918, −1,000 ft, the radar's altitude from 41,438 ft |
+| P64 | 110:28:29 at 8,040 ft, aiming 400 ft from the Surveyor; 61 LPD clicks | 110:29:11 near 7,000 ft, aiming 416 ft from it |
+| The landing | P66 at 110:30:39 at 393 ft; touchdown 110:31:55, 515 ft from Surveyor III, where Intrepid came down; 1,367 lb of the DPS's propellant left | P66 at 110:30:50 at 400 ft; 110:32:36, 535 ft from it; 1,175 lb |
+| The first plane change | 119:45:12, N81 −9.3, +314.6, 0; 314.6 ft/s in 19.1 s; 62.6 × 57.0 nmi | 119:47:13, N81 −11.5, +349.6, 0; 349.9 ft/s in 18.2 s; 62.5 × 57.6 nmi |
+| The ascent | liftoff 142:01:25, N76 5,532.7 and 37.0 ft/s, 0.33 nmi crossrange; 441 s on the APS; 45.4 × 8.7 nmi, 0.03° from Yankee Clipper's plane | 142:03:48 (planned 142:01:18), N76 5,535.0 and 37.0 ft/s, 0.2 nmi; 423.2 s; 46.3 × 8.8 nmi |
+| CSI | 142:58:30, 46.8 ft/s; 44.7 × 42.6 nmi | 143:01:51, 45.0 ft/s; 51.0 × 41.5 nmi |
+| CDH | 143:56:24, 5.5 ft/s, 16.7 nmi below Yankee Clipper | 144:00:03, 13.8 ft/s |
+| TPI, and the midcourse corrections | 144:40:28, 28.2 ft/s; 4.0 ft/s | 144:36:26, 29.0 ft/s |
+| Docking | 145:31:33, the LM's RCS having given 129 ft/s from CSI | 145:36:20 |
+| The second plane change | 159:04:44, 381.2 ft/s in 22.0 s; 63.0 × 56.8 nmi | 159:04:46, 381.8 ft/s in 19.2 s; 64.7 × 56.8 nmi |
+| TEI | 172:22:50, N81 +3,040.4, −89.2, 0.0; 3,042 ft/s in 138.0 s; entry interface after it at 244:21:06 | 172:27:17, N81 +3,027.2, +302.1, −25.3; 3,042 ft/s in 130.3 s; 244:22:19 |
+| Transearth midcourse corrections | MCC-5 3.8 ft/s, MCC-7 none | MCC-5 2.0 ft/s, MCC-7 2.4 ft/s |
+| Entry interface | 244:18:31, 36,115 ft/s, 6.54° down, 15.55° S 174.17° E | 244:22:19, 36,116 ft/s, 6.48° down, 13.80° S 173.52° E |
+| The entry | P61 to P64, then P67; 6.69 g at the peak | P61 to P67; 6.1 g on the PAD |
+| Splashdown | 244:33:25, 15.81° S 165.17° W, 0.2 nmi from the target | 244:36:25, 15.78° S 165.15° W, within 2 miles of it |
+
+The table takes these from the flight's figures:
+- TLI's 10,515 ft/s is the J-2's (MSC-01855, Table 5-IV), which the
+  simulator's row takes by the rocket equation on the propellant it
+  burned, as Apollo 11's does.
+- Noun 69 read 4,200 ft where the Doppler residuals after DOI showed
+  4,400 (MSC-01855, section 4.2): the simulator's LGC is off by the 4,400,
+  and the ground reads it with MSFN's spread.
+- Where Intrepid came down is LROC's (Wagner et al., 2017), 157 m (515
+  ft) northwest of the Surveyor where LROC has it; the mission report's
+  535 ft is the 1969 survey's.
+
 Deliberate simplifications are tagged `[simplified]` in the code. The main
 ones:
 
@@ -934,6 +1021,37 @@ ones:
     it when the tracking has left the approach off.
   - There is no launch for Apollo 10 yet: its start phases begin in the
     parking orbit.
+- **Apollo 12.**
+  - The free return the RTCC's TLI leaves passes the Moon 4° north of the
+    flight's (25.6° S against 29.7° S), and the approach the midcourse
+    corrections leave, on the node of the orbit over the site, comes in
+    1.4° steeper than the flight's. LOI-1 turns it farther, and its cutoff
+    ends farther north, which leaves the orbit a degree less inclined
+    than the flight's 14.6°: the first plane change is 35 ft/s smaller.
+  - The RTCC aims LOI-1's plane at the landing site without the Moon's
+    field turning it in the day to the landing, and the site is 4 nmi
+    south of the orbit at PDI. The flight's RTCC predicted the turning,
+    with a model of the field that left the site about 5 miles south
+    [published].
+  - Noun 69 carries only the correction downrange, as Apollo 12's did.
+    MSFN's processor reads the LGC's error along the track with a 60 m
+    spread [estimated].
+  - The first plane change: the RTCC flies the orbit on to the liftoff to
+    find how the Moon's field turns its plane, as a day of tracking let
+    the ground predict it.
+  - The liftoff: the real Yankee Clipper came round later than the flight
+    plan had it, and Intrepid lifted off 2.5 min after the planned
+    142:01:18. The simulator's CSM comes round as planned, and Intrepid
+    lifts off near the planned time.
+  - TEI: the simulator's CSM reaches the flown TEI's place minutes before
+    its time, so the RTCC moves the ignition to where the burn needs no
+    part up or down [simplified: the RTCC chose the TIG for the least
+    ΔV].
+  - The LM carries its crew from TLI, and its RCS's load at liftoff is
+    estimated. The test's commander flies the LPD and P66 to the spot
+    Intrepid came down on; Conrad flew over the crater and back.
+  - There is no launch for Apollo 12 yet: its start phases begin in the
+    parking orbit.
 
 ## Tests
 
@@ -944,12 +1062,12 @@ godot --headless --path . --import
 godot --headless --path . -s addons/gut/gut_cmdln.gd -gexit
 ```
 
-That runs the whole suite, which takes about 40 minutes, nearly all of
+That runs the whole suite, which takes about 50 minutes, nearly all of
 it in the scenario tests. Add `-gdir=res://tests/unit/` to run only the
 unit tests, in under two minutes, or `-gselect=<name>` to run only the
-scripts whose file names contain `<name>`. CI runs the suite in seven
+scripts whose file names contain `<name>`. CI runs the suite in eight
 parts side by side (`.github/workflows/ci.yml`): the unit tests, and the
-scenario tests dealt out over six jobs by each file's time on the
+scenario tests dealt out over seven jobs by each file's time on the
 runners (`.github/scenario_seconds.txt`).
 
 The unit tests cover:
@@ -987,8 +1105,9 @@ The unit tests cover:
   between segments, the Moon's spin as its frame turns, the Sun 10.7°
   over Tranquility Base at touchdown (the mission report has 10.8°), the
   Moon's pole 6.6° from its orbit's normal, a sidereal month of 27.32
-  days, and the mission choosing the model; Apollo 8's (slice 7a) and
-  Apollo 10's (slice 7b) against their own held-out values, as close
+  days, and the mission choosing the model; Apollo 8's (slice 7a),
+  Apollo 10's (slice 7b) and Apollo 12's (slice 7c) against their own
+  held-out values, as close
 - The missions (`tests/unit/test_missions.gd`), slice 7a: each under
   `data/missions/` flies its own world and vehicles, Apollo 8's stack
   126,867 kg at TLI's ignition, its CSM 63,524 lb at the separation and
@@ -1003,9 +1122,17 @@ The unit tests cover:
   landing; and from `lunar_descent` the phasing and insertion PADs timed
   from the low point, the phasing's throttle schedule in the LGC, and
   staging in orbit into `lunar_ascent`, the ascent engine's burn there
-  its insertion
+  its insertion. Slice 7c: Apollo 12's stack 134,986 kg at TLI's
+  ignition, its CSM 63,535.6 lb at docking, its CM 12,283.5 lb, and
+  Intrepid 33,985.5 lb at its separation, 16,564.2 lb on the surface and
+  10,749.6 lb at lift-off; its checklists, with noun 69 in the powered
+  descent's; from `lunar_descent` the LGC's state vector 4,400 ft off
+  along the track at PDI, as the PDI PAD brought it before the start; and
+  from `lunar_ascent` Yankee Clipper's orbit over Intrepid at the liftoff
 - The terrain: Tranquility Base 1,927 m below the reference sphere, West
-  crater 30 m deep east of the LM, and the maps blending without steps
+  crater 30 m deep east of the LM, and the maps blending without steps;
+  Surveyor III 1,432 m below it on its crater's slope, and Intrepid's
+  spot 10 m higher
 - The landing radar: its slant range to the ground in both antenna
   positions, over West crater too, its data-good ranges and its velocity
   over the turning surface
@@ -1078,8 +1205,9 @@ The unit tests cover:
   taken with, the IU's target conic and its guidance's state, and the
   launch vehicle's stages, time bases, guidance and events, the thrust
   direction P40 holds in a burn's last seconds, the CMC's entry guidance
-  and the CM's roll rate, the master alarm circuit, and the LGC's
-  throttle schedule for P40 (schema 16). Older checkpoints are rejected
+  and the CM's roll rate, the master alarm circuit, the LGC's throttle
+  schedule for P40, and whether N69 has moved its landing site (schema
+  17). Older checkpoints are rejected
 - The main scene, and in Eagle from `lunar_descent`: its HUD, the keys on
   its LGC, its two views, its checklist for the phase, and L between the
   vehicles; and the mission it's given, Apollo 8's with its own checklists
@@ -1290,6 +1418,9 @@ The scenario tests fly real segments through the crew interface:
     P64 and lands 2 m from the site.
   - A run takes over in P66 at 150 m, with the hand controller and the
     ROD switch.
+  - Slice 7c: after throttle-up the ground reads the LGC's error along the
+    track to the nearest 100 ft, and V21N69 moves the landing site that
+    far downrange while P63 flies on. Before P63 the LGC won't take it.
   
   A landed LM turns with the Moon, and lifts off on its ascent engine.
 - The ascent (`tests/scenarios/test_ascent.gd`), slice 3d's check. Eagle
@@ -1376,6 +1507,16 @@ The scenario tests fly real segments through the crew interface:
   transearth corrections, a P52 and the entry on P61 to P67. Each row of
   Apollo 10's Fidelity table (above) is held within limits of the
   flight's figures, and CAPCOM's calls come at their times
+- Apollo 12 (`tests/scenarios/test_apollo_12.gd`), slice 7c's check. It
+  flies from its data alone, from the parking orbit to the splashdown:
+  TLI onto the free return, MCC-2 onto the hybrid, MCC-4, LOI-1 and
+  LOI-2; Intrepid's undocking, Yankee Clipper's separation, DOI and
+  powered descent, with the ground's noun 69 keyed in, V57, the
+  redesignation in P64 and P66 from 400 ft to where Intrepid came down,
+  within 250 m of Surveyor III; the first plane change, P12's liftoff and
+  the rendezvous; LM JETT, the second plane change, TEI, the transearth
+  corrections, a P52 and the entry on P61 to P67. Each row of Apollo 12's
+  Fidelity table (above) is held within limits of the flight's figures
 
 `tools/screenshot.tscn` renders the images above (`--view=0` window,
 `1` chase, `2` cabin; `--hud=0` leaves the HUD out, `--menu=1` shows the
@@ -1437,4 +1578,7 @@ Apollo 8 flies from its data alone (slice 7a): the CSM without an LM,
 from its parking orbit through ten lunar orbits to its splashdown. So
 does Apollo 10 (slice 7b): Snoopy down to 8 nmi over the first
 landing's site, staged in orbit, and back to Charlie Brown by the
-landing mission's rendezvous. Apollo 12 comes next (7c).
+landing mission's rendezvous. So does Apollo 12 (slice 7c): Intrepid
+lands beside Surveyor III, its landing site moved in powered descent by
+the ground's noun 69, and its commander redesignating onto the crater.
+Apollo 13 comes next (7d).

@@ -38,7 +38,13 @@
 ##   P63  Braking: the ignition algorithm finds TIG, 470 km (ground range)
 ##        before the landing site, then V50N18 auto maneuver, V99 at TIG-5 s,
 ##        26 s at 10 % throttle, and Klumpp's quadratic guidance at full
-##        thrust until the throttle comes back into its range; V16N68
+##        thrust until the throttle comes back into its range; V16N68. The
+##        crew may move the landing site by the ground's correction: V21N69
+##        loads its downrange part (R1; V22 R2 crossrange, V23 R3 altitude,
+##        V25 all three, ft), which Luminary 1B added to the site at its
+##        next guidance cycle and zeroed, as Apollo 12's did 4,200 ft
+##        downrange; here the site moves as the load is entered, in P63 or
+##        P64
 ##   P64  Approach, from high gate: the same guidance to the approach
 ##        target, the throttle in its range; V16N64. With the mode switch
 ##        in AUTO the ACA redesignates the landing point: each click fore
@@ -92,7 +98,8 @@
 ## Writes: the core's channels under lm. (lm.guid.*, lm.dsky.*),
 ##         lm.guid.dps_on, lm.guid.dps_throttle, lm.guid.aps_on (P12, P42),
 ##         lm.guid.lr_antenna (1 in P63, 2 from P64), lm.guid.delta_h_m,
-##         lm.guid.lr_update (V57 given), lm.guid.rr_nav (P20 running),
+##         lm.guid.lr_update (V57 given), lm.guid.ls_corrected (N69 loaded
+##         since the site's uplink), lm.guid.rr_nav (P20 running),
 ##         lm.dsky.lamp.alt, lm.dsky.lamp.vel
 class_name Lgc
 extends AgcCore
@@ -113,6 +120,7 @@ const LGC_NOUNS := {
 	63: {"name": "DH/HDOT/H", "c": [["DH", "i", 1.0 / Dsky.FT], ["HDOT", "d1", 1.0 / Dsky.FT], ["H", "i", 1.0 / Dsky.FT]]},
 	64: {"name": "TR LPD/HDOT/H", "c": [["TR LPD", "i", 1.0], ["HDOT", "d1", 1.0 / Dsky.FT], ["H", "i", 1.0 / Dsky.FT]]},
 	68: {"name": "RNG/TGO/V", "c": [["RNG", "d1", 1.0 / Dsky.NMI], ["TGO", "mmss", 1.0], ["V", "i", 1.0 / Dsky.FT]]},
+	69: {"name": "LS CORR", "c": [["DZ", "i", 1.0 / Dsky.FT], ["DY", "i", 1.0 / Dsky.FT], ["DX", "i", 1.0 / Dsky.FT]]},
 	74: {"name": "TFI/YAW/PITCH", "c": [["TFI", "mmss", 1.0], ["YAW", "d2", 1.0], ["PITCH", "d2", 1.0]]},
 	76: {"name": "VH/HDOT/XRNG", "c": [["VH", "d1", 1.0 / Dsky.FT], ["HDOT", "d1", 1.0 / Dsky.FT], ["XRNG", "d2", 1.0 / Dsky.NMI]]},
 	94: {"name": "VG/HDOT/H", "c": [["VG", "d1", 1.0 / Dsky.FT], ["HDOT", "d1", 1.0 / Dsky.FT], ["H", "i", 1.0 / Dsky.FT]]},
@@ -148,6 +156,8 @@ var rod_cmd: float = 0.0
 var nav_landed_mf: Vector3 = Vector3.ZERO
 ## V57: the landing radar may update the state vector.
 var lr_update: bool = false
+## N69 has moved the landing site since the ground uplinked it.
+var ls_corrected: bool = false
 ## The landing radar's altitude less the LGC's, m, at its last reading.
 var delta_h: float = 0.0
 ## The CSM's state vector from the ground, at its own time; null until
@@ -435,6 +445,7 @@ func _free() -> bool:
 ## Load the landing site from the ground (with the DOI PAD), Moon-fixed, m.
 func uplink_landing_site(site_mf: Vector3) -> void:
 	landing_site = site_mf
+	ls_corrected = false
 	_uplink_timer = 2.0
 	dsky.set_lamp("uplink_acty", true)
 
@@ -561,6 +572,7 @@ func extra_step() -> void:
 	_aca_was = detent
 	Bus.set_value("lm.guid.lr_antenna", 2 if program in [64, 65, 66, 68] else 1)
 	Bus.set_value("lm.guid.lr_update", lr_update)
+	Bus.set_value("lm.guid.ls_corrected", ls_corrected)
 	Bus.set_value("lm.guid.rr_nav", rr_nav)
 	var now := _now()
 	var dt := now - _guide_get if _guide_get >= 0.0 else 0.0
@@ -751,6 +763,17 @@ func _redesignate(clicks: Vector2i) -> void:
 	if s < 0.0:
 		return   # a line of sight above the horizon: the LGC ignores the click
 	landing_site = mf.transposed() * (r + los.normalized() * s)
+
+
+## N69's correction: move the landing site by [param d] in the guidance
+## frame (x up, y crossrange, z downrange), m. The horizontal part moves
+## it over its sphere, the vertical part raises it [simplified: Luminary
+## added the vector as it was, which lifts a site moved 4,200 ft by half
+## a metre].
+func correct_landing_site(d: Vector3) -> void:
+	var r := landing_site.length() + d.x
+	landing_site = (landing_site + guidance_frame * Vector3(0.0, d.y, d.z)).normalized() * r
+	ls_corrected = true
 
 
 ## One cycle of Klumpp's quadratic guidance to [param target]: the
@@ -1114,6 +1137,9 @@ func noun_values(n: int) -> Variant:
 			v = [floorf(minf(lpd_time(), 99.0)) * 1000.0 + clampf(roundf(_lpd), 0.0, 999.0), _hdot, _h]
 		68:
 			v = [_range, tgo, _speed]
+		69:
+			# The correction still to add: none, once the site has moved.
+			v = [0.0, 0.0, 0.0]
 		74:
 			if program == ASCENT:
 				v = _n74()
@@ -1145,7 +1171,13 @@ func noun_values(n: int) -> Variant:
 
 
 ## V24N76: the crew load P12's horizontal velocity and climb targets.
+## V21N69 (or V22 to V25) in P63 or P64: the landing site correction, m.
 func noun_load(n: int, idx: int, value: float) -> bool:
+	if n == 69:
+		var ok := program in [63, 64] and landing_site != Vector3.ZERO
+		if ok:
+			correct_landing_site([Vector3(0.0, 0.0, value), Vector3(0.0, value, 0.0), Vector3(value, 0.0, 0.0)][idx])
+		return ok
 	if n == 76:
 		if ascent_targets.is_empty() or idx > 1:
 			return false
@@ -1185,7 +1217,7 @@ func snapshot() -> Dictionary:
 		"site": [landing_site.x, landing_site.y, landing_site.z],
 		"frame": [gf.x.x, gf.x.y, gf.x.z, gf.y.x, gf.y.y, gf.y.z, gf.z.x, gf.z.y, gf.z.z],
 		"pdi_tig": pdi_tig, "tgo": tgo, "throttle": descent_throttle, "rod_cmd": rod_cmd, "guide_get": _guide_get,
-		"lr_update": lr_update, "delta_h": delta_h, "lr_timer": _lr_timer,
+		"lr_update": lr_update, "delta_h": delta_h, "lr_timer": _lr_timer, "ls_corrected": ls_corrected,
 	}
 	d["nav_landed_mf"] = [nav_landed_mf.x, nav_landed_mf.y, nav_landed_mf.z]
 	d["p40_schedule"] = p40_schedule.duplicate()
@@ -1255,6 +1287,7 @@ func restore(d: Dictionary) -> void:
 		dsky.show(6, int(step_name.substr(1)), true)
 	if not dd.is_empty():
 		lr_update = bool(dd.get("lr_update", false))
+		ls_corrected = bool(dd.get("ls_corrected", false))
 		delta_h = float(dd.get("delta_h", 0.0))
 		_lr_timer = float(dd.get("lr_timer", 0.0))
 		pdi_tig = float(dd["pdi_tig"])

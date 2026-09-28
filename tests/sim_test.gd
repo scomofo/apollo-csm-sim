@@ -493,6 +493,112 @@ func set_lm_down(yaw_deg: float = 0.0) -> void:
 	lm.attitude.omega = Vector3.ZERO
 	lm.land(site.length() + cm)
 
+
+# --- powered descent: the LM crew -------------------------------------------------
+
+## Aldrin's part: once the landing radar's altitude is good (the ALT lamp
+## out) and N63 shows ΔH, key V57 to permit radar updates. [param seen]
+## gets ΔH then ("dh0") and the height over the ground ("dh0_agl").
+func permit_lr_updates(lgc: Lgc, seen: Dictionary) -> void:
+	if lgc.lr_update or bool(Bus.get_value("lm.dsky.lamp.alt", true)) or lgc.delta_h == 0.0:
+		return
+	seen["dh0"] = lgc.delta_h
+	seen["dh0_agl"] = lm_agl()
+	keys("V57EK", lgc)
+
+
+## The LM's centre of mass over the ground below it, m.
+func lm_agl() -> float:
+	var tr := rt.dynamics.lm.traj
+	return tr.radius() - Terrain.radius_under(Bodies.moon_fixed(tr.t).transposed() * tr.pos())
+
+
+## The commander in P64: each second, compare where the LPD points (the
+## LGC's landing point, along the window's reticle) with where
+## [param target_mf] (Moon-fixed) is out of the window, and click the ACA
+## once to bring the one toward the other: fore or aft for the LPD angle,
+## right or left for azimuth; until the LPD time runs out, or the LGC's
+## altitude is under [param down_to] (m). Returns the clicks.
+func lpd_pilot(lgc: Lgc, target_mf: Vector3, down_to: float = 0.0) -> int:
+	var clicks := 0
+	while lgc.program == 64 and lgc.lpd_time() > 1.0 and lgc._h >= down_to:
+		var att := Basis(Bus.get_value("lm.dyn.att_q") as Quaternion)
+		var mf := Bodies.moon_fixed(SimClock.get_seconds)
+		var seen := lpd_look(att.inverse() * (mf * target_mf - rt.dynamics.lm.traj.pos()))
+		var lpd := lpd_look(att.inverse() * (mf * lgc.landing_site - lgc.nav.pos()))
+		var aca := Vector3.ZERO
+		if lpd.x - seen.x > 0.3:
+			aca.y = -1.0   # fore: farther
+		elif seen.x - lpd.x > 0.3:
+			aca.y = 1.0    # aft: nearer
+		elif seen.y - lpd.y > 1.2:
+			aca.z = 1.0    # right
+		elif lpd.y - seen.y > 1.2:
+			aca.z = -1.0   # left
+		if aca != Vector3.ZERO:
+			Bus.set_value("ctl.lm.rhc", aca)
+			run(SimClock.FIXED_DT, false)
+			Bus.set_value("ctl.lm.rhc", Vector3.ZERO)
+			clicks += 1
+		run(1.0, false)
+	return clicks
+
+
+## A line of sight in the LM's axes as the window shows it: its angle below
+## the +Z axis and to the right, degrees.
+static func lpd_look(los: Vector3) -> Vector2:
+	return Vector2(rad_to_deg(atan2(-los.x, los.z)), rad_to_deg(atan2(los.y, los.z)))
+
+
+## One ROD click: +1 slows the descent by 1 ft/s, -1 speeds it up.
+func rod_click(dir: int) -> void:
+	Bus.set_value("ctl.lm.rod", dir)
+	run(SimClock.FIXED_DT, false)
+	Bus.set_value("ctl.lm.rod", 0)
+	run(SimClock.FIXED_DT, false)
+
+
+## A fifth of a second of the pilot: the hand controller tilts the LM
+## against its horizontal velocity, as the cross-pointers show it, to stop
+## it in about 4 s and no more than 15° from upright; or, given a spot
+## [param spot_mf] (Moon-fixed) out of the window, to fly toward it at a
+## tenth of its distance a second, 5 m/s at most. ROD clicks keep the
+## descent at a metre a second for every 20 m of height over the ground,
+## between 0.6 and 3 m/s, and at half that while the spot is more than
+## 30 m off.
+func fly_by_hand(lgc: Lgc, spot_mf: Vector3 = Vector3.ZERO) -> void:
+	var r: Array = Bus.get_value("lm.dyn.r_m")
+	var v: Array = Bus.get_value("lm.dyn.v_mps")
+	var pos := Vector3(r[0], r[1], r[2])
+	var rel := Vector3(v[0], v[1], v[2]) - Bodies.moon_omega(SimClock.get_seconds).cross(pos)
+	var up := pos.normalized()
+	var h := lm_agl() - Dynamics.lm_cm_height("lm")
+	var g := Bodies.MU_MOON / pos.length_squared()
+	var want := Vector3.ZERO
+	if spot_mf != Vector3.ZERO:
+		var to := Bodies.moon_fixed(SimClock.get_seconds) * spot_mf - pos
+		want = (to - up * to.dot(up)) / 10.0
+		if want.length() > 5.0:
+			want = want.normalized() * 5.0
+	var ah := (want - (rel - up * rel.dot(up))) / 4.0
+	var ah_max := g * tan(deg_to_rad(15.0))
+	if ah.length() > ah_max:
+		ah = ah.normalized() * ah_max
+	var att: Quaternion = Bus.get_value("lm.dyn.att_q")
+	var err := Basis(att).inverse() * (Basis(att) * Vector3.RIGHT).cross((up * g + ah).normalized())
+	var rhc := (Vector3(0.0, err.y, err.z) / AgcCore.RATE_HOLD).clamp(-Vector3.ONE, Vector3.ONE)
+	Bus.set_value("ctl.lm.rhc", rhc if rhc.length() >= 0.06 else Vector3.ZERO)
+	var target := -clampf(h / 20.0, 0.6, 3.0)
+	if want.length() > 3.0:
+		target /= 2.0
+	if lgc.rod_cmd < target - 0.2:
+		rod_click(1)
+	elif lgc.rod_cmd > target + 0.2:
+		rod_click(-1)
+	else:
+		run(0.2, false)
+
+
 # --- the CSM's translation controller, and docking --------------------------------
 
 ## The LM's docking port relative to the CSM's, and its velocity, CSM body
