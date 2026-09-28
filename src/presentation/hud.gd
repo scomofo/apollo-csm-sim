@@ -67,8 +67,8 @@ var _capcom_lines: PackedStringArray = []
 
 func setup(p_rt: SimRuntime, p_book: ChecklistBook = null, p_lm_book: ChecklistBook = null) -> void:
 	rt = p_rt
-	csm_book = p_book if p_book != null else ChecklistBook.load_default()
-	lm_book = p_lm_book if p_lm_book != null else ChecklistBook.load_lm()
+	csm_book = p_book if p_book != null else ChecklistBook.load_default(rt.mission.id())
+	lm_book = p_lm_book if p_lm_book != null else ChecklistBook.load_lm(rt.mission.id())
 	book = csm_book
 	var sf := SystemFont.new()
 	sf.font_names = PackedStringArray(["DejaVu Sans Mono", "Consolas", "Menlo", "Courier New", "monospace"])

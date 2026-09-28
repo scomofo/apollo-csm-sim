@@ -1,28 +1,26 @@
 ## The flight-plan checklists and which one is open, shared by the HUD's
 ## checklist panel, the cabin's checklist card, the checklist highlight and
 ## the wrist menu: a step acknowledged on one of them shows on all.
-## Columbia's checklists are one book (load_default()) and Eagle's another
-## (load_lm()), each with its own open checklist.
+## The CSM's checklists are one book (load_default()) and the LM's another
+## (load_lm()), each with its own open checklist, and each mission has its
+## own (data/missions/<id>/): Apollo 8's has no LM book.
 ## Presentation state, like the HUD's before it: checkpoints don't save it.
 class_name ChecklistBook
 extends RefCounted
-
-const PATH := "res://data/missions/apollo_11/checklists.json"
-const LM_PATH := "res://data/missions/apollo_11/lm_checklists.json"
 
 var lists: Array[Checklist] = []
 ## Index of the open checklist.
 var current: int = 0
 
 
-## Columbia's checklists.
-static func load_default() -> ChecklistBook:
-	return load_file(PATH)
+## The CSM's checklists for mission [param mission_id].
+static func load_default(mission_id: String = Mission.DEFAULT_ID) -> ChecklistBook:
+	return load_file(Mission.DIR + mission_id + "/checklists.json")
 
 
-## Eagle's checklists.
-static func load_lm() -> ChecklistBook:
-	return load_file(LM_PATH)
+## The LM's checklists for mission [param mission_id]: none without an LM.
+static func load_lm(mission_id: String = Mission.DEFAULT_ID) -> ChecklistBook:
+	return load_file(Mission.DIR + mission_id + "/lm_checklists.json")
 
 
 static func load_file(path: String) -> ChecklistBook:

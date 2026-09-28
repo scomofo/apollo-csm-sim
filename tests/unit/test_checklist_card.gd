@@ -144,6 +144,22 @@ func test_every_step_names_a_cabin_control_or_one_writes_its_check() -> void:
 	assert_eq(framed, 43, "43 steps point at a cabin control")
 
 
+func test_every_apollo_8_step_names_a_cabin_control_or_one_writes_its_check() -> void:
+	var cabin := _cabin()
+	var framed := 0
+	for c in ChecklistBook.load_default("apollo_8").lists:
+		for s in c.steps:
+			if s.has("control"):
+				assert_true(cabin.items.has(s["control"]), "%s: control %s is in controls.csv" % [s["text"], s["control"]])
+			var channel := str(s.get("check", {}).get("channel", ""))
+			var id := ChecklistHighlight.resolve(cabin, {"control": str(s.get("control", "")), "channel": channel})
+			if channel.begins_with("ctl."):
+				assert_ne(id, "", "%s: a cabin control writes %s" % [s["text"], channel])
+			if id != "":
+				framed += 1
+	assert_eq(framed, 42, "42 of Apollo 8's steps point at a cabin control")
+
+
 func test_every_eagle_step_names_one_of_its_controls_or_one_writes_its_check() -> void:
 	var cabin := LmCabin.create()
 	add_child_autofree(cabin)

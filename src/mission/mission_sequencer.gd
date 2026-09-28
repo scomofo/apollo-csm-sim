@@ -3,9 +3,15 @@
 ## crew separation commands, injects scripted failures, and plays Mission
 ## Control: PAD requests are solved by the RTCC and uplinked to the CMC, or
 ## to the LGC for the LM's burns, its descent and its ascent. It calls the
-## LM's landing, liftoff and insertion. From undocking to TEI it follows
-## its timeline (mission.json "lunar_timeline"): CAPCOM's calls and the
-## PADs, each at its time, as Apollo 11 had them.
+## LM's landing, liftoff and insertion. It follows the mission's timeline
+## (mission.json "timeline"): CAPCOM's calls and the PADs, each at its
+## time, as the flight had them. CAPCOM calls each vehicle by its call
+## sign (Mission.words()).
+##
+## A mission without an LM (SpacecraftData.carries_lm(), Apollo 8) flies
+## the CSM alone from CSM/LV SEP, and its lunar orbit's plane is set by a
+## site on its ground track (mission.json "lunar_site") where a landing
+## mission's is set by its landing site.
 ##
 ## The ground knows the CSM as MSFN tracks it: its truth off by a tracking
 ## error drawn for each request (tracked_state()). The RTCC plans the
@@ -36,19 +42,6 @@ signal capcom(text: String)
 
 const PHASES := ["launch", "parking_orbit", "tli", "translunar_coast", "lunar_orbit", "lunar_descent",
 	"lunar_surface", "lunar_ascent", "tei", "transearth_coast", "entry", "splashdown", "lost"]
-## Mission Control's calls through the launch, by the vehicle's events
-## [published: the Apollo 11 air-to-ground, the PAO's mission commentary].
-const LAUNCH_CALLS := {
-	"ignition": "Ignition sequence start.",
-	"thrust_ok": "All engine running.",
-	"liftoff": "We have a liftoff, 32 minutes past the hour. Liftoff on Apollo 11.",
-	"sic_ceco": "This is Houston, you are GO for staging.",
-	"staging": "11, Houston, thrust is GO all engines, you are looking good.",
-	"les_jettison": "Roger. Tower.",
-	"igm": "11, Houston, your guidance is converged, you are looking good.",
-	"emr_shift": "Roger, we've got PU shift down here, too.",
-	"s2_oeco": "11, this is Houston. You are GO for staging.",
-}
 ## The start phases flown on from the lunar orbit start with the LM
 ## (_lm_start()).
 const LM_PHASES := ["lunar_descent", "lunar_surface", "lunar_ascent"]
@@ -65,6 +58,13 @@ const PAD_PENDING := {"doi": "doi_tig", "pdi": "pdi_pad_tig", "ascent": "liftoff
 ## The DOI PAD comes after an undocking only this close to the landing
 ## time: an undocking a day early is for practice.
 const DESCENT_LEAD_S := 6.0 * 3600.0
+## The conditions a timeline entry may name ("when") besides a flight
+## phase (_condition()).
+const CONDITIONS := ["", "separated", "docked", "lm_free", "lm_descent", "lm_landed", "lm_orbit", "docked_ascent",
+	"csm_orbit", "earth_return"]
+## The PADs a timeline entry may bring ("pad"): request_pad()'s, and "sep"
+## for a maneuver the entry fixes itself (maneuver_pad()).
+const PAD_KINDS := ["mcc", "loi", "circ", "tei", "sv", "doi", "pdi", "ascent", "csi", "entry", "sep"]
 
 var mission: Mission
 var dynamics: Dynamics
@@ -146,19 +146,39 @@ func _parking_orbit_traj() -> Trajectory:
 
 
 func _stack_mass() -> float:
-	return SpacecraftData.total_mass("stack", float(Bus.get_value("sps.prop_kg", 18413.0)),
-		float(Bus.get_value("rcs.sm_prop_kg", 560.0)), float(Bus.get_value("rcs.cm_prop_kg", 110.0)),
-		float(Bus.get_value("sivb.prop_kg", 75000.0)))
+	return SpacecraftData.total_mass("stack", float(Bus.get_value("sps.prop_kg", _sps_load())),
+		float(Bus.get_value("rcs.sm_prop_kg", _sm_rcs_load())), float(Bus.get_value("rcs.cm_prop_kg", _cm_rcs_load())),
+		float(Bus.get_value("sivb.prop_kg", SpacecraftData.section("sivb")["propellant_kg"])))
 
 
+## The propellant loaded, kg: the SPS's, the SM RCS's four quads', the CM
+## RCS's two rings'.
+static func _sps_load() -> float:
+	return float(SpacecraftData.section("sps")["propellant_kg"])
+
+
+static func _sm_rcs_load() -> float:
+	return 4.0 * float(SpacecraftData.section("sm_rcs")["quad_propellant_kg"])
+
+
+static func _cm_rcs_load() -> float:
+	return 2.0 * float(SpacecraftData.section("cm_rcs")["ring_propellant_kg"])
+
+
+## TLI, planned by the RTCC for the pericynthion the flown trajectory had
+## (mission.json "tli": aim_pericynthion_nmi, at aim_pericynthion_get),
+## after the timeline's maneuvers aim_after names, if any.
 func _plan_tli(tr: Trajectory) -> Dictionary:
 	var t := mission.section("tli")
 	var c3 := float(t["c3_m2_per_s2"])
 	var n: Array = t["plane_normal"]
-	return Rtcc.plan_tli(tr, _stack_mass(), float(Bus.get_value("sivb.prop_kg", 75000.0)),
+	var aim := {"perigee_frac": float(t.get("perigee_arc_fraction", 0.5)), "after": []}
+	for id in t.get("aim_after", []):
+		aim["after"].append(_fixed_maneuver(_timeline_entry(str(id))))
+	return Rtcc.plan_tli(tr, _stack_mass(), float(Bus.get_value("sivb.prop_kg", SpacecraftData.section("sivb")["propellant_kg"])),
 		c3 / 2.0, -Bodies.MU_EARTH / c3 * (1.0 - float(t["eccentricity"])), Vector3(n[0], n[1], n[2]),
-		float(t["free_return_pericynthion_nmi"]) * Units.NMI, _get_s(t["free_return_pericynthion_get"]),
-		maxf(float(t["earliest_get_s"]), tr.t + 600.0))
+		float(t["aim_pericynthion_nmi"]) * Units.NMI, _get_s(t["aim_pericynthion_get"]),
+		maxf(float(t["earliest_get_s"]), tr.t + 600.0), aim)
 
 
 ## Put the vehicle in the requested phase. Later phases are produced by
@@ -171,6 +191,9 @@ func start(p_phase: String) -> void:
 		# phase names (e.g. "tli") still start from parking orbit and are
 		# re-derived from the truth trajectory below.
 		push_error("MissionSequencer.start: unknown phase '%s'; starting in parking orbit" % p_phase)
+	elif p_phase in LM_PHASES and not SpacecraftData.carries_lm():
+		push_error("MissionSequencer.start: %s carries no LM; starting in lunar orbit" % mission.id())
+		p_phase = "lunar_orbit"
 	events.clear()
 	visited_lunar_orbit = false
 	tli_pad = {}
@@ -181,7 +204,9 @@ func start(p_phase: String) -> void:
 	_disperse()
 	var tr := _parking_orbit_traj()
 	var cfg := "stack"
-	var sps_prop := float(SpacecraftData.section("sps")["propellant_kg"])
+	# The CSM on its way, with the LM docked or alone.
+	var docked := "csm_lm" if SpacecraftData.carries_lm() else "csm"
+	var sps_prop := _sps_load()
 	var sivb_prop := float(SpacecraftData.section("sivb")["propellant_kg"])
 	if p_phase == "launch":
 		# On the pad, the Saturn V turning with the Earth.
@@ -199,23 +224,26 @@ func start(p_phase: String) -> void:
 		tr.coast_to(float(pad["tig"]), 30.0)
 		sivb_prop = Sivb.simulate_burn(tr, _stack_mass(), sivb_prop, pad["target"])
 		tr.coast_to(tr.t + float(mission.data.get("tde_delay_s", 3600.0)), 60.0)
-		cfg = "csm_lm"
+		cfg = docked
 	if p_phase in ["lunar_orbit", "tei", "transearth_coast", "entry"] + LM_PHASES:
 		visited_lunar_orbit = true
-		cfg = "csm_lm"
+		cfg = docked
 		tr = _lunar_orbit_start()
-		var mass := SpacecraftData.total_mass("csm_lm", sps_prop, 560.0, 110.0, 0.0)
-		sps_prop -= mass * (1.0 - exp(-900.0 / (float(SpacecraftData.section("sps")["isp_s"]) * Units.G0)))
+		# The SPS's burns to here: the midcourse corrections, LOI-1 and
+		# LOI-2 (mission.json "lunar_orbit": sps_dv_mps).
+		var lo := mission.section("lunar_orbit")
+		var mass := SpacecraftData.total_mass(docked, sps_prop, _sm_rcs_load(), _cm_rcs_load(), 0.0)
+		sps_prop -= mass * (1.0 - exp(-float(lo.get("sps_dv_mps", 900.0)) / (float(SpacecraftData.section("sps")["isp_s"]) * Units.G0)))
 	if p_phase in LM_PHASES:
-		# Docked until Apollo 11's undocking.
-		tr.coast_to(_get_s(mission.section("lunar_timeline")["undocking_get"]), 60.0)
+		# Docked until the flown undocking.
+		tr.coast_to(_get_s(mission.section("timeline")["undocking_get"]), 60.0)
 	if p_phase == "tei":
-		# Columbia alone, a minute before the timeline's TEI PAD.
+		# The CSM alone, a minute before the timeline's TEI PAD.
 		cfg = "csm"
 		tr.coast_to(_entry_time(_timeline_entry("tei_pad")) - 60.0, 30.0)
 	if p_phase in ["transearth_coast", "entry"]:
 		cfg = "csm"
-		var mass := SpacecraftData.total_mass("csm", sps_prop, 560.0, 110.0, 0.0)
+		var mass := SpacecraftData.total_mass("csm", sps_prop, _sm_rcs_load(), _cm_rcs_load(), 0.0)
 		var tei := mission.section("tei")
 		if tei.has("tig_near"):
 			tr.coast_to(_get_s(tei["tig_near"]) - 1800.0, 30.0)
@@ -248,13 +276,13 @@ func start(p_phase: String) -> void:
 	phase = ""
 	_update_phase()
 	# The CMC starts on the state the ground last tracked, its IMU aligned,
-	# and with the landing site P52's option 4 aligns to.
+	# and with the site P52's option 4 aligns to.
 	if systems.has("agc"):
 		var agc: Agc = systems["agc"]
 		agc.init_nav(tracked_state(dynamics.traj))
 		agc.imu.align(start_refsmmat(p_phase))
 		agc.landing_site_mf = landing_site()
-		agc.landing_get = float(mission.section("landing")["get_s"])
+		agc.landing_get = site_get()
 		if SimClock.get_seconds > _entry_time(_timeline_entry("entry_pad")):
 			# The target the entry PAD's uplink brought.
 			var target := entry_target()
@@ -265,30 +293,18 @@ func start(p_phase: String) -> void:
 		if not tli_pad.is_empty():
 			systems["sivb"].arm_tli(float(tli_pad["tig"]), tli_pad["target"])
 			Bus.set_value("mission.tli_tig", float(tli_pad["tig"]))
-			_say("Apollo 11, Houston. You are GO for TLI. TIG %s, ΔV %.0f ft/s." % [
+			_say("{mission}, Houston. You are GO for TLI. TIG %s, ΔV %.0f ft/s." % [
 				Units.hms(float(tli_pad["tig"])), float(tli_pad["dv"]) / Units.FT])
 	_fire("start_" + p_phase)
-	match p_phase:
-		"launch":
-			_say("T minus 20 seconds and counting. We are still GO with Apollo 11.")
-		"translunar_coast":
-			_say("Columbia, Houston. Good trajectory. Request an MCC PAD when you are ready; LOI PAD about eight hours out.")
-		"lunar_orbit":
-			_say("Columbia, Houston. You are in a 54 by 66-mile orbit with Eagle docked. LM JETT, then request the TEI PAD.")
-		"lunar_descent":
-			_say("Eagle, Houston. You're on the descent orbit. Your state vector and GO for PDI are coming.")
-		"lunar_surface":
-			_say("Tranquility Base, Houston. You're STAY. The ascent PAD comes at %s." % Units.hms(
-				_entry_time(_timeline_entry("ascent_pad"))))
-		"lunar_ascent":
-			_say("Eagle, Houston. Your ascent PAD is in: liftoff at %s. P12 when you're ready." % Units.hms(
-				float(plan.get("liftoff_tig", 0.0))))
-		"tei":
-			_say("Columbia, Houston. The LM is gone, and your TEI PAD is on its way up.")
-		"transearth_coast":
-			_say("Houston: TEI was good. Request MCC PADs to put you in the entry corridor.")
-		"entry":
-			_say("Houston: entry interface in about twenty minutes. P61, CM/SM SEP when P62 asks, ELS LOGIC and AUTO.")
+	# CAPCOM's word for the start (mission.json "start_calls").
+	var more := {}
+	if p_phase == "lunar_surface":
+		more["ascent_pad"] = Units.hms(_entry_time(_timeline_entry("ascent_pad")))
+	elif p_phase == "lunar_ascent":
+		more["liftoff"] = Units.hms(float(plan.get("liftoff_tig", 0.0)))
+	var call := str(mission.section("start_calls").get(p_phase, ""))
+	if call != "":
+		_say(call, more)
 
 
 # --- per step -------------------------------------------------------------------
@@ -307,11 +323,11 @@ func _crew_commands() -> void:
 			match ch:
 				"ctl.seq.csm_sep":
 					if dynamics.config == "stack" and str(Bus.get_value("sivb.state", "")) == "done":
-						_transposition_and_docking()
+						_separate()
 				"ctl.seq.undock":
 					if dynamics.undock():
 						_fire("undocking")
-						_say("Houston copies undocking. Eagle is flying free.")
+						_say("Houston copies undocking. {lm} is flying free.")
 				"ctl.seq.lm_jett":
 					if dynamics.config == "csm_lm":
 						dynamics.set_configuration("csm")
@@ -325,7 +341,7 @@ func _crew_commands() -> void:
 				"ctl.lm.stage":
 					if dynamics.stage_lm():
 						_fire("lm_staging")
-						var flying := "" if dynamics.lm.landed else " Eagle's ascent stage is flying."
+						var flying := "" if dynamics.lm.landed else " {lm}'s ascent stage is flying."
 						_say("Houston copies staging." + flying)
 		_edges[ch] = now
 
@@ -334,7 +350,7 @@ func _crew_commands() -> void:
 func _on_docking_contact(contact: Dictionary) -> void:
 	if contact["captured"]:
 		_fire("docking")
-		_say("Houston copies hard dock. Columbia and Eagle are docked.")
+		_say("Houston copies hard dock. {csm} and {lm} are docked.")
 	else:
 		_fire("docking_contact")
 		_say("Houston: contact, %s. Back off and try again." % Docking.describe(contact))
@@ -347,13 +363,13 @@ func _on_lm_touchdown(touchdown: Dictionary) -> void:
 		_say("Houston: we saw a hard landing, %.1f ft/s down and %.1f ft/s across. Check your gear." % [
 			float(touchdown["vertical_mps"]) / Units.FT, float(touchdown["horizontal_mps"]) / Units.FT])
 	else:
-		_say("Houston: Roger, Tranquility. We copy you on the ground.")
+		_say("Houston: Roger, {lm_landed}. We copy you on the ground.")
 
 
 ## The LM left the surface.
 func _on_lm_liftoff(_get_s: float) -> void:
 	_fire("lm_liftoff")
-	_say("Houston: we have liftoff. Eagle, you're looking good.")
+	_say("Houston: we have liftoff. {lm}, you're looking good.")
 
 
 ## After the liftoff, the ascent engine is off with the LM in orbit:
@@ -368,16 +384,25 @@ func _check_insertion() -> void:
 	if float(c["energy"]) >= 0.0 or float(c["rp"]) <= site_r:
 		return
 	_fire("lm_insertion")
-	_say("Houston: Eagle, you're in orbit, %.1f by %.1f." % [(float(c["rp"]) - site_r) / Units.NMI,
+	_say("Houston: {lm}, you're in orbit, %.1f by %.1f." % [(float(c["rp"]) - site_r) / Units.NMI,
 		(float(c["ra"]) - site_r) / Units.NMI])
 
 
-func _transposition_and_docking() -> void:
-	dynamics.set_configuration("csm_lm")
+## CSM/LV SEP: the CSM leaves the S-IVB, and with an LM turns about,
+## docks with it and draws it out [simplified: transposition, docking and
+## extraction at once]; without one it flies on alone, the test article
+## left in the adapter.
+func _separate() -> void:
 	Bus.set_value("sivb.prop_kg", 0.0)
 	systems["sivb"].prop_kg = 0.0
+	if not SpacecraftData.carries_lm():
+		dynamics.set_configuration("csm")
+		_fire("csm_lv_sep")
+		_say("Houston copies CSM/LV SEP. {csm}, you're on your own.")
+		return
+	dynamics.set_configuration("csm_lm")
 	_fire("transposition_docking")
-	_say("Houston confirms hard dock and LM extraction. Columbia and Eagle are on their way.")
+	_say("Houston confirms hard dock and LM extraction. {csm} and {lm} are on their way.")
 
 
 func _automation() -> void:
@@ -390,10 +415,11 @@ func _automation() -> void:
 			tli_cutoff_get = now
 			_fire("tli_cutoff")
 			_say("TLI cutoff. Houston has you on a good trajectory. Separate from the S-IVB when ready.")
-		# Transposition, docking and extraction happen without crew input
-		# after the scripted delay if the crew has not already separated.
+		# The separation (and with an LM transposition, docking and
+		# extraction) happens without crew input after the scripted delay
+		# if the crew has not already separated.
 		if tli_cutoff_get >= 0.0 and now - tli_cutoff_get > float(mission.data.get("tde_delay_s", 3600.0)):
-			_transposition_and_docking()
+			_separate()
 	var f := mission.section("failures")
 	var o2 := float(f.get("o2_tank_2_get_s", -1.0))
 	if o2 > 0.0 and now >= o2 and not _o2_failed and systems.has("eps"):
@@ -431,12 +457,12 @@ func _update_phase() -> void:
 		Bus.set_value("mission.phase", phase)
 		_fire("phase_" + phase)
 		if phase == "lunar_orbit" and was in ["", "translunar_coast"]:
-			_say("Columbia, Houston. We confirm lunar orbit.")
+			_say("{csm}, Houston. We confirm lunar orbit.")
 		elif phase == "splashdown":
 			Bus.set_value("mission.result", "success")
 			var miss := Bodies.surface_angle(geographic(), entry_target()) * Bodies.R_EARTH / Units.NMI
 			Bus.set_value("mission.splash_miss_nmi", miss)
-			_say("Splashdown! Welcome home, Apollo 11. %.1f nmi from the target; peak load %.1f g, touchdown %.1f m/s." % [
+			_say("Splashdown! Welcome home, {mission}. %.1f nmi from the target; peak load %.1f g, touchdown %.1f m/s." % [
 				miss, dynamics.max_g, dynamics.landed_speed])
 		elif phase == "lost":
 			Bus.set_value("mission.result", "lost")
@@ -453,13 +479,15 @@ func _insertion_target() -> Dictionary:
 	return {"rt": r, "vt": sqrt(Bodies.MU_EARTH / r), "gamma": 0.0, "n": [n.x, n.y, n.z]}
 
 
-## The launch vehicle's events: Mission Control's calls; at liftoff the
+## The launch vehicle's events: Mission Control's calls (mission.json
+## "launch": calls, by the event); at liftoff the
 ## CMC's P11 on the liftoff discrete, its state vector the pad's; at
 ## insertion the parking orbit.
 func _on_lv_event(id: String) -> void:
 	_fire(id)
-	if LAUNCH_CALLS.has(id):
-		_say(LAUNCH_CALLS[id])
+	var calls: Dictionary = mission.section("launch").get("calls", {})
+	if calls.has(id):
+		_say(str(calls[id]))
 	match id:
 		"liftoff":
 			if systems.has("agc"):
@@ -540,7 +568,8 @@ func _plan_tei(tr: Trajectory, mass: float, earliest: float) -> Dictionary:
 ## the LGC's state vector for powered descent (pdi_pad()); "ascent", the
 ## liftoff time for the LGC's P12 (ascent_pad()); "csi", the rendezvous
 ## plan (csi_pad()). The TEI and the liftoff come no earlier than GET
-## [param earliest].
+## [param earliest], and a midcourse correction then, or a quarter of an
+## hour from now if later.
 func request_pad(kind: String, earliest: float = -1.0) -> Dictionary:
 	if kind == "entry":
 		return entry_pad()
@@ -568,8 +597,8 @@ func request_pad(kind: String, earliest: float = -1.0) -> Dictionary:
 					float(mission.section("landing")["get_s"]), float(g["pdi_range_m"]), float(g["descent_s"]), now + 600.0)
 		"loi":
 			var loi := mission.section("loi")
-			pad = Rtcc.plan_loi(tr, mass, float(loi["apolune_alt_km"]) * 1000.0, landing_site(),
-				float(mission.section("landing")["get_s"]), float(loi.get("perilune_alt_km", -1.0)) * 1000.0)
+			pad = Rtcc.plan_loi(tr, mass, float(loi["apolune_alt_km"]) * 1000.0, landing_site(), site_get(),
+				float(loi.get("perilune_alt_km", -1.0)) * 1000.0, _get_s(loi["tig"]) if loi.has("tig") else -1.0)
 		"circ":
 			var lo := mission.section("lunar_orbit")
 			var r_site := landing_site().length()
@@ -578,12 +607,17 @@ func request_pad(kind: String, earliest: float = -1.0) -> Dictionary:
 		"tei":
 			pad = _plan_tei(tr, mass, maxf(now + 900.0, earliest))
 		"mcc":
-			var tig := now + 900.0
+			var tig := maxf(now + 900.0, earliest)
 			if phase == "translunar_coast":
 				var t := mission.section("tli")
 				var target := -(Bodies.R_MOON + float(t["pericynthion_alt_km"]) * 1000.0)
+				# Without a landing, the lunar site sets the orbit's whole
+				# plane.
+				var plane_n := Vector3.ZERO
+				if not mission.data.has("landing"):
+					plane_n = Rtcc.site_orbit_normal(landing_site(), site_get())
 				pad = Rtcc.plan_mcc(tr, mass, tig, "moon", target, now + 5.0 * 86400.0,
-					landing_site(), float(mission.section("landing")["get_s"]), _get_s(t["pericynthion_get"]))
+					landing_site(), site_get(), _get_s(t["pericynthion_get"]), plane_n)
 			elif phase == "transearth_coast":
 				var probe := tr.clone()
 				var er := Rtcc.earth_return(probe, now + 5.0 * 86400.0)
@@ -594,30 +628,64 @@ func request_pad(kind: String, earliest: float = -1.0) -> Dictionary:
 		_say("Houston: no %s solution / burn not required." % kind.to_upper())
 		last_pad = {}
 		return {}
+	if kind == "tei":
+		plan["tei_tig"] = pad["tig"]
+	if kind != "doi":
+		return _uplink(kind, pad, tracked)
 	last_pad = pad
 	pads[kind] = pad
-	if kind == "doi":
-		plan["doi_tig"] = pad["tig"]
-		# PDI at the pericynthion, until the PDI PAD has its time.
-		plan["pdi_tig"] = pad["hp_get"]
-	elif kind == "tei":
-		plan["tei_tig"] = pad["tig"]
+	plan["doi_tig"] = pad["tig"]
+	# PDI at the pericynthion, until the PDI PAD has its time.
+	plan["pdi_tig"] = pad["hp_get"]
 	var text := Rtcc.pad_text(pad)
 	Bus.set_value("mission.pad_text", text)
-	if kind == "doi":
-		if systems.has("lgc"):
-			systems["lgc"].uplink_maneuver(float(pad["tig"]), pad["dv_lvlh"])
-			systems["lgc"].uplink_landing_site(landing_site())
-		_say("Houston, uplinking " + text)
+	if systems.has("lgc"):
+		systems["lgc"].uplink_maneuver(float(pad["tig"]), pad["dv_lvlh"])
+		systems["lgc"].uplink_landing_site(landing_site())
+	_say("Houston, uplinking " + text)
+	_fire("pad_" + kind)
+	return pad
+
+
+## A maneuver the flight plan fixes rather than the RTCC solves: timeline
+## entry [param e]'s ΔV ("n81_ft_s", LVLH) at its TIG ("tig"), named by
+## its "name" [published for Apollo 8: the separation maneuvers from the
+## S-IVB, radially up, which the crew flew on the THC by the EMS;
+## simplified: P41 flies them from the PAD]. Uplinked to the CMC with the
+## CSM's tracked state as the RTCC's PADs are. Returns the PAD.
+func maneuver_pad(e: Dictionary) -> Dictionary:
+	var m := _fixed_maneuver(e)
+	var pad := {"name": str(e.get("name", "MANEUVER")), "tig": _get_s(e["tig"]), "dv_lvlh": m["dv_lvlh"],
+		"dv": (m["dv_lvlh"] as Vector3).length(), "burn_s": m["burn_s"]}
+	return _uplink(str(e["pad"]), pad, tracked_state(dynamics.traj))
+
+
+## Timeline entry [param e]'s fixed maneuver on the SM RCS's four +X jets,
+## for the CSM alone: {"dv_lvlh", "burn_s", "t" (its middle, GET)}.
+func _fixed_maneuver(e: Dictionary) -> Dictionary:
+	var dv := _v3(e["n81_ft_s"]) * Units.FT
+	var jets := 4.0 * float(SpacecraftData.section("sm_rcs")["jet_thrust_n"])
+	var mass := SpacecraftData.total_mass("csm", _sps_load(), _sm_rcs_load(), _cm_rcs_load(), 0.0)
+	var burn := mass * dv.length() / jets
+	return {"dv_lvlh": dv, "burn_s": burn, "t": _get_s(e["tig"]) + burn / 2.0}
+
+
+## Uplink [param pad] of [param kind] to the CMC with the CSM's
+## [param tracked] state (P27), when it takes them, or read it up by
+## voice. Returns the PAD, with "state" and "uplinked".
+func _uplink(kind: String, pad: Dictionary, tracked: Trajectory) -> Dictionary:
+	last_pad = pad
+	pads[kind] = pad
+	var text := Rtcc.pad_text(pad)
+	Bus.set_value("mission.pad_text", text)
+	var agc: AgcCore = systems.get("agc")
+	pad["state"] = tracked
+	pad["uplinked"] = agc != null and agc.uplink_state(tracked) and agc.uplink_maneuver(
+		float(pad["tig"]), pad["dv_lvlh"])
+	if pad["uplinked"]:
+		_say("Houston, uplinking your state vector and " + text)
 	else:
-		var agc: AgcCore = systems.get("agc")
-		pad["state"] = tracked
-		pad["uplinked"] = agc != null and agc.uplink_state(tracked) and agc.uplink_maneuver(
-			float(pad["tig"]), pad["dv_lvlh"])
-		if pad["uplinked"]:
-			_say("Houston, uplinking your state vector and " + text)
-		else:
-			_say("Houston: Columbia, we can't uplink, we need P00 and UP TLM to ACCEPT. By voice: " + text)
+		_say("Houston: {csm}, we can't uplink, we need P00 and UP TLM to ACCEPT. By voice: " + text)
 	_fire("pad_" + kind)
 	return pad
 
@@ -634,9 +702,9 @@ func sv_uplink() -> Dictionary:
 	pads["sv"] = pad
 	if pad["uplinked"]:
 		Bus.set_value("mission.pad_text", "STATE VECTOR uplinked at %s" % Units.hms(SimClock.get_seconds))
-		_say("Houston: Columbia, your state vector is in.")
+		_say("Houston: {csm}, your state vector is in.")
 	else:
-		_say("Houston: Columbia, we have a state vector for you, P00 and UP TLM to ACCEPT please.")
+		_say("Houston: {csm}, we have a state vector for you, P00 and UP TLM to ACCEPT please.")
 	_fire("pad_sv")
 	return pad
 
@@ -652,7 +720,7 @@ func entry_pad() -> Dictionary:
 	var target := entry_target()
 	var pad := Rtcc.plan_entry(tracked, target.x, target.y)
 	if pad.is_empty():
-		_say("Houston: Columbia, no entry PAD: you're not coming down to entry interface.")
+		_say("Houston: {csm}, no entry PAD: you're not coming down to entry interface.")
 		return {}
 	pad["state"] = tracked
 	pad["uplinked"] = agc != null and agc.uplink_state(tracked) and agc.uplink_entry_target(target.x, target.y)
@@ -663,12 +731,12 @@ func entry_pad() -> Dictionary:
 	if pad["uplinked"]:
 		_say("Houston, uplinking your state vector and target. " + text)
 	else:
-		_say("Houston: Columbia, we can't uplink, we need P00 and UP TLM to ACCEPT. By voice: " + text)
+		_say("Houston: {csm}, we can't uplink, we need P00 and UP TLM to ACCEPT. By voice: " + text)
 	_fire("pad_entry")
 	return pad
 
 
-## Where Columbia is over the Earth: latitude and east longitude, deg.
+## Where the CSM is over the Earth: latitude and east longitude, deg.
 func geographic() -> Vector2:
 	var tr := dynamics.traj
 	var p := Bodies.eci_to_earth_fixed([tr.s[0], tr.s[1], tr.s[2]], tr.t)
@@ -712,8 +780,8 @@ func _disperse() -> void:
 
 ## The REFSMMAT a start phase's IMU is aligned to: the launch pad's until
 ## the lunar orbit (mission.json "launch_refsmmat"), the landing site's
-## there and while Eagle flies, and on the way home the local vertical at
-## the start (P52's nominal orientation).
+## (or the lunar site's) there and while the LM flies, and on the way home
+## the local vertical at the start (P52's nominal orientation).
 func start_refsmmat(p_phase: String) -> Basis:
 	var tr := dynamics.traj
 	if p_phase in ["lunar_orbit", "tei"] + LM_PHASES:
@@ -726,9 +794,10 @@ func start_refsmmat(p_phase: String) -> Basis:
 
 ## The landing site REFSMMAT for the CSM's lunar orbit [param tr]: X up
 ## through the site at the landing time, Z downrange (P52 option 4).
+## Without a landing, the lunar site's at its time [simplified: Apollo 8's
+## lunar orbit REFSMMAT was LOI-2's burn attitude].
 func landing_site_refsmmat(tr: Trajectory) -> Basis:
-	var t_land := float(mission.section("landing")["get_s"])
-	return Imu.landing_site(Rtcc.site_at(landing_site(), t_land), tr.pos().cross(tr.vel()))
+	return Imu.landing_site(Rtcc.site_at(landing_site(), site_get()), tr.pos().cross(tr.vel()))
 
 
 ## The PDI PAD, after DOI: the ground predicts PDI with the LGC's own
@@ -768,7 +837,7 @@ func pdi_pad() -> Dictionary:
 	plan["pdi_pad_tig"] = tig
 	var text := "PDI PAD: TIG %s, state vector uplinked" % Units.hms(tig)
 	Bus.set_value("mission.pad_text", text)
-	_say("Houston: Eagle, we've uplinked your state vector. " + text)
+	_say("Houston: {lm}, we've uplinked your state vector. " + text)
 	_fire("pad_pdi")
 	return pad
 
@@ -809,7 +878,7 @@ func ascent_pad(earliest: float = -1.0) -> Dictionary:
 		float(pad["xrng"]) / Units.NMI, Units.hms(float(pad["insertion_get"])), float(pad["hp"]) / Units.NMI,
 		float(pad["ha"]) / Units.NMI]
 	Bus.set_value("mission.pad_text", text)
-	_say("Houston: Eagle, your ascent PAD. " + text)
+	_say("Houston: {lm}, your ascent PAD. " + text)
 	_fire("pad_ascent")
 	return pad
 
@@ -853,7 +922,7 @@ func csi_pad() -> Dictionary:
 		float(pad["cdh_dv"]) / Units.FT, Units.hms(float(pad["tpi_get"])), float(pad["tpi_dv"]) / Units.FT,
 		float(pad["braking_dv"]) / Units.FT]
 	Bus.set_value("mission.pad_text", text)
-	_say("Houston: Eagle, your CSI PAD. " + text)
+	_say("Houston: {lm}, your CSI PAD. " + text)
 	_fire("pad_csi")
 	return pad
 
@@ -861,7 +930,7 @@ func csi_pad() -> Dictionary:
 # --- the timeline -------------------------------------------------------------------
 
 func _timeline_entries() -> Array:
-	return mission.section("lunar_timeline").get("entries", [])
+	return mission.section("timeline").get("entries", [])
 
 
 func _timeline_entry(id: String) -> Dictionary:
@@ -904,12 +973,17 @@ func _timeline() -> void:
 		timeline_done[id] = now
 		if e.has("say"):
 			_say(str(e["say"]))
-		if e.has("pad"):
+		if e.has("n81_ft_s"):
+			maneuver_pad(e)
+		elif e.has("pad"):
 			# With "near", the opportunity nearest that GET: the first after
-			# half the CSM's orbit before it.
+			# half the CSM's orbit before it; with "tig", a midcourse
+			# correction's TIG.
 			var earliest := -1.0
 			if e.has("near"):
 				earliest = _get_s(e["near"]) - 0.5 * float(dynamics.traj.conic()["period"])
+			elif e.has("tig"):
+				earliest = _get_s(e["tig"])
 			request_pad(str(e["pad"]), earliest)
 		_fire("timeline_" + id)
 	Bus.set_value("mission.next_event_get_s", _timeline_next(now))
@@ -939,14 +1013,20 @@ func _timeline_pass_by(t: float) -> void:
 			timeline_done[id] = -1.0
 
 
-## A timeline entry's condition ("when").
+## A timeline entry's condition ("when"): a flight phase's name (the
+## phase then), or one of those below.
 func _condition(when: String) -> bool:
+	if when in PHASES:
+		return phase == when
 	var lm := dynamics.lm
 	var tr := dynamics.traj
 	var in_orbit := tr.primary == "moon" and float(tr.conic()["energy"]) < 0.0
 	var before_landing := lm != null and not lm.landed and not _has("lm_landing")
 	var ok := true
 	match when:
+		"separated":
+			# The CSM off the S-IVB, on its way out.
+			ok = phase == "translunar_coast" and dynamics.config in ["csm_lm", "csm"]
 		"docked":
 			# The whole LM docked, in lunar orbit.
 			ok = in_orbit and dynamics.config == "csm_lm" and dynamics.lm_config == "lm"
@@ -955,7 +1035,7 @@ func _condition(when: String) -> bool:
 			ok = before_landing
 		"lm_descent":
 			# ...and within DESCENT_LEAD_S of the landing time.
-			ok = before_landing and SimClock.get_seconds > float(mission.section("landing")["get_s"]) - DESCENT_LEAD_S
+			ok = before_landing and SimClock.get_seconds > site_get() - DESCENT_LEAD_S
 		"lm_landed":
 			ok = lm != null and lm.landed
 		"lm_orbit":
@@ -964,10 +1044,10 @@ func _condition(when: String) -> bool:
 		"docked_ascent":
 			ok = in_orbit and dynamics.config == "csm_lm" and dynamics.lm_config == "lm_ascent"
 		"csm_orbit":
-			# Columbia alone in lunar orbit, the LM jettisoned.
+			# The CSM alone in lunar orbit, the LM jettisoned or never carried.
 			ok = in_orbit and dynamics.config == "csm" and lm == null
 		"earth_return":
-			# Columbia on the way home, past the Moon's sphere of influence.
+			# The CSM on the way home, past the Moon's sphere of influence.
 			ok = tr.primary == "earth" and dynamics.config == "csm" and visited_lunar_orbit
 	return ok
 
@@ -1076,6 +1156,8 @@ func _set_lm_landed(t: float) -> void:
 ## found by flying it, once in a process.
 func _lunar_orbit_start() -> Trajectory:
 	var lo := mission.section("lunar_orbit")
+	if not SpacecraftData.carries_lm():
+		return _csm_orbit_start(lo)
 	var t0 := _get_s(lo["start_get"])
 	var site := landing_site()
 	var r_site := site.length()
@@ -1120,6 +1202,26 @@ func _lunar_orbit_start() -> Trajectory:
 	return tr
 
 
+## Without an LM, the CSM's orbit after LOI-2 [param lo] (mission.json
+## "lunar_orbit"): its apsides above the lunar site's radius, in the plane
+## over the site at its time, the site at the ground track's farthest from
+## the equator (Rtcc.site_orbit_normal()), from where it was at its start
+## (start_lat_deg, start_lon_deg), put in the plane, its pericynthion
+## there [simplified].
+func _csm_orbit_start(lo: Dictionary) -> Trajectory:
+	var t0 := _get_s(lo["start_get"])
+	var r_site := landing_site().length()
+	var rp := r_site + float(lo["perilune_nmi"]) * Units.NMI
+	var ra := r_site + float(lo["apolune_nmi"]) * Units.NMI
+	var h := Rtcc.site_orbit_normal(landing_site(), site_get())
+	var at := Bodies.selenographic_to_fixed(float(lo["start_lat_deg"]), float(lo["start_lon_deg"]), Bodies.R_MOON)
+	var p := Rtcc.site_at(at, t0).normalized()
+	p = (p - h * p.dot(h)).normalized()
+	var tr := Trajectory.new()
+	tr.set_state_d("moon", t0, Rtcc.conic_state(Bodies.MU_MOON, (rp + ra) / 2.0, (ra - rp) / (ra + rp), p, h, 0.0))
+	return tr
+
+
 ## A GET given in seconds, or as "hhh:mm:ss".
 static func _get_s(v: Variant) -> float:
 	if v is String:
@@ -1132,12 +1234,27 @@ static func _v3(a: Array) -> Vector3:
 	return Vector3(a[0], a[1], a[2])
 
 
-## The landing site in the Moon-fixed frame, on the surface there, m.
+## The landing site in the Moon-fixed frame, on the surface there, m. A
+## mission without a landing sets its lunar orbit's plane by a site on its
+## ground track instead (mission.json "lunar_site"), taken at the Moon's
+## mean radius, which its orbit's altitudes count from [simplified].
 func landing_site() -> Vector3:
+	if not mission.data.has("landing"):
+		var ls := mission.section("lunar_site")
+		return Bodies.selenographic_to_fixed(float(ls["lat_deg"]), float(ls["lon_deg"]), Bodies.R_MOON)
 	var l := mission.section("landing")
 	var lat := float(l["lat_deg"])
 	var lon := float(l["lon_deg"])
 	return Bodies.selenographic_to_fixed(lat, lon, Bodies.R_MOON + Terrain.height(lat, lon))
+
+
+## When the lunar orbit's plane passes over the site, the ground track
+## there at its farthest from the equator: the landing time, or the lunar
+## site's time (mission.json "lunar_site": get).
+func site_get() -> float:
+	if not mission.data.has("landing"):
+		return _get_s(mission.section("lunar_site")["get"])
+	return float(mission.section("landing")["get_s"])
 
 
 ## The GET event [param id] fired at, or -1 if it hasn't.
@@ -1161,9 +1278,12 @@ func _fire(id: String) -> void:
 	event_fired.emit(id)
 
 
-func _say(text: String) -> void:
-	Bus.set_value("mission.capcom", "%s  %s" % [Units.hms(SimClock.get_seconds), text])
-	capcom.emit(text)
+## CAPCOM says [param text], each {role} in it the mission's call sign
+## (Mission.words()), and [param more]'s entries for theirs.
+func _say(text: String, more: Dictionary = {}) -> void:
+	var words := mission.words(text, more)
+	Bus.set_value("mission.capcom", "%s  %s" % [Units.hms(SimClock.get_seconds), words])
+	capcom.emit(words)
 
 
 func snapshot() -> Dictionary:

@@ -172,17 +172,19 @@ func update_mass() -> void:
 
 
 ## The LM's mass in [param cfg], from its systems' propellant (full tanks
-## until they publish it).
+## until they publish it); without an LM, the test article's.
 func _lm_mass(cfg: String) -> float:
+	if not SpacecraftData.carries_lm():
+		return SpacecraftData.payload_mass()
 	var f := SpacecraftData.lm_full_loads()
 	return SpacecraftData.lm_total_mass(cfg, float(Bus.get_value("lm.dps.prop_kg", f[0])),
 		float(Bus.get_value("lm.aps.prop_kg", f[1])), float(Bus.get_value("lm.rcs.prop_kg", f[2])))
 
 
 ## The LM is still with the mission: in the S-IVB's adapter, docked, or
-## flying free (not jettisoned).
+## flying free (not jettisoned). A mission without one never has it.
 func has_lm() -> bool:
-	return lm != null or config == "saturn_v" or config == "stack" or config == "csm_lm"
+	return lm != null or (SpacecraftData.carries_lm() and config in ["saturn_v", "stack", "csm_lm"])
 
 
 ## The speed through the air, which turns with the Earth, m/s.

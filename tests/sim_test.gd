@@ -26,10 +26,12 @@ func after_each() -> void:
 	_held_keys.clear()
 
 
-func build(phase: String = "") -> SimRuntime:
+## Build the runtime for mission [param mission] (an id under
+## data/missions/), started in [param phase] unless it's empty.
+func build(phase: String = "", mission: String = Mission.DEFAULT_ID) -> SimRuntime:
 	Bus.reset()
 	SimClock.reset()
-	rt = SimRuntime.build(self)
+	rt = SimRuntime.build(self, Mission.path_of(mission))
 	for n in rt.nodes:
 		autofree(n)
 	if phase != "":

@@ -2,11 +2,15 @@
 ## series tools/ephemeris/fit_ephemeris.py fits, as Ephemeris and Bodies
 ## evaluate them, against JPL Horizons values held out of the fit
 ## (tests/fixtures/ephemeris_check.json). The slice asks for the Moon within
-## 1 km and the Sun within 0.01°; the fit is far closer.
+## 1 km and the Sun within 0.01°; the fit is far closer. Apollo 8's (slice
+## 7a) is held to the same, against its own points
+## (tests/fixtures/ephemeris_check_apollo_8.json).
 extends GutTest
 
 const PATH := "res://data/ephemeris/apollo_11.json"
 const CHECK := "res://tests/fixtures/ephemeris_check.json"
+const APOLLO_8_PATH := "res://data/ephemeris/apollo_8.json"
+const APOLLO_8_CHECK := "res://tests/fixtures/ephemeris_check_apollo_8.json"
 ## Apollo 11's touchdown, 102:45:40 GET, and where.
 const T_LAND := 369940.0
 const SITE_LAT := 0.674
@@ -52,13 +56,29 @@ static func _angle_deg(a: PackedFloat64Array, b: Array) -> float:
 
 func test_the_moon_and_the_sun_match_jpl_away_from_the_fitted_points() -> void:
 	assert_eq(points.size(), 24, "three points in each of the eight segments")
+	_assert_matches_jpl(eph, points)
+
+
+func test_apollo_8s_match_jpl_too() -> void:
+	var e8 := Ephemeris.load_file(APOLLO_8_PATH)
+	var p8: Array = JSON.parse_string(FileAccess.get_file_as_string(APOLLO_8_CHECK))["points"]
+	assert_almost_eq(e8.epoch_jd_utc, 2440212.0354167, 1e-7, "GET 0 at range zero, 12:51:00 UTC on 21 December 1968")
+	assert_eq(p8.size(), 24, "three points in each of the eight segments")
+	Bodies.use_ephemeris(e8)
+	_assert_matches_jpl(e8, p8)
+	_assert_moon_frame(e8, p8)
+
+
+## The Moon's state and the Sun's direction [param e] gives against JPL's
+## at [param pts].
+func _assert_matches_jpl(e: Ephemeris, pts: Array) -> void:
 	var worst := {"moon_m": 0.0, "moon_mps": 0.0, "sun_deg": 0.0}
-	for p in points:
+	for p in pts:
 		var t := float(p["get_s"])
 		var m := Bodies.moon_state(t)
 		worst["moon_m"] = maxf(worst["moon_m"], _dist(m, p["moon"], 0))
 		worst["moon_mps"] = maxf(worst["moon_mps"], _dist(m, p["moon"], 3))
-		worst["sun_deg"] = maxf(worst["sun_deg"], _angle_deg(eph.sun_position(t), p["sun"]))
+		worst["sun_deg"] = maxf(worst["sun_deg"], _angle_deg(e.sun_position(t), p["sun"]))
 		assert_lt(rad_to_deg(Bodies.sun_direction(t).angle_to(Vector3(p["sun"][0], p["sun"][1], p["sun"][2]).normalized())),
 			1e-4, "Bodies' Sun, in single precision")
 	gut.p("Against JPL: the Moon within %.3f m and %s m/s, the Sun within %s°" % [
@@ -69,9 +89,14 @@ func test_the_moon_and_the_sun_match_jpl_away_from_the_fitted_points() -> void:
 
 
 func test_the_moon_fixed_frame_is_jpls_mean_earth_frame() -> void:
-	for p in points:
+	_assert_moon_frame(eph, points)
+
+
+## The Moon's orientation [param ep] gives against JPL's at [param pts].
+func _assert_moon_frame(ep: Ephemeris, pts: Array) -> void:
+	for p in pts:
 		var t := float(p["get_s"])
-		var ang := eph.moon_angles(t)
+		var ang := ep.moon_angles(t)
 		for i in 3:
 			assert_almost_eq(ang[i], float(p["moon_orientation"][i]), 1e-6, "the IAU model's angle %d at GET %.0f" % [i, t])
 		# Where the Earth stands over the Moon, as Horizons has it.

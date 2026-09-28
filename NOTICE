@@ -37,8 +37,8 @@ above.
 Lunar and solar ephemeris
 -------------------------
 data/ephemeris/ holds Chebyshev series fitted by
-tools/ephemeris/fit_ephemeris.py, and tests/fixtures/ephemeris_check.json
-the values held out of the fit:
+tools/ephemeris/fit_ephemeris.py, one for each mission's dates, and
+tests/fixtures/ephemeris_check*.json the values held out of each fit:
 
 - The Moon's and the Sun's geocentric positions: JPL's DE441 planetary
   and lunar ephemeris (Park et al., 2021, Astron. J. 161:105), from the
@@ -49,7 +49,8 @@ the values held out of the fit:
   Celest. Mech. Dyn. Astr. 109:101), as NAIF's text kernel pck00010.tpc
   gives it (https://naif.jpl.nasa.gov/). Credit: NASA/JPL Navigation and
   Ancillary Information Facility.
-- TAI - UTC for 1969 from the US Naval Observatory's tai-utc.dat.
+- TAI - UTC for 1968 to 1971 from the US Naval Observatory's
+  tai-utc.dat.
 
 Navigation stars
 ----------------
