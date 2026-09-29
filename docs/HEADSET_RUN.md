@@ -66,6 +66,11 @@ godot --main-pack build/ApolloVR.pck --xr-mode on -- --phase=lunar_orbit
 The presets leave out `tests/`, `tools/` and the GUT addon, and bring
 `data/`'s CSV and JSON files.
 
+### On a Quest 3 by itself
+
+`docs/QUEST_STANDALONE.md` installs CI's APK on a Quest 3 and runs rows
+Q1 to Q4, with no PC.
+
 The `lunar_orbit` start puts you in a 60-mile orbit with Eagle docked, the
 lunar surface below and the Earth in view. The checklist card by your left
 shoulder opens at *Lunar orbit and TEI*.

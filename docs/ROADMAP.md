@@ -1747,14 +1747,17 @@ in Earth orbit, Apollo 7 and 9, are left for later.
 
 ## 8. A way in
 
-**Status: slices 8a to 8c done.** The flight menu opens at launch, and
-on F1 or the wrist menu's FLIGHT during a flight; the flags on the
-command line (`--mission=`, `--phase=`: `docs/HEADSET_RUN.md`) still
-start a flight without it. Its SAVES page saves, resumes and deletes
-flights, F5 and F9 keep a quick save among them, and the settings are
-kept between sessions. CI exports the PC VR presets in
-`export_presets.cfg` on every push, flies a minute of the launch on the
-Linux build, and keeps the builds from `main` and tags. This milestone lets a person pick a flight, fly it and come back to it,
+**Status: slices 8a to 8c done; 8d prepared, its pass waiting on a
+Quest 3.** The flight menu opens at launch, and on F1 or the wrist
+menu's FLIGHT during a flight; the flags on the command line
+(`--mission=`, `--phase=`: `docs/HEADSET_RUN.md`) still start a flight
+without it. Its SAVES page saves, resumes and deletes flights, F5 and F9
+keep a quick save among them, and the settings are kept between
+sessions. CI exports the PC VR presets in `export_presets.cfg` on every
+push, flies a minute of the launch on the Linux build, and keeps the
+builds from `main` and tags. It builds the Quest 3 preset's APK too,
+after drawing the scene with the headset's renderer
+(`docs/QUEST_STANDALONE.md`). This milestone lets a person pick a flight, fly it and come back to it,
 on the desktop or in a headset, from a build CI made, and so lets someone
 who doesn't build the project run the headset pass (2e) and the
 listening pass (6a).
@@ -1789,7 +1792,11 @@ listening pass (6a).
 - **A standalone headset** last: gemini-capsule's Quest 3 preset (the
   `gl_compatibility` renderer, ARM64), the procedural Earth, Moon and sky
   and the lunar terrain measured on the headset and cut to its frame
-  budget where they miss it.
+  budget where they miss it. The preset, CI's APK and its drawing of the
+  scene with the Compatibility renderer are in, and the headset recorder
+  times the frames by vehicle and flight phase for the pass (rows Q1 to
+  Q4 of `docs/VR_ACCEPTANCE.md`); the measuring, and any cut, wait on a
+  Quest 3.
 
 | Slice | Work | Check |
 |---|---|---|

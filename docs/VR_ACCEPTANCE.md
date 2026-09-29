@@ -67,6 +67,19 @@ A second run, from `--phase=lunar_descent` (`HEADSET_RUN.md`).
 | E4 | ENG ARM: the first crossing pulls the lever out, the second moves it | | |
 | E5 | The LPD's marks sit on the commander's window | | |
 
+## Standalone headset (Quest 3)
+
+A run on a Quest 3 by itself, from CI's APK (`QUEST_STANDALONE.md`).
+Q2 and Q3 take the frames drawn there: within the budget is no more
+than 1 % of them over 1.5 times the headset's frame time.
+
+| # | Check | Pass? | Notes |
+|---|---|---|---|
+| Q1 | CI's APK installs; OpenXR starts without a PC and the flight menu is on the wrist | | |
+| Q2 | Columbia's cabin in lunar orbit, five minutes at 1x, within the frame budget | | |
+| Q3 | Eagle's descent orbit and powered descent, five minutes, within the frame budget | | |
+| Q4 | The Earth, the Moon, the sky and the terrain look as on a PC | | |
+
 Also record the commit, headset, controllers, OpenXR runtime, refresh rate
 and date, and one photo or capture from the couch. Any Fail row becomes
 its own issue.
@@ -126,6 +139,5 @@ its own issue.
 ## Known gaps, not failures
 
 - No far-field pointer in the headset; no grabbed rotation or translation
-  controller (the thumbsticks fly them); no haptics or switch sounds.
-- The eye height isn't saved between sessions.
+  controller (the thumbsticks fly them); no haptics.
 - Hand tracking isn't implemented; use the controllers.

@@ -110,6 +110,9 @@ merge to `main`, as the run's `ApolloVR-pc-vr` artifact, and are attached
 to a tag's release; each has the executable and its `.pck` side by side.
 CI flies a minute of the launch on the Linux build, headless, before it
 keeps them (`-- --quit-after=<s>` quits after that many seconds of GET).
+It builds a Quest 3 APK the same way, for a Quest by itself, with no PC
+([docs/QUEST_STANDALONE.md](docs/QUEST_STANDALONE.md)); no pass on a
+Quest has been recorded yet.
 
 `godot --path . --xr-mode on` starts OpenXR, which is off by default, and
 puts you in the commander's couch in a headset, or, once Eagle undocks
@@ -1751,6 +1754,7 @@ the flight menu picks any mission and start phase, on the desktop and on
 the wrist, and starts it in place of the flight flown (slice 8a), and
 saves flights and resumes them, the settings kept between sessions
 (slice 8b), and CI builds the PC VR presets and flies the Linux build
-before it keeps them (slice 8c). A standalone headset comes next, then
-failures, backups and aborts, every mission from the pad, the LM's
-navigation, and Apollo 14 to 17.
+before it keeps them (slice 8c), and builds a Quest 3 APK, whose pass on
+the headset is still to be run (slice 8d). Failures, backups and aborts
+come next, then every mission from the pad, the LM's navigation, and
+Apollo 14 to 17.

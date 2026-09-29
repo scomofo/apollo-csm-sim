@@ -6,6 +6,8 @@ on:
 
 env:
   GODOT_VERSION: 4.4.1
+  # The OpenXR Vendors plugin's v4 line supports Godot 4.4 (v5 needs 4.6).
+  OPENXR_VENDORS_VERSION: 4.3.1-stable
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -191,8 +193,170 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
+          # The build and quest jobs both attach: whichever comes first makes the release.
+          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes 2> /dev/null || true
           gh release upload "$GITHUB_REF_NAME" ApolloVR-linux-x86_64.zip ApolloVR-windows-x86_64.zip --clobber
+
+  quest:
+    # The Quest 3 Standalone preset (docs/QUEST_STANDALONE.md), after
+    # gemini-capsule's quest-export job: the scene drawn with the
+    # Compatibility renderer the headset uses, on software GL, then a
+    # debug APK built with Gradle, the Android SDK and the OpenXR Vendors
+    # plugin. A compile, link and package gate only: the headset's own
+    # pass is a person's, with a Quest 3.
+    timeout-minutes: 45
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Install Godot 4.4's Android SDK packages
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager \
+            "platform-tools" \
+            "build-tools;34.0.0" \
+            "platforms;android-34" \
+            "cmdline-tools;latest" \
+            "cmake;3.10.2.4988404" \
+            "ndk;23.2.8568313"
+
+      - name: Cache Godot
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot
+          key: godot-${{ env.GODOT_VERSION }}-linux
+
+      - name: Download Godot
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot
+          curl -sSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip -d ~/godot
+          mv ~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 ~/godot/godot
+          chmod +x ~/godot/godot
+
+      # A Gradle build needs only the Android build template's source.
+      - name: Cache the Android export template
+        id: cache-templates
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.stable
+          key: godot-templates-${{ env.GODOT_VERSION }}-android
+
+      - name: Download the Android export template
+        if: steps.cache-templates.outputs.cache-hit != 'true'
+        run: |
+          curl -sSL -o templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          dir="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$dir"
+          unzip -j -q templates.tpz templates/version.txt templates/android_source.zip -d "$dir"
+          rm templates.tpz
+
+      - name: Ensure an Android debug keystore
+        run: |
+          mkdir -p "$HOME/.android"
+          if [ ! -f "$HOME/.android/debug.keystore" ]; then
+            keytool -genkeypair -v \
+              -keystore "$HOME/.android/debug.keystore" \
+              -storepass android -alias androiddebugkey -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+      # The Gradle build runs near the edge of the runner's disk.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/boost /usr/local/share/powershell || true
+          df -h /
+
+      - name: Install a virtual display and software GL
+        run: sudo apt-get update -q && sudo apt-get install -y -q xvfb libgl1-mesa-dri
+
+      - name: Import project
+        run: timeout 300 ~/godot/godot --headless --path . --import
+
+      # Every shader the scene uses, compiled and drawn by the headset's
+      # renderer: Columbia's cabin, the chase view in lunar orbit, and the
+      # Moon's surface from Eagle's descent orbit.
+      - name: Draw the scene with the Compatibility renderer
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          mkdir -p compat
+          shot() {
+            timeout 300 xvfb-run -a -s "-screen 0 1600x900x24" ~/godot/godot --path . \
+              --rendering-driver opengl3 --rendering-method gl_compatibility --audio-driver Dummy \
+              tools/screenshot.tscn -- "$@" 2>&1 | tee -a compat/log.txt
+          }
+          shot --phase=lunar_orbit --view=2 --yaw=-0.3 --pitch=-0.12 --hud=0 --out="$PWD/compat/cabin.png"
+          shot --phase=lunar_orbit --view=1 --out="$PWD/compat/chase.png"
+          shot --phase=lunar_descent --view=0 --out="$PWD/compat/descent.png"
+          test -s compat/cabin.png && test -s compat/chase.png && test -s compat/descent.png
+          if grep -E "SHADER ERROR|SCRIPT ERROR|^ERROR" compat/log.txt; then exit 1; fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: compatibility-renders
+          path: compat/*.png
+          retention-days: 14
+
+      # After the drawing, which needs no Android plugin.
+      - name: Install the pinned OpenXR Vendors plugin
+        run: |
+          curl -sSL -o vendors.zip \
+            "https://github.com/GodotVR/godot_openxr_vendors/releases/download/${OPENXR_VENDORS_VERSION}/godotopenxrvendorsaddon.zip"
+          rm -rf /tmp/vendors
+          unzip -q vendors.zip -d /tmp/vendors
+          test -d /tmp/vendors/asset/addons/godotopenxrvendors
+          mkdir -p addons
+          mv /tmp/vendors/asset/addons/godotopenxrvendors addons/godotopenxrvendors
+
+      - name: Import the plugin
+        run: timeout 300 ~/godot/godot --headless --path . --import
+
+      - name: Export the Quest 3 debug APK
+        run: |
+          mkdir -p build/android-quest
+          timeout 1800 ~/godot/godot --headless --path . \
+            --install-android-build-template \
+            --export-debug "Quest 3 Standalone" build/android-quest/ApolloVR.apk
+          test -f android/build/build.gradle
+          test -s build/android-quest/ApolloVR.apk
+          unzip -tq build/android-quest/ApolloVR.apk > /dev/null
+          cp build/android-quest/ApolloVR.apk ApolloVR-quest3-debug.apk
+
+      - name: Keep the APK
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
+        uses: actions/upload-artifact@v4
+        with:
+          name: ApolloVR-quest3
+          path: ApolloVR-quest3-debug.apk
+          retention-days: 30
+
+      - name: Attach the APK to the tag's release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The build and quest jobs both attach: whichever comes first makes the release.
+          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes 2> /dev/null || true
+          gh release upload "$GITHUB_REF_NAME" ApolloVR-quest3-debug.apk --clobber
 
   lint:
     # Static checks that need no Godot binary. gdlint is advisory
