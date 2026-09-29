@@ -46,4 +46,5 @@ anti_aliasing/quality/msaa_3d=1
 openxr/enabled=false
 openxr/reference_space=0
 openxr/startup_alert=false
+openxr/extensions/meta/color_space/starting_color_space=3
 shaders/enabled=true

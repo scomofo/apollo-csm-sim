@@ -19,7 +19,11 @@ verified.
   the headset as it does on a PC run with that flag, while the project
   keeps OpenXR off for desktop runs;
 - the Compatibility renderer (`gl_compatibility`), which
-  `project.godot` sets for mobile, where a PC uses Forward+.
+  `project.godot` sets for mobile, where a PC uses Forward+;
+- the Meta plugin's starting color space at REC709
+  (`xr/openxr/extensions/meta/color_space/starting_color_space` in
+  `project.godot`), which its export requires. Without the plugin, a
+  desktop run ignores the setting.
 
 ## Getting the APK
 
