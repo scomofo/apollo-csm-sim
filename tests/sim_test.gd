@@ -28,11 +28,15 @@ var _held_keys: Array[Key] = []
 var burn_log: Dictionary = {}
 
 
-## A test that stopped with a key down leaves Input clean for the next.
+## A test that stopped with a key down leaves Input clean for the next,
+## and one that ran the clock fast (run()) leaves it at real time: above
+## the interactive rates SimClock locks the cabin's controls, for the tests
+## in the files after it too.
 func after_each() -> void:
 	for k in _held_keys:
 		_key_event(k, false)
 	_held_keys.clear()
+	SimClock.rate = 1.0
 
 
 ## Build the runtime for mission [param mission] (an id under
