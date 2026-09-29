@@ -4,8 +4,9 @@
 # up to two fifths longer than each other on a file; test_apollo_8.gd's
 # the longer of slice 7a's two (41a24cc's), test_apollo_10.gd's the longer
 # of slice 7b's two (86f10a4's), and test_apollo_12.gd's the longer of slice
-# 7c's two (bf7787b's), and test_apollo_13.gd's the longer of slice 7d's
-# two (e954913's).
+# 7c's two (bf7787b's), test_apollo_13.gd's the longer of slice 7d's
+# two (e954913's), and test_flight_menu.gd's slice 8b's, its two flows
+# (4193da7's push; its pull request made no run).
 # A file not listed counts 60 s.
 # Add a new file's time once CI has run it, and measure again when the
 # parts drift apart.
@@ -20,6 +21,7 @@ test_cabin_wrist_menu.gd 5
 test_docking.gd 16
 test_doi.gd 32
 test_entry.gd 118
+test_flight_menu.gd 9
 test_imu_alignment.gd 69
 test_landing.gd 159
 test_launch.gd 42
