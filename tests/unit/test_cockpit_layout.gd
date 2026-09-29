@@ -184,7 +184,7 @@ func _round_trip(p_layout: CockpitLayout, cabin: Cabin) -> void:
 
 func test_every_hud_switch_has_a_cabin_control() -> void:
 	# SPS THRUST ON is the HUD's manual backup: the cabin's is a lamp.
-	assert_eq(_hud_switches_without_a_control("_switch_panel", layout, 36), ["ctl.sps.thrust_on"], "Columbia's")
+	assert_eq(_hud_switches_without_a_control("_switch_panel", layout, 37), ["ctl.sps.thrust_on"], "Columbia's")
 	assert_eq(_hud_switches_without_a_control("_optics_panel", layout, 5), [], "the optics'")
 	assert_eq(_hud_switches_without_a_control("_lm_switch_panel", CockpitLayout.load_lm(), 16), [], "Eagle's")
 
@@ -280,7 +280,7 @@ func test_eagles_dsky_types_into_the_lgc_with_its_alt_and_vel_lamps() -> void:
 func test_the_desktop_rig_can_click_every_control_from_its_station() -> void:
 	# Columbia's console from the commander's couch; the optics' switches
 	# and the second DSKY from the lower equipment bay.
-	await _click_every_control(CmCabin.new(), layout, 36 + 19 + 6 + 19)
+	await _click_every_control(CmCabin.new(), layout, 37 + 19 + 6 + 19)
 	await _click_every_control(LmCabin.new(), CockpitLayout.load_lm(), 17 + 19)
 
 

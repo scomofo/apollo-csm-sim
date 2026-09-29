@@ -2,18 +2,23 @@
 # scenario files out over its parts evenly: the longer of each file's two
 # runs in slice 9c's CI (acf2686's, on its push and its pull request),
 # whose runners took up to three fifths longer than each other on a file,
-# test_launch_aborts.gd's in slice 9d's (4abd2c6's) and test_lm_aborts.gd's
-# in slice 9e's (f07f7cc's). test_apollo_8_launch.gd's, slice 10a's, is
-# estimated until CI has run it: its 54 s on a local run, where
-# test_launch_aborts.gd took 1.8 times its CI time.
+# test_launch_aborts.gd's in slice 9d's (4abd2c6's), test_lm_aborts.gd's
+# in slice 9e's (f07f7cc's), test_apollo_8_launch.gd's in slice 10a's
+# (f582853's) and test_apollo_10_launch.gd's in slice 10b's (9047c90's push
+# run, its only one). test_apollo_12_launch.gd's, slice 10c's, is estimated
+# until CI has run it: its 55 s on a local run, where
+# test_apollo_10_launch.gd took 2.4 times its CI time and
+# test_apollo_8_launch.gd 1.6.
 # A file not listed counts 60 s.
 # Add a new file's time once CI has run it, and measure again when the
 # parts drift apart.
 test_apollo_10.gd 311
+test_apollo_10_launch.gd 25
 test_apollo_12.gd 449
+test_apollo_12_launch.gd 30
 test_apollo_13.gd 153
 test_apollo_8.gd 148
-test_apollo_8_launch.gd 30
+test_apollo_8_launch.gd 34
 test_ascent.gd 50
 test_backups.gd 94
 test_cabin_checklists.gd 184

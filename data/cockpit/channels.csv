@@ -39,6 +39,7 @@ ctl.eps.fc3,bool,,crew,Fuel cell 3 on the main buses
 ctl.eps.batt_bus,bool,,crew,Entry batteries tied to the main buses
 ctl.eps.cm_power,int,,crew,CM POWER: how much of the CM is powered: 0 OFF (dark) 1 EMER (the emergency power-down's loads) 2 ALL
 ctl.eps.lm_power,bool,,crew,LM PWR: the CM takes the docked LM's power through the umbilical (it charges the entry batteries)
+ctl.sce.power,int,,crew,SCE PWR: the supply the signal conditioning equipment runs on: 0 OFF 1 NORM 2 AUX (slice 10c)
 ctl.els.logic,bool,,crew,ELS LOGIC
 ctl.els.auto,bool,,crew,ELS AUTO
 ctl.els.drogue,bool,,crew,Drogue deploy command (momentary)

@@ -13,6 +13,17 @@
       {"text": "The failed cell - off its buses (its FC switch, MDC-3): the other two carry the load"},
       {"text": "MN BUS A and B above 26.25 V (no UNDERVOLT light); if not, CM POWER - EMER"}
     ]},
+    {"title": "Malfunction: FC BUS DISCONNECT", "phases": [], "steps": [
+      {"text": "FC BUS DISCONNECT: a transient tripped the fuel cells' overload sensors, FC 1 to 3 off their buses; the entry batteries carry the mains, under 26.25 V (MN BUS A and B UNDERVOLT)"},
+      {"text": "MASTER ALARM - press", "control": "P1_MASTER_ALARM", "check": {"channel": "sys.master_alarm", "op": "eq", "value": false}},
+      {"text": "In the launch: on to staging on the batteries, the IU flying"},
+      {"text": "At Houston's call: each FC switch OFF and back ON (MDC-3), its cell back on its buses", "control": "P3_FC1", "check": {"channel": "eps.fc_bus_disconnect", "op": "eq", "value": false}},
+      {"text": "MN BUS A and B above 26.25 V: the UNDERVOLT lights out", "check": {"channel": "cw.mn_bus_a_undervolt", "op": "eq", "value": false}}
+    ]},
+    {"title": "Malfunction: SCE", "phases": [], "steps": [
+      {"text": "SCE: the signal conditioning equipment's NORM supply lost; Houston's telemetry reads nonsense (the HUD's TM LOST). No light: Houston calls it"},
+      {"text": "At Houston's \"SCE to AUX\": SCE PWR - AUX (MDC-3), the telemetry back", "control": "P3_SCE_POWER", "check": {"channel": "ctl.sce.power", "op": "eq", "value": 2}}
+    ]},
     {"title": "Malfunction: SM RCS A, B, C or D", "phases": [], "steps": [
       {"text": "SM RCS A, B, C or D: a quad's secondary fuel pressure out of limits"},
       {"text": "MASTER ALARM - press", "control": "P1_MASTER_ALARM", "check": {"channel": "sys.master_alarm", "op": "eq", "value": false}},
@@ -30,6 +41,13 @@
       {"text": "MASTER ALARM - press", "control": "P1_MASTER_ALARM", "check": {"channel": "sys.master_alarm", "op": "eq", "value": false}},
       {"text": "ATT SOURCE - SCS: the SCS holds the attitude", "control": "P1_ATT_SOURCE", "check": {"channel": "ctl.scs.att_source", "op": "eq", "value": 1}},
       {"text": "No coarse align, P51 or P52 brings the platform back: the burns on the SCS, to the EMS's count"}
+    ]},
+    {"title": "Malfunction: ISS, the platform tumbled", "phases": [], "steps": [
+      {"text": "ISS: a transient drove the platform's gimbals round; NO ATT on the DSKY, the CMC without an attitude"},
+      {"text": "MASTER ALARM - press", "control": "P1_MASTER_ALARM", "check": {"channel": "sys.master_alarm", "op": "eq", "value": false}},
+      {"text": "In the launch: the IU flies on; the GDC and the SCS keep the attitude (FDAI on the GDC)"},
+      {"text": "In orbit, at night: P51 (V37E 51E), a coarse align to the stars and two sightings; the platform back, the ISS light out", "check": {"channel": "imu.tumbled", "op": "eq", "value": false}},
+      {"text": "Houston's REFSMMAT uplink, then P52 option 1 to it"}
     ]},
     {"title": "Malfunction: LV ENG, LV RATE or LV GUID", "phases": [], "steps": [
       {"text": "LV ENG, LV RATE or LV GUID: a launch vehicle engine out, the vehicle's rates past the EDS's limits, or the IU's guidance lost"},

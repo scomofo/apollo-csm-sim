@@ -24,6 +24,21 @@
 ## for about 15 hours from 112 hours took them from 99 to 118 A-h,
 ## MSC-02680, sections 7.1.6 and 7.2.5].
 ##
+## Slice 10c: a transient trips the fuel cells' overload sensors
+## (fail("trip"), Apollo 12's first lightning strike): each cell on line
+## has its bus contactors opened and goes off line, where it stays until
+## the crew sets its switch OFF and ON again, reclosing them [simplified:
+## each cell's MN BUS A and B switches are one switch here]
+## [published: MSC-01540, pp. 18 to 20]. With no cell on line the entry
+## batteries carry the main buses, A and B with the SM on, all three
+## without it [published: the Mission Director's Summary Report,
+## M-932-69-12, p. 15], each at BATT_OPEN_V less BATT_OHM for its current:
+## 25.5 V on two at the launch's load, under the undervolt limit
+## [simplified: the flight's mains read 24 V, the crew's technical
+## debriefing, p. 3-4]. The talkbacks (eps.fc<n>_connected) show each
+## cell's contactors. The CM's systems run on down to BROWNOUT_V, as Apollo
+## 12's did at 24 V (sys.powered).
+##
 ## The failure catalog (data/failures.json, slice 9a) fails a part through
 ## fail(): an O2 tank, as above, or a fuel cell, whose output stops. The
 ## cryogenic tanks' pressures are published for the caution and warning
@@ -36,6 +51,7 @@
 ##         entry batteries to the mains), ctl.eps.cm_power,
 ##         ctl.eps.lm_power, dyn.config, lm.sys.powered
 ## Writes: eps.bus_a_v, eps.bus_b_v, eps.fc<n>_kw, eps.fc<n>_ok,
+##         eps.fc<n>_tripped, eps.fc<n>_connected, eps.fc_bus_disconnect,
 ##         eps.o2_tank<n>_kg, eps.h2_tank<n>_kg, eps.o2_tank<n>_psia,
 ##         eps.h2_tank<n>_psia, eps.batt_<x>_ah,
 ##         eps.load_w, eps.lm_draw_a, sys.powered (CautionWarning lights the
@@ -70,11 +86,24 @@ const CHARGE_A := 1.3
 ## AOH p. 2.10-5].
 const O2_PSIA := 900.0
 const H2_PSIA := 245.0
+## The main buses' voltage the CM's systems need, V [estimated: Apollo
+## 12's ran on at 24 V after its first strike, and its computer restarted
+## only in the dip to 18 or 19 V, MSC-01855, section 14.1.3].
+const BROWNOUT_V := 20.0
+## An entry battery on the main buses: its voltage off load and its
+## resistance, V and ohms [estimated: about 31 V on the battery bus before
+## Apollo 12's first strike, MSC-01540, Figure 14; the resistance that
+## gives 25.5 V on two at the launch's 1,900 W].
+const BATT_OPEN_V := 31.0
+const BATT_OHM := 0.148
 
 var o2_kg: Array[float] = [145.0, 145.0]
 var h2_kg: Array[float] = [12.7, 12.7]
 var batt_ah: Array[float] = [BATT_AH, BATT_AH, BATT_AH]
 var fc_ok: Array[bool] = [true, true, true]
+## Each cell off line on its tripped overload sensor, until its switch goes
+## OFF and ON again.
+var fc_tripped: Array[bool] = [false, false, false]
 ## Seconds since an O2 tank failure; negative when none.
 var o2_fault_age: float = -1.0
 var o2_fault_tank: int = -1
@@ -83,6 +112,8 @@ var o2_leak_kg_s: float = 0.0
 ## Each tank's oxygen when the failure came, kg: the failed tank's
 ## pressure falls with its venting, the other's with its leak.
 var o2_at_fault_kg: Array[float] = [0.0, 0.0]
+## Each FC switch at the last step.
+var _fc_switch_was: Array[bool] = [true, true, true]
 
 
 func _ready() -> void:
@@ -98,10 +129,14 @@ func _exit_tree() -> void:
 
 
 ## The failure catalog's [param part] fails: "o2_tank_1" or "o2_tank_2"
-## (fail_o2_tank()), or "fc1" to "fc3", a fuel cell.
+## (fail_o2_tank()), "fc1" to "fc3", a fuel cell, or "trip", every cell on
+## line tripped off it.
 func fail(part: String) -> void:
 	if part.begins_with("o2_tank_"):
 		fail_o2_tank(int(part.trim_prefix("o2_tank_")))
+	elif part == "trip":
+		for n in 3:
+			fc_tripped[n] = fc_ok[n] and bool(Bus.get_value("ctl.eps.fc%d" % (n + 1), true))
 	elif part.begins_with("fc"):
 		fc_ok[clampi(int(part.trim_prefix("fc")), 1, 3) - 1] = false
 
@@ -143,10 +178,13 @@ func tick(dt: float) -> void:
 	var o2_total := o2_kg[0] + o2_kg[1]
 	var h2_total := h2_kg[0] + h2_kg[1]
 	var cells: Array[int] = []
-	if sm_attached:
-		for n in 3:
-			if fc_ok[n] and bool(Bus.get_value("ctl.eps.fc%d" % (n + 1), true)) and o2_total > 0.0 and h2_total > 0.0:
-				cells.append(n)
+	for n in 3:
+		var sw := bool(Bus.get_value("ctl.eps.fc%d" % (n + 1), true))
+		if sw and not _fc_switch_was[n]:
+			fc_tripped[n] = false
+		_fc_switch_was[n] = sw
+		if sm_attached and fc_ok[n] and sw and not fc_tripped[n] and o2_total > 0.0 and h2_total > 0.0:
+			cells.append(n)
 	var fc_capacity := cells.size() * FC_MAX_KW * 1000.0
 	var fc_w := minf(load, fc_capacity)
 	var batt_w := load - fc_w
@@ -157,7 +195,9 @@ func tick(dt: float) -> void:
 	if not use_batt:
 		batt_w = 0.0
 	var volts := 0.0
-	if level > 0 and (fc_w > 0.0 or (batt_w > 0.0 and batt_available > 0.0)):
+	if level > 0 and fc_w <= 0.0 and batt_w > 0.0 and batt_available > 0.0:
+		volts = battery_volts(load, 2 if sm_attached else 3)
+	elif level > 0 and (fc_w > 0.0 or (batt_w > 0.0 and batt_available > 0.0)):
 		volts = NOMINAL_V + 1.2 - 0.9 * (load / 2000.0)
 		if batt_w > 0.0 and batt_available <= 0.0:
 			volts *= fc_w / load
@@ -170,6 +210,15 @@ func tick(dt: float) -> void:
 		for i in 3:
 			batt_ah[i] = maxf(0.0, batt_ah[i] - ah)
 	publish_state(volts, load, fc_w / maxf(cells.size(), 1) / 1000.0, cells)
+
+
+## The main buses' voltage with [param batteries] entry batteries alone
+## carrying [param load_w] between them: BATT_OPEN_V less each one's
+## current through BATT_OHM.
+static func battery_volts(load_w: float, batteries: int) -> float:
+	# V = V0 - R P / (n V), the larger root.
+	var k := BATT_OHM * load_w / float(batteries)
+	return (BATT_OPEN_V + sqrt(maxf(BATT_OPEN_V * BATT_OPEN_V - 4.0 * k, 0.0))) / 2.0
 
 
 ## Docked to a powered LM, with the LM's power taken through the
@@ -204,10 +253,15 @@ func publish_state(volts: float, load: float, kw_per_cell: float, cells: Array[i
 	Bus.set_value("eps.bus_a_v", volts)
 	Bus.set_value("eps.bus_b_v", volts)
 	Bus.set_value("eps.load_w", load)
-	Bus.set_value("sys.powered", volts > 25.0)
+	Bus.set_value("sys.powered", volts > BROWNOUT_V)
+	var tripped := false
 	for n in 3:
 		Bus.set_value("eps.fc%d_kw" % (n + 1), kw_per_cell if cells.has(n) else 0.0)
 		Bus.set_value("eps.fc%d_ok" % (n + 1), fc_ok[n])
+		Bus.set_value("eps.fc%d_tripped" % (n + 1), fc_tripped[n])
+		Bus.set_value("eps.fc%d_connected" % (n + 1), bool(Bus.get_value("ctl.eps.fc%d" % (n + 1), true)) and not fc_tripped[n])
+		tripped = tripped or fc_tripped[n]
+	Bus.set_value("eps.fc_bus_disconnect", tripped)
 	for n in 2:
 		Bus.set_value("eps.o2_tank%d_kg" % (n + 1), o2_kg[n])
 		Bus.set_value("eps.h2_tank%d_kg" % (n + 1), h2_kg[n])
@@ -229,16 +283,21 @@ func o2_psia(n: int) -> float:
 func snapshot() -> Dictionary:
 	return {"o2": o2_kg.duplicate(), "h2": h2_kg.duplicate(), "batt": batt_ah.duplicate(),
 		"fc_ok": fc_ok.duplicate(), "fault_age": o2_fault_age, "fault_tank": o2_fault_tank, "leak_kg_s": o2_leak_kg_s,
-		"at_fault_kg": o2_at_fault_kg.duplicate()}
+		"at_fault_kg": o2_at_fault_kg.duplicate(), "fc_tripped": fc_tripped.duplicate(),
+		"fc_switch_was": _fc_switch_was.duplicate()}
 
 
 func restore(d: Dictionary) -> void:
 	for i in 2:
 		o2_kg[i] = float(d["o2"][i])
 		h2_kg[i] = float(d["h2"][i])
+	var tripped: Array = d.get("fc_tripped", [false, false, false])
+	var was: Array = d.get("fc_switch_was", [true, true, true])
 	for i in 3:
 		batt_ah[i] = float(d["batt"][i])
 		fc_ok[i] = bool(d["fc_ok"][i])
+		fc_tripped[i] = bool(tripped[i])
+		_fc_switch_was[i] = bool(was[i])
 	o2_fault_age = float(d.get("fault_age", -1.0))
 	o2_fault_tank = int(d.get("fault_tank", -1))
 	o2_leak_kg_s = float(d.get("leak_kg_s", 0.0))

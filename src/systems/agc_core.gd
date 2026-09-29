@@ -265,11 +265,15 @@ func powered_up() -> void:
 
 
 ## The failure catalog's [param part] fails (slice 9a): "imu", the
-## platform, for good; any other, the computer itself, which goes dark as
+## platform, for good; "imu_tumble", the platform tumbled until a coarse
+## align (slice 10c); any other, the computer itself, which goes dark as
 ## without power at its next step, and lights its caution (guid.fail).
 func fail(part: String) -> void:
-	if part == "imu":
-		imu.fail(Basis(_true_att()))
+	if part == "imu" or part == "imu_tumble":
+		if part == "imu":
+			imu.fail(Basis(_true_att()))
+		else:
+			imu.tumble(Basis(_true_att()))
 		_publish_imu()
 		return
 	failed = true
@@ -1115,6 +1119,7 @@ func _publish_indicator() -> void:
 ## preferred orientation for the stored maneuver.
 func _publish_imu() -> void:
 	Bus.set_value(_ch("imu.fail"), imu.failed)
+	Bus.set_value(_ch("imu.tumbled"), imu.tumbled)
 	Bus.set_value(_ch("imu.icdu_deg"), icdu())
 	Bus.set_value(_ch("imu.aligned"), imu.aligned)
 	Bus.set_value(_ch("imu.mode"), imu.mode)

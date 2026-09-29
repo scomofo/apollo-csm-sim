@@ -38,25 +38,11 @@ func test_apollo_8_flies_from_the_pad_into_its_parking_orbit_and_on_through_tli(
 	assert_almost_eq(float(lv.events.get("ignition", 0.0)), -8.9, 0.1, "the start sequence at T-8.9 s")
 	assert_almost_eq(float(lv.events.get("thrust_ok", 0.0)), -1.4, 0.1, "all engines running by T-1.4 s")
 	assert_eq(launch_lights(), "00000 00", "all five at thrust")
-	var states := {}
-	var lights: Array = []
-	var p11 := false
-	while not lv.events.has("insertion") and SimClock.get_seconds < 800.0:
-		run(1.0, false)
-		p11 = p11 or rt.agc().program == 11
-		lights.append([SimClock.get_seconds, launch_lights()])
-		for id in lv.events:
-			if not states.has(id):
-				states[id] = ascent_state()
+	var flight := fly_launch()
+	var states: Dictionary = flight["states"]
 	for id in FLOWN:
 		assert_true(lv.events.has(id), id)
-	var lines := PackedStringArray()
-	for id in FLOWN:
-		var s: Array = states.get(id, [0.0, 0.0, 0.0])
-		lines.append("%-19s %7.2f s (flown %7.2f)  %6.1f km  %7.1f m/s  %6.3f deg%s" % [id, float(lv.events.get(id, -1.0)),
-			float(FLOWN[id]), s[0], s[1], s[2],
-			"  (flown %.1f km, %.1f m/s, %.3f deg)" % FLOWN_STATES[id] if FLOWN_STATES.has(id) else ""])
-	gut.p("\n".join(lines))
+	gut.p(launch_table(flight, FLOWN, FLOWN_STATES))
 	var q := float(Bus.get_value("lv.max_q_pa", 0.0)) / 1000.0
 	gut.p("maximum dynamic pressure %.1f kPa (flown 37.2)" % q)
 	# The IU's clock: the tilt at AS-503's flown start, the centre engine's
@@ -80,7 +66,7 @@ func test_apollo_8_flies_from_the_pad_into_its_parking_orbit_and_on_through_tli(
 		var f: Array = FLOWN_STATES[id]
 		assert_almost_eq(float(s[1]), float(f[1]), 50.0, "%s: the velocity" % id)
 		assert_almost_eq(float(s[2]), float(f[2]), 1.0, "%s: the flight path angle" % id)
-	assert_true(p11, "the CMC in P11 through the ascent")
+	assert_true(flight["p11"], "the CMC in P11 through the ascent")
 	for c in [["liftoff", 10.0, "00000 10", "LIFTOFF"], ["sic_ceco", 10.0, "00001 10", "the centre engine out"],
 			["s2_ignition", 0.5, "11111 01", "the S-II's engines starting, S-II SEP"],
 			["interstage_jettison", -5.0, "00000 01", "the S-II at thrust"],
@@ -88,13 +74,7 @@ func test_apollo_8_flies_from_the_pad_into_its_parking_orbit_and_on_through_tli(
 			["emr_shift", 10.0, "00000 00", "all five J-2s burning on"],
 			["s4_ignition", 0.5, "10000 00", "the S-IVB starting"], ["s4_ignition", 10.0, "00000 00", "the S-IVB at thrust"],
 			["s4_cutoff", 2.0, "10000 00", "the S-IVB cut off"]]:
-		var at := float(lv.events[c[0]]) + float(c[1])
-		var seen := ""
-		for l: Array in lights:
-			if float(l[0]) >= at:
-				seen = l[1]
-				break
-		assert_eq(seen, c[2], "%s: %s" % [c[3], c[0]])
+		assert_eq(lights_after(flight, c[0], c[1]), c[2], "%s: %s" % [c[3], c[0]])
 
 	# The parking orbit: Apollo 8's, 32.5 degrees and about 100 nmi,
 	# round (ibid., Table 4-6: 185.18 by 184.41 km, 32.509 deg); the S-IVB

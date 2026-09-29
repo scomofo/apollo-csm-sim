@@ -2,7 +2,8 @@
 # unit test files out over its unit parts evenly, as scenario_seconds.txt
 # the scenario files: the longer of each file's two runs in slice 9e's CI
 # (f07f7cc's, on its push and its pull request), whose runners took up to
-# half as long again as each other. A file not listed counts 10 s.
+# half as long again as each other. test_lightning.gd's, slice 10c's, is
+# estimated until CI has run it. A file not listed counts 10 s.
 # Add a new file's time once CI has run it, and measure again when the
 # parts drift apart.
 test_agc.gd 37
@@ -34,6 +35,7 @@ test_launch_escape.gd 33
 test_launch_models.gd 1
 test_lgc_executive.gd 8
 test_lifeboat.gd 31
+test_lightning.gd 12
 test_lm_abort_buttons.gd 39
 test_lm_cabin.gd 1
 test_lunar_ground.gd 1

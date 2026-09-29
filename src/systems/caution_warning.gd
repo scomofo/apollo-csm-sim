@@ -12,7 +12,16 @@
 ## catalog's failures (data/failures.json, slice 9a) need, with the
 ## handbook's triggers (ibid., pp. 2.10-5 to 2.10-8):
 ##   FC 1 to FC 3       a fuel cell failed [simplified: for the flow,
-##                      temperature and pH limits the handbook lists]
+##                      temperature and pH limits the handbook lists], or
+##                      off line on its tripped overload sensor, as
+##                      Apollo 12's three lit after its first lightning
+##                      strike (slice 10c; the crew's technical
+##                      debriefing, p. 3-2)
+##   FC BUS DISCONNECT  a fuel cell off its buses on its tripped overload
+##                      sensor (slice 10c) [published: the Apollo 12
+##                      Mission Report, MSC-01855, section 9.2, lists
+##                      it among the strike's lights; MSC-01540, pp. 18
+##                      to 20, the sensors]
 ##   MN BUS A, B UNDERVOLT  a main bus below 26.25 V
 ##   CRYO PRESS         an O2 tank below 800 or above 950 psia, or a
 ##                      hydrogen tank below 220 or above 270 psia
@@ -21,10 +30,13 @@
 ##                      limits left out]
 ##   CMC                the CMC failed (its prime power lost, among the
 ##                      handbook's causes)
-##   ISS                the IMU failed
+##   ISS                the IMU failed, or its platform tumbled until a
+##                      coarse align (slice 10c; MSC-01855, section 9.2:
+##                      at about 50 s)
 ## The SM's lights go out with the SM.
 ##
-## Reads:  eps.fc1_ok to eps.fc3_ok, eps.bus_a_v, eps.bus_b_v,
+## Reads:  eps.fc1_ok to eps.fc3_ok, eps.fc1_tripped to eps.fc3_tripped,
+##         eps.fc_bus_disconnect, imu.tumbled, eps.bus_a_v, eps.bus_b_v,
 ##         eps.o2_tank<n>_psia, eps.h2_tank<n>_psia, rcs.quad_<x>_psia,
 ##         guid.fail, imu.fail, dyn.config, sys.powered,
 ##         ctl.cw.master_alarm (a MASTER ALARM switch-light, pressed)
@@ -35,10 +47,11 @@ extends Node
 ## A main bus's undervolt limit, V [published: ibid., p. 2.10-8, 26.25 ±
 ## 0.1 V dc].
 const UNDERVOLT_V := 26.25
-const LIGHTS := ["fc1", "fc2", "fc3", "mn_bus_a_undervolt", "mn_bus_b_undervolt", "cryo_press",
-	"sm_rcs_a", "sm_rcs_b", "sm_rcs_c", "sm_rcs_d", "cmc", "iss"]
+const LIGHTS := ["fc1", "fc2", "fc3", "fc_bus_disconnect", "mn_bus_a_undervolt", "mn_bus_b_undervolt",
+	"cryo_press", "sm_rcs_a", "sm_rcs_b", "sm_rcs_c", "sm_rcs_d", "cmc", "iss"]
 ## Each light's legend on the C&W panel.
-const LEGENDS := {"fc1": "FC 1", "fc2": "FC 2", "fc3": "FC 3", "mn_bus_a_undervolt": "MN BUS A UNDERVOLT",
+const LEGENDS := {"fc1": "FC 1", "fc2": "FC 2", "fc3": "FC 3", "fc_bus_disconnect": "FC BUS DISCONNECT",
+	"mn_bus_a_undervolt": "MN BUS A UNDERVOLT",
 	"mn_bus_b_undervolt": "MN BUS B UNDERVOLT", "cryo_press": "CRYO PRESS", "sm_rcs_a": "SM RCS A",
 	"sm_rcs_b": "SM RCS B", "sm_rcs_c": "SM RCS C", "sm_rcs_d": "SM RCS D", "cmc": "CMC", "iss": "ISS"}
 ## CRYO PRESS's limits, psia [published: ibid., p. 2.10-5].
@@ -89,9 +102,11 @@ func _condition(light: String) -> bool:
 		"cmc":
 			lit = bool(Bus.get_value("guid.fail", false))
 		"iss":
-			lit = bool(Bus.get_value("imu.fail", false))
+			lit = bool(Bus.get_value("imu.fail", false)) or bool(Bus.get_value("imu.tumbled", false))
+		"fc_bus_disconnect":
+			lit = _sm() and bool(Bus.get_value("eps.fc_bus_disconnect", false))
 		_:
-			lit = not bool(Bus.get_value("eps.%s_ok" % light, true))
+			lit = not bool(Bus.get_value("eps.%s_ok" % light, true)) or bool(Bus.get_value("eps.%s_tripped" % light, false))
 	return lit
 
 

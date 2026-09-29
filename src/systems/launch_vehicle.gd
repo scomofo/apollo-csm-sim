@@ -526,9 +526,10 @@ func _fire(id: String, now: float) -> void:
 
 
 ## The vehicle's attitude, ECI from body: X along the thrust, Z down across
-## it (the crew heads down, as the stack in orbit), in the pitch plane of
-## the roll program's azimuth until the iterative guidance, then in the
-## local vertical's plane.
+## it, in the pitch plane of the roll program's azimuth until the
+## iterative guidance, then in the local vertical's plane [simplified: in
+## the parking orbit the IU holds the CM's Z up until its turn for TLI
+## (Dynamics._align_iu()), rolled over at once at insertion].
 func attitude(r: Vector3) -> Quaternion:
 	var x := dir
 	var toward := -r.normalized()

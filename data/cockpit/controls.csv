@@ -70,6 +70,7 @@ P2_CW_SM_RCS_A,MDC2,lamp,SM RCS A,-280,70,0,cw.sm_rcs_a,,AOH C&W 2.10-5 to 2.10-
 P2_CW_SM_RCS_B,MDC2,lamp,SM RCS B,-240,70,0,cw.sm_rcs_b,,AOH C&W 2.10-5 to 2.10-8,D,implemented,historical
 P2_CW_SM_RCS_C,MDC2,lamp,SM RCS C,-200,70,0,cw.sm_rcs_c,,AOH C&W 2.10-5 to 2.10-8,D,implemented,historical
 P2_CW_SM_RCS_D,MDC2,lamp,SM RCS D,-160,70,0,cw.sm_rcs_d,,AOH C&W 2.10-5 to 2.10-8,D,implemented,historical
+P2_CW_FC_BUS_DISC,MDC2,lamp,FC BUS DISCONNECT,-120,120,0,cw.fc_bus_disconnect,,AOH C&W 2.10-5 to 2.10-8,D,implemented,historical
 P2_DSKY,MDC2,dsky,DSKY,0,-50,0,dsky,,AOH G&N,D,implemented,historical
 P2_UP_TLM_CM,MDC2,toggle,UP TLM CM,180,40,0,ctl.cmc.up_tlm,labels=BLOCK|ACCEPT,estimated,D,implemented,historical
 P2_UNDOCK,MDC2,pushbutton,UNDOCK,-200,-180,0,ctl.seq.undock,,AOH §3,D,implemented,proxy
@@ -79,6 +80,7 @@ P3_FC3,MDC3,toggle,FC 3,-60,120,0,ctl.eps.fc3,,AOH §3,D,implemented,proxy
 P3_BATT_BUS,MDC3,toggle,BATT TO BUS,40,120,0,ctl.eps.batt_bus,,AOH §3,D,implemented,proxy
 P3_CM_POWER,MDC3,rotary,CM POWER,-200,-150,0,ctl.eps.cm_power,positions=3;labels=OFF|EMER|ALL;start_angle_deg=-45;detent_deg=45,estimated,D,implemented,proxy
 P3_LM_POWER,MDC3,toggle,LM PWR,-120,-150,0,ctl.eps.lm_power,labels=OFF|ON,estimated,D,implemented,proxy
+P3_SCE_POWER,MDC3,toggle,SCE PWR,-40,-150,0,ctl.sce.power,positions=3;labels=AUX|OFF|NORM;values=2|0|1,Apollo 12 LOC L1-5,D,implemented,historical
 P3_MASTER_ALARM,MDC3,pushbutton,MASTER ALARM,200,180,0,ctl.cw.master_alarm,lamp_channel=sys.master_alarm;lamp_colour=ff2a1a,AOH C&W 2.10,D,implemented,historical
 P3_BUS_A_VOLTS,MDC3,numeric,MAIN BUS A V,-120,-40,0,eps.bus_a_v,format=%4.1f;blank_text=----,estimated,D,implemented,historical
 P3_BUS_B_VOLTS,MDC3,numeric,MAIN BUS B V,40,-40,0,eps.bus_b_v,format=%4.1f;blank_text=----,estimated,D,implemented,historical

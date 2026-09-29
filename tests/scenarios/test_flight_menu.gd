@@ -81,8 +81,9 @@ func test_the_flight_menu_starts_another_flight_in_place() -> void:
 	await click_menu("mission_prev")
 	await click_menu("mission_prev")
 	assert_string_contains(main.menu.choice_label.text, "Apollo 11")
-	assert_string_contains(main.menu.choice_label.text, "PARKING ORBIT",
-		"Apollo 12 has no tank failure: its first start phase, which Apollo 11 has too")
+	assert_string_contains(main.menu.choice_label.text, "LAUNCH",
+		"Apollo 12 has no tank failure: its first start phase, the launch, which Apollo 11 has too")
+	await click_menu("phase_next")
 	await click_menu("phase_next")
 	await click_menu("phase_next")
 	assert_string_contains(main.menu.choice_label.text, "LUNAR ORBIT")

@@ -11,7 +11,9 @@
 ## tests/scenarios/test_launch_aborts.gd's. The LM's (slice 9e) light the
 ## LM's caution and warning lights and its master alarm, and open their
 ## procedures in the LM's book; the abort DES REG sets off is
-## tests/scenarios/test_lm_aborts.gd's.
+## tests/scenarios/test_lm_aborts.gd's. Apollo 12's lightning (slice 10c):
+## the SCE's, which no light shows, only changes its system; the launch
+## they come in is tests/scenarios/test_apollo_12_launch.gd's.
 extends SimTest
 
 const MAIN_SCENE := "res://scenes/main.tscn"
@@ -45,15 +47,17 @@ func test_the_catalog_names_what_the_flight_has() -> void:
 		elif f["vehicle"] == "lm":
 			assert_has(LmCautionWarning.LIGHTS, f["caution"], "%s: an LM caution light" % f["id"])
 			assert_eq(LmCautionWarning.LEGENDS[f["caution"]], f["light"], "%s: its legend" % f["id"])
-		else:
+		elif f.has("caution"):
 			assert_has(CautionWarning.LIGHTS, f["caution"], "%s: a caution light" % f["id"])
 			assert_eq(CautionWarning.LEGENDS[f["caution"]], f["light"], "%s: its legend" % f["id"])
+		else:
+			assert_eq(f["light"], "", "%s: no light the crew sees, none named" % f["id"])
 		assert_eq(procedures.get(f["procedure"], ""), "lm" if f["vehicle"] == "lm" else "csm",
 			"%s: its procedure, %s, in its vehicle's book" % [f["id"], f["procedure"]])
 		assert_true(str(f.get("launch", "")) in ["", "abort", "return"], "%s: what the ground does in the launch" % f["id"])
 		for k in ["title", "part", "effect", "expect", "light"]:
 			assert_true(f.has(k), "%s: %s" % [f["id"], k])
-	assert_eq(ids.size(), 20)
+	assert_eq(ids.size(), 23)
 
 
 func test_each_failure_lights_its_caution_sounds_the_master_alarm_and_changes_its_system() -> void:
@@ -66,11 +70,14 @@ func test_each_failure_lights_its_caution_sounds_the_master_alarm_and_changes_it
 		var lm: bool = f["vehicle"] == "lm"
 		var cw := "lm.cw." if lm else "cw."
 		var alarm := "lm.cw.master_alarm" if lm else "sys.master_alarm"
+		# One the crew has no light for (the SCE's, slice 10c) only changes
+		# its system.
+		var caution := str(f.get("caution", ""))
 		build("lunar_descent" if lm else "parking_orbit")
 		if lm:
 			Bus.set_value("ctl.lm.engine_arm", 2)
 		run(10.0, false)
-		assert_false(bool(Bus.get_value(cw + str(f["caution"]), false)), "%s: dark before" % id)
+		assert_false(bool(Bus.get_value(cw + caution, false)), "%s: dark before" % id)
 		assert_false(bool(Bus.get_value(alarm)), "%s: all well before" % id)
 		assert_false(Checklist.holds(f["expect"]), "%s: the system as it was" % id)
 		assert_true(rt.failures.fail(id), id)
@@ -79,9 +86,10 @@ func test_each_failure_lights_its_caution_sounds_the_master_alarm_and_changes_it
 			Bus.set_value("ctl.lm.eng_start", true)
 			run(0.2, false)
 			Bus.set_value("ctl.lm.eng_start", false)
-		var light := func() -> bool: return bool(Bus.get_value(cw + str(f["caution"]), false))
-		assert_true(run_until(light, 200.0, 5.0, false), "%s lights %s" % [id, f["light"]])
-		assert_true(bool(Bus.get_value(alarm)), "%s sounds the master alarm" % id)
+		if caution != "":
+			var light := func() -> bool: return bool(Bus.get_value(cw + caution, false))
+			assert_true(run_until(light, 200.0, 5.0, false), "%s lights %s" % [id, f["light"]])
+			assert_true(bool(Bus.get_value(alarm)), "%s sounds the master alarm" % id)
 		assert_true(run_until(func() -> bool: return Checklist.holds(f["expect"]), 200.0, 5.0, false),
 			"%s: %s" % [id, f["effect"]])
 		assert_eq(Bus.get_value("failures.active"), [id])
@@ -167,6 +175,13 @@ func test_a_mission_arms_its_own() -> void:
 	assert_almost_eq(float(Bus.get_value("failures.next_event_get_s")), 201293.0, 1e-6, "for the clock to land on")
 	build("parking_orbit", "apollo_11")
 	assert_eq(rt.failures.armed, {}, "Apollo 11 has none")
+	# Slice 10c: Apollo 12's lightning, armed on the liftoff, comes only in
+	# its launch.
+	build("launch", "apollo_12")
+	assert_eq(rt.failures.armed_on.keys(), ["fc_bus_trip", "sce_norm", "imu_tumble"], "the lightning, on the liftoff")
+	assert_string_contains(rt.failures.state_line("imu_tumble"), "ARMED 52 s after liftoff")
+	build("parking_orbit", "apollo_12")
+	assert_eq(rt.failures.armed_on, {}, "not past it")
 
 
 func test_the_tank_fires_its_event_and_the_crews_call() -> void:
@@ -187,7 +202,7 @@ func test_the_instructors_page_fails_the_failure_it_shows() -> void:
 	menu.activate("instructor")
 	assert_eq(menu.page, "failures")
 	assert_true(menu.button("fail").is_visible_in_tree())
-	assert_string_contains(menu.choice_label.text, "INSTRUCTOR: FAILURE 1 OF 20")
+	assert_string_contains(menu.choice_label.text, "INSTRUCTOR: FAILURE 1 OF 23")
 	assert_string_contains(menu.choice_label.text, "Cryogenic oxygen tank 2: CRYO PRESS light")
 	assert_string_contains(menu.choice_label.text, "READY")
 	menu.activate("failure_next")
@@ -199,7 +214,7 @@ func test_the_instructors_page_fails_the_failure_it_shows() -> void:
 	menu.activate("failure_prev")
 	menu.activate("failure_prev")
 	menu.activate("failure_prev")
-	assert_string_contains(menu.choice_label.text, "FAILURE 20 OF 20", "round to the last")
+	assert_string_contains(menu.choice_label.text, "FAILURE 23 OF 23", "round to the last")
 	menu.activate("failures_back")
 	assert_eq(menu.page, "flight")
 
