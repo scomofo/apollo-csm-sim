@@ -85,8 +85,10 @@ rests off centre doesn't turn the spacecraft.
 The wrist menu has the PAD requests (MCC, LOI-1, LOI-2, TEI; in Eagle,
 DOI, PDI, ASCENT and CSI), time rate,
 pause, recentre, eye height ±1 cm, SEAT, CHECKLIST, NEXT STEP, HILITE,
-VIGNETTE, HORIZON, AUTHENTIC and FLIGHT, the flight menu. Its top line
-shows GET, the time rate, the worst recent frame time and your seat.
+VIGNETTE, HORIZON, AUTHENTIC, SOUND - and SOUND +, and FLIGHT, the
+flight menu, with its saved flights. Its top line shows GET, the time
+rate, the worst recent frame time and your seat. The eye height you set
+is kept for the next session.
 
 There's no far-field pointer in the headset yet. You can only work what
 you can reach. SEAT moves you between the commander's couch (left), the

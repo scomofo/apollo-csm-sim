@@ -14,7 +14,7 @@
 ## frame-time monitor and the headset acceptance recorder
 ## (docs/HEADSET_RUN.md) come up on both rigs; the recorder writes its
 ## record only in a headset. So does the audio director, the cabin's sound
-## (docs/LISTENING_PASS.md); a checkpoint's load (F9) makes none.
+## (docs/LISTENING_PASS.md); a saved flight's load (F9) makes none.
 ##
 ## The player moves to the LM as it undocks (VehicleSwitch), and L changes
 ## vehicles while it flies free: the HUD, the space view, the hand
@@ -52,14 +52,25 @@
 ## main scene is built for it and this one goes, with every node of its
 ## flight, the Bus and the clock starting again. The headset session's
 ## channels (SESSION_CHANNELS), the player's settings (the eye height, the
-## comfort aids, the highlight) and the headset recorder's evidence carry
-## over to the new flight.
+## comfort aids, the highlight, the sound's level) and the headset
+## recorder's evidence carry over to the new flight.
+##
+## Saved flights and settings (slice 8b): the flight menu's SAVES page
+## saves the flight flown (save_flight()) and resumes a saved one in place
+## of it (resume_flight(): a new main scene, as START's, its runtime
+## restored from the save rather than started); F5 and F9 keep a quick
+## save among them, F9 resuming it in place of another mission's flight.
+## The settings are kept as they change, and read at the start. The app's
+## own main scene (the root's child) keeps them in user:// (SETTINGS_PATH,
+## SavedFlights.DIR); a test's keeps none unless the test gives it a file
+## and a directory.
 extends Node3D
 
 ## A new flight has taken this one's place (start_flight()).
 signal flight_replaced(replacement: Node)
 
-const CHECKPOINT_PATH := "user://apollo_checkpoint.json"
+## Where the app keeps the player's settings between sessions.
+const SETTINGS_PATH := "user://settings.json"
 const MAIN_SCENE := "res://scenes/main.tscn"
 ## The headset session's channels, which a new flight keeps.
 const SESSION_CHANNELS := ["player.xr_session", "player.xr_focus", "player.xr_refresh_hz"]
@@ -77,6 +88,13 @@ var flight_given: bool = false
 ## and the headset recorder's evidence (VrAcceptanceRecorder.carry_state()).
 var carried_settings: Dictionary = {}
 var carried_record: Dictionary = {}
+## The saved flight this one resumes, restored in place of the start
+## phase's start.
+var resume_path: String = ""
+## The settings' file and the saved flights' directory: "" keeps none.
+var settings_path: String = ""
+var saves_dir: String = ""
+var saves: SavedFlights
 
 var rt: SimRuntime
 var view: Node3D
@@ -131,8 +149,16 @@ func _ready() -> void:
 	if not mission_id in Mission.ids():
 		push_error("main: no mission '%s' under %s; flying %s" % [mission_id, Mission.DIR, Mission.DEFAULT_ID])
 		mission_id = Mission.DEFAULT_ID
+	if get_parent() == get_tree().root:
+		if settings_path == "":
+			settings_path = SETTINGS_PATH
+		if saves_dir == "":
+			saves_dir = SavedFlights.DIR
+	saves = SavedFlights.new(saves_dir)
 	rt = SimRuntime.build(self, Mission.path_of(mission_id))
-	rt.sequencer.start(start_phase)
+	var resumed := _resume()
+	if not resumed:
+		rt.sequencer.start(start_phase)
 	if o2_failure_in >= 0.0:
 		rt.mission.data["failures"] = rt.mission.section("failures").merged(
 			{"o2_tank_2_get_s": SimClock.get_seconds + o2_failure_in}, true)
@@ -173,7 +199,11 @@ func _ready() -> void:
 	menu.cabin = cabin
 	menu.choice = FlightChoice.new(mission_id, start_phase)
 	menu.setup(rig, cam, rig.get_node("LeftHand") if xr else null, book)
+	menu.saves = saves
 	menu.flight_requested.connect(start_flight)
+	menu.save_requested.connect(save_flight)
+	menu.resume_requested.connect(resume_flight)
+	menu.setting_changed.connect(_write_settings)
 	perf = PerfMonitor.new()
 	perf.name = "PerfMonitor"
 	add_child(perf)
@@ -191,6 +221,8 @@ func _ready() -> void:
 	# Both vehicles' checklists open for the phase the flight starts in, or
 	# the start phase that is none (Apollo 13's tank_failure).
 	_first_phase = str(Bus.get_value("mission.phase", start_phase))
+	if resumed:
+		_first_phase = str(SavedFlights.read_entry(resume_path).get("first_phase", _first_phase))
 	var phase := _checklist_phase()
 	book.select_for_phase(phase)
 	lm_book.select_for_phase(phase)
@@ -204,7 +236,7 @@ func _ready() -> void:
 	vehicles.changed.connect(_on_vehicle)
 	vehicles.boarded.connect(_on_boarded)
 	add_child(vehicles)
-	apply_settings(carried_settings)
+	apply_settings(carried_settings if not carried_settings.is_empty() else _read_settings())
 	if xr and float(Bus.get_value("player.xr_refresh_hz", 0.0)) > 0.0:
 		# A new flight in a session already begun.
 		perf.frame_budget_ms = 1000.0 / float(Bus.get_value("player.xr_refresh_hz"))
@@ -231,23 +263,88 @@ func open_flight_menu() -> void:
 
 
 ## Start [param p_mission]'s flight at [param p_phase] in place of this
-## one: a fresh main scene for it, with every node of this flight gone and
-## the Bus and the clock starting again, the headset session's channels,
-## the settings and the headset recorder's evidence carried over. It
-## happens after the call, whose button is a node of this flight.
-func start_flight(p_mission: String, p_phase: String) -> void:
+## one, or with [param p_resume] the saved flight there: a fresh main scene
+## for it, with every node of this flight gone and the Bus and the clock
+## starting again, the headset session's channels, the settings and the
+## headset recorder's evidence carried over. It happens after the call,
+## whose button is a node of this flight.
+func start_flight(p_mission: String, p_phase: String, p_resume: String = "") -> void:
 	if _replacing:
 		return
 	_replacing = true
-	_replace_flight.call_deferred(p_mission, p_phase)
+	_replace_flight.call_deferred(p_mission, p_phase, p_resume)
 
 
-func _replace_flight(p_mission: String, p_phase: String) -> void:
+## Resume the saved flight at [param path] in place of this one. Returns
+## whether it will: not when this build can't restore it.
+func resume_flight(path: String) -> bool:
+	var e := SavedFlights.read_entry(path)
+	if not e["usable"]:
+		print("main: can't resume %s: %s" % [path, e["why"]])
+		return false
+	start_flight(str(e["mission_id"]), str(e["start_phase"]), path)
+	return true
+
+
+## Save the flight flown now among the saved flights (the saves page's
+## SAVE), where the page then shows it. Returns its path, or "".
+func save_flight() -> String:
+	var path := saves.save(rt, _save_header())
+	print("main: flight saved as " + path if path != "" else "main: no saves directory; flight not saved")
+	if menu.page == "saves":
+		menu.show_page("saves")
+	return path
+
+
+## F5: the quick save. Returns its path, or "".
+func quick_save() -> String:
+	var path := saves.save(rt, _save_header(), true)
+	print("main: quick save " + path if path != "" else "main: no saves directory; no quick save")
+	return path
+
+
+## F9: back to the quick save, in place when it is this mission's, else as
+## its flight in place of this one.
+func quick_load() -> void:
+	var path := saves.quick_path()
+	if path == "" or not FileAccess.file_exists(path):
+		print("main: no quick save")
+		return
+	var e := SavedFlights.read_entry(path)
+	if e["mission_id"] != rt.mission.id():
+		resume_flight(path)
+		return
+	var msg: String = audio.hush(rt.load_file.bind(path))
+	print("main: quick save loaded" if msg == "" else "main: " + msg)
+
+
+## Restore the saved flight this one resumes, if any. Returns whether it
+## did; if it can't, the flight starts at its start phase.
+func _resume() -> bool:
+	if resume_path == "":
+		return false
+	var err := rt.load_file(resume_path)
+	if err != "":
+		push_error("main: can't resume %s: %s; starting %s" % [resume_path, err, start_phase])
+		return false
+	return true
+
+
+## What a save keeps beside the checkpoint: how the flight began, for the
+## checklists a resume opens.
+func _save_header() -> Dictionary:
+	return {"start_phase": start_phase, "first_phase": _first_phase}
+
+
+func _replace_flight(p_mission: String, p_phase: String, p_resume: String = "") -> void:
 	var replacement: Node = (load(MAIN_SCENE) as PackedScene).instantiate()
 	replacement.mission_id = p_mission
 	replacement.start_phase = p_phase
+	replacement.resume_path = p_resume
 	replacement.flight_given = true
 	replacement.xr_interface = xr_interface
+	replacement.settings_path = settings_path
+	replacement.saves_dir = saves_dir
 	replacement.carried_settings = settings()
 	replacement.carried_record = recorder.carry_state()
 	var session := {}
@@ -272,12 +369,14 @@ func _replace_flight(p_mission: String, p_phase: String) -> void:
 	queue_free()
 
 
-## The player's settings, which a new flight keeps: the eye height, the
-## comfort aids and the checklist highlight.
+## The player's settings, which a new flight and the next session keep:
+## the eye height, the comfort aids, the checklist highlight and the
+## sound's level.
 func settings() -> Dictionary:
 	return {"eye_height_offset_m": float(rig.get("height_offset")), "vignette": comfort.vignette_enabled,
 		"horizon": comfort.horizon_aid, "authentic": comfort.authentic,
-		"highlight": bool(Bus.get_value("present.checklist.highlight_enabled", true))}
+		"highlight": bool(Bus.get_value("present.checklist.highlight_enabled", true)),
+		"sound_db": float(Bus.get_value("player.sound_db", 0.0))}
 
 
 func apply_settings(s: Dictionary) -> void:
@@ -292,6 +391,24 @@ func apply_settings(s: Dictionary) -> void:
 	comfort.authentic = bool(s.get("authentic", comfort.authentic))
 	comfort.update_from_bus()
 	Bus.set_value("present.checklist.highlight_enabled", bool(s.get("highlight", true)))
+	Bus.set_value("player.sound_db", float(s.get("sound_db", 0.0)))
+
+
+## The settings kept last session, or none.
+func _read_settings() -> Dictionary:
+	if settings_path == "" or not FileAccess.file_exists(settings_path):
+		return {}
+	var d: Variant = JSON.parse_string(FileAccess.get_file_as_string(settings_path))
+	return d if d is Dictionary else {}
+
+
+## Keep the settings for the next session, as a setting changes.
+func _write_settings() -> void:
+	if settings_path == "":
+		return
+	var f := FileAccess.open(settings_path, FileAccess.WRITE)
+	if f != null:
+		f.store_string(JSON.stringify(settings(), "\t"))
 
 
 ## The cabin of vehicle [param v]: Eagle's for "lm", Columbia's otherwise.
@@ -471,9 +588,5 @@ func _unhandled_input(event: InputEvent) -> void:
 				else:
 					open_flight_menu()
 			KEY_O: hud.toggle_optics()
-			KEY_F5:
-				var err := rt.save_file(CHECKPOINT_PATH)
-				print("checkpoint saved" if err == OK else "checkpoint save failed: %s" % err)
-			KEY_F9:
-				var msg: String = audio.hush(rt.load_file.bind(CHECKPOINT_PATH))
-				print("checkpoint loaded" if msg == "" else msg)
+			KEY_F5: quick_save()
+			KEY_F9: quick_load()

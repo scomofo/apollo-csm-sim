@@ -1747,12 +1747,12 @@ in Earth orbit, Apollo 7 and 9, are left for later.
 
 ## 8. A way in
 
-**Status: slice 8a done.** The flight menu opens at launch, and on F1 or
-the wrist menu's FLIGHT during a flight; the flags on the command line
-(`--mission=`, `--phase=`: `docs/HEADSET_RUN.md`) still start a flight
-without it. One checkpoint is saved and loaded with F5 and F9 at the
-desktop's keyboard, and nothing keeps the settings: the eye height is set
-again each session. CI tests every push but builds nothing; the PC VR
+**Status: slices 8a and 8b done.** The flight menu opens at launch, and
+on F1 or the wrist menu's FLIGHT during a flight; the flags on the
+command line (`--mission=`, `--phase=`: `docs/HEADSET_RUN.md`) still
+start a flight without it. Its SAVES page saves, resumes and deletes
+flights, F5 and F9 keep a quick save among them, and the settings are
+kept between sessions. CI tests every push but builds nothing; the PC VR
 presets in `export_presets.cfg` are exported by hand. This milestone lets a person pick a flight, fly it and come back to it,
 on the desktop or in a headset, from a build CI made, and so lets someone
 who doesn't build the project run the headset pass (2e) and the
@@ -1770,9 +1770,12 @@ listening pass (6a).
   opens it in the cabin view, in a headset it rides on the wrist, and at
   launch it is the first thing in view.
 - **Saved flights** are checkpoints with names, listed with their
-  mission, GET and phase; one from an older schema is listed as unusable
-  rather than offered. **Settings** (the eye height, the comfort aids,
-  the highlight, the sound's level) are kept in `user://` between
+  mission, GET and phase (`src/presentation/saved_flights.gd`, in
+  `user://saves/`); one from an older schema is listed as unusable rather
+  than offered. A resume is a new flight in place, as START's, its
+  runtime restored from the save rather than started. **Settings** (the
+  eye height, the comfort aids, the highlight, the sound's level, new
+  on the wrist menu) are kept in `user://settings.json` between
   sessions.
 - **Builds** come from CI: the PC VR presets exported with Godot 4.4.1's
   templates on each merge to `main`, kept as the run's artifacts and

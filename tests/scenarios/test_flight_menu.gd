@@ -3,21 +3,35 @@
 ## its buttons step to Apollo 13's tank_failure, and START starts that
 ## flight in place of Apollo 11's, at 55:50:00 GET with Odyssey's failure
 ## checklist open. From there the menu goes on to Apollo 11's lunar_orbit,
-## and none of the first two flights' nodes is left.
+## and none of the first two flights' nodes is left. Slice 8b's saves page,
+## clicked through the same way: a flight saved, resumed and deleted.
 extends DesktopTest
 
+const SAVES := "user://test_flight_menu_saves"
 
-## Click the menu's START and take the flight that replaces this one as
-## the one worked from here.
-func _start_chosen() -> void:
+
+func after_all() -> void:
+	_clear()
+
+
+func _clear() -> void:
+	if DirAccess.dir_exists_absolute(SAVES):
+		for f in DirAccess.get_files_at(SAVES):
+			DirAccess.remove_absolute(SAVES.path_join(f))
+		DirAccess.remove_absolute(SAVES)
+
+
+## Click the menu's [param id] (START, RESUME) and take the flight that
+## replaces this one as the one worked from here.
+func _start_chosen(id: String = "start") -> void:
 	var box := [null]
 	main.flight_replaced.connect(func(r: Node) -> void: box[0] = r)
-	await click_menu("start")
+	await click_menu(id)
 	for i in 600:
 		if box[0] != null:
 			break
 		await wait_process_frames(1)
-	assert_not_null(box[0], "START started a new flight")
+	assert_not_null(box[0], "%s started a new flight" % id.to_upper())
 	main = box[0]
 	rt = main.rt
 	hud = main.hud
@@ -80,3 +94,33 @@ func test_the_flight_menu_starts_another_flight_in_place() -> void:
 		assert_null(w.get_ref(), "Apollo 13's flight gone")
 	assert_eq(viewport.get_child_count(), 1, "one flight in the viewport")
 	rt.free_nodes()
+
+
+func test_a_flight_saved_from_the_menu_is_resumed_and_deleted_there() -> void:
+	in_cabin = true
+	saves_dir = SAVES
+	_clear()
+	await start("lunar_orbit")
+	await _open_flights()
+	await click_menu("saves")
+	assert_eq(main.menu.page, "saves")
+	assert_string_contains(main.menu.choice_label.text, "NO SAVED FLIGHTS")
+	await click_menu("save")
+	var saved_get := SimClock.get_seconds
+	assert_string_contains(main.menu.choice_label.text, "SAVED FLIGHT 1 OF 1")
+	assert_string_contains(main.menu.choice_label.text, "Apollo 11, LUNAR ORBIT, %s GET" % Units.hms(saved_get))
+	run(600.0)
+	await _start_chosen("resume")
+	assert_eq(rt.mission.id(), "apollo_11")
+	assert_almost_eq(SimClock.get_seconds, saved_get, 1e-6, "back at the save's GET")
+	assert_eq(main.book.list().title, "Lunar orbit and TEI")
+	await _open_flights()
+	await click_menu("saves")
+	var path: String = main.saves.selected_path()
+	await click_menu("delete")
+	assert_true(FileAccess.file_exists(path), "DELETE once: not yet")
+	await click_menu("delete")
+	assert_false(FileAccess.file_exists(path), "twice: gone")
+	assert_string_contains(main.menu.choice_label.text, "NO SAVED FLIGHTS")
+	rt.free_nodes()
+	_clear()

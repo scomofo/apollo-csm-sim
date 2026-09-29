@@ -29,7 +29,9 @@
 ##   alarm                  the master alarm's tone (sys.master_alarm)
 ## Each voice is heard in its vehicle's cabin (player.vehicle), and in either
 ## while the two are docked [simplified: through the tunnel, at full level].
-## The continuous voices hush while the clock is paused.
+## The continuous voices hush while the clock is paused. The cabin's bus
+## plays at the player's sound level (player.sound_db, dB from as designed,
+## the wrist menu's SOUND - and SOUND +).
 ##
 ## Headless (the tests), nothing plays: the director counts the one-shots
 ## (audio.events, audio.last) and publishes the continuous voices' gains
@@ -43,7 +45,7 @@
 ##         lv.thrust_n, lv.stage, lv.engines, sivb.thrust_n, sps.chamber_pct,
 ##         lm.dps.thrust_n, lm.dps.throttle_pct, lm.aps.chamber_pct,
 ##         dyn.q_pa, dyn.g_load, sys.powered, sys.master_alarm, dock.state,
-##         player.vehicle
+##         player.vehicle, player.sound_db
 ## Writes: audio.events, audio.last, audio.<voice>_gain
 class_name AudioDirector
 extends Node
@@ -185,6 +187,7 @@ func _ready() -> void:
 		AudioServer.set_bus_name(bus, BUS)
 		AudioServer.set_bus_send(bus, "Master")
 		AudioServer.add_bus_effect(bus, AudioEffectHardLimiter.new())
+	_apply_level()
 	for voice in ONE_SHOTS.keys() + LAYERS.keys():
 		var p := AudioStreamPlayer.new()
 		p.name = voice.capitalize().replace(" ", "")
@@ -203,6 +206,13 @@ func _exit_tree() -> void:
 		_render_task = -1
 
 
+## The cabin's bus at the player's sound level.
+func _apply_level() -> void:
+	var bus := AudioServer.get_bus_index(BUS)
+	if enabled and bus >= 0:
+		AudioServer.set_bus_volume_db(bus, float(Bus.get_value("player.sound_db", 0.0)))
+
+
 ## Run [param f] (a checkpoint's load) without a sound: what it puts back on
 ## the Bus happened before. Returns what [param f] returns.
 func hush(f: Callable) -> Variant:
@@ -213,7 +223,9 @@ func hush(f: Callable) -> Variant:
 
 
 func _on_bus(channel: String, value: Variant) -> void:
-	if channel.begins_with("ctl."):
+	if channel == "player.sound_db":
+		_apply_level()
+	elif channel.begins_with("ctl."):
 		_on_control(channel, value)
 	elif channel.begins_with("mission.event."):
 		var id := channel.trim_prefix("mission.event.")

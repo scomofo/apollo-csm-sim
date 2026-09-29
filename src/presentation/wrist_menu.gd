@@ -7,8 +7,8 @@
 ## gives GET, the time rate, the worst recent frame time and the seat.
 ## Adapted from gemini-capsule's src/presentation/wrist_menu.gd at 40e449c
 ## (README.md lists the port): its guide button stays behind, its
-## new-flight button is the FLIGHT page below, SEAT is new, it doesn't
-## save settings yet, and the PAD buttons
+## new-flight button is the FLIGHT page below, SEAT is new, the main scene
+## keeps the settings it changes (slice 8b), and the PAD buttons
 ## write ctl.ground.pad_request, the channel the HUD's Mission Control
 ## buttons write. They ask for the PADs of the vehicle flown (set_vehicle):
 ## Columbia's MCC, LOI-1, LOI-2 and TEI, or Eagle's DOI, PDI, ASCENT and
@@ -19,17 +19,32 @@
 ## mission under data/missions/ and its start phases, stepped through with
 ## < MISSION, MISSION >, < PHASE and PHASE > (FlightChoice), a line from
 ## the mission's data on each, START for that flight (flight_requested,
-## which the main scene starts in place of this one) and BACK. show_flights()
-## opens it there, as the main scene does at launch and on F1.
+## which the main scene starts in place of this one), SAVES and BACK.
+## show_flights() opens it there, as the main scene does at launch and on
+## F1. SAVES turns to the saved flights (slice 8b, SavedFlights), stepped
+## through with < SAVED and SAVED >: SAVE keeps the flight flown now
+## (save_requested), RESUME starts the one chosen in its place
+## (resume_requested) unless it can't be restored, and DELETE, pressed
+## twice with nothing between, deletes it. SOUND - and SOUND + set the
+## sound's level. A setting's button (the eye height, the comfort aids,
+## the highlight, the sound) says so (setting_changed), for the main scene
+## to keep the settings.
 ##
 ## Reads:  perf.frame_ms_max
 ## Writes: ctl.ground.pad_request, present.menu.visible,
-##         present.checklist.highlight_enabled, player.eye_height_offset_m
+##         present.checklist.highlight_enabled, player.eye_height_offset_m,
+##         player.sound_db
 class_name WristMenu
 extends Node3D
 
 ## START on the flight page: the flight chosen.
 signal flight_requested(mission_id: String, phase: String)
+## SAVE on the saves page.
+signal save_requested
+## RESUME on the saves page: the save chosen, one that can be restored.
+signal resume_requested(path: String)
+## A setting's button changed a setting.
+signal setting_changed
 
 const PUSHBUTTON := preload("res://scenes/controls/pushbutton.tscn")
 const HEIGHT_STEP := 0.01
@@ -40,13 +55,27 @@ const BUTTONS := [
 	["slower", "RATE -"], ["faster", "RATE +"], ["pause", "PAUSE"], ["recenter", "RECENTRE"],
 	["eye_up", "EYE +1cm"], ["eye_down", "EYE -1cm"], ["seat", "SEAT"], ["hide", "HIDE"],
 	["checklist", "CHECKLIST"], ["next", "NEXT STEP"], ["highlight", "HILITE"], ["vignette", "VIGNETTE"],
-	["horizon", "HORIZON"], ["authentic", "AUTHENTIC"], ["flight", "FLIGHT"],
+	["horizon", "HORIZON"], ["authentic", "AUTHENTIC"], ["sound_down", "SOUND -"], ["sound_up", "SOUND +"],
+	["flight", "FLIGHT"],
 ]
 ## The flight page's buttons, in layout order, under the choice's lines.
 const FLIGHT_BUTTONS := [
 	["mission_prev", "< MISSION"], ["mission_next", "MISSION >"], ["phase_prev", "< PHASE"], ["phase_next", "PHASE >"],
-	["start", "START"], ["back", "BACK"],
+	["start", "START"], ["saves", "SAVES"], ["back", "BACK"],
 ]
+## The saves page's buttons, in layout order, under the save's lines.
+const SAVES_BUTTONS := [
+	["saved_prev", "< SAVED"], ["saved_next", "SAVED >"], ["resume", "RESUME"], ["delete", "DELETE"],
+	["save", "SAVE"], ["saves_back", "BACK"],
+]
+## The pages under the main one: their buttons.
+const PAGES := {"flight": FLIGHT_BUTTONS, "saves": SAVES_BUTTONS}
+## The buttons that change a setting.
+const SETTING_BUTTONS := ["eye_up", "eye_down", "highlight", "vignette", "horizon", "authentic",
+	"sound_down", "sound_up"]
+## The sound's level: its step, and the quietest, dB from as designed.
+const SOUND_STEP_DB := 3.0
+const SOUND_MIN_DB := -30.0
 ## The PAD request each Mission Control button makes (MissionSequencer.request_pad),
 ## in Columbia: the first four buttons' ids.
 const PAD_REQUESTS := ["mcc", "loi", "circ", "tei"]
@@ -58,7 +87,7 @@ const PADS := {
 }
 const COLS := 4
 const PITCH := Vector2(0.042, 0.034)
-## The flight page's lines take the rows above its buttons.
+## The flight and saves pages' lines take the rows above their buttons.
 const FLIGHT_TEXT_WIDTH_PX := 780
 ## Controller action that shows or hides the menu.
 const TOGGLE_ACTION := "menu_button"
@@ -85,7 +114,9 @@ var vehicle: String = "csm"
 ## The flight page's missions and start phases, and the one chosen: the
 ## flight flown, until the page steps away from it.
 var choice: FlightChoice
-## The page showing: "main", or "flight".
+## The saved flights the saves page lists: the main scene's, or none.
+var saves := SavedFlights.new()
+## The page showing: "main", "flight" or "saves".
 var page: String = "main"
 var status_label: Label3D
 ## The flight page's lines: the mission, the start phase and its note.
@@ -93,6 +124,10 @@ var choice_label: Label3D
 var _buttons: Dictionary = {}
 ## Button id -> its page.
 var _page_of: Dictionary = {}
+## Each page's rows of buttons, at the bottom of the grid.
+var _page_rows: Dictionary = {}
+## The save DELETE was pressed on once, "" when it wasn't the last button.
+var _delete_armed: String = ""
 var _touch_layers: Dictionary = {}
 ## The four PAD buttons, in order.
 var _pad_buttons: Array[Node3D] = []
@@ -131,14 +166,17 @@ func _ready() -> void:
 			_pad_buttons.append(b)
 		else:
 			b.connect("activated", _on_button.bind(BUTTONS[i][0]))
-	# The flight page: its buttons in the bottom rows, its lines above.
-	@warning_ignore("integer_division")
-	var flight_rows := (FLIGHT_BUTTONS.size() + COLS - 1) / COLS
-	for i in FLIGHT_BUTTONS.size():
+	# The flight and saves pages: their buttons in the bottom rows, their
+	# lines above.
+	for p: String in PAGES:
+		var list: Array = PAGES[p]
 		@warning_ignore("integer_division")
-		var b := _make_button(FLIGHT_BUTTONS[i][0], FLIGHT_BUTTONS[i][1], "flight", rows - flight_rows + i / COLS,
-			i % COLS, rows)
-		b.connect("activated", _on_button.bind(FLIGHT_BUTTONS[i][0]))
+		var page_rows := (list.size() + COLS - 1) / COLS
+		_page_rows[p] = page_rows
+		for i in list.size():
+			@warning_ignore("integer_division")
+			var b := _make_button(list[i][0], list[i][1], p, rows - page_rows + i / COLS, i % COLS, rows)
+			b.connect("activated", _on_button.bind(list[i][0]))
 	choice_label = Label3D.new()
 	choice_label.name = "Choice"
 	choice_label.font_size = 32
@@ -147,7 +185,8 @@ func _ready() -> void:
 	choice_label.modulate = CabinMaterials.lettering_colour()
 	choice_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	choice_label.width = FLIGHT_TEXT_WIDTH_PX
-	choice_label.position = Vector3(0, ((rows - 1) / 2.0 - (rows - flight_rows - 1) / 2.0) * PITCH.y, 0.001)
+	choice_label.position = Vector3(0, ((rows - 1) / 2.0 - (rows - int(_page_rows["flight"]) - 1) / 2.0) * PITCH.y,
+		0.001)
 	add_child(choice_label)
 	_set_shown(false)
 	set_vehicle(vehicle)
@@ -275,17 +314,28 @@ func _show_buttons() -> void:
 		# Hidden buttons must not stop the pointer on its way to the panels.
 		t.collision_layer = int(_touch_layers[id]) if on else 0
 	if choice_label:
-		choice_label.visible = page == "flight"
+		choice_label.visible = page != "main"
 
 
-## Turn to [param p_page]: "main" or "flight".
+## Turn to [param p_page]: "main", "flight" or "saves".
 func show_page(p_page: String) -> void:
 	page = p_page
+	_delete_armed = ""
 	if page == "flight":
 		if choice == null:
 			choice = FlightChoice.new()
 		choice_label.text = choice.text()
+	elif page == "saves":
+		saves.refresh()
+		_show_save()
 	_show_buttons()
+
+
+## The saves page's lines, for the save chosen.
+func _show_save() -> void:
+	choice_label.text = saves.text()
+	if _delete_armed != "":
+		choice_label.text += "\nDELETE again to delete it"
 
 
 ## Open the menu on its flight page, pinned open as the controller's
@@ -343,6 +393,8 @@ func _on_button(id: String) -> void:
 	if id in pad_requests():
 		Bus.set_value("ctl.ground.pad_request", id)
 		return
+	var armed := _delete_armed
+	_delete_armed = ""
 	match id:
 		"slower":
 			SimClock.slower()
@@ -374,6 +426,10 @@ func _on_button(id: String) -> void:
 					"horizon": comfort.horizon_aid = not comfort.horizon_aid
 					"authentic": comfort.authentic = not comfort.authentic
 				comfort.update_from_bus()
+		"sound_down", "sound_up":
+			var db := float(Bus.get_value("player.sound_db", 0.0))
+			db += SOUND_STEP_DB if id == "sound_up" else -SOUND_STEP_DB
+			Bus.set_value("player.sound_db", clampf(db, SOUND_MIN_DB, 0.0))
 		"checklist":
 			if book:
 				book.cycle()
@@ -398,3 +454,24 @@ func _on_button(id: String) -> void:
 		"start":
 			if choice != null:
 				flight_requested.emit(choice.mission_id(), choice.phase())
+		"saves":
+			show_page("saves")
+		"saves_back":
+			show_page("flight")
+		"saved_prev", "saved_next":
+			saves.step(-1 if id == "saved_prev" else 1)
+			_show_save()
+		"save":
+			save_requested.emit()
+		"resume":
+			if bool(saves.selected().get("usable", false)):
+				resume_requested.emit(saves.selected_path())
+		"delete":
+			var path := saves.selected_path()
+			if path != "" and armed == path:
+				saves.delete(path)
+			else:
+				_delete_armed = path
+			_show_save()
+	if id in SETTING_BUTTONS:
+		setting_changed.emit()

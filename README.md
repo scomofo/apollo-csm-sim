@@ -46,8 +46,15 @@ flight behind it instead, Apollo 11's parking orbit. The menu is the
 wrist menu's FLIGHT page, clicked on the desktop and pressed with a
 fingertip in a headset; BACK turns to the wrist menu's other buttons. F1, or FLIGHT on the wrist menu, brings it back in a flight, and
 the flight chosen starts in place of the one flown, with the eye height,
-the comfort aids and the checklist highlight kept. A flight given on the
-command line starts without the menu:
+the comfort aids, the checklist highlight and the sound's level kept.
+SAVES on the flight page lists the saved flights, newest first, each
+named for its mission, phase and GET: SAVE keeps the flight flown now,
+RESUME starts the one shown in place of it, and DELETE, pressed twice,
+deletes it. A save made by a version whose checkpoints differ is listed
+but can't be resumed. F5 and F9 keep a quick save among them. The saves
+are in `user://saves/` and the settings, kept as they change, in
+`user://settings.json` (Godot's user data folder for the project). A
+flight given on the command line starts without the menu:
 
 ```
 godot --path . -- --mission=apollo_11           # parking orbit, TLI ahead
@@ -138,10 +145,10 @@ tool that renders each voice to a file).
 | Right-drag | Look around (window and chase views) |
 | In the cabin view: click, scroll | Work the control under the cursor: a click cycles a switch or presses a key, scrolling moves a switch up or down |
 | In the cabin view: right-click, Z, Home | Mouse look on and off; inspect the control under the cursor; recentre |
-| In the cabin view: M | Wrist menu: PAD requests, time rate, pause, recentre, eye height, seat (the couches, and the lower equipment bay with the optics), checklist, comfort aids, and FLIGHT, the flight menu |
-| F1 | The flight menu, in the cabin view: another mission or start phase, started in place of the one flown |
+| In the cabin view: M | Wrist menu: PAD requests, time rate, pause, recentre, eye height, seat (the couches, and the lower equipment bay with the optics), checklist, comfort aids, the sound's level, and FLIGHT, the flight menu |
+| F1 | The flight menu, in the cabin view: another mission or start phase, started in place of the one flown, and the saved flights |
 | O | The optics, the sextant and the scanning telescope: while they're open, W/S and A/D move them instead of the hand controller, X is MARK and Y MARK REJECT. In the cabin they are at the lower equipment bay, where the same keys and the right stick move them |
-| F5 / F9 | Save / load checkpoint |
+| F5 / F9 | Quick save, and back to it: in place, or as its flight in place of another mission's. The flight menu's SAVES lists it with the other saved flights |
 | H | Key help |
 
 Every DSKY key and cockpit switch is also clickable on screen, in the HUD
@@ -1733,6 +1740,7 @@ And Apollo 13 (slice 7d) comes home after its oxygen tank failed, from
 five minutes before the failure to its splashdown, Aquarius its lifeboat.
 That finishes the other missions. A way in (milestone 8) has begun:
 the flight menu picks any mission and start phase, on the desktop and on
-the wrist, and starts it in place of the flight flown (slice 8a). Saved
-flights and builds from CI come next, then failures, backups and aborts,
+the wrist, and starts it in place of the flight flown (slice 8a), and
+saves flights and resumes them, the settings kept between sessions
+(slice 8b). Builds from CI come next, then failures, backups and aborts,
 every mission from the pad, the LM's navigation, and Apollo 14 to 17.

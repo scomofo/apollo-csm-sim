@@ -152,12 +152,19 @@ on the camera, and read the rates and attitude of the vehicle flown.
   - CHECKLIST turns to the next checklist where it was left (a finished
     one starts again), NEXT STEP goes past a step without its check, and
     HILITE switches the highlight.
-  - VIGNETTE, HORIZON and AUTHENTIC switch the comfort aids (§4).
+  - VIGNETTE, HORIZON and AUTHENTIC switch the comfort aids (§4), and
+    SOUND - and SOUND + set the sound's level, 3 dB a press.
   - FLIGHT turns to its flight page, the flight menu: the mission and the
     start phase chosen with < MISSION, MISSION >, < PHASE and PHASE >,
     a line on each above the buttons, START to fly it in place of the
-    flight flown, and BACK. At launch the menu opens on this page, held
-    open until the Menu button closes it.
+    flight flown, SAVES and BACK. At launch the menu opens on this page,
+    held open until the Menu button closes it.
+  - SAVES turns to the saved flights, < SAVED and SAVED > stepping
+    through them: SAVE keeps the flight flown now, RESUME flies the one
+    shown in place of it, and DELETE, pressed twice, deletes it.
+
+  The settings (the eye height, the comfort aids, the highlight, the
+  sound's level) are kept between sessions as they change.
 
   Its top line shows GET, the time rate, the worst recent frame time and
   the seat.
