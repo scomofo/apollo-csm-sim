@@ -18,7 +18,8 @@
 ##                          Eagle's touchdown, the splashdown
 ##   mortar                 a parachute's mortar (els.drogue, els.mains)
 ## Continuous voices, sounding while their channels hold them on (gains()):
-##   saturn                 the S-IC and the S-II (lv.stage, lv.engines)
+##   saturn                 the S-IC and the S-II (lv.stage, lv.engines), and
+##                          a launch abort's escape motor (les.thrust_n)
 ##   sivb                   the S-IVB's J-2 (lv.stage, sivb.thrust_n)
 ##   sps, dps, aps          the engines (sps.chamber_pct, lm.dps.throttle_pct,
 ##                          lm.aps.chamber_pct)
@@ -42,7 +43,8 @@
 ##
 ## Reads:  ctl.*, dsky.key_presses, lm.dsky.key_presses, rcs.active_jets,
 ##         lm.rcs.active_jets, mission.event.*, els.drogue, els.mains,
-##         lv.thrust_n, lv.stage, lv.engines, sivb.thrust_n, sps.chamber_pct,
+##         lv.thrust_n, lv.stage, lv.engines, les.thrust_n, sivb.thrust_n,
+##         sps.chamber_pct,
 ##         lm.dps.thrust_n, lm.dps.throttle_pct, lm.aps.chamber_pct,
 ##         dyn.q_pa, dyn.g_load, sys.powered, sys.master_alarm, dock.state,
 ##         player.vehicle, player.sound_db
@@ -125,12 +127,15 @@ const EVENTS := {
 	"o2_tank_2_failure": ["shock", "csm"],       # Apollo 13's bang
 	"cm_sm_sep": ["pyro", "csm"],
 	"landing": ["splash", "csm"],
+	"launch_abort": ["shock", "csm"],            # a launch abort's escape motor, or the booster's cutoff
+	"tower_jettison": ["pyro", "csm"],           # the tower leaving the CM in a mode I abort
 }
 ## Events with no sound of their own: an engine's start or stop is its
 ## continuous voice's.
 const SILENT_EVENTS := ["ignition", "thrust_ok", "tilt", "mach_1", "max_q", "sic_ceco", "sic_oeco", "s2_ignition",
 	"igm", "s2_ceco", "emr_shift", "s2_oeco", "s4_ignition", "s4_cutoff", "insertion", "tli_ignition", "tli_cutoff",
-	"lm_liftoff", "lm_insertion"]
+	"lm_liftoff", "lm_insertion", "abort_request", "lv_cutoff", "sic_engine_1_failure", "sic_engine_2_failure",
+	"lv_guidance_failure", "s2_engines_failure", "s4_engine_failure"]
 const SILENT_PREFIXES := ["start_", "phase_", "pad_", "timeline_"]
 ## Channels that move continuously (the hand controllers) or aren't the
 ## cabin's (the ground's): no click.
@@ -321,6 +326,8 @@ func gains() -> Dictionary:
 			g["saturn"] = 0.9 * engines
 		elif boost and stage == "S-II":
 			g["saturn"] = 0.45 * engines
+		if float(Bus.get_value("les.thrust_n", 0.0)) > 0.0:
+			g["saturn"] = 0.9
 		if (boost and stage == "S-IVB") or float(Bus.get_value("sivb.thrust_n", 0.0)) > 0.0:
 			g["sivb"] = 0.35
 		g["sps"] = 0.6 * clampf(float(Bus.get_value("sps.chamber_pct", 0.0)) / 100.0, 0.0, 1.0)

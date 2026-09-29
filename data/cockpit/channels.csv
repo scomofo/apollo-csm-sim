@@ -61,6 +61,14 @@ lv.eng_light_2,bool,,lv,LV ENGINE light 2: engine 2 of the stage burning or next
 lv.eng_light_3,bool,,lv,LV ENGINE light 3: engine 3 of the stage burning or next is below thrust
 lv.eng_light_4,bool,,lv,LV ENGINE light 4: engine 4 of the stage burning or next is below thrust
 lv.eng_light_5,bool,,lv,LV ENGINE light 5: engine 5 of the stage burning or next is below thrust
+ctl.eds.auto,bool,,crew,EDS AUTO: the EDS's automatic aborts (slice 9d)
+ctl.eds.two_eng,bool,,crew,2 ENG OUT: the EDS aborts on two S-IC engines out
+ctl.eds.rates,bool,,crew,LV RATES: the EDS aborts on the launch vehicle's rates past their limits
+ctl.abort,bool,,crew,The abort handle: the translation controller turned counterclockwise (held)
+ctl.les.tower_jett,bool,,crew,TWR JETT: the launch escape tower's jettison (momentary)
+eds.abort_light,bool,,eds,ABORT: the ground asks for a launch abort
+eds.lv_rate_light,bool,,eds,LV RATE: the launch vehicle's rates past the EDS's limits
+eds.lv_guid_light,bool,,eds,LV GUID: the IU's guidance platform lost
 lv.liftoff_light,bool,,lv,LIFTOFF light: from liftoff to the S-IC's separation
 lv.s2_sep_light,bool,,lv,S-II SEP light: from the S-IC's separation to the S-II's aft interstage's
 dsky,group,,agc,The DSKY display channels below

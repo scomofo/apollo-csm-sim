@@ -41,6 +41,8 @@
     "reference_area_m2": 79.46,
     "cd_mach": [[0.0, 0.25], [0.6, 0.27], [0.8, 0.32], [1.0, 0.47], [1.2, 0.57], [1.5, 0.48], [2.0, 0.37], [3.0, 0.27], [4.0, 0.21], [6.0, 0.16], [10.0, 0.14]],
     "_cd_source": "The axial force coefficient on the 10.06 m (33 ft) diameter against Mach, from the SA-506 flight manual's typical axial force and dynamic pressure through the S-IC's flight (MSFC-MAN-506, Figures 2-4 and 2-5) [derived]",
+    "guidance_failure_dps": 5.0,
+    "_failure_source": "The launch vehicle's failures (data/failures.json, slice 9d) [estimated]: an engine that fails stops, and its stage burns on the others; with its guidance platform failed the IU loses its attitude reference and turns the vehicle away, within seconds at guidance_failure_dps, past the EDS's 4 deg/s",
     "s_ic": {"engines": 5, "thrust_vac_n": 7986000.0, "exit_area_m2": 12.5, "isp_sl_s": 264.5, "isp_vac_s": 302.0, "propellant_kg": 2074429.0,
       "_source": "The F-1s: 6,719 kN and an Isp of 264.5 s each reduced to sea level (Table 5-1), 7,986 kN each in vacuum at OECO, 3.94 g on 827,292 kg (Tables 4-1 and 20-9); the thrust between them follows the air's pressure, on an exit area that lumps in the thrust's rise as the pumps' inlets pressurise [derived], and the Isp likewise from 264.5 s to 302 s, which empties the tanks, 2,074,429 kg from holddown release (Table 5-2), at the flown OECO [estimated]"},
     "s_ii": {"start_kg": 658547.0, "propellant_kg": 439005.0, "thrust_n": 5141516.0, "flow_kg_s": 1234.5, "low_mr_thrust_n": 3059402.0, "low_mr_flow_kg_s": 732.0,
@@ -171,6 +173,8 @@
     "cm_lm":  {"inertia": [32605.0, 125303.0, 127189.0], "ref_mass_kg": 16833.0, "rcs_pitch_arm_m": 1.6, "rcs_roll_arm_m": 1.4,
       "_source": "Apollo 13's command module and LM after the SM's jettison: 37,109.7 lb, 24,048, 92,418 and 93,809 slug ft2 about their X, Y and Z axes (MSC-02680, Table A-I) [published]; the CM's jets' arms [estimated: the CM's own]"},
     "cm":     {"inertia": [6000.0, 5500.0, 5500.0], "ref_mass_kg": 5560.0, "rcs_pitch_arm_m": 1.6, "rcs_roll_arm_m": 1.4},
+    "cm_les": {"inertia": [7000.0, 60000.0, 60000.0], "ref_mass_kg": 9600.0, "rcs_pitch_arm_m": 1.6, "rcs_roll_arm_m": 1.4,
+      "_source": "The launch escape vehicle, the CM under its tower after an LES abort [estimated]; the escape system turns it (les), not its jets"},
     "lm":     {"inertia": [33000.0, 42000.0, 42000.0], "ref_mass_kg": 15103.0},
     "lm_ascent": {"inertia": [7000.0, 5000.0, 5000.0], "ref_mass_kg": 4821.0}
   },
@@ -208,10 +212,36 @@
     "bank_accel_dps2": 9.1
   },
   "els": {
-    "_source": "Two 16.5 ft drogues at 24,000 ft, three 83.5 ft mains at 10,000 ft [published]; CdS [estimated]",
+    "_source": "Two 16.5 ft drogues at 24,000 ft, three 83.5 ft mains at 10,000 ft [published]; CdS [estimated]. The ELS's controller, armed, comes on below the 24,000 ft baroswitch; it fires the drogues 2.0 s after, and the pilot chutes that pull the mains out below the 10,000 ft baroswitch, but not before 14.0 s after it, as a low abort needs (CSM Apollo Operations Handbook, SM2A-03-BLOCK II-(1), p. 2.9-48) [published]",
     "drogue_alt_m": 7315.0,
     "main_alt_m": 3048.0,
+    "drogue_s": 2.0,
+    "main_s": 14.0,
     "drogue_cds_m2": 26.0,
     "main_cds_m2": 1200.0
+  },
+  "les": {
+    "_source": "The launch escape system (CSM Apollo Operations Handbook, SM2A-03-BLOCK II-(1), section 2.9; Apollo 11 press kit) [published unless marked]: the launch escape motor's 147,000 lbf and at least 515,000 lbf-s, which it gives in 3.5 s [derived]; the pitch control motor's 2,400 lbf and 1,750 lbf-s, 0.73 s [derived], fired only in the first 42 s of the flight (mode IA), to take the crew out to sea; the tower jettison motor's 31,500 lbf. The tower, 8,910 lb with its boost protective cover, is saturn_v.s_ii.les_kg. The canards deploy 11 s after an LES abort and the ELS is armed 3.0 s after them (pp. 2.9-47 and 2.9-48); they turn the launch escape vehicle blunt end forward below Mach 3.8 (Figure 2.9-36). The motor's propellant (an Isp of 220 s [estimated]), the vehicle's drag with its tower forward, and the rates the pitch control motor, the air and the canards turn it at are [estimated]: its attitude follows those rates, not its moments [simplified]",
+    "lem_thrust_n": 653888.0,
+    "lem_burn_s": 3.5,
+    "lem_propellant_kg": 1060.0,
+    "pcm_burn_s": 0.73,
+    "pcm_rate_dps": 20.0,
+    "mode_1a_s": 42.0,
+    "canard_s": 11.0,
+    "elsc_arm_s": 14.0,
+    "canard_mach": 3.8,
+    "cd_tower_forward": 0.4,
+    "weathervane_dps": 30.0,
+    "canard_dps": 30.0,
+    "weathervane_q_pa": 500.0
+  },
+  "eds": {
+    "_source": "The emergency detection system (CSM Apollo Operations Handbook, SM2A-03-BLOCK II-(1), sections 2.9.4.5 to 2.9.4.7 and 2.9.4.14) [published unless marked]: from liftoff to the tower's jettison it aborts on its own for two or more of the S-IC's engines out, or for the launch vehicle's rates past their limits; the IU switches both off just before the S-IC's centre engine's cutoff, and the crew can switch either off. Its limits, roll, pitch and yaw: 20, 4 and 4 deg/s in modes IA and IB, 20, 9 and 9 from mode IC (Apollo 11 Flight Journal). An abort cuts off the launch vehicle's engines, but not in the first 30 s, for range safety. With the tower gone the crew's handle starts the SPS abort: the SM's +X jets fire from then until the handle is back at neutral, and the CSM separates from the launch vehicle 3.0 s after it. The ground lights ABORT ground_abort_s after a failure that ends the launch [estimated]",
+    "rate_limit_dps": [20.0, 4.0, 4.0],
+    "rate_limit_ic_dps": [20.0, 9.0, 9.0],
+    "beco_inhibit_s": 30.0,
+    "csm_sep_s": 3.0,
+    "ground_abort_s": 3.0
   }
 }

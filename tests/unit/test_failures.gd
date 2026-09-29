@@ -4,7 +4,11 @@
 ## checkpoint keeps the armed and the failed; a mission arms its own, as
 ## Apollo 13's tank; the instructor's page on the wrist menu fails any;
 ## and a failure opens its malfunction procedure. Apollo 13's flight, with
-## its tank on the catalog, is tests/scenarios/test_apollo_13.gd's.
+## its tank on the catalog, is tests/scenarios/test_apollo_13.gd's. The
+## launch vehicle's (slice 9d) light the console's launch vehicle lights
+## and change the vehicle, in its stage, and a failure armed on an event
+## comes that long after it; the aborts they set off are
+## tests/scenarios/test_launch_aborts.gd's.
 extends SimTest
 
 const MAIN_SCENE := "res://scenes/main.tscn"
@@ -22,22 +26,32 @@ func test_the_catalog_names_what_the_flight_has() -> void:
 	var systems := {}
 	for pair in SimRuntime.SYSTEMS + SimRuntime.LM_SYSTEMS:
 		systems[pair[0]] = true
+	var lamps := {}
+	for r in CockpitLayout.load_default().rows:
+		if r["type"] == "lamp":
+			lamps[r["channel"]] = true
 	var ids := {}
 	for f: Dictionary in Failures.catalog():
 		assert_false(ids.has(f["id"]), "%s: one entry" % f["id"])
 		ids[f["id"]] = true
 		assert_true(systems.has(f["system"]), "%s: a runtime system" % f["id"])
-		assert_has(CautionWarning.LIGHTS, f["caution"], "%s: a caution light" % f["id"])
-		assert_eq(CautionWarning.LEGENDS[f["caution"]], f["light"], "%s: its legend" % f["id"])
+		if f["vehicle"] == "lv":
+			assert_true(lamps.has(f["lamp"]), "%s: a lamp on the console, %s" % [f["id"], f["lamp"]])
+		else:
+			assert_has(CautionWarning.LIGHTS, f["caution"], "%s: a caution light" % f["id"])
+			assert_eq(CautionWarning.LEGENDS[f["caution"]], f["light"], "%s: its legend" % f["id"])
 		assert_true(procedures.has(f["procedure"]), "%s: its procedure, %s" % [f["id"], f["procedure"]])
-		for k in ["title", "part", "effect", "expect"]:
+		assert_true(str(f.get("launch", "")) in ["", "abort", "return"], "%s: what the ground does in the launch" % f["id"])
+		for k in ["title", "part", "effect", "expect", "light"]:
 			assert_true(f.has(k), "%s: %s" % [f["id"], k])
-	assert_eq(ids.size(), 10)
+	assert_eq(ids.size(), 15)
 
 
 func test_each_failure_lights_its_caution_sounds_the_master_alarm_and_changes_its_system() -> void:
 	for f: Dictionary in Failures.catalog():
 		var id := str(f["id"])
+		if f["vehicle"] == "lv":
+			continue
 		build("parking_orbit")
 		run(10.0, false)
 		assert_false(bool(Bus.get_value("cw." + str(f["caution"]))), "%s: dark before" % id)
@@ -81,6 +95,52 @@ func test_a_checkpoint_keeps_the_armed_and_the_failed() -> void:
 	assert_true(bool(Bus.get_value("cw.fc1")))
 
 
+## Slice 9d: each launch vehicle failure, failed in the stage it fails,
+## lights its lamp and changes the vehicle as the catalog says; one S-IC
+## engine out, or any after the tower's gone, aborts nothing by itself.
+func test_each_launch_vehicle_failure_lights_its_lamp_and_changes_the_vehicle() -> void:
+	build("launch")
+	var snaps := {}
+	for at in [20.0, 200.0, 600.0]:
+		run(at - SimClock.get_seconds, false)
+		snaps[at] = rt.snapshot()
+	var when := {"sic_engine_1": 20.0, "sic_engine_2": 20.0, "lv_guidance": 200.0, "s2_engines": 200.0, "s4_engine": 600.0}
+	var n := 0
+	for f: Dictionary in Failures.catalog():
+		if f["vehicle"] != "lv":
+			continue
+		var id := str(f["id"])
+		n += 1
+		assert_eq(rt.restore(snaps[when[id]]), "", id)
+		run(SimClock.FIXED_DT, false)
+		assert_false(bool(Bus.get_value(f["lamp"])), "%s: dark before" % id)
+		assert_false(Checklist.holds(f["expect"]), "%s: the vehicle as it was" % id)
+		assert_true(rt.failures.fail(id), id)
+		run(2.0, false)
+		assert_true(bool(Bus.get_value(f["lamp"])), "%s lights %s" % [id, f["light"]])
+		assert_true(Checklist.holds(f["expect"]), "%s: %s" % [id, f["effect"]])
+		assert_false(bool(Bus.get_value("eds.abort")), "%s: no abort by itself" % id)
+	assert_eq(n, 5)
+
+
+## Slice 9d: a failure armed on a mission event comes that long after it,
+## and a checkpoint keeps it armed.
+func test_a_failure_armed_on_an_event_comes_that_long_after_it() -> void:
+	build("launch")
+	assert_true(rt.failures.arm_on("sic_engine_1", "liftoff", 10.0))
+	assert_eq(rt.failures.state_line("sic_engine_1"), "ARMED 10 s after liftoff")
+	var snap := JSON.stringify(rt.snapshot())
+	build("")
+	assert_eq(rt.restore(JSON.parse_string(snap)), "")
+	assert_eq(rt.failures.armed_on.keys(), ["sic_engine_1"], "kept")
+	run(15.0 - SimClock.get_seconds, false)
+	var liftoff := rt.sequencer.event_get("liftoff")
+	assert_almost_eq(float(rt.failures.active.get("sic_engine_1", -1.0)), liftoff + 10.0, SimClock.FIXED_DT + 1e-6,
+		"10 s after the liftoff")
+	assert_eq(int(Bus.get_value("lv.engines_failed")), 1)
+	assert_true(bool(Bus.get_value("lv.eng_light_1")), "LV ENG 1")
+
+
 func test_a_mission_arms_its_own() -> void:
 	build("parking_orbit", "apollo_13")
 	assert_eq(rt.failures.armed, {"o2_tank_2": 201293.0}, "Apollo 13's tank, at 55:54:53")
@@ -107,7 +167,7 @@ func test_the_instructors_page_fails_the_failure_it_shows() -> void:
 	menu.activate("instructor")
 	assert_eq(menu.page, "failures")
 	assert_true(menu.button("fail").is_visible_in_tree())
-	assert_string_contains(menu.choice_label.text, "INSTRUCTOR: FAILURE 1 OF 10")
+	assert_string_contains(menu.choice_label.text, "INSTRUCTOR: FAILURE 1 OF 15")
 	assert_string_contains(menu.choice_label.text, "Cryogenic oxygen tank 2: CRYO PRESS light")
 	assert_string_contains(menu.choice_label.text, "READY")
 	menu.activate("failure_next")
@@ -119,7 +179,7 @@ func test_the_instructors_page_fails_the_failure_it_shows() -> void:
 	menu.activate("failure_prev")
 	menu.activate("failure_prev")
 	menu.activate("failure_prev")
-	assert_string_contains(menu.choice_label.text, "FAILURE 10 OF 10", "round to the last")
+	assert_string_contains(menu.choice_label.text, "FAILURE 15 OF 15", "round to the last")
 	menu.activate("failures_back")
 	assert_eq(menu.page, "flight")
 

@@ -10,7 +10,8 @@
 # CM hardware (one switch for several, or a pushbutton for a guarded switch:
 # CM POWER for the breakers and switches of Apollo 13's emergency power-down
 # and of its power-up for the entry, LM PWR for the switches that took the
-# LM's power through the umbilical).
+# LM's power through the umbilical; ABORT for the translation controller's
+# handle turned counterclockwise).
 id,panel,type,label,x_mm,y_mm,rot_deg,channel,params,source,confidence,status,role
 P1_FDAI,MDC1,fdai,FDAI,-150,70,0,scs.fdai.attitude,scale=1.8,AOH SCS 2.3,D,implemented,historical
 P1_DV_THRUST_A,MDC1,toggle,DELTA-V THRUST A,40,170,0,ctl.sps.arm_a,guarded=true;labels=OFF|NORMAL,AOH SPS 2.4-37,D,implemented,historical
@@ -43,6 +44,14 @@ P1_LV_ENG_4,MDC1,lamp,LV ENG 4,120,-200,0,lv.eng_light_4,,AOH §3,D,implemented,
 P1_LV_ENG_5,MDC1,lamp,LV ENG 5,150,-175,0,lv.eng_light_5,,AOH §3,D,implemented,historical
 P1_LIFTOFF,MDC1,lamp,LIFTOFF,245,-150,0,lv.liftoff_light,,AOH §3,D,implemented,historical
 P1_S2_SEP,MDC1,lamp,S-II SEP,245,-200,0,lv.s2_sep_light,,AOH §3,D,implemented,historical
+P1_EDS_AUTO,MDC1,toggle,EDS AUTO,-260,-85,0,ctl.eds.auto,labels=OFF|AUTO,AOH SEQ 2.9.4.7.2,D,implemented,historical
+P1_EDS_2ENG,MDC1,toggle,2 ENG OUT,-200,-85,0,ctl.eds.two_eng,labels=OFF|AUTO,AOH SEQ 2.9.4.6,D,implemented,historical
+P1_EDS_RATES,MDC1,toggle,LV RATES,-140,-85,0,ctl.eds.rates,labels=OFF|AUTO,AOH SEQ 2.9.4.6,D,implemented,historical
+P1_TWR_JETT,MDC1,pushbutton,TWR JETT,-80,-85,0,ctl.les.tower_jett,,AOH SEQ 2.9.4.14.8,D,implemented,proxy
+P1_ABORT_HANDLE,MDC1,pushbutton,ABORT (THC CCW),-20,-85,0,ctl.abort,,AOH SEQ 2.9.4.14,D,implemented,proxy
+P1_ABORT_LIGHT,MDC1,lamp,ABORT,260,100,0,eds.abort_light,,AOH SEQ 2.9.4.5.3,D,implemented,historical
+P1_LV_RATE,MDC1,lamp,LV RATE,260,70,0,eds.lv_rate_light,,AOH SEQ 2.9.4.5.2,D,implemented,historical
+P1_LV_GUID,MDC1,lamp,LV GUID,260,40,0,eds.lv_guid_light,,AOH SEQ 2.9.4.5.2,D,implemented,historical
 P2_MISSION_TIMER,MDC2,clock,MISSION TIMER,0,200,0,time.get_s,power_channel=eps.bus_a_v,AOH §3,D,implemented,historical
 P2_RCS_QUAD_A,MDC2,toggle,RCS QUAD A,-240,190,0,ctl.rcs.quad_a,,AOH SCS 2.3,D,implemented,proxy
 P2_RCS_QUAD_B,MDC2,toggle,RCS QUAD B,-180,190,0,ctl.rcs.quad_b,,AOH SCS 2.3,D,implemented,proxy

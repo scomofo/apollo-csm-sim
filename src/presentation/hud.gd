@@ -326,6 +326,11 @@ func _switch_panel() -> PanelContainer:
 	_momentary(g, "EMS SET decr", "ctl.ems.set", -1, 0)
 	_momentary(g, "EMS SET incr", "ctl.ems.set", 1, 0)
 	_momentary(g, "EMS SET INCR", "ctl.ems.set", 2, 0)
+	_toggle(g, "EDS AUTO", "ctl.eds.auto")
+	_toggle(g, "2 ENG OUT", "ctl.eds.two_eng")
+	_toggle(g, "LV RATES", "ctl.eds.rates")
+	_momentary(g, "ABORT (THC CCW)", "ctl.abort")
+	_momentary(g, "TWR JETT", "ctl.les.tower_jett")
 	return p
 
 
@@ -582,10 +587,12 @@ MISALIGN %4.1f°""" % [
 
 
 ## Through the launch: the stage burning and its engines, their thrust,
-## the Mach number and the dynamic pressure.
+## the Mach number and the dynamic pressure; the EDS's lights and the
+## abort mode (slice 9d), and after an abort its mode.
 func _launch_text() -> String:
+	var mode := str(Bus.get_value("mission.abort_mode", ""))
 	if str(Bus.get_value("dyn.config", "")) != "saturn_v":
-		return ""
+		return "\nABORT   mode %s" % mode if mode != "" else ""
 	var stage := str(Bus.get_value("lv.stage", ""))
 	if bool(Bus.get_value("lv.held", false)):
 		stage = "ON PAD"
@@ -595,7 +602,19 @@ THRUST  %9.0f klbf
 MACH    %9.2f
 Q       %9.0f psf""" % [stage if stage != "" else "STAGING", int(Bus.get_value("lv.engines", 0)),
 		float(Bus.get_value("lv.thrust_n", 0.0)) / (1000.0 * Units.LBF), float(Bus.get_value("lv.mach", 0.0)),
-		float(Bus.get_value("lv.q_pa", 0.0)) / Units.PSF]
+		float(Bus.get_value("lv.q_pa", 0.0)) / Units.PSF] + "\nEDS     %s  %s" % [
+		str(Bus.get_value("mission.launch_mode", "")), _eds_lights()]
+
+
+## The EDS's lights, as the HUD lists them.
+static func _eds_lights() -> String:
+	var lit := PackedStringArray()
+	for pair in [["ABORT", "eds.abort_light"], ["LV RATE", "eds.lv_rate_light"], ["LV GUID", "eds.lv_guid_light"]]:
+		if bool(Bus.get_value(pair[1], false)):
+			lit.append(pair[0])
+	if not bool(Bus.get_value("eds.auto_enabled", false)):
+		lit.append("(no auto abort)")
+	return "  ".join(lit)
 
 
 func _process(_delta: float) -> void:

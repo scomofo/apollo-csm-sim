@@ -38,7 +38,11 @@ extends RefCounted
 ##    ground's answers to them.
 ## 21: the backups (slice 9c): the SCS's GDC, hold and SPS latch, the SPS's
 ##    gimbal, and the EMS's counters and scroll.
-const SCHEMA_VERSION := 21
+## 22: the launch's aborts (slice 9d): the EDS's and the escape tower's
+##    state, the launch vehicle's failures and cutoff, the ELS's
+##    controller, the failures armed on an event, and the abort's mode and
+##    the ground's calls.
+const SCHEMA_VERSION := 22
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],
@@ -48,6 +52,8 @@ const SYSTEMS := [
 	["rcs", "res://src/systems/rcs.gd"],
 	["sps", "res://src/systems/sps.gd"],
 	["lv", "res://src/systems/launch_vehicle.gd"],
+	["eds", "res://src/systems/eds.gd"],
+	["les", "res://src/systems/les.gd"],
 	["sivb", "res://src/systems/sivb.gd"],
 	["els", "res://src/systems/els.gd"],
 	["optics", "res://src/systems/optics.gd"],
@@ -72,7 +78,9 @@ const LM_SYSTEMS := [
 ## systems open, the PGNS's breakers in and its guidance in control, the
 ## AGS off, the TTCA's throttle at its minimum, the rendezvous radar's mode
 ## switch at AUTO TRACK (0 LGC, 1 AUTO TRACK, 2 SLEW), where Apollo 11's
-## radar ranging test after DOI left it, and docked, the LM powered down.
+## radar ranging test after DOI left it, and docked, the LM powered down;
+## EDS AUTO, 2 ENG OUT and LV RATES on, as the launch has them, the abort
+## handle at neutral.
 const CONTROL_DEFAULTS := {
 	"ctl.scs.att_source": 0, "ctl.cmc.mode": 1, "ctl.cmc.up_tlm": true,
 	"ctl.scs.rate": 0, "ctl.scs.att_db": 0, "ctl.scs.gdc_align": false, "ctl.scs.tvc": 0,
@@ -84,6 +92,7 @@ const CONTROL_DEFAULTS := {
 	"ctl.els.logic": false, "ctl.els.auto": false, "ctl.cw.master_alarm": false,
 	"ctl.eps.fc1": true, "ctl.eps.fc2": true, "ctl.eps.fc3": true, "ctl.eps.cm_power": 2, "ctl.eps.lm_power": false,
 	"ctl.seq.csm_sep": false, "ctl.seq.undock": false, "ctl.seq.lm_jett": false, "ctl.seq.cm_sm_sep": false,
+	"ctl.eds.auto": true, "ctl.eds.two_eng": true, "ctl.eds.rates": true, "ctl.abort": false, "ctl.les.tower_jett": false,
 	"ctl.ground.pad_request": "",
 	"ctl.lm.mode": 1, "ctl.lm.rhc": Vector3.ZERO, "ctl.lm.thc": Vector3.ZERO,
 	"ctl.lm.engine_arm": 0, "ctl.lm.stage": false, "ctl.lm.rcs.sys_a": true, "ctl.lm.rcs.sys_b": true,

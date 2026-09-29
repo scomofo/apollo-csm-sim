@@ -37,6 +37,14 @@
 ## 11 air-to-ground transcript, 102:38:53 and 102:42:25 GET, and Eyles,
 ## 2004].
 ##
+## The launch's aborts (slice 9d): the ground marks the abort modes as
+## Apollo 11's did (_launch_abort_mode(), mission.json "launch_aborts"),
+## and lights ABORT a few seconds after a failure that ends the launch;
+## an abort (Eds) cuts the launch vehicle off and, with the tower on,
+## sends the CM away under it (Les), or separates the CSM 3 s later; the
+## ground plans mode III's and IV's burns (_abort_pad()), and the flight
+## ends at a splashdown down the range, or in orbit ("earth_orbit").
+##
 ## Reads:  ctl.seq.csm_sep, ctl.seq.undock, ctl.seq.lm_jett,
 ##         ctl.seq.cm_sm_sep, ctl.lm.stage (crew pushbuttons,
 ##         edge-triggered), ctl.ground.pad_request (String),
@@ -44,7 +52,9 @@
 ## Writes: mission.phase, mission.capcom, mission.pad_text, mission.event.<id>,
 ##         mission.result, mission.tli_tig, mission.next_event_get_s (the
 ##         timeline's next entry or the scripted failure, which SimClock
-##         drops time acceleration at)
+##         drops time acceleration at), mission.launch_mode (the abort mode
+##         the launch is in), mission.abort_mode (its abort's),
+##         mission.abort_downrange_nmi (the abort's splashdown's)
 class_name MissionSequencer
 extends Node
 
@@ -93,6 +103,9 @@ const PAD_KINDS := ["mcc", "loi", "circ", "plane", "tei", "sv", "lm_sv", "doi", 
 ## The CSM's fixed maneuvers from this ΔV are the SPS's (P40), smaller ones
 ## the SM RCS's (P41), m/s.
 const SPS_MIN_MPS := 10.0 * Units.FT
+## A launch abort's orbit is safe (phase "earth_orbit") with its perigee
+## this high, m: 75 nmi [estimated].
+const SAFE_PERIGEE_M := 75.0 * Units.NMI
 
 var mission: Mission
 var dynamics: Dynamics
@@ -103,6 +116,7 @@ var failures: Failures:
 	set(f):
 		failures = f
 		f.failed.connect(_on_failure)
+		event_fired.connect(f.on_event)
 
 var phase: String = ""
 var events: Array = []
@@ -125,6 +139,15 @@ var plan: Dictionary = {}
 var timeline_done: Dictionary = {}
 ## The LGC's software restarts the ground has answered.
 var alarms_answered: int = 0
+## The launch's abort (slice 9d): the mode the ground called for it, or
+## the flight was in ("IA" to "IV"), empty before; whether and when (GET)
+## the ground will light ABORT for a failure, and whether that failure
+## needs the crew home at once; and the launch's calls of the mode said.
+var abort_mode: String = ""
+var ground_abort_due: bool = false
+var ground_abort_get: float = 0.0
+var ground_abort_return: bool = false
+var mode_calls_said: int = 0
 ## The seed the flight's dispersions are drawn from.
 var dispersion_seed: int = 0
 var _edges: Dictionary = {}
@@ -143,6 +166,11 @@ func _ready() -> void:
 		dynamics.lm_liftoff.connect(_on_lm_liftoff)
 	if systems.has("lv"):
 		systems["lv"].event_fired.connect(_on_lv_event)
+	if systems.has("eds"):
+		systems["eds"].abort_started.connect(_on_abort)
+		systems["eds"].csm_separated.connect(_on_abort_separation)
+	if systems.has("les"):
+		systems["les"].tower_jettisoned.connect(_on_tower_jettisoned)
 
 
 func _exit_tree() -> void:
@@ -156,6 +184,12 @@ func _exit_tree() -> void:
 		dynamics.lm_liftoff.disconnect(_on_lm_liftoff)
 	if systems.has("lv") and is_instance_valid(systems["lv"]) and systems["lv"].event_fired.is_connected(_on_lv_event):
 		systems["lv"].event_fired.disconnect(_on_lv_event)
+	if systems.has("eds") and is_instance_valid(systems["eds"]) and systems["eds"].abort_started.is_connected(_on_abort):
+		systems["eds"].abort_started.disconnect(_on_abort)
+		systems["eds"].csm_separated.disconnect(_on_abort_separation)
+	if systems.has("les") and is_instance_valid(systems["les"]) \
+			and systems["les"].tower_jettisoned.is_connected(_on_tower_jettisoned):
+		systems["les"].tower_jettisoned.disconnect(_on_tower_jettisoned)
 
 
 # --- start states ------------------------------------------------------------
@@ -232,6 +266,11 @@ func start(p_phase: String) -> void:
 		p_phase = "lunar_orbit"
 	events.clear()
 	visited_lunar_orbit = false
+	abort_mode = ""
+	Bus.set_value("mission.abort_mode", "")
+	ground_abort_due = false
+	ground_abort_return = false
+	mode_calls_said = 0
 	tli_pad = {}
 	tli_cutoff_get = -1.0
 	pads = {}
@@ -252,8 +291,19 @@ func start(p_phase: String) -> void:
 		lv.arm(l, _insertion_target())
 		tr = Trajectory.new()
 		tr.set_state_d("earth", float(l["start_get_s"]), lv.pad_state(float(l["start_get_s"])))
+		# The escape tower on, the EDS ready, ELS AUTO as the launch has it.
+		if systems.has("les"):
+			systems["les"].arm()
+		if systems.has("eds"):
+			systems["eds"].arm()
+		Bus.set_value("ctl.els.auto", true)
+		for c: Array in mission.section("launch_aborts").get("calls", []):
+			if float(c[0]) < float(l["start_get_s"]):
+				mode_calls_said += 1
 	elif systems.has("lv"):
 		systems["lv"].state = "idle"
+		if systems.has("les"):
+			systems["les"].stow()
 	if p_phase == "translunar_coast":
 		var pad := _plan_tli(tr)
 		assert(not pad.is_empty(), "no TLI solution")
@@ -388,6 +438,7 @@ func start(p_phase: String) -> void:
 func tick(_dt: float) -> void:
 	_crew_commands()
 	_automation()
+	_launch_aborts()
 	_timeline()
 	_alarm_calls()
 	_update_phase()
@@ -531,8 +582,13 @@ func _update_phase() -> void:
 		p = "splashdown" if ok else "lost"
 	elif dynamics.config == "saturn_v":
 		p = "launch"
+	elif dynamics.config == "cm_les":
+		p = "abort"
 	elif dynamics.config == "cm" and tr.primary == "earth" and tr.altitude() < 1.0e6:
 		p = "entry"
+	elif abort_mode != "" and tr.primary == "earth":
+		# After a launch abort: into orbit on the SPS (mode IV), or down.
+		p = "earth_orbit" if float(tr.conic()["rp"]) > Bodies.R_EARTH + SAFE_PERIGEE_M else "abort"
 	elif dynamics.config == "stack" and str(Bus.get_value("sivb.state", "")) != "done":
 		p = "tli" if bool(Bus.get_value("sivb.burning", false)) else "parking_orbit"
 	elif tr.primary == "moon" and float(tr.conic()["energy"]) < 0.0:
@@ -552,6 +608,15 @@ func _update_phase() -> void:
 		_fire("phase_" + phase)
 		if phase == "lunar_orbit" and was in ["", "translunar_coast"]:
 			_say("{csm}, Houston. We confirm lunar orbit.")
+		elif phase == "splashdown" and abort_mode != "":
+			# A launch abort's: how far down the range from the pad.
+			Bus.set_value("mission.result", "success")
+			var l := mission.section("launch")
+			var dr := Bodies.surface_angle(geographic(), Vector2(float(l["pad_lat_deg"]), float(l["pad_lon_deg"]))) \
+				* Bodies.R_EARTH / Units.NMI
+			Bus.set_value("mission.abort_downrange_nmi", dr)
+			_say("Splashdown! Welcome home, {mission}. Mode %s, %.1f nmi downrange; peak load %.1f g, touchdown %.1f m/s." % [
+				abort_mode, dr, dynamics.max_g, dynamics.landed_speed])
 		elif phase == "splashdown":
 			Bus.set_value("mission.result", "success")
 			var miss := Bodies.surface_angle(geographic(), entry_target()) * Bodies.R_EARTH / Units.NMI
@@ -583,6 +648,9 @@ func _on_lv_event(id: String) -> void:
 	if calls.has(id):
 		_say(str(calls[id]))
 	match id:
+		"les_jettison":
+			if systems.has("les"):
+				systems["les"].jettison()
 		"liftoff":
 			if systems.has("agc"):
 				var agc: Agc = systems["agc"]
@@ -695,6 +763,8 @@ func _plan_return(tr: Trajectory, mass: float, tig: float, r: Dictionary, name: 
 func request_pad(kind: String, earliest: float = -1.0, e: Dictionary = {}) -> Dictionary:
 	if kind == "entry":
 		return entry_pad()
+	if kind == "abort":
+		return _abort_pad()
 	if kind == "coarse":
 		return _coarse_pad(str(e.get("computer", "")))
 	if kind == "refsmmat":
@@ -1749,13 +1819,160 @@ func _has(id: String) -> bool:
 
 
 ## Failure [param id] came: the event the catalog names, and the crew's
-## words to Houston.
+## words to Houston. In the launch, one the catalog says ends it
+## ("launch") has the ground light ABORT (spacecraft.json "eds":
+## ground_abort_s later).
 func _on_failure(id: String) -> void:
 	var e := Failures.entry(id)
 	if e.has("event"):
 		_fire(str(e["event"]))
 	if e.has("call"):
 		_say(str(e["call"]))
+	var eds: Eds = systems.get("eds")
+	if eds != null and eds.on_vehicle() and not eds.aborted and str(e.get("launch", "")) in ["abort", "return"]:
+		ground_abort_return = ground_abort_return or str(e["launch"]) == "return"
+		if not ground_abort_due:
+			ground_abort_due = true
+			ground_abort_get = SimClock.get_seconds + float(SpacecraftData.section("eds")["ground_abort_s"])
+
+
+# --- The launch's aborts (slice 9d) --------------------------------------------
+
+## The abort mode the flight is in now (mission.json "launch_aborts"): IA,
+## IB and IC while the escape tower is on, II after it, and IV once the SPS
+## can reach orbit, or with [param returning], when the crew must come
+## home at once, III.
+func _launch_abort_mode(returning: bool = false) -> String:
+	var a := mission.section("launch_aborts")
+	var now := SimClock.get_seconds
+	if systems.has("les") and systems["les"].attached:
+		if now < float(a.get("ib_get_s", 42.0)):
+			return "IA"
+		return "IB" if now < float(a.get("ic_get_s", 118.0)) else "IC"
+	if returning and now >= float(a.get("iii_get_s", 540.0)):
+		return "III"
+	if not returning and now >= float(a.get("iv_get_s", 540.0)):
+		return "IV"
+	return "II"
+
+
+## The ground's PAD for a launch abort's burn (slice 9d), after the CSM's
+## separation: mode IV's into orbit (Rtcc.plan_mode_iv()), or mode III's
+## retrograde burn to bring the CM's half-lift landing to the ground's
+## aim (Rtcc.plan_mode_iii(), mission.json "launch_aborts"), from the
+## CSM's tracked state, its ignition mode_iv_tig_s or mode_iii_tig_s after
+## the separation, or a minute from now if later; uplinked with it (P27
+## and P30) for P40, as the other PADs are. {} for mode I or II.
+func _abort_pad() -> Dictionary:
+	if not abort_mode in ["III", "IV"] or dynamics.config != "csm":
+		last_pad = {}
+		_say("Houston: no burn for your abort's mode %s." % (abort_mode if abort_mode != "" else "-"))
+		return {}
+	var a := mission.section("launch_aborts")
+	var tracked := tracked_state(dynamics.traj)
+	var tig := maxf(event_get("csm_lv_sep") + float(a.get("mode_%s_tig_s" % abort_mode.to_lower(), 120.0)),
+		SimClock.get_seconds + 60.0)
+	var pad := {}
+	if abort_mode == "IV":
+		pad = Rtcc.plan_mode_iv(tracked, dynamics.mass, tig)
+	else:
+		var l := mission.section("launch")
+		pad = Rtcc.plan_mode_iii(tracked, dynamics.mass, tig, Vector2(float(l["pad_lat_deg"]), float(l["pad_lon_deg"])),
+			float(a.get("mode_iii_target_nmi", 3200.0)), float(a.get("half_lift_bank_deg", 60.0)))
+	if pad.is_empty():
+		last_pad = {}
+		_say("Houston: we have no mode %s solution for you." % abort_mode)
+		return {}
+	if float(pad["dv"]) < SPS_MIN_MPS:
+		# Mode III lands short of the ground's aim without one.
+		last_pad = pad
+		pads["abort"] = pad
+		_say("Houston: {csm}, no burn needed. CM/SM SEP and half lift; you'll land %.0f miles downrange." % float(
+			pad.get("range_nmi", 0.0)))
+		return pad
+	return _uplink("abort", pad, tracked)
+
+
+## The launch's calls of the mode as the flight passes them, and the
+## ground's ABORT for a failure that ends the launch.
+func _launch_aborts() -> void:
+	var eds: Eds = systems.get("eds")
+	if eds == null or not eds.on_vehicle():
+		return
+	Bus.set_value("mission.launch_mode", _launch_abort_mode(ground_abort_return))
+	var now := SimClock.get_seconds
+	var calls: Array = mission.section("launch_aborts").get("calls", [])
+	if not eds.aborted and str(Bus.get_value("lv.state", "")) == "flight":
+		while mode_calls_said < calls.size() and now >= float(calls[mode_calls_said][0]) - 1e-6:
+			_say(str(calls[mode_calls_said][1]))
+			mode_calls_said += 1
+	if ground_abort_due and now >= ground_abort_get - 1e-6:
+		ground_abort_due = false
+		if not eds.aborted:
+			abort_mode = _launch_abort_mode(ground_abort_return)
+			Bus.set_value("mission.abort_mode", abort_mode)
+			eds.request()
+			_fire("abort_request")
+			_say("Abort. Abort. Mode %s." % abort_mode.replace("IA", "One Alpha").replace("IB", "One Bravo") \
+				.replace("IC", "One Charlie"))
+
+
+## An abort started (Eds): in the mode the ground called, or the flight is
+## in. The launch vehicle's engines cut off, but not in the first 30 s,
+## for range safety; with the tower on, the CM leaves the SM and the escape
+## motor pulls it away (Les), in mode IA tilted out to sea.
+func _on_abort(kind: String) -> void:
+	var eds: Eds = systems["eds"]
+	if abort_mode == "":
+		abort_mode = _launch_abort_mode(ground_abort_return)
+	Bus.set_value("mission.abort_mode", abort_mode)
+	_fire("launch_abort")
+	var lv: LaunchVehicle = systems["lv"]
+	if lv.state == "flight" and SimClock.get_seconds >= float(lv.events.get("liftoff", INF)) \
+			+ float(SpacecraftData.section("eds")["beco_inhibit_s"]) - 1e-6:
+		lv.cutoff()
+	var why := {"2 ENG OUT": "two engines out", "LV RATE": "the rates", "HANDLE": "the handle"}
+	if kind == "les":
+		var a := lv.grr_axes
+		var az := deg_to_rad(float(lv.launch.get("flight_azimuth_deg", 90.0)))
+		var downrange := Vector3(a[3], a[4], a[5]) * cos(az) + Vector3(a[6], a[7], a[8]) * sin(az)
+		var mode_1a := SimClock.get_seconds < float(SpacecraftData.section("les")["mode_1a_s"])
+		dynamics.set_configuration("cm_les")
+		systems["les"].abort(mode_1a, downrange)
+		_fire("cm_sm_sep")
+		_say("Abort, mode %s, on %s. The tower has you." % [abort_mode, why.get(eds.cause, eds.cause)])
+	else:
+		_say("Abort, mode %s, on %s. Booster cutoff; the CSM separates in 3 seconds." % [abort_mode,
+			why.get(eds.cause, eds.cause)])
+
+
+## The SPS abort's CSM/LV separation: the CSM flies on alone, the LM left
+## on the S-IVB. The ground's word for the mode.
+func _on_abort_separation() -> void:
+	if dynamics.config != "saturn_v":
+		return
+	if systems.has("sivb"):
+		systems["sivb"].state = "done"
+		systems["sivb"].prop_kg = 0.0
+	Bus.set_value("sivb.prop_kg", 0.0)
+	dynamics.set_configuration("csm")
+	_fire("csm_lv_sep")
+	match abort_mode:
+		"III":
+			_say("Houston: {csm}, you're off. Mode III: P00 and ACCEPT for your retrograde burn's PAD, then CM/SM SEP and half lift.")
+		"IV":
+			_say("Houston: {csm}, you're off. Mode IV: P00 and ACCEPT for your PAD into orbit.")
+		_:
+			_say("Houston: {csm}, you're off. Mode II: CM/SM SEP when you're clear, full lift, ELS LOGIC and AUTO.")
+
+
+## The escape tower's jettison: in an abort it leaves the CM to its chutes.
+func _on_tower_jettisoned(aborted: bool) -> void:
+	if not aborted or dynamics.config != "cm_les":
+		return
+	dynamics.set_configuration("cm")
+	_fire("tower_jettison")
+	_say("Tower jettison. Drogues next.")
 
 
 func _fire(id: String) -> void:
@@ -1776,7 +1993,9 @@ func snapshot() -> Dictionary:
 	return {"phase": phase, "events": events.duplicate(true), "visited_lunar_orbit": visited_lunar_orbit,
 		"tli_cutoff_get": tli_cutoff_get, "plan": plan.duplicate(),
 		"timeline_done": timeline_done.duplicate(), "seed": dispersion_seed, "rng_state": str(_rng.state),
-		"alarms_answered": alarms_answered}
+		"alarms_answered": alarms_answered, "abort_mode": abort_mode, "ground_abort_due": ground_abort_due,
+		"ground_abort_get": ground_abort_get,
+		"ground_abort_return": ground_abort_return, "mode_calls_said": mode_calls_said}
 
 
 func restore(d: Dictionary) -> void:
@@ -1787,6 +2006,12 @@ func restore(d: Dictionary) -> void:
 	plan = d.get("plan", {}).duplicate()
 	timeline_done = d.get("timeline_done", {}).duplicate()
 	alarms_answered = int(d.get("alarms_answered", 0))
+	abort_mode = str(d.get("abort_mode", ""))
+	Bus.set_value("mission.abort_mode", abort_mode)
+	ground_abort_due = bool(d.get("ground_abort_due", false))
+	ground_abort_get = float(d.get("ground_abort_get", 0.0))
+	ground_abort_return = bool(d.get("ground_abort_return", false))
+	mode_calls_said = int(d.get("mode_calls_said", 0))
 	dispersion_seed = int(d.get("seed", 0))
 	_rng.seed = dispersion_seed + 1
 	_rng.state = str(d.get("rng_state", str(_rng.state))).to_int()

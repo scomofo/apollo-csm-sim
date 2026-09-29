@@ -25,15 +25,25 @@
 ##   parking orbit.
 ## The attitude follows the commands at the IU's rate limit; each engine
 ## runs at its stage's thrust and flow [simplified: no start or shutdown
-## transients but ramps at the S-II's and the S-IVB's starts, and no
-## engine failures or aborts].
+## transients but ramps at the S-II's and the S-IVB's starts].
+##
+## Its failures (slice 9d, data/failures.json through fail()): an engine
+## that fails stops, and its stage burns on the others, longer, or with
+## all its engines out coasts short of orbit until the crew aborts; with
+## its guidance platform failed the IU turns the vehicle away, faster and
+## faster over GUIDANCE_RAMP_S to guidance_failure_dps (spacecraft.json
+## "saturn_v") [estimated]. An
+## abort's cutoff() stops its engines. Its rates, roll, pitch and yaw, are
+## the EDS's (Eds).
 ##
 ## The main display console's launch lights follow the vehicle (_lights()).
 ##
 ## Writes: lv.state, lv.stage, lv.held, lv.pad_fixed, lv.thrust_n,
 ##         lv.dir, lv.q, lv.mass_kg, lv.engines, lv.attached, lv.mach,
 ##         lv.q_pa, lv.max_q_pa, lv.event.<id> (GET), lv.eng_light_1 to 5,
-##         lv.liftoff_light, lv.s2_sep_light
+##         lv.liftoff_light, lv.s2_sep_light, lv.engines_failed (the
+##         stage's), lv.guidance_failed, lv.cut_off, lv.rate_dps (roll,
+##         pitch and yaw, deg/s)
 class_name LaunchVehicle
 extends Node
 
@@ -41,6 +51,9 @@ signal event_fired(id: String)
 
 ## How often the IGM works out the steering, s, as Sivb's.
 const CYCLE_S := 1.0
+## How long a failed guidance platform takes to turn the vehicle at its
+## full rate, s [estimated].
+const GUIDANCE_RAMP_S := 2.0
 ## The height of the vehicle's reference point over the pad, m: the
 ## ground is the simulator's round Earth.
 const PAD_HEIGHT_M := 1.0
@@ -83,6 +96,17 @@ var engines: int = 0
 ## The highest dynamic pressure yet, Pa, and when (GET).
 var max_q: float = 0.0
 var max_q_at: float = -1.0
+## The parts failed (fail()): "sic_engine_<n>", "guidance", "s2_engines",
+## "s4_engine".
+var failed: Dictionary = {}
+## An abort has cut the engines off (cutoff()).
+var cut_off: bool = false
+## When the guidance platform failed (GET).
+var guidance_failed_get: float = 0.0
+## The vehicle's rates, deg/s, roll, pitch and yaw, and its attitude the
+## step before.
+var rates: Vector3 = Vector3.ZERO
+var _q_prev: Quaternion = Quaternion.IDENTITY
 
 
 func _ready() -> void:
@@ -115,6 +139,9 @@ func arm(p_launch: Dictionary, p_target: Dictionary) -> void:
 	engines = 0
 	max_q = 0.0
 	max_q_at = -1.0
+	failed = {}
+	cut_off = false
+	rates = Vector3.ZERO
 	pad_fixed = Bodies.geographic_to_fixed(float(launch["pad_lat_deg"]), float(launch["pad_lon_deg"]),
 		Bodies.R_EARTH + PAD_HEIGHT_M)
 	var t_grr := float(launch["grr_get_s"])
@@ -125,7 +152,48 @@ func arm(p_launch: Dictionary, p_target: Dictionary) -> void:
 	grr_axes = PackedFloat64Array([up.x, up.y, up.z, north.x, north.y, north.z, east.x, east.y, east.z])
 	dir = up
 	cmd = up
+	_q_prev = attitude(up * Bodies.R_EARTH)
 	_publish()
+
+
+## Fail [param part] (Failures): "sic_engine_<n>" stops the S-IC's engine
+## n; "s2_engines" all five of the S-II's; "s4_engine" the S-IVB's; and
+## "guidance" the IU's platform. A stage burns on the engines it has left.
+func fail(part: String) -> void:
+	failed[part] = true
+	if part == "guidance":
+		guidance_failed_get = float(Bus.get_value("time.get_s", 0.0))
+	_publish()
+
+
+## An abort: the engines stop, and the vehicle is left behind.
+func cutoff() -> void:
+	if cut_off or state != "flight":
+		return
+	cut_off = true
+	_fire("lv_cutoff", float(Bus.get_value("time.get_s", 0.0)))
+	_publish()
+
+
+## The S-IC's engines failed, of five.
+func sic_failed() -> int:
+	var n := 0
+	for i in range(1, 6):
+		if failed.has("sic_engine_%d" % i):
+			n += 1
+	return n
+
+
+## The engines failed on the stage burning, or next to burn.
+func engines_failed() -> int:
+	match stage:
+		"S-IC":
+			return sic_failed()
+		"S-II":
+			return 5 if failed.has("s2_engines") else 0
+		"S-IVB":
+			return 1 if failed.has("s4_engine") else 0
+	return 0
 
 
 ## The pad's state in ECI at GET [param t], in doubles: [x, y, z, vx, vy,
@@ -184,6 +252,10 @@ func tick(dt: float) -> void:
 			_fire("s4_cutoff", now)
 	thrust = f.x
 	mass -= f.y * dt
+	var q := attitude(r)
+	var dq := _q_prev.inverse() * q
+	rates = Vector3(dq.x, dq.y, dq.z) * (2.0 * signf(dq.w) / dt) * (180.0 / PI) if dt > 0.0 else Vector3.ZERO
+	_q_prev = q
 	var t5 := float(bases.get("T5", INF))
 	if now >= t5 + float(launch["insertion_t5_s"]) - 1e-6:
 		state = "done"
@@ -241,13 +313,17 @@ func _propulsion(now: float, r: Vector3, dt: float) -> Vector2:
 	match stage:
 		"S-IC":
 			var c: Dictionary = d["s_ic"]
-			engines = int(c["engines"]) - (1 if bases.has("T2") else 0)
+			engines = int(c["engines"]) - (1 if bases.has("T2") else 0) - sic_failed()
+			if bases.has("T2") and failed.has("sic_engine_5"):
+				engines += 1
+			if cut_off:
+				engines = 0
 			var p := Atmosphere.pressure(r.length() - Bodies.R_EARTH)
 			var f1 := float(c["thrust_vac_n"]) - p * float(c["exit_area_m2"])
 			var isp := float(c["isp_vac_s"]) - (float(c["isp_vac_s"]) - float(c["isp_sl_s"])) * p / Atmosphere.P0
 			var f := f1 * engines
 			var md := f / (isp * Units.G0)
-			if md * dt >= sic_prop:
+			if engines > 0 and md * dt >= sic_prop:
 				var frac := sic_prop / (md * dt)
 				sic_prop = 0.0
 				bases["T3"] = now
@@ -272,6 +348,9 @@ func _propulsion(now: float, r: Vector3, dt: float) -> Vector2:
 			if events.has("emr_shift"):
 				f = float(c["low_mr_thrust_n"])
 				md = float(c["low_mr_flow_kg_s"])
+			if failed.has("s2_engines") or cut_off:
+				engines = 0
+				k = 0.0
 			f *= k
 			md *= k
 			if md * dt >= s2_prop:
@@ -289,8 +368,8 @@ func _propulsion(now: float, r: Vector3, dt: float) -> Vector2:
 			var t4 := float(bases["T4"])
 			var t4_s: Dictionary = launch["t4_s"]
 			var k := clampf((now - t4 - float(t4_s["s4_ignition"])) / (float(t4_s["s4_mainstage"]) - float(t4_s["s4_ignition"])), 0.0, 1.0)
-			engines = 1
-			return Vector2(float(c["thrust_n"]), float(c["flow_kg_s"])) * k
+			engines = 0 if failed.has("s4_engine") or cut_off else 1
+			return Vector2(float(c["thrust_n"]), float(c["flow_kg_s"])) * k * engines
 	engines = 0
 	return Vector2.ZERO
 
@@ -326,6 +405,18 @@ func _steer(now: float, dt: float) -> void:
 	var east := Vector3(a[6], a[7], a[8])
 	var t1 := now - float(bases.get("T1", now))
 	var rate := deg_to_rad(float(launch["attitude_rate_dps"]))
+	if failed.has("guidance") and not cut_off:
+		# The platform lost: the IU pitches the vehicle away, down from the
+		# vertical, at the failure's rate.
+		var vert := _state_r().normalized()
+		var axis := vert.cross(dir)
+		if axis.length() < 1e-6:
+			axis = vert.cross(Vector3(grr_axes[6], grr_axes[7], grr_axes[8]))
+		var ramp := clampf((now - guidance_failed_get) / GUIDANCE_RAMP_S, 0.0, 1.0)
+		dir = dir.rotated(axis.normalized(),
+			ramp * deg_to_rad(float(SpacecraftData.section("saturn_v")["guidance_failure_dps"])) * dt).normalized()
+		cmd = dir
+		return
 	if bases.has("T5"):
 		# Cut off: the attitude holds.
 		cmd = dir
@@ -442,6 +533,11 @@ func attitude(r: Vector3) -> Quaternion:
 	return Basis(x, z.cross(x), z).orthonormalized().get_rotation_quaternion()
 
 
+func _state_r() -> Vector3:
+	var r: Array = Bus.get_value("dyn.r_m", [Bodies.R_EARTH, 0.0, 0.0])
+	return Vector3(r[0], r[1], r[2])
+
+
 func _state() -> PackedFloat64Array:
 	var r: Array = Bus.get_value("dyn.r_m", [Bodies.R_EARTH, 0.0, 0.0])
 	var v: Array = Bus.get_value("dyn.v_mps", [0.0, 0.0, 0.0])
@@ -474,6 +570,10 @@ func _publish() -> void:
 		Bus.set_value("lv.eng_light_%d" % (i + 1), lights[i])
 	Bus.set_value("lv.liftoff_light", lights[5])
 	Bus.set_value("lv.s2_sep_light", lights[6])
+	Bus.set_value("lv.engines_failed", engines_failed())
+	Bus.set_value("lv.guidance_failed", failed.has("guidance"))
+	Bus.set_value("lv.cut_off", cut_off)
+	Bus.set_value("lv.rate_dps", rates)
 
 
 ## The main display console's launch lights now [estimated: the Apollo
@@ -497,13 +597,16 @@ func _lights() -> Array:
 		var all := false
 		match stage:
 			"S-IC":
-				all = not events.has("thrust_ok")
+				all = not events.has("thrust_ok") or cut_off
 				eng[4] = bases.has("T2")
+				for i in range(1, 6):
+					if failed.has("sic_engine_%d" % i):
+						eng[i - 1] = true
 			"S-II":
-				all = now < float(bases["T3"]) + float(t3_s["s2_mainstage"]) - 1e-6
+				all = now < float(bases["T3"]) + float(t3_s["s2_mainstage"]) - 1e-6 or failed.has("s2_engines") or cut_off
 				eng[4] = events.has("s2_ceco")
 			"S-IVB":
-				eng[0] = now < float(bases["T4"]) + float(t4_s["s4_mainstage"]) - 1e-6
+				eng[0] = now < float(bases["T4"]) + float(t4_s["s4_mainstage"]) - 1e-6 or failed.has("s4_engine") or cut_off
 			_:
 				# Between a cutoff and the next stage's start.
 				if bases.has("T5"):
@@ -524,7 +627,9 @@ func snapshot() -> Dictionary:
 		"launch": launch, "target": target, "bases": bases.duplicate(), "events": events.duplicate(),
 		"dir": [dir.x, dir.y, dir.z], "cmd": [cmd.x, cmd.y, cmd.z], "roll_az": roll_az, "tilt_at": tilt_at,
 		"grr_axes": Array(grr_axes), "pad_fixed": Array(pad_fixed), "t_go": t_go, "guided_at": guided_at,
-		"thrust": thrust, "engines": engines, "max_q": max_q, "max_q_at": max_q_at}
+		"thrust": thrust, "engines": engines, "max_q": max_q, "max_q_at": max_q_at, "failed": failed.duplicate(),
+		"cut_off": cut_off, "guidance_failed_get": guidance_failed_get,
+		"q_prev": [_q_prev.x, _q_prev.y, _q_prev.z, _q_prev.w]}
 
 
 func restore(d: Dictionary) -> void:
@@ -551,4 +656,12 @@ func restore(d: Dictionary) -> void:
 	engines = int(d.get("engines", 0))
 	max_q = float(d.get("max_q", 0.0))
 	max_q_at = float(d.get("max_q_at", -1.0))
+	failed = (d.get("failed", {}) as Dictionary).duplicate()
+	cut_off = bool(d.get("cut_off", false))
+	guidance_failed_get = float(d.get("guidance_failed_get", 0.0))
+	var qp: Array = d.get("q_prev", [0.0, 0.0, 0.0, 1.0])
+	_q_prev = Quaternion(qp[0], qp[1], qp[2], qp[3])
+	rates = Vector3.ZERO
+	for id: String in events:
+		Bus.set_value("lv.event." + id, float(events[id]))
 	_publish()

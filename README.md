@@ -172,6 +172,37 @@ and the HUD):
   range counts down. Ten seconds on, a corridor light says which way the
   lift must point.
 
+**The launch's aborts.** Apollo 11's launch can end in any of its four
+abort modes, from the CSM Apollo Operations Handbook's section 2.9 and
+the flight's Mission Operation Report (`src/systems/eds.gd`,
+`src/systems/les.gd`; the switches and lights are on MDC-1 and the HUD):
+- **The EDS.** With EDS AUTO, 2 ENG OUT and LV RATES on, it aborts by
+  itself from the liftoff for two S-IC engines out or the launch
+  vehicle's rates past their limits, until the IU switches it off at the
+  S-IC's centre engine's cutoff. Otherwise the ABORT light is Houston's
+  call, and the abort handle (the translation controller turned
+  counterclockwise: the HUD's ABORT) is the crew's. LV RATE and LV GUID
+  light for the rates and the IU's guidance platform.
+- **Mode I**, while the tower is on: the escape motor pulls the CM away.
+  In the first 42 s (IA) the pitch control motor tilts it out to sea;
+  11 s on the canards turn it blunt end forward. The tower goes when the
+  ELS comes on below 24,000 ft, and the chutes follow on the ELS's
+  timers. In mode IC the crew may send the tower with TWR JETT.
+- **Modes II to IV**, after the tower: the handle cuts the booster off,
+  fires the SM's +X jets while it is held, and separates the CSM 3 s
+  later. In mode II the CM separates and falls to a full-lift entry. In
+  mode III (the crew brought home at once, from 9:00) Houston's PAD
+  burns the SPS retrograde. The crew turns the CSM on the SCS at RATE
+  HIGH, flies P40, then enters on half lift, rolled 60° to the south. In
+  mode IV (from 9:00) Houston's PAD takes the CSM into orbit on the SPS.
+- Houston calls the modes as Apollo 11's were: One Bravo at 0:44, Mode
+  One Charlie at 1:58, S-IVB to COI capability at 5:27 and Mode IV
+  capability at 9:00.
+
+The launch vehicle's engines and its guidance platform are on the
+failure catalog. A failure can also be armed a time after a mission
+event, rather than at a GET.
+
 | Input | Action |
 |---|---|
 | W/S, A/D, Q/E | Rotational hand controller: pitch, yaw, roll (hold Shift for 10 %); in Eagle, its ACA |
@@ -215,7 +246,8 @@ undocking to TEI) and at entry.
    At liftoff the CMC comes up in P11 (V16N62: inertial speed, altitude
    rate, altitude). Panel 1's LV ENG, LIFTOFF and S-II SEP lights show the
    stages, and the launch checklist checks itself off as they come. After
-   insertion, `V82E` shows the orbit. There are no aborts yet.
+   insertion, `V82E` shows the orbit. A failure in the launch ends it in
+   its abort mode (**The launch's aborts**, above).
 2. **Parking orbit.** CAPCOM gives you GO for TLI. The S-IVB/IU flies TLI
    automatically at the planned TIG (GET 2:44), on its iterative guidance,
    onto the free return the RTCC planned. Watch it with `V16N62E` or
@@ -1265,9 +1297,9 @@ godot --headless --path . -s addons/gut/gut_cmdln.gd -gexit
 That runs the whole suite, which takes about 50 minutes, nearly all of
 it in the scenario tests. Add `-gdir=res://tests/unit/` to run only the
 unit tests, in under two minutes, or `-gselect=<name>` to run only the
-scripts whose file names contain `<name>`. CI runs the suite in eight
+scripts whose file names contain `<name>`. CI runs the suite in nine
 parts side by side (`.github/workflows/ci.yml`): the unit tests, and the
-scenario tests dealt out over seven jobs by each file's time on the
+scenario tests dealt out over eight jobs by each file's time on the
 runners (`.github/scenario_seconds.txt`). Beside them, its build job
 exports the PC VR presets with Godot 4.4.1's templates and flies a
 minute of the launch on the exported Linux build.
@@ -1382,6 +1414,35 @@ The unit tests cover:
   (106 ft/s for 100 set, the tail-off after it) and keeping THRUST ON
   from starting below zero; MTVC pitching the CSM on the gimbal; and a
   checkpoint
+- The launch's aborts (`tests/scenarios/test_launch_aborts.gd`), slice
+  9d: from a point in each mode's window of Apollo 11's launch, set off
+  by a failure from the catalog. Downrange is measured along the nominal
+  flight's ground track, and crossrange off it:
+
+  | Mode | Set off by | Where it came down | Area (Mission Operation Report) |
+  |---|---|---|---|
+  | IB | S-IC engines 1 and 2 out at 1:00; the EDS aborts on its own | 2.9 nmi downrange, 0.1 nmi off the track; 5.7 g, 8.5 m/s | launch site to 520 nmi |
+  | II | the S-II's engines out at 4:00; Houston's ABORT and the handle; full lift | 530.6 nmi, 0.2 nmi off; 10.5 g | 440 to 3,200 nmi on the track |
+  | III | Apollo 13's O2 tank at 11:00; the ground's 378 m/s retrograde burn; half lift | 3,304.9 nmi, 52.5 nmi south; 7.9 g | 3,000 to 3,350 nmi, about 70 nmi south |
+  | IV | the S-IVB's engine out at 10:30; the SPS's 493 m/s into orbit | 85.6 by 84.9 nmi, still up an hour on | a safe orbit (perigee at least 75 nmi) |
+
+  `tests/unit/test_launch_escape.gd`:
+  - a pad abort on the handle climbs 1,046 m and comes down 1.7 km out
+    to sea; the tower goes at 14.1 s, the drogues at 16.1 s and the mains
+    at 28.1 s, as the handbook's low abort has them;
+  - the EDS aborts on the rates 1.6 s after the IU's platform fails.
+    With LV RATES off it doesn't, and Houston's ABORT asks for the
+    handle;
+  - two S-IC engines out abort, but not after the IU switches the EDS
+    off;
+  - after the tower the handle separates the CSM 3 s on, with the SM's
+    +X jets while held;
+  - Houston marks the modes as Apollo 11's were;
+  - a checkpoint under the tower comes down on the same spot.
+
+  `tests/unit/test_failures.gd`: each launch vehicle failure lights its
+  lamp in its stage, and a failure armed on an event comes that long
+  after it
 - The terrain: Tranquility Base 1,927 m below the reference sphere, West
   crater 30 m deep east of the LM, and the maps blending without steps;
   Surveyor III 1,432 m below it on its crater's slope, and Intrepid's
@@ -1858,6 +1919,7 @@ each lighting its caution and opening its malfunction procedure (slice
 9a), and Apollo 11's landing brings its 1202 and 1201 alarms, from the
 LGC's Executive and the rendezvous radar's switch as its crew had it
 (slice 9b). With the CMC failed, the SCS and the EMS fly a burn to the
-PAD, and the EMS monitors the entry (slice 9c). The aborts come next,
-then every mission from the pad, the LM's navigation, and Apollo 14 to
-17.
+PAD, and the EMS monitors the entry (slice 9c). The launch aborts in
+each of its four modes, on the EDS, the escape tower and the SPS, set
+off by the catalog's failures (slice 9d). Eagle's aborts come next, then
+every mission from the pad, the LM's navigation, and Apollo 14 to 17.

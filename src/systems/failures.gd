@@ -1,6 +1,8 @@
 ## The failure catalog at work (docs/ROADMAP.md, slice 9a): the failures
 ## data/failures.json lists, armed at a GET by the mission's data
-## (mission.json "failures": [{id, get_s}]) or by arm(), and failed at
+## (mission.json "failures": [{id, get_s}]) or by arm(), or a time after a
+## mission event (slice 9d: [{id, event, after_s}], arm_on(), armed at
+## that GET when the event fires, as the launch's are), and failed at
 ## once by fail(), as the instructor's page on the wrist menu does. A
 ## failure that comes due goes to its system's fail(part), which changes
 ## the system as the catalog says; its caution light follows from the
@@ -30,6 +32,8 @@ var systems: Dictionary = {}
 var mission: Mission
 ## id -> the GET it is armed for.
 var armed: Dictionary = {}
+## id -> {"event", "after_s"}: armed on an event, not yet fired.
+var armed_on: Dictionary = {}
 ## id -> the GET it failed at.
 var active: Dictionary = {}
 
@@ -54,7 +58,10 @@ func _ready() -> void:
 	SimClock.add_ticker(tick, SimClock.Stage.MISSION)
 	if mission != null:
 		for f: Dictionary in mission.data.get("failures", []):
-			arm(str(f["id"]), float(f["get_s"]))
+			if f.has("event"):
+				arm_on(str(f["id"]), str(f["event"]), float(f.get("after_s", 0.0)))
+			else:
+				arm(str(f["id"]), float(f["get_s"]))
 	_publish()
 
 
@@ -75,6 +82,30 @@ func arm(id: String, get_s: float) -> bool:
 	return true
 
 
+## Arm failure [param id] to fail [param after_s] seconds after mission
+## event [param event] (MissionSequencer's) next fires. Returns whether it
+## did, as arm().
+func arm_on(id: String, event: String, after_s: float = 0.0) -> bool:
+	if entry(id).is_empty():
+		push_error("Failures: no failure '%s' in %s" % [id, CATALOG_PATH])
+		return false
+	if active.has(id):
+		return false
+	armed_on[id] = {"event": event, "after_s": after_s}
+	_publish()
+	return true
+
+
+## Mission event [param event] fired: the failures armed on it are armed
+## for their GETs.
+func on_event(event: String) -> void:
+	for id: String in armed_on.keys():
+		if str(armed_on[id]["event"]) == event:
+			var after := float(armed_on[id]["after_s"])
+			armed_on.erase(id)
+			arm(id, SimClock.get_seconds + after)
+
+
 ## Fail [param id] now. Returns whether it did: not for a failure already
 ## failed, or one whose system this flight hasn't.
 func fail(id: String) -> bool:
@@ -85,6 +116,7 @@ func fail(id: String) -> bool:
 	if sys == null or not sys.has_method("fail"):
 		return false
 	armed.erase(id)
+	armed_on.erase(id)
 	sys.call("fail", str(e["part"]))
 	active[id] = SimClock.get_seconds
 	_publish()
@@ -117,6 +149,8 @@ func state_line(id: String) -> String:
 		return "FAILED at %s GET" % Units.hms(float(active[id]))
 	if armed.has(id):
 		return "ARMED for %s GET" % Units.hms(float(armed[id]))
+	if armed_on.has(id):
+		return "ARMED %.0f s after %s" % [float(armed_on[id]["after_s"]), armed_on[id]["event"]]
 	return "READY: FAIL fails it now"
 
 
@@ -128,12 +162,13 @@ func _publish() -> void:
 
 
 func snapshot() -> Dictionary:
-	return {"armed": armed.duplicate(), "active": active.duplicate()}
+	return {"armed": armed.duplicate(), "armed_on": armed_on.duplicate(true), "active": active.duplicate()}
 
 
 ## The armed and the failed as they were; each system keeps its own failed
 ## parts in its own snapshot.
 func restore(d: Dictionary) -> void:
 	armed = (d.get("armed", {}) as Dictionary).duplicate()
+	armed_on = (d.get("armed_on", {}) as Dictionary).duplicate(true)
 	active = (d.get("active", {}) as Dictionary).duplicate()
 	_publish()

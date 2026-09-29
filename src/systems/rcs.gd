@@ -14,7 +14,10 @@
 ##   1 SCS   the Stabilization and Control System's attitude hold and
 ##           rate command (scs.rot_cmd, src/systems/scs.gd)
 ##   2 DIRECT RHC straight to the jets (direct coils)
-## Translation always comes from the THC (ctl.thc) plus guid.rcs_trans_cmd.
+## Translation always comes from the THC (ctl.thc) plus guid.rcs_trans_cmd,
+## and the SPS abort's ullage, +X from the abort's handle until it is back
+## at neutral (eds.ullage, slice 9d). Under the escape tower (cm_les) the
+## escape system turns the CM, not its jets.
 ##
 ## The failure catalog (data/failures.json, slice 9a) fails a quad through
 ## fail("quad_<x>"): its helium fails, its secondary fuel pressure falls
@@ -88,11 +91,13 @@ func tick(dt: float) -> void:
 	# Jets never fire across a coarse coast step: the clock only takes one
 	# when nothing was firing, and a controller that wakes up mid-coast
 	# fires on the next (fine) step instead.
-	if cfg == "stack" or not bool(Bus.get_value("sys.powered", true)) or dt > SimClock.FIXED_DT * 1.5:
+	if cfg in ["stack", "cm_les"] or not bool(Bus.get_value("sys.powered", true)) or dt > SimClock.FIXED_DT * 1.5:
 		_publish(Vector3.ZERO, Vector3.ZERO, 0)
 		return
 	var rot := rotation_command()
 	var trans: Vector3 = _db3(Bus.get_value("ctl.thc", Vector3.ZERO)) + Bus.get_value("guid.rcs_trans_cmd", Vector3.ZERO)
+	if bool(Bus.get_value("eds.ullage", false)):
+		trans.x += 1.0
 	trans = trans.clamp(-Vector3.ONE, Vector3.ONE)
 	var c := SpacecraftData.config(cfg)
 	var arm_p := float(c["rcs_pitch_arm_m"])
