@@ -123,3 +123,4 @@ lm.dsky.r3,string,,lgc,LGC DSKY register 3
 lm.dsky.flash,bool,,lgc,LGC VERB and NOUN flash: the computer is asking
 lm.dsky.comp_acty,bool,,lgc,LGC COMP ACTY light
 lm.dsky.lamp.*,bool,,lgc,LGC DSKY status and caution lamps (with ALT and VEL)
+ctl.cw.master_alarm_reset,bool,,crew,MASTER ALARM pushbutton: press to reset the C&W alarm

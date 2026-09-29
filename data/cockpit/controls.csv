@@ -1,5 +1,6 @@
 # Cabin controls and displays: one row per item on the main display
-# console, built by src/cabin/cockpit_layout.gd onto the panels of
+# console (plus the LEB-122 master alarm in the lower equipment bay),
+# built by src/cabin/cockpit_layout.gd onto the panels of
 # src/cabin/cm_cabin.gd. x_mm/y_mm are the item's centre on the panel face,
 # right and up as the commander sees it. Panels MDC1/MDC2/MDC3 are the AOH
 # Main Display Console Panels 1/2/3 (commander-left, centre, right); the
@@ -82,10 +83,11 @@ P3_MASTER_ALARM,MDC3,pushbutton,MASTER ALARM,200,180,0,ctl.cw.master_alarm,lamp_
 P3_BUS_A_VOLTS,MDC3,numeric,MAIN BUS A V,-120,-40,0,eps.bus_a_v,format=%4.1f;blank_text=----,estimated,D,implemented,historical
 P3_BUS_B_VOLTS,MDC3,numeric,MAIN BUS B V,40,-40,0,eps.bus_b_v,format=%4.1f;blank_text=----,estimated,D,implemented,historical
 P3_FDAI,MDC3,fdai,FDAI 2,190,-60,0,scs.fdai.attitude,scale=1.8,AOH SCS 2.3,D,implemented,historical
-LEB_OPTICS,LEB,optics,OPTICS,-180,115,0,optics,,estimated,D,implemented,proxy
-LEB_OPTICS_ZERO,LEB,toggle,OPTICS ZERO,-340,-150,0,ctl.optics.zero,labels=OFF|ZERO,estimated,D,implemented,historical
-LEB_OPTICS_MODE,LEB,toggle,OPTICS MODE,-270,-150,0,ctl.optics.mode,labels=MAN|CMC,estimated,D,implemented,historical
-LEB_OPTICS_SPEED,LEB,rotary,OPTICS SPEED,-180,-150,0,ctl.optics.speed,positions=3;labels=LO|MED|HI;start_angle_deg=-45;detent_deg=45,estimated,D,implemented,historical
-LEB_MARK,LEB,pushbutton,MARK,-90,-150,0,ctl.optics.mark,,estimated,D,implemented,historical
-LEB_MARK_REJECT,LEB,pushbutton,MARK REJECT,-20,-150,0,ctl.optics.mark_reject,,estimated,D,implemented,historical
-LEB_DSKY,LEB,dsky,DSKY,250,-20,0,dsky,,estimated,D,implemented,historical
+LEB_OPTICS,LEB122,optics,OPTICS,-95,120,0,optics,,estimated,D,implemented,proxy
+LEB_OPTICS_ZERO,LEB122,toggle,OPTICS ZERO,190,125,0,ctl.optics.zero,labels=OFF|ZERO,estimated,D,implemented,historical
+LEB_OPTICS_MODE,LEB122,toggle,OPTICS MODE,190,185,0,ctl.optics.mode,labels=MAN|CMC,estimated,D,implemented,historical
+LEB_OPTICS_SPEED,LEB122,rotary,OPTICS SPEED,245,65,0,ctl.optics.speed,positions=3;labels=LO|MED|HI;start_angle_deg=-45;detent_deg=45,estimated,D,implemented,historical
+LEB_MARK,LEB122,pushbutton,MARK,245,120,0,ctl.optics.mark,,estimated,D,implemented,historical
+LEB_MARK_REJECT,LEB122,pushbutton,MARK REJECT,245,175,0,ctl.optics.mark_reject,,estimated,D,implemented,historical
+LEB_DSKY,LEB122,dsky,DSKY,175,-105,0,dsky,,estimated,D,implemented,historical
+LEB_MASTER_ALARM,LEB122,pushbutton,MASTER ALARM,190,65,0,ctl.cw.master_alarm_reset,,AOH C&W §2.10 (LEB-122 switchlight),D,implemented,historical

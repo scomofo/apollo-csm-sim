@@ -280,7 +280,7 @@ func test_eagles_dsky_types_into_the_lgc_with_its_alt_and_vel_lamps() -> void:
 func test_the_desktop_rig_can_click_every_control_from_its_station() -> void:
 	# Columbia's console from the commander's couch; the optics' switches
 	# and the second DSKY from the lower equipment bay.
-	await _click_every_control(CmCabin.new(), layout, 36 + 19 + 5 + 19)
+	await _click_every_control(CmCabin.new(), layout, 36 + 19 + 6 + 19)
 	await _click_every_control(LmCabin.new(), CockpitLayout.load_lm(), 17 + 19)
 
 
@@ -316,7 +316,7 @@ func _click_every_control(cabin: Cabin, p_layout: CockpitLayout, expect: int) ->
 	var home: String = cabin.seats().keys()[0]
 	for i in controls.size():
 		var c := controls[i]
-		var station := "LEB" if panels[i] == "LEB" else home
+		var station := "LEB" if panels[i] == "LEB122" else home
 		if cabin.seat != station:
 			cabin.set_seat(station)
 			await wait_physics_frames(1)
@@ -336,7 +336,7 @@ func test_the_commander_faces_the_console_inside_the_vessel() -> void:
 		var mount := cabin.panel_node(panel_name)
 		var normal := mount.global_basis.z
 		# The console faces the commander, the navigation panel its station.
-		cabin.set_seat("LEB" if panel_name == "LEB" else "CDR")
+		cabin.set_seat("LEB" if panel_name == "LEB122" else "CDR")
 		assert_gt(normal.dot(cabin.anchor.global_position - mount.global_position), 0.0, "%s faces the crew" % panel_name)
 		var half: Vector2 = p["size"] * 0.5
 		for corner in [Vector2(-1, -1), Vector2(-1, 1), Vector2(1, -1), Vector2(1, 1)]:

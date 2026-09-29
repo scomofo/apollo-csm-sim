@@ -40,11 +40,17 @@ const LEB_BASIS := Basis(Vector3(0, 1, 0), Vector3(1, 0, 0), Vector3(0, 0, -1))
 ## right as the crew sees them; AOH Vol 1 §3 p. 3-2). The real MDC is a
 ## ~2.1 x 0.91 m crescent of 14 subpanels (Panels 1-10, 12, 13, 15, 16);
 ## only the three top-row panels are modelled.
+## Main display console, plus the lower-equipment-bay navigation panel carrying
+## the optics, the DSKY and the third master alarm (AOH C&W §2.10: the MASTER
+## ALARM switchlight on LEB-122; the bay's nav station is the same physical
+## panel). Face centre (m, body) and face size (m). LEB-122's coordinates
+## are [estimated]: the bay sits below the MDC, forward of the couches, where
+## the navigator works the optics; panel identity, type and bay are sourced.
 const PANELS := {
 	"MDC1": {"centre": Vector3(1.35, -0.66, -0.30), "size": Vector2(0.60, 0.50)},
 	"MDC2": {"centre": Vector3(1.37, 0.0, -0.30), "size": Vector2(0.62, 0.56)},
 	"MDC3": {"centre": Vector3(1.35, 0.66, -0.30), "size": Vector2(0.60, 0.50)},
-	"LEB": {"centre": Vector3(0.95, 0.0, 1.20), "size": Vector2(0.80, 0.52), "basis": LEB_BASIS},
+	"LEB122": {"centre": Vector3(1.42, 0.0, 0.72), "size": Vector2(0.55, 0.45)},
 }
 ## Pressure vessel: inner radius VESSEL_R0 - VESSEL_SLOPE * x between the
 ## aft bulkhead and the forward bulkhead, then the tunnel to the forward

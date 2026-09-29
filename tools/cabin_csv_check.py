@@ -6,10 +6,15 @@ scene probing, which needs the engine; CI's GUT suite covers that).
 
 Also mirrors the JSON data gate (all data/*.json parse).
 """
-import csv, json, sys
+import csv
+import glob
+import json
+import sys
+from pathlib import Path
 
-ROOT = "/home/hatch/workspace/apollo-csm-work"
-PANELS = {"MDC1": (0.60, 0.50), "MDC2": (0.62, 0.56), "MDC3": (0.60, 0.50)}
+ROOT = Path(__file__).resolve().parent.parent
+PANELS = {"MDC1": (0.60, 0.50), "MDC2": (0.62, 0.56), "MDC3": (0.60, 0.50),
+          "LEB122": (0.55, 0.45)}
 TYPES = {
     "toggle": {"control": True, "takes": ["bool", "int"], "half": (15, 30)},
     "rotary": {"control": True, "takes": ["int"], "half": (15, 25)},
@@ -19,12 +24,15 @@ TYPES = {
     "clock": {"control": False, "takes": ["float"], "half": (35, 8)},
     "fdai": {"control": False, "takes": ["quat"], "half": (55, 55)},
     "dsky": {"control": False, "takes": ["group"], "half": (100, 120)},
+    "optics": {"control": False, "takes": ["group"], "half": (180, 105)},
 }
-COLUMNS = ["id","panel","type","label","x_mm","y_mm","rot_deg","channel","params","source","confidence","status","role"]
-CHANNEL_COLUMNS = ["channel","type","units","writer","description"]
-CHANNEL_TYPES = ["bool","int","float","string","quat","group"]
+COLUMNS = ["id", "panel", "type", "label", "x_mm", "y_mm", "rot_deg", "channel",
+           "params", "source", "confidence", "status", "role"]
+CHANNEL_COLUMNS = ["channel", "type", "units", "writer", "description"]
+CHANNEL_TYPES = ["bool", "int", "float", "string", "quat", "group"]
 
 errors = []
+
 
 def read_csv(path):
     rows = []
@@ -36,6 +44,7 @@ def read_csv(path):
         rows.append(r)
     return rows, rdr.fieldnames
 
+
 def parse_params(text):
     out = {}
     for kv in text.split(";"):
@@ -44,8 +53,9 @@ def parse_params(text):
             out[k.strip()] = v.strip()
     return out
 
+
 # --- channels ---
-ch_rows, ch_fields = read_csv(f"{ROOT}/data/cockpit/channels.csv")
+ch_rows, ch_fields = read_csv(ROOT / "data/cockpit/channels.csv")
 channels = {}
 seen = set()
 for r in ch_rows:
@@ -61,6 +71,7 @@ for r in ch_rows:
     if not r["writer"]:
         errors.append(f"{where}: no writer")
 
+
 def channel_type(ch):
     if ch in channels:
         return channels[ch]["type"]
@@ -73,8 +84,9 @@ def channel_type(ch):
             return r["type"]
     return ""
 
+
 # --- controls ---
-rows, fields = read_csv(f"{ROOT}/data/cockpit/controls.csv")
+rows, fields = read_csv(ROOT / "data/cockpit/controls.csv")
 assert fields == COLUMNS, f"header drift: {fields}"
 seen_ids = set()
 for r in rows:
@@ -95,7 +107,8 @@ for r in rows:
         errors.append(f"{where}: channel {r['channel']} not in channels.csv")
     elif ct not in t["takes"]:
         errors.append(f"{where}: {r['type']} can't bind {ct} channel {r['channel']}")
-    if t["control"] and ct and (not r["channel"].startswith("ctl.") or channels.get(r["channel"], {}).get("writer") != "crew"):
+    if t["control"] and ct and (not r["channel"].startswith("ctl.")
+                                or channels.get(r["channel"], {}).get("writer") != "crew"):
         errors.append(f"{where}: control must publish a crew ctl.* channel")
     for c in ["x_mm", "y_mm", "rot_deg"]:
         try:
@@ -126,26 +139,29 @@ for r in rows:
     if not r["source"]:
         errors.append(f"{where}: no source")
 
+
 # overlaps
+def footprint(r):
+    p = parse_params(r["params"])
+    s = float(p.get("scale", "1"))
+    return TYPES[r["type"]]["half"][0] * s, TYPES[r["type"]]["half"][1] * s
+
+
 for i in range(len(rows)):
     for j in range(i + 1, len(rows)):
         a, b = rows[i], rows[j]
         if a["panel"] != b["panel"]:
             continue
-        def fp(r):
-            p = parse_params(r["params"])
-            s = float(p.get("scale", "1"))
-            return TYPES[r["type"]]["half"][0] * s, TYPES[r["type"]]["half"][1] * s
-        ahx, ahy = fp(a)
-        bhx, bhy = fp(b)
+        ahx, ahy = footprint(a)
+        bhx, bhy = footprint(b)
         dx = abs(float(a["x_mm"]) - float(b["x_mm"]))
         dy = abs(float(a["y_mm"]) - float(b["y_mm"]))
         if dx < ahx + bhx and dy < ahy + bhy:
             errors.append(f"row {a['_line']} ({a['id']}) overlaps row {b['_line']} ({b['id']})")
 
+
 # --- JSON gate ---
-import glob
-for p in sorted(glob.glob(f"{ROOT}/data/**/*.json", recursive=True)):
+for p in sorted(glob.glob(str(ROOT / "data/**/*.json"), recursive=True)):
     try:
         json.load(open(p))
     except Exception as e:
