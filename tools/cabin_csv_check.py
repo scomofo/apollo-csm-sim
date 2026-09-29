@@ -14,7 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 PANELS = {"MDC1": (0.60, 0.50), "MDC2": (0.62, 0.56), "MDC3": (0.60, 0.50),
-          "LEB": (0.80, 0.52), "LEB122": (0.55, 0.45)}
+          "LEB122": (0.55, 0.45)}
 TYPES = {
     "toggle": {"control": True, "takes": ["bool", "int"], "half": (15, 30)},
     "rotary": {"control": True, "takes": ["int"], "half": (15, 25)},
