@@ -5,14 +5,23 @@
 ## propellant remains, ENGINE STOP isn't pressed, and the LGC commands it
 ## (lm.guid.aps_on) or the crew started it (ENGINE START, which holds
 ## until ENGINE STOP or disarming). Thrust follows first-order start and
-## shutdown transients. [simplified: no fire-in-the-hole abort stage; the
-## thrust acts through the centre of mass.]
+## shutdown transients. [simplified: the thrust acts through the centre of
+## mass.]
+##
+## Slice 9e: the ABORT STAGE pushbutton arms the engine whatever ENG ARM
+## says [published: LM Apollo Operations Handbook, LMA790-3-LM, section
+## 2.1], until the crew sets ENG ARM to OFF [simplified: the pushbutton
+## latched in until pressed again]; the LGC's P71 then fires it. [The
+## hardware's sequence staged the LM as the ascent engine's on command
+## came, after a delay that let the descent engine's thrust die away
+## (ibid.); here the LM stages as the button is pressed.]
 ##
 ## Reads:  ctl.lm.engine_arm (0 OFF, 1 ASC, 2 DES), ctl.lm.eng_start,
-##         ctl.lm.eng_stop, lm.guid.aps_on, lm.sys.powered, lm.dyn.config,
-##         dock.state
+##         ctl.lm.eng_stop, ctl.lm.stage (ABORT STAGE), lm.guid.aps_on,
+##         lm.sys.powered, lm.dyn.config, dock.state
 ## Writes: lm.aps.thrust_n, lm.aps.prop_kg, lm.aps.chamber_pct,
-##         lm.aps.ignitions, lm.aps.burn_time_s, lm.aps.on
+##         lm.aps.ignitions, lm.aps.burn_time_s, lm.aps.on,
+##         lm.aps.abort_armed
 extends Node
 
 ## ctl.lm.engine_arm position that arms the ascent engine.
@@ -22,10 +31,14 @@ var prop_kg: float = -1.0
 var level: float = 0.0
 var ignitions: int = 0
 var burn_time: float = 0.0
+## Armed by the ABORT STAGE pushbutton, until ENG ARM goes to OFF.
+var abort_armed: bool = false
 var _was_on: bool = false
 ## Started by hand (ENGINE START), until ENGINE STOP or disarmed.
 var manual: bool = false
 var _start_was: bool = false
+var _stage_was: bool = false
+var _arm_was: int = 0
 
 
 func _ready() -> void:
@@ -40,7 +53,14 @@ func _exit_tree() -> void:
 
 
 func commanded() -> bool:
-	var armed := int(Bus.get_value("ctl.lm.engine_arm", 0)) == ARM_ASC
+	var arm := int(Bus.get_value("ctl.lm.engine_arm", 0))
+	var stage := bool(Bus.get_value("ctl.lm.stage", false))
+	if stage and not _stage_was or arm == 0 and _arm_was != 0:
+		abort_armed = stage and not _stage_was
+		Bus.set_value("lm.aps.abort_armed", abort_armed)
+	_stage_was = stage
+	_arm_was = arm
+	var armed := arm == ARM_ASC or abort_armed
 	var start := bool(Bus.get_value("ctl.lm.eng_start", false))
 	if not armed or bool(Bus.get_value("ctl.lm.eng_stop", false)):
 		manual = false
@@ -84,11 +104,12 @@ func _publish() -> void:
 	Bus.set_value("lm.aps.on", level > 0.05)
 	Bus.set_value("lm.aps.ignitions", ignitions)
 	Bus.set_value("lm.aps.burn_time_s", burn_time)
+	Bus.set_value("lm.aps.abort_armed", abort_armed)
 
 
 func snapshot() -> Dictionary:
 	return {"prop_kg": prop_kg, "level": level, "ignitions": ignitions, "burn_time": burn_time, "was_on": _was_on,
-		"manual": manual}
+		"manual": manual, "abort_armed": abort_armed, "stage_was": _stage_was, "arm_was": _arm_was}
 
 
 func restore(d: Dictionary) -> void:
@@ -98,4 +119,7 @@ func restore(d: Dictionary) -> void:
 	burn_time = float(d["burn_time"])
 	_was_on = bool(d.get("was_on", false))
 	manual = bool(d.get("manual", false))
+	abort_armed = bool(d.get("abort_armed", false))
+	_stage_was = bool(d.get("stage_was", false))
+	_arm_was = int(d.get("arm_was", 0))
 	_publish()

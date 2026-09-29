@@ -200,6 +200,10 @@ func test_every_event_the_flight_fires_has_a_sound_or_none() -> void:
 	for path in ["res://src/mission/mission_sequencer.gd", "res://src/systems/launch_vehicle.gd"]:
 		for m in re.search_all(FileAccess.get_file_as_string(path)):
 			ids[m.get_string(1)] = true
+	# And the failure catalog's events, which Failures fires.
+	for f: Dictionary in Failures.catalog():
+		if f.has("event"):
+			ids[str(f["event"])] = true
 	assert_gt(ids.size(), 30, "the events found")
 	for id: String in ids:
 		var prefixed := AudioDirector.SILENT_PREFIXES.any(func(p: String) -> bool: return id.begins_with(p))
@@ -216,15 +220,21 @@ func test_the_master_alarm_sounds_until_the_crew_resets_it() -> void:
 	assert_eq(_gain(a, "alarm"), 0.0, "all well")
 	rt.systems["eps"].fail_o2_tank(2)
 	assert_true(run_until(func() -> bool: return bool(Bus.get_value("sys.master_alarm")), 120.0, 5.0, false),
-		"FC 1 lights, 90 s after the tank")
+		"CRYO PRESS lights as the tank's pressure falls")
 	assert_almost_eq(_gain(a, "alarm"), 0.3, 1e-6, "the tone in the headsets")
-	# MASTER ALARM pressed: the tone stops, FC 1 stays lit.
+	# MASTER ALARM pressed: the tone stops, CRYO PRESS stays lit.
 	Bus.set_value("ctl.cw.master_alarm", true)
 	run(0.1, false)
 	Bus.set_value("ctl.cw.master_alarm", false)
 	assert_eq(_gain(a, "alarm"), 0.0, "reset")
-	assert_true(bool(Bus.get_value("cw.fc1")))
+	assert_true(bool(Bus.get_value("cw.cryo_press")))
 	assert_eq(a.counts.get("button", 0), 1, "the switch-light's own click")
+	# FC 1's light comes on 90 s after the tank, and sounds it again.
+	assert_true(run_until(func() -> bool: return bool(Bus.get_value("cw.fc1")), 120.0, 5.0, false), "FC 1")
+	assert_gt(_gain(a, "alarm"), 0.0, "sounding again")
+	Bus.set_value("ctl.cw.master_alarm", true)
+	run(0.1, false)
+	Bus.set_value("ctl.cw.master_alarm", false)
 	# FC 3's light comes on a minute later, and sounds it again.
 	assert_true(run_until(func() -> bool: return bool(Bus.get_value("cw.fc3")), 120.0, 5.0, false), "FC 3")
 	assert_gt(_gain(a, "alarm"), 0.0, "sounding again")

@@ -16,8 +16,11 @@ const FLOWN := ["Launch", "Parking orbit and TLI", "SPS burn (P30 / P40)", "Luna
 	"IMU realign (P52)"]
 
 
+## Every flight checklist; the malfunction procedures after them are
+## flown by tests/unit/test_failures.gd.
 func test_every_checklist_is_flown_here() -> void:
-	var titles := ChecklistBook.load_default().lists.map(func(c: Checklist) -> String: return c.title)
+	var titles := ChecklistBook.load_default().lists.map(func(c: Checklist) -> String: return c.title).filter(
+		func(t: String) -> bool: return not t.begins_with("Malfunction: "))
 	assert_eq(titles, FLOWN)
 
 

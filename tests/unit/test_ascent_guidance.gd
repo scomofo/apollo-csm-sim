@@ -1,5 +1,6 @@
 ## The LGC's powered ascent guidance (AscentGuidance): the insertion
-## targets and one cycle of its steering.
+## targets and one cycle of its steering; and the aborts' targets (slice
+## 9e), whose apolune phases the LM for the rendezvous.
 extends GutTest
 
 const SITE_R := Bodies.R_MOON - 1927.5
@@ -68,3 +69,40 @@ func test_the_time_to_go_is_the_rocket_equations() -> void:
 	var ve := float(aps["isp_s"]) * Units.G0
 	var burn := 3000.0 * ve / float(aps["thrust_n"]) * (1.0 - exp(-short / ve))
 	assert_almost_eq(float(g["tgo"]), burn, burn * 0.05, "the time to burn the mass for the velocity short")
+
+
+## Slice 9e: the aborts' targets from Eagle [param lead_deg] behind
+## Columbia (negative: ahead of it), 15 km up at [param vh], for TPI
+## [param tpi_s] from now: Columbia on a circular orbit 60 nmi up, on
+## the DPS at full thrust.
+func _abort_targets(lead_deg: float, tpi_s: float, vh: float = 1200.0) -> Dictionary:
+	var r := Vector3(SITE_R + 15000.0, 0.0, 0.0)
+	var rc := SITE_R + 60.0 * Units.NMI
+	var csm_r := Vector3(rc, 0.0, 0.0).rotated(plane, deg_to_rad(lead_deg))
+	var csm_v := plane.cross(csm_r.normalized()) * sqrt(Bodies.MU_MOON / rc)
+	return AscentGuidance.abort_targets(r, Vector3(0.0, vh, 0.0), csm_r, csm_v, SITE_R, 0.0,
+		tpi_s if tpi_s > 0.0 else -1.0, 12000.0, 45040.0, 311.0)
+
+
+func test_the_aborts_phase_their_apolune_for_the_rendezvous() -> void:
+	var p12 := _abort_targets(-7.0, -1.0)
+	assert_eq(p12["vh"], tg["vh"], "without a TPI time, P12's orbit")
+	assert_eq([p12["r"], p12["rdot"]], [tg["r"], tg["rdot"]], "and always P12's radius and radial rate")
+	# Early in the descent Eagle is ahead: it must climb above Columbia to
+	# fall behind it by TPI, as Apollo 11's no-PDI abort's 11 x 152 nmi did.
+	var early := _abort_targets(-7.0, 9500.0)
+	var ra_early := (float(early["ra"]) - SITE_R) / Units.NMI
+	assert_between(ra_early, 60.0, 200.0, "an apolune above Columbia's")
+	assert_gt(float(early["vh"]), float(tg["vh"]))
+	var st := PackedFloat64Array([float(early["r"]), 0.0, 0.0, float(early["rdot"]), float(early["vh"]), 0.0])
+	assert_almost_eq(float(Trajectory.conic_of(st, Bodies.MU_MOON)["ra"]), float(early["ra"]), 1.0, "its velocity's apolune")
+	# The more Columbia leads, the lower; far ahead, P12's orbit, the floor.
+	var later := _abort_targets(2.0, 9500.0)
+	assert_lt(float(later["ra"]), float(early["ra"]), "Columbia ahead: lower")
+	var behind := _abort_targets(25.0, 9500.0)
+	assert_eq(behind["vh"], tg["vh"], "Columbia far ahead: P12's orbit")
+	# A later TPI: a longer coelliptic flight below Columbia, gaining on it,
+	# so farther behind first; no higher than the limit.
+	var late := _abort_targets(-7.0, 16000.0)
+	assert_gt(float(late["ra"]), float(early["ra"]), "a later TPI: higher")
+	assert_lt(float(late["ra"]) - SITE_R, 200.0 * Units.NMI + 1.0, "200 nmi at most")

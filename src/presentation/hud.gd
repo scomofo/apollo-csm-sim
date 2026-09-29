@@ -25,7 +25,8 @@ Cabin view    click a control, scroll to move it; right-click: mouse look,
               Z: inspect, Home: recentre, M: wrist menu
 O             the optics (sextant and telescope): W/S A/D move them,
               X MARK, Y MARK REJECT
-F5 / F9       save / load checkpoint
+F5 / F9       quick save / back to it (the flight menu's SAVES lists it)
+F1            the flight menu: another mission or start phase, saved flights
 H             this help"""
 
 var rt: SimRuntime
@@ -304,6 +305,8 @@ func _switch_panel() -> PanelContainer:
 	_toggle(g, "FC 2", "ctl.eps.fc2")
 	_toggle(g, "FC 3", "ctl.eps.fc3")
 	_toggle(g, "BATT TO BUS", "ctl.eps.batt_bus")
+	_option(g, "CM POWER", "ctl.eps.cm_power", ["OFF", "EMER", "ALL"])
+	_toggle(g, "LM PWR", "ctl.eps.lm_power")
 	_toggle(g, "ELS LOGIC", "ctl.els.logic")
 	_toggle(g, "ELS AUTO", "ctl.els.auto")
 	_momentary(g, "DROGUE", "ctl.els.drogue")
@@ -313,7 +316,31 @@ func _switch_panel() -> PanelContainer:
 	_momentary(g, "LM JETT", "ctl.seq.lm_jett")
 	_momentary(g, "CM/SM SEP", "ctl.seq.cm_sm_sep")
 	_momentary(g, "MASTER ALARM", "ctl.cw.master_alarm")
+	_option(g, "SCS RATE", "ctl.scs.rate", ["LOW", "HIGH"])
+	_option(g, "ATT DEADBAND", "ctl.scs.att_db", ["MIN", "MAX"])
+	_option(g, "SCS TVC", "ctl.scs.tvc", ["AUTO", "RATE CMD"])
+	_momentary(g, "GDC ALIGN", "ctl.scs.gdc_align")
+	_option(g, "EMS FUNCTION", "ctl.ems.function", ["OFF", "DV SET", "DV", "RNG SET", "VO SET", "ENTRY"])
+	g.add_child(Control.new())
+	_momentary(g, "EMS SET DECR", "ctl.ems.set", -2, 0)
+	_momentary(g, "EMS SET decr", "ctl.ems.set", -1, 0)
+	_momentary(g, "EMS SET incr", "ctl.ems.set", 1, 0)
+	_momentary(g, "EMS SET INCR", "ctl.ems.set", 2, 0)
+	_toggle(g, "EDS AUTO", "ctl.eds.auto")
+	_toggle(g, "2 ENG OUT", "ctl.eds.two_eng")
+	_toggle(g, "LV RATES", "ctl.eds.rates")
+	_momentary(g, "ABORT (THC CCW)", "ctl.abort")
+	_momentary(g, "TWR JETT", "ctl.les.tower_jett")
 	return p
+
+
+## The EMS's lights, as the HUD lists them.
+static func _ems_lights() -> String:
+	var lit := PackedStringArray()
+	for pair in [[".05 G", "ems.lamp_05g"], ["LIFT UP", "ems.corridor_up"], ["LIFT DOWN", "ems.corridor_down"]]:
+		if bool(Bus.get_value(pair[1], false)):
+			lit.append(pair[0])
+	return "  ".join(lit)
 
 
 func _toggle(parent: Node, text: String, ch: String) -> void:
@@ -339,7 +366,10 @@ func _momentary(parent: Node, text: String, ch: String, on: Variant = true,
 
 
 ## Eagle's switches: the LGC's mode, the engines, staging, the RCS and the
-## ROD switch.
+## ROD switch; the LM's power, its PGNS and AGS, the AGS's body-axis align
+## and the guidance control switch (Apollo 13's lifeboat); the rendezvous
+## radar's mode select (Apollo 11's program alarms); ABORT and the master
+## alarm (the LM's aborts).
 func _lm_switch_panel() -> PanelContainer:
 	var p := PanelContainer.new()
 	_style(p)
@@ -351,12 +381,19 @@ func _lm_switch_panel() -> PanelContainer:
 	_momentary(g, "ABORT STAGE", "ctl.lm.stage")
 	_momentary(g, "ENG START", "ctl.lm.eng_start")
 	_momentary(g, "ENG STOP", "ctl.lm.eng_stop")
-	g.add_child(Control.new())
+	_momentary(g, "ABORT", "ctl.lm.abort")
 	_toggle(g, "RCS SYS A", "ctl.lm.rcs.sys_a")
 	_toggle(g, "RCS SYS B", "ctl.lm.rcs.sys_b")
-	g.add_child(Control.new())
+	_momentary(g, "MASTER ALARM", "ctl.lm.cw.master_alarm")
 	_momentary(g, "ROD UP", "ctl.lm.rod", 1, 0)
 	_momentary(g, "ROD DOWN", "ctl.lm.rod", -1, 0)
+	g.add_child(Control.new())
+	_toggle(g, "LM PWR", "ctl.lm.power")
+	_toggle(g, "PGNS", "ctl.lm.pgns")
+	_toggle(g, "AGS", "ctl.lm.ags")
+	_option(g, "GUID CONT", "ctl.lm.guid_cont", ["PGNS", "AGS"])
+	_momentary(g, "AGS ALIGN", "ctl.lm.ags_align")
+	_option(g, "RNDZ RADAR", "ctl.lm.rr_mode", ["LGC", "AUTO TRACK", "SLEW"])
 	return p
 
 
@@ -506,12 +543,18 @@ LAMPS %s""" % [
 		" ".join(lamps) if not lamps.is_empty() else "--"]
 
 
-## Eagle's engines, RCS and LGC.
+## Eagle's engines, RCS and LGC, and its caution and warning lights.
 func _lm_systems_text() -> String:
 	var mnvr := ""
 	if bool(Bus.get_value("lm.guid.maneuver_valid", false)):
 		mnvr = "MNVR LOADED TIG " + Units.hms(float(Bus.get_value("lm.guid.maneuver_tig", 0.0)))
-	return """DPS  %6.0f lb  THR %3.0f%%  %s
+	var lit := PackedStringArray()
+	for light: String in LmCautionWarning.LIGHTS:
+		if bool(Bus.get_value("lm.cw." + light, false)):
+			lit.append(LmCautionWarning.LEGENDS[light])
+	if bool(Bus.get_value("lm.cw.master_alarm", false)):
+		lit.append("MASTER ALARM")
+	return ("""DPS  %6.0f lb  THR %3.0f%%  %s
 APS  %6.0f lb  %s
 RCS  A %4.0f  B %4.0f lb
 LGC  P%02d %s  VG %.1f ft/s  %s""" % [
@@ -523,7 +566,7 @@ LGC  P%02d %s  VG %.1f ft/s  %s""" % [
 		Units.kg_to_lb(float(Bus.get_value("lm.rcs.sys_a_kg", 0.0))),
 		Units.kg_to_lb(float(Bus.get_value("lm.rcs.sys_b_kg", 0.0))),
 		int(Bus.get_value("lm.guid.program", 0)), str(Bus.get_value("lm.guid.step", "")),
-		float(Bus.get_value("lm.guid.vg_mps", 0.0)) / Units.FT, mnvr]
+		float(Bus.get_value("lm.guid.vg_mps", 0.0)) / Units.FT, mnvr]) + ("\nC&W  " + "  ".join(lit) if not lit.is_empty() else "")
 
 
 ## While the LM flies free: where its docking port is from the CSM's, in
@@ -551,10 +594,12 @@ MISALIGN %4.1f°""" % [
 
 
 ## Through the launch: the stage burning and its engines, their thrust,
-## the Mach number and the dynamic pressure.
+## the Mach number and the dynamic pressure; the EDS's lights and the
+## abort mode (slice 9d), and after an abort its mode.
 func _launch_text() -> String:
+	var mode := str(Bus.get_value("mission.abort_mode", ""))
 	if str(Bus.get_value("dyn.config", "")) != "saturn_v":
-		return ""
+		return "\nABORT   mode %s" % mode if mode != "" else ""
 	var stage := str(Bus.get_value("lv.stage", ""))
 	if bool(Bus.get_value("lv.held", false)):
 		stage = "ON PAD"
@@ -564,7 +609,19 @@ THRUST  %9.0f klbf
 MACH    %9.2f
 Q       %9.0f psf""" % [stage if stage != "" else "STAGING", int(Bus.get_value("lv.engines", 0)),
 		float(Bus.get_value("lv.thrust_n", 0.0)) / (1000.0 * Units.LBF), float(Bus.get_value("lv.mach", 0.0)),
-		float(Bus.get_value("lv.q_pa", 0.0)) / Units.PSF]
+		float(Bus.get_value("lv.q_pa", 0.0)) / Units.PSF] + "\nEDS     %s  %s" % [
+		str(Bus.get_value("mission.launch_mode", "")), _eds_lights()]
+
+
+## The EDS's lights, as the HUD lists them.
+static func _eds_lights() -> String:
+	var lit := PackedStringArray()
+	for pair in [["ABORT", "eds.abort_light"], ["LV RATE", "eds.lv_rate_light"], ["LV GUID", "eds.lv_guid_light"]]:
+		if bool(Bus.get_value(pair[1], false)):
+			lit.append(pair[0])
+	if not bool(Bus.get_value("eds.auto_enabled", false)):
+		lit.append("(no auto abort)")
+	return "  ".join(lit)
 
 
 func _process(_delta: float) -> void:
@@ -612,6 +669,7 @@ RATE  %+.2f %+.2f %+.2f °/s""" % [
 	_flight.text += _docking_text()
 	_flight.text += _launch_text()
 	var o2 := float(Bus.get_value("eps.o2_tank1_kg", 0.0)) + float(Bus.get_value("eps.o2_tank2_kg", 0.0))
+	var gdc: Vector3 = Bus.get_value("scs.gdc_deg", Vector3.ZERO)
 	var fc := PackedStringArray()
 	for n in 3:
 		var ok := bool(Bus.get_value("eps.fc%d_ok" % (n + 1), true))
@@ -622,7 +680,9 @@ EPS  MAIN A %4.1f V  B %4.1f V  load %4.0f W
 FC   %s
 CRYO O2 T1 %5.1f T2 %5.1f lb   H2 %4.1f lb
 BAT  A %4.1f  B %4.1f  C %4.1f Ah   %s
-CMC  P%02d %s  VG %.1f ft/s  %s""" % [
+CMC  P%02d %s  VG %.1f ft/s  %s
+SCS  GDC %06.2f %06.2f %06.2f  %s
+EMS  %+.1f  %s""" % [
 		Units.kg_to_lb(float(Bus.get_value("sps.prop_kg", 0.0))), float(Bus.get_value("sps.chamber_pct", 0.0)),
 		"FIRING" if bool(Bus.get_value("sps.on", false)) else "", int(Bus.get_value("sps.ignitions", 0)),
 		Units.kg_to_lb(float(Bus.get_value("rcs.quad_a_kg", 0.0))), Units.kg_to_lb(float(Bus.get_value("rcs.quad_b_kg", 0.0))),
@@ -636,9 +696,17 @@ CMC  P%02d %s  VG %.1f ft/s  %s""" % [
 		"MASTER ALARM" if bool(Bus.get_value("sys.master_alarm", false)) else "",
 		int(Bus.get_value("guid.program", 0)), str(Bus.get_value("guid.step", "")),
 		float(Bus.get_value("guid.vg_mps", 0.0)) / ft,
-		"MNVR LOADED TIG " + Units.hms(float(Bus.get_value("guid.maneuver_tig", 0.0))) if bool(Bus.get_value("guid.maneuver_valid", false)) else ""]
+		"MNVR LOADED TIG " + Units.hms(float(Bus.get_value("guid.maneuver_tig", 0.0))) if bool(Bus.get_value("guid.maneuver_valid", false)) else "",
+		gdc.x, gdc.y, gdc.z, "HOLD" if bool(Bus.get_value("scs.hold", false)) else "",
+		float(Bus.get_value("ems.display", 0.0)), _ems_lights()]
 	if o2 <= 0.0:
 		_systems.text += "\nO2 DEPLETED"
+	var lit := PackedStringArray()
+	for light: String in CautionWarning.LIGHTS:
+		if bool(Bus.get_value("cw." + light, false)):
+			lit.append(CautionWarning.LEGENDS[light])
+	if not lit.is_empty():
+		_systems.text += "\nC&W  " + "  ".join(lit)
 
 
 ## The checklist and the switches, in step with the Bus (checkpoint loads,

@@ -53,8 +53,8 @@
 ##        gyro torquing angles, PRO torques; V50N25 00014, PRO for a check
 ##        pair. V32 at N05 or N93 marks again. It needs the platform's
 ##        orientation known (alarm 00220: P51 first)
-##   V41N20  Coarse align: V25N22 flashes for the gimbal angles, and the
-##        IMU is driven to them; REFSMMAT no longer holds
+##   V41N20  Coarse align (the core's): V25N22 flashes for the gimbal
+##        angles, and the IMU is driven to them; REFSMMAT no longer holds
 ##   P23  Cislunar navigation: V05N70 (the star; the landmark, 0; the
 ##        horizon, 1 the Earth's and 2 the Moon's) [simplified: star-horizon
 ##        marks only, on the solid limb]; PRO for V50N18, the attitude that
@@ -213,10 +213,6 @@ var align_marks: Array = []
 var align_sad_deg: float = 0.0
 var align_torque: Vector3 = Vector3.ZERO
 var align_checklist: int = 15
-## V41N20: the gimbal angles loaded into N22, and whether the load is for
-## it.
-var coarse_load: Vector3 = Vector3.ZERO
-var _v41: bool = false
 ## P52 option 4's landing site (Moon-fixed, m) and landing time (GET, s).
 var landing_site_mf: Vector3 = Vector3.ZERO
 var landing_get: float = 0.0
@@ -310,7 +306,7 @@ func authority() -> Vector3:
 	var c := SpacecraftData.config(cfg)
 	var mass := float(Bus.get_value("dyn.mass_kg", 30000.0))
 	var inertia := SpacecraftData.inertia(cfg, mass)
-	var f := float(SpacecraftData.section("cm_rcs" if cfg == "cm" else "sm_rcs")["jet_thrust_n"])
+	var f := float(SpacecraftData.section("sm_rcs" if SpacecraftData.sm_attached(cfg) else "cm_rcs")["jet_thrust_n"])
 	var roll := f * float(c["rcs_roll_arm_m"]) * 4.0
 	var pitch := f * float(c["rcs_pitch_arm_m"]) * 2.0
 	return Vector3(roll / inertia.x, pitch / inertia.y, pitch / inertia.z)
@@ -354,6 +350,12 @@ func start_program(p: int) -> void:
 
 func real_imu() -> bool:
 	return true
+
+
+## The CM's buses dead (Apollo 13's power-down): the IMU loses its
+## orientation, and comes back caged.
+func powered_down() -> void:
+	imu.cage(Basis(_true_att()))
 
 
 ## The FDAI's total attitude: the CSM's relative to the stable member.
@@ -448,11 +450,6 @@ func verb_noun(v: int, n: int) -> bool:
 	if v == 32 and program in [22, 23] and step_name == "n49":
 		_reject_sighting()
 		return true
-	if v == 41 and n == 20:
-		_v41 = true
-		coarse_load = icdu()
-		dsky.request_load(25, 22)
-		return true
 	if v == 67:
 		_rms_shown = _nav_rms()
 		dsky.show(6, 99, false, false)
@@ -471,7 +468,7 @@ func noun_values(n: int) -> Variant:
 			return [1.0, float(align_option), 0.0]
 		22:
 			if _v41:
-				return [coarse_load.x, coarse_load.y, coarse_load.z]
+				return super.noun_values(n)
 			if program in [62, 66]:
 				# The entry attitude's.
 				var e := gimbal_angles_of(_entry_q())
@@ -577,15 +574,6 @@ func noun_load(n: int, idx: int, value: float) -> bool:
 				return false
 			nav_filter.stale = true
 			_rms_shown = Vector2(nav_filter.pos_rms, nav_filter.vel_rms)
-			return true
-		22:
-			if not _v41:
-				return false
-			coarse_load[idx] = value
-			if idx == 2:
-				_v41 = false
-				imu.coarse_align(Imu.gimbal_basis(coarse_load), Basis(_true_att()))
-				imu.aligned = false
 			return true
 	return super.noun_load(n, idx, value)
 
@@ -883,7 +871,7 @@ func snapshot() -> Dictionary:
 	d["align"] = {
 		"option": align_option, "refsmmat": Imu.rows_of(align_refsmmat), "stars": align_stars.duplicate(),
 		"marks": marks, "sad_deg": align_sad_deg, "torque": [align_torque.x, align_torque.y, align_torque.z],
-		"checklist": align_checklist, "coarse_load": [coarse_load.x, coarse_load.y, coarse_load.z], "v41": _v41,
+		"checklist": align_checklist,
 		"site_mf": [landing_site_mf.x, landing_site_mf.y, landing_site_mf.z], "landing_get": landing_get,
 		"mark_was": _mark_was, "reject_was": _reject_was,
 	}
@@ -923,9 +911,6 @@ func restore(d: Dictionary) -> void:
 	var t: Array = a["torque"]
 	align_torque = Vector3(t[0], t[1], t[2])
 	align_checklist = int(a["checklist"])
-	var c: Array = a["coarse_load"]
-	coarse_load = Vector3(c[0], c[1], c[2])
-	_v41 = bool(a["v41"])
 	var sm: Array = a["site_mf"]
 	landing_site_mf = Vector3(sm[0], sm[1], sm[2])
 	landing_get = float(a["landing_get"])

@@ -19,7 +19,7 @@ func before_each() -> void:
 func test_each_book_opens_the_checklist_for_the_phase() -> void:
 	var csm := ChecklistBook.load_default()
 	var lm := ChecklistBook.load_lm()
-	assert_eq(lm.lists.size(), 4, "Eagle's four")
+	assert_eq(lm.lists.size(), 7, "Eagle's four, and the LM's three malfunction procedures")
 	for phase in CSM_FOR:
 		csm.select_for_phase(phase)
 		assert_eq(csm.list().title, CSM_FOR[phase], "Columbia in %s" % phase)
@@ -33,16 +33,19 @@ func test_each_book_opens_the_checklist_for_the_phase() -> void:
 
 
 func test_every_lm_step_checks_itself_off() -> void:
-	for c in ChecklistBook.load_lm().lists:
+	for c in ChecklistBook.load_lm().lists.filter(func(l: Checklist) -> bool: return not l.title.begins_with("Malfunction: ")):
 		assert_false(c.phases.is_empty(), "%s: its phases" % c.title)
 		for s in c.steps:
 			assert_true(s.has("check"), "%s: \"%s\" has a check" % [c.title, s["text"]])
 
 
+## The HUD's checklist choice's titles, the malfunction procedures left out
+## (test_failures.gd).
 func _titles(hud: Hud) -> Array:
 	var out := []
 	for i in hud._check_title.item_count:
-		out.append(hud._check_title.get_item_text(i))
+		if not hud._check_title.get_item_text(i).begins_with("Malfunction: "):
+			out.append(hud._check_title.get_item_text(i))
 	return out
 
 

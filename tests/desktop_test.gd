@@ -42,6 +42,8 @@ var main: Node
 var hud: Hud
 ## Work the cabin of the vehicle flown, not the HUD.
 var in_cabin: bool = false
+## The saved flights' directory the main scene keeps, "" for none.
+var saves_dir: String = ""
 
 
 ## Start the main scene at [param phase], as --phase= does, with the help
@@ -56,6 +58,7 @@ func start(phase: String) -> void:
 	add_child_autofree(viewport)
 	main = MAIN.instantiate()
 	main.start_phase = phase
+	main.saves_dir = saves_dir
 	viewport.add_child(main)
 	rt = main.rt
 	hud = main.hud
@@ -220,10 +223,10 @@ func rig_click(control: ControlBase, dir: int = 0, hold_s: float = 0.0, wait_rel
 
 
 ## Wait until a clicked pushbutton lets go, so the next click presses it
-## again.
+## again, or is gone with the flight it started a new one in place of.
 func let_go(control: ControlBase) -> void:
 	for i in 600:
-		if control.get("pressed") != true:
+		if not is_instance_valid(control) or control.get("pressed") != true:
 			return
 		await wait_process_frames(1)
 
@@ -236,8 +239,10 @@ func click_menu(id: String) -> void:
 	await wait_physics_frames(1)
 	var b: ControlBase = main.menu.button(id)
 	var cam: Camera3D = main.rig.get_node("Camera3D")
+	var page: String = main.menu.page
 	_mouse(cam.unproject_position(b.get_node("Touch").global_position), true)
-	assert_true(b.get("pressed"), "%s pressed" % id)
+	# A button that turns the page lets go as its page is put away.
+	assert_true(b.get("pressed") or main.menu.page != page, "%s pressed" % id)
 	await let_go(b)
 
 

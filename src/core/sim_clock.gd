@@ -39,7 +39,7 @@ const DEFAULT_LIFTOFF_JD: float = 2440419.0638889
 ## The channels that schedule events: GETs to land a coast step on, and
 ## for interactive time acceleration to drop back at.
 const EVENT_CHANNELS: Array[String] = ["seq.next_event_get_s", "guid.next_event_get_s",
-	"lm.guid.next_event_get_s", "mission.next_event_get_s"]
+	"lm.guid.next_event_get_s", "mission.next_event_get_s", "failures.next_event_get_s"]
 
 ## Ground Elapsed Time, seconds since liftoff.
 var get_seconds: float = 0.0

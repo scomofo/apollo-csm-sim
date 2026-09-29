@@ -37,10 +37,27 @@ from gemini-capsule to build, run or test.
 
 ## Running
 
-From the repository root:
+From the repository root, `godot --path .` opens on the flight menu, in
+the cabin: every mission under `data/missions/`, in the order they flew,
+each start phase and a line on where it starts. `< MISSION`, `MISSION >`,
+`< PHASE` and `PHASE >` choose, and START flies it. Closing the menu (M
+on the desktop, the left controller's menu button in a headset) flies the
+flight behind it instead, Apollo 11's parking orbit. The menu is the
+wrist menu's FLIGHT page, clicked on the desktop and pressed with a
+fingertip in a headset; BACK turns to the wrist menu's other buttons. F1, or FLIGHT on the wrist menu, brings it back in a flight, and
+the flight chosen starts in place of the one flown, with the eye height,
+the comfort aids, the checklist highlight and the sound's level kept.
+SAVES on the flight page lists the saved flights, newest first, each
+named for its mission, phase and GET: SAVE keeps the flight flown now,
+RESUME starts the one shown in place of it, and DELETE, pressed twice,
+deletes it. A save made by a version whose checkpoints differ is listed
+but can't be resumed. F5 and F9 keep a quick save among them. The saves
+are in `user://saves/` and the settings, kept as they change, in
+`user://settings.json` (Godot's user data folder for the project). A
+flight given on the command line starts without the menu:
 
 ```
-godot --path .                                  # parking orbit, TLI ahead
+godot --path . -- --mission=apollo_11           # parking orbit, TLI ahead
 godot --path . -- --phase=launch                # on the pad, 20 s before liftoff
 godot --path . -- --phase=translunar_coast      # after TLI and docking
 godot --path . -- --phase=lunar_orbit           # after LOI-2, 54 × 66 nmi, Eagle docked
@@ -63,8 +80,8 @@ trajectory.
 `-- --mission=apollo_8` flies Apollo 8 instead: the CSM alone, the S-IVB
 carrying a test article where Apollo 11's carried Eagle, ten lunar
 orbits, and Mission Control's timeline from TLI to the entry. Its start
-phases are `parking_orbit` (the default), `translunar_coast` (after CSM/LV
-SEP), `lunar_orbit` (after LOI-2, 60 × 61 nmi), `tei`,
+phases are `launch` (on the pad, AS-503 its Saturn V), `parking_orbit`
+(the default), `translunar_coast` (after CSM/LV SEP), `lunar_orbit` (after LOI-2, 60 × 61 nmi), `tei`,
 `transearth_coast` and `entry`. `-- --mission=apollo_10` flies Apollo
 10: Snoopy flies the landing mission down to 8 nmi over the first
 landing's site without landing, stages in orbit and flies the rendezvous
@@ -79,10 +96,23 @@ Storms, the landing site moved in powered descent by the ground's noun
 `lunar_descent` (Intrepid on its descent orbit, 20 min before PDI),
 `lunar_surface` (10 min after the landing), `lunar_ascent` (20 min before
 the liftoff, Yankee Clipper's first plane change flown), `tei`,
-`transearth_coast` and `entry`. Each mission is data under
+`transearth_coast` and `entry`. `-- --mission=apollo_13` flies Apollo
+13: the SM's oxygen tank fails at 55:54:53, and Aquarius, the LM, is the
+lifeboat that brings the crew home around the Moon. Its start phases are
+`parking_orbit` (the default), `translunar_coast` and `tank_failure`
+(five minutes before the failure). Each mission is data under
 `data/missions/<id>/`: its dates and the JPL ephemeris for them, its
-vehicles, its orbits, Mission Control's timeline, the call signs and the
-checklists.
+vehicles, its orbits, Mission Control's timeline, the call signs, the
+checklists, and its start phases with the flight menu's line on each.
+
+Builds of the PC VR presets (Windows and Linux) come from CI on every
+merge to `main`, as the run's `ApolloVR-pc-vr` artifact, and are attached
+to a tag's release; each has the executable and its `.pck` side by side.
+CI flies a minute of the launch on the Linux build, headless, before it
+keeps them (`-- --quit-after=<s>` quits after that many seconds of GET).
+It builds a Quest 3 APK the same way, for a Quest by itself, with no PC
+([docs/QUEST_STANDALONE.md](docs/QUEST_STANDALONE.md)); no pass on a
+Quest has been recorded yet.
 
 `godot --path . --xr-mode on` starts OpenXR, which is off by default, and
 puts you in the commander's couch in a headset, or, once Eagle undocks
@@ -109,6 +139,94 @@ sounds the master alarm. No listening pass has been recorded yet
 ([docs/LISTENING_PASS.md](docs/LISTENING_PASS.md) is its checklist, with a
 tool that renders each voice to a file).
 
+Failures are data (`data/failures.json`): an O2 tank, a fuel cell, an SM
+RCS quad, the CMC or the IMU fails as the catalog says, lights its caution
+and warning light (CRYO PRESS, FC 1 to 3, SM RCS A to D, CMC or ISS, on
+MDC-2 and the HUD's C&W line) and sounds the master alarm, and its
+malfunction procedure opens on the checklist card. A mission arms its own
+at their times, as Apollo 13's tank. FAILURES on the flight menu is the
+instructor's page: `< FAILURE` and `FAILURE >` step through the catalog,
+and FAIL fails the one shown at once.
+
+**The backups.** With the CMC gone, the SCS and the EMS fly the CSM
+(`src/systems/scs.gd`, `src/systems/ems.gd`; their switches are on MDC-1
+and the HUD):
+- **The SCS.** Its body-mounted gyros feed the GDC, which keeps its own
+  attitude; GDC ALIGN brings it to the IMU's while the CMC reads it, and
+  it drifts a few tenths of a degree an hour from there. With ATT SOURCE
+  at SCS the FDAIs show the GDC's attitude. The hand controller commands
+  rates: 0.7°/s at full deflection with RATE LOW, 7°/s (20°/s in roll)
+  with HIGH. Released, the SCS holds the attitude within its deadband:
+  0.2° at RATE LOW and ATT DEADBAND MIN, up to 8° at HIGH and MAX.
+- **The SPS under the SCS.** While the SPS fires, its gimbal (±4.5°)
+  holds the attitude (SCS TVC AUTO), or turns the CSM on the hand
+  controller (RATE CMD, MTVC).
+- **The EMS.** Its ΔV counter, set on the ΔV/EMS SET rocker, counts down
+  the ΔV its own accelerometer senses along X. With the EMS in ΔV,
+  THRUST ON starts the SPS and the EMS ends the burn at −0.1 ft/s.
+  Houston's maneuver PADs now give the burn attitude as the FDAI's R, P
+  and Y and the counter's setting, ΔVC: the ΔV less the SPS's tail-off.
+- **The EMS in the entry.** Set its scroll to the entry PAD's VIO (VO
+  SET) and its range to RTGO (RNG SET), and turn it to ENTRY. At 0.05 g
+  its light comes on, and the scroll traces g against velocity while the
+  range counts down. Ten seconds on, a corridor light says which way the
+  lift must point.
+
+**The launch's aborts.** Apollo 11's launch can end in any of its four
+abort modes, from the CSM Apollo Operations Handbook's section 2.9 and
+the flight's Mission Operation Report (`src/systems/eds.gd`,
+`src/systems/les.gd`; the switches and lights are on MDC-1 and the HUD):
+- **The EDS.** With EDS AUTO, 2 ENG OUT and LV RATES on, it aborts by
+  itself from the liftoff for two S-IC engines out or the launch
+  vehicle's rates past their limits, until the IU switches it off at the
+  S-IC's centre engine's cutoff. Otherwise the ABORT light is Houston's
+  call, and the abort handle (the translation controller turned
+  counterclockwise: the HUD's ABORT) is the crew's. LV RATE and LV GUID
+  light for the rates and the IU's guidance platform.
+- **Mode I**, while the tower is on: the escape motor pulls the CM away.
+  In the first 42 s (IA) the pitch control motor tilts it out to sea;
+  11 s on the canards turn it blunt end forward. The tower goes when the
+  ELS comes on below 24,000 ft, and the chutes follow on the ELS's
+  timers. In mode IC the crew may send the tower with TWR JETT.
+- **Modes II to IV**, after the tower: the handle cuts the booster off,
+  fires the SM's +X jets while it is held, and separates the CSM 3 s
+  later. In mode II the CM separates and falls to a full-lift entry. In
+  mode III (the crew brought home at once, from 9:00) Houston's PAD
+  burns the SPS retrograde. The crew turns the CSM on the SCS at RATE
+  HIGH, flies P40, then enters on half lift, rolled 60° to the south. In
+  mode IV (from 9:00) Houston's PAD takes the CSM into orbit on the SPS.
+- The modes are called as Apollo 11's were: Armstrong's One Bravo at
+  0:44, then Houston's Mode One Charlie at 1:58, S-IVB to COI capability
+  at 5:27 and Mode IV capability at 9:00.
+
+**Eagle's aborts.** From the descent's ignition to the touchdown, the
+LGC answers Eagle's two abort pushbuttons (Luminary 099's P70 and P71;
+the switches are on panel 1 and the HUD):
+- **ABORT** (P70): the descent engine throttles up to full thrust and
+  P12's guidance flies it to insertion, 60,000 ft up.
+- **ABORT STAGE** (P71): the descent engine stops, the LM stages, and the
+  ascent engine flies the same guidance, from P63 to P66 or from P70 when
+  the descent engine runs low. Each button arms its engine whatever ENG
+  ARM says. Below 25,000 ft the LM first rises vertically to 40 ft/s up.
+- **The orbit** depends on where Columbia is. Early in the descent Eagle
+  is ahead of it, and climbs into an orbit with a high apolune to fall
+  behind; later Columbia is ahead, and Eagle goes into a lower one. The
+  apolune is the one that brings TPI at the time the PDI PAD gives for
+  the abort: 105:12:30 in the first ten minutes, 107:11:30 after, as
+  Apollo 11's did. Houston uplinks Columbia's state vector with Eagle's
+  before PDI for it, and five minutes after insertion the CSI PAD, from
+  which the rendezvous goes as after a liftoff.
+- **Eagle's caution and warning lights** (panels 1 and 2, and the HUD's
+  C&W line) light its master alarm: DES REG for the descent tanks'
+  helium, RCS A or B REG for an RCS system's regulator, LGC and ISS for
+  the PGNS. DES QTY comes on quietly with 5.6 % of the descent
+  propellant left, about two minutes of hovering. Each failure opens its
+  procedure in Eagle's checklist book.
+
+The launch vehicle's engines and its guidance platform are on the
+failure catalog. A failure can also be armed a time after a mission
+event, rather than at a GET.
+
 | Input | Action |
 |---|---|
 | W/S, A/D, Q/E | Rotational hand controller: pitch, yaw, roll (hold Shift for 10 %); in Eagle, its ACA |
@@ -124,9 +242,10 @@ tool that renders each voice to a file).
 | Right-drag | Look around (window and chase views) |
 | In the cabin view: click, scroll | Work the control under the cursor: a click cycles a switch or presses a key, scrolling moves a switch up or down |
 | In the cabin view: right-click, Z, Home | Mouse look on and off; inspect the control under the cursor; recentre |
-| In the cabin view: M | Wrist menu: PAD requests, time rate, pause, recentre, eye height, seat (the couches, and the lower equipment bay with the optics), checklist, comfort aids |
+| In the cabin view: M | Wrist menu: PAD requests, time rate, pause, recentre, eye height, seat (the couches, and the lower equipment bay with the optics), checklist, comfort aids, the sound's level, and FLIGHT, the flight menu |
+| F1 | The flight menu, in the cabin view: another mission or start phase, started in place of the one flown, and the saved flights |
 | O | The optics, the sextant and the scanning telescope: while they're open, W/S and A/D move them instead of the hand controller, X is MARK and Y MARK REJECT. In the cabin they are at the lower equipment bay, where the same keys and the right stick move them |
-| F5 / F9 | Save / load checkpoint |
+| F5 / F9 | Quick save, and back to it: in place, or as its flight in place of another mission's. The flight menu's SAVES lists it with the other saved flights |
 | H | Key help |
 
 Every DSKY key and cockpit switch is also clickable on screen, in the HUD
@@ -151,7 +270,8 @@ undocking to TEI) and at entry.
    At liftoff the CMC comes up in P11 (V16N62: inertial speed, altitude
    rate, altitude). Panel 1's LV ENG, LIFTOFF and S-II SEP lights show the
    stages, and the launch checklist checks itself off as they come. After
-   insertion, `V82E` shows the orbit. There are no aborts yet.
+   insertion, `V82E` shows the orbit. A failure in the launch ends it in
+   its abort mode (**The launch's aborts**, above).
 2. **Parking orbit.** CAPCOM gives you GO for TLI. The S-IVB/IU flies TLI
    automatically at the planned TIG (GET 2:44), on its iterative guidance,
    onto the free return the RTCC planned. Watch it with `V16N62E` or
@@ -196,7 +316,10 @@ undocking to TEI) and at entry.
    for P00). The drogue and main parachutes deploy automatically.
 
 **Apollo 8.** With `-- --mission=apollo_8` the flight is Apollo 8's, from
-its parking orbit (it has no launch yet). The S-IVB flies TLI at the
+the pad or its parking orbit. From the pad it's the launch above on the
+first crewed Saturn V, AS-503, at 12:51:00 UTC on 21 December 1968: its
+own stages, clock and flight azimuth, its S-II burning on all five
+engines to its cutoff, and insertion at 11:42. The S-IVB flies TLI at the
 RTCC's TIG (GET 2:50), and CSM/LV SEP leaves the S-IVB and its test
 article behind, with nothing to dock with (it happens by itself 25 min
 after cutoff). Mission Control's timeline then brings each PAD at the
@@ -275,6 +398,44 @@ with the ACA onto the crater, then take over with the ROD switch (P66)
 at a few hundred feet and fly to your spot. Intrepid's checklists follow
 its flight, with noun 69 in the powered descent's; Yankee Clipper's has
 the plane changes.
+
+**Apollo 13.** With `-- --mission=apollo_13` the flight is Apollo 13's,
+from its parking orbit, or with `-- --phase=tank_failure` from five
+minutes before the failure. TLI puts the stack on the free return, and
+MCC-2 (30:41, on the SPS) takes it onto the hybrid, 60 nmi over the Moon.
+At 55:54:53 the SM's oxygen tank 2 fails: the master alarm, MAIN B
+UNDERVOLT, fuel cells 1 and 3 lost, and tank 1 leaks its oxygen away
+while fuel cell 2 carries the CSM, until about 58:15. The timeline's
+calls and PADs come at the flown times:
+- the emergency power-down (56:16): CM POWER to EMER;
+- into the LM (57:41): LM PWR on, its LGC MODE in FREE while the CMC's
+  DAP still holds the stack, and the CMC's gimbal angles (57:48) for the
+  LGC's coarse align through the docking (V41N20): the CM's inner plus
+  180°, and its middle's negative;
+- the CSM powered down (58:37): CM POWER OFF, LGC MODE HOLD, and the
+  LGC's REFSMMAT, the CMC's carried across (58:44);
+- the free return (61:30) and PC+2 (79:28) on the descent engine, P40
+  flying the docked stack, PC+2 5 s at the minimum, 21 s at 40 % and then
+  full;
+- the PGNS off to save the LM's power (82:03); MCC-5 read up by voice
+  (104:34) and flown by hand on the AGS at 105:18:28: point +X along the
+  burn on the ACA, AGS ALIGN, ullage on the jets, ENGINE START at the
+  TTCA's minimum throttle and ENGINE STOP on the DEDA's count;
+- the LM charging the CM's entry batteries from 112 hours: LM PWR on the
+  CM's panel;
+- the PGNS up again for the ground's coarse align angles and REFSMMAT
+  (134:40, 135:04), and MCC-7 on the LM's jets in P41 (137:40);
+- SM SEP (138:02) with the AGS holding: 0.5 ft/s +X on the jets, CM/SM
+  SEP, 0.5 ft/s back;
+- the CM's coarse align angles (139:52), its power-up (140:10), state
+  vector (140:24) and REFSMMAT (140:45), and a P52; LM JETT (141:30), the
+  docking tunnel's pressure pushing Aquarius off; the entry PAD (141:48)
+  and the final state vector (142:01).
+
+Aquarius's checklists follow the lifeboat's flight: its activation and
+the docked alignment, the descent engine's burns docked, MCC-5 on the
+AGS, and the PGNS again for MCC-7 and SM SEP. Odyssey's open on the
+failure at `tank_failure`, and on the power-up and entry after the Moon.
 
 **State vectors.** The CMC flies on its own state vector. Its
 accelerometers feed it only in P40, P41, P47 and entry, and during TLI. In
@@ -383,9 +544,12 @@ not on truth. Half a revolution after DOI, P63 ignites powered descent
 back into its range.
 
 The landing radar under the descent stage finds the ground, the real
-ground of NASA's elevation maps. As its data come good, the ALT and VEL
-lamps on the LGC's DSKY go out, and N63 shows ΔH, the radar's altitude
-less the LGC's: about −3,100 ft here. The crew keys V57, and the radar
+ground of NASA's elevation maps. From ignition P63 shows N63, the speed,
+altitude rate and altitude, as Luminary 099 did. As the radar's data
+come good, the ALT and VEL lamps on the LGC's DSKY go out, and V16N68
+shows ΔH, the radar's altitude less the LGC's: about −3,100 ft here,
+with the range to the site and the time to go in braking. The crew keys
+V57, and the radar
 pulls the LGC's altitude and velocity in. Without V57 the LGC flies
 Eagle into the ground a kilometre short of where it thinks it is. P64
 flies the approach from high gate, about 2 km up and 8 km out. The LPD
@@ -395,6 +559,30 @@ fore or aft, 2° left or right. P65 lands automatically. At the first
 click of the ROD switch, P66 hands the attitude to the crew while the
 throttle holds the descent rate, 1 ft/s per click. CONTACT LIGHT comes
 on when a probe touches, and at touchdown P68 shuts the engine down.
+
+**Apollo 11's program alarms.** The LGC's Executive runs the descent's
+jobs on the time its interrupts leave (`src/systems/lgc_executive.gd`).
+A job holds one of eight core sets while it waits or runs, and one of
+five VAC areas if it uses the interpreter. At the descent's peak the
+jobs take about 90 % of the computer, as the mission report has it.
+Eagle's crew left the rendezvous radar's mode switch (RNDZ RADAR, on
+panel 3 and the HUD) at AUTO TRACK and then SLEW, not LGC. That ran the
+radar's resolvers on an 800 Hz supply out of phase with the LGC's, and
+their CDUs slewed, sending the LGC counter pulses that took about 13 %
+of its time. On top of that, the crew's V16N68 in P63, once the radar's
+data come good, or P64's landing point designator in AUTO, is more than
+the LGC has. Jobs pile up. When no core set is left for one, the
+Executive alarms 1202; when no VAC area is left, 1201. Either way it
+restarts:
+- PROG lights, V05N09 shows the codes (the first, the second and the
+  last), and RSET clears them;
+- whatever the crew had keyed is gone, and the program's display is
+  back;
+- the guidance carries on at the Servicer's next cycle.
+
+Houston calls GO half a minute after the first alarm and within seconds
+after the rest. With the switch at LGC no alarm comes. Apollo 12's
+Luminary 1B and later zeroed the CDUs, so their switch doesn't matter.
 
 **The ascent.** On the surface, Mission Control's ascent PAD gives the
 liftoff time. The RTCC flies the LGC's own ascent from where Eagle sits,
@@ -463,14 +651,16 @@ and P47, and ENGINE START lifts a landed ascent stage off by hand.
 back to Columbia when the two dock or Eagle is jettisoned. While Eagle
 flies free, **L** changes vehicles. The HUD becomes Eagle's:
 - The LGC's DSKY, which the keys type into.
-- Eagle's switches: LGC MODE, ENG ARM (ASC or DES), ABORT STAGE, ENG
-  START and STOP, RCS SYS A and B, and ROD UP and DOWN for P66.
+- Eagle's switches: LGC MODE, ENG ARM (ASC or DES), ABORT and ABORT
+  STAGE, ENG START and STOP, RCS SYS A and B, MASTER ALARM, ROD UP and
+  DOWN for P66, and the rendezvous radar's mode, RNDZ RADAR (LGC, AUTO
+  TRACK or SLEW).
 - Its flight data: its height over the ground below it, its vertical
   speed and its speed over the turning surface, its orbit, its mass and
   rates, the landing radar's ΔH, the rendezvous radar's range and range
   rate, and the ALT and VEL lamps and CONTACT LIGHT.
-- Its engines, RCS and LGC, and Mission Control's LM PADs: DOI, PDI,
-  ASCENT and CSI.
+- Its engines, RCS and LGC, its caution and warning lights, and Mission
+  Control's LM PADs: DOI, PDI, ASCENT and CSI.
 - The FDAI, on Eagle's attitude and rates and its LGC's errors.
 
 The hand controllers fly its ACA and TTCA. The view is out of its
@@ -483,11 +673,13 @@ you standing at the commander's station in Eagle's cabin
 switch of Eagle's HUD and its displays (`data/cockpit/lm_controls.csv`):
 - Panel 1, to your right: the mission timer, the rendezvous radar's range
   and range rate, the descent engine's thrust, the FDAI, LUNAR CONTACT,
-  ENG ARM and ABORT STAGE. ENG ARM is lever-locked: the first push pulls
+  ENG ARM, ABORT and ABORT STAGE, a MASTER ALARM, and the LGC, ISS, DES
+  QTY and DES REG lights. ENG ARM is lever-locked: the first push pulls
   the lever out, the second moves it.
-- Panel 2, the LM pilot's: its own FDAI and LUNAR CONTACT, and RCS SYS A
-  and B.
-- Panel 3, between you: LGC MODE.
+- Panel 2, the LM pilot's: its own FDAI, LUNAR CONTACT and MASTER ALARM,
+  RCS SYS A and B, and the RCS A and B REG lights.
+- Panel 3, between you: LGC MODE and RNDZ RADAR, the rendezvous radar's
+  mode.
 - Panel 4, below it: the LGC's DSKY, with its ALT and VEL lamps.
 - Panel 5, by your left hand: ENGINE STOP and START and DES RATE, the
   rate of descent switch. Scroll it up for +1 FPS and down for −1 FPS.
@@ -693,20 +885,27 @@ A flown Apollo 11 profile in the simulator reproduces these values:
 | TPI | 26.2 ft/s, 2 h 31 min 57 s after insertion, 2 min 38 s before the plan's time | ~25 ft/s, 2 h 34 min 35 s after insertion, 6 min 39 s after the plan's |
 | Midcourse corrections | 2.6 and 0.4 ft/s | under 1 and about 1.5 ft/s |
 | Braking, then station-keeping | 15 min 44 s, station-keeping 46 min after TPI | 15 min 8 s, station-keeping 48 min after TPI |
-| Docking | GET 127:51:53, 50 min after TPI | 128:03:00, 59 min after TPI |
+| Docking | GET 127:51:29, 50 min after TPI | 128:03:00, 59 min after TPI |
 | Entry interface | 195:03:05, 36,194 ft/s, 6.53° down, 3.23° S 171.88° E | 195:03:05.7, 36,194 ft/s, 6.48° down, 3.19° S 171.96° E |
 | Entry: 0.05 g, and the two peak loads | 195:03:34; 6.5 and 6.1 g | about 195:03:34; 6.5 and 6.0 g |
 | Drogues | 195:12:39 | 195:12:07 |
 | Splashdown | 195:19:04, 13.33° N 169.18° W, 0.9 nmi from the target, at 8.5 m/s | 195:18:35, 13.30° N 169.15° W, 1.7 nmi from it by the CMC's reckoning |
 
-Apollo 8 flown from its data alone, from its parking orbit to the
-splashdown (`tests/scenarios/test_apollo_8.gd`, which holds each row
-within set limits of the flight's figures), against the Apollo 8 Mission
-Report (MSC-PA-R-69-1), the AS-503 flight evaluation report
+Apollo 8 flown from its data alone, from the pad into its parking orbit
+(`tests/scenarios/test_apollo_8_launch.gd`) and from its parking orbit
+to the splashdown (`tests/scenarios/test_apollo_8.gd`), each holding its
+rows within set limits of the flight's figures, against the Apollo 8
+Mission Report (MSC-PA-R-69-1), the AS-503 flight evaluation report
 (MPR-SAT-FE-69-1) and the Apollo Flight Journal:
 
 | Quantity | Simulator | Apollo 8 |
 |---|---|---|
+| Launch: Mach 1, maximum dynamic pressure | 1:01.3; 33.8 kPa at 1:11.9 | 1:01.5; 37.2 kPa at 1:18.9 |
+| Launch: the S-IC's centre and outboard engines' cutoffs | 2:05.96 at 1,878 m/s and 24.47° up, 2:33.78 at 2,693 m/s and 20.13° | 2:05.93 at 1,894 m/s and 24.53°, 2:33.82 at 2,713 m/s and 20.70° |
+| Launch: the S-II's cutoff, on all five engines | 8:43.98, at 6,781 m/s | 8:44.04, at 6,821 m/s |
+| Launch: the S-IVB's cutoff, and insertion | 11:32.1; 11:41.9 at 7,793.0 m/s | 11:25.0; 11:35.0 at 7,792.8 m/s |
+| Parking orbit, and the S-IVB's propellant for TLI | 100.0 × 100.0 nmi, 32.508°; 71,271 kg | 100.0 × 99.6 nmi, 32.509°; 72,727 kg |
+| TLI, from the pad | GET 2:50:15, 3,048 m/s in 313.6 s, C3 −1,422,250 m²/s² | 2:50:37, 3,040 m/s in 318.4 s, C3 −1,478,917 m²/s² |
 | TLI | GET 2:50:11, 3,046 m/s in 317.2 s, C3 −1,420,280 m²/s² | 2:50:37, 3,040 m/s in 318.4 s, C3 −1,478,917 m²/s² |
 | The separation maneuvers, and the pericynthion after them | 1.1 and 7.7 ft/s radially up; 464.2 nmi at 69:01:20 | 1.1 and 7.7 ft/s; 458.1 nmi at 68:57:40 |
 | MCC-1, and the pericynthion after it | 25.1 ft/s at 10:59:58, N81 +16.5, +1.6, +18.9; 68.1 nmi at 69:10:30 | 24.8 ft/s at 10:59:58, N81 +13.6, −4.5, +20.2 (flown 20.4); 66.3 nmi at 69:10:40 |
@@ -751,12 +950,12 @@ and the Apollo Flight Journal:
 | CSI | 103:44:24, 39.0 ft/s; 45.9 × 40.4 nmi | 103:45:55, 45.3 ft/s; 48.7 × 40.7 nmi |
 | CDH | 104:42:14, 6.1 ft/s, 17.6 nmi below Charlie Brown | 104:43:53, 3.0 ft/s, 15.0 nmi |
 | TPI, and the midcourse corrections | 105:12:45, 28.6 ft/s; 7.6 ft/s | 105:22:56, 24.1 ft/s; two small ones |
-| Docking | 106:04:06, the LM's RCS having given 126 ft/s from CSI | 106:22:02 |
-| TEI | 137:36:28, N81 +3,621.0, +137.9, −374.2; 3,643 ft/s in 174.0 s | 137:36:29, N81 +3,625.2, +40.0, +188.0; 3,630 ft/s in 164.8 s |
-| Transearth midcourse corrections | MCC-6 13.0 ft/s, MCC-7 4.7 ft/s | MCC-6 not flown, MCC-7 2.2 ft/s |
-| Entry interface | 191:48:55, 36,307 ft/s, 6.65° down, 23.57° S 174.07° E | 191:48:55, 36,314 ft/s, 6.54° down, 23.60° S 174.39° E |
-| The entry | P61 to P64, then P67; 7.13 g at the peak | P61 to P67; 6.78 g |
-| Splashdown | 192:04:14, 15.07° S 164.70° W, 1.9 nmi from the target | 192:03:23, 15.06° S 164.65° W, 1.3 nmi from it |
+| Docking | 106:03:56, the LM's RCS having given 124 ft/s from CSI | 106:22:02 |
+| TEI | 137:36:28, N81 +3,620.9, +137.9, −375.8; 3,643 ft/s in 174.0 s | 137:36:29, N81 +3,625.2, +40.0, +188.0; 3,630 ft/s in 164.8 s |
+| Transearth midcourse corrections | MCC-6 12.1 ft/s, MCC-7 5.1 ft/s | MCC-6 not flown, MCC-7 2.2 ft/s |
+| Entry interface | 191:49:01, 36,306 ft/s, 6.66° down, 23.58° S 174.02° E | 191:48:55, 36,314 ft/s, 6.54° down, 23.60° S 174.39° E |
+| The entry | P61 to P65, then P67; 7.12 g at the peak | P61 to P67; 6.78 g |
+| Splashdown | 192:04:26, 15.08° S 164.69° W, 1.2 nmi from the target | 192:03:23, 15.06° S 164.65° W, 1.3 nmi from it |
 
 Here too the report's figures don't all agree, and the table takes these:
 - Its TEI gave 3,680.3 ft/s by Table 6-V and 3,630.2 ft/s by the SPS's
@@ -792,13 +991,13 @@ the Apollo Flight Journal and the Apollo Lunar Surface Journal:
 | CSI | 142:58:30, 46.8 ft/s; 44.7 × 42.6 nmi | 143:01:51, 45.0 ft/s; 51.0 × 41.5 nmi |
 | CDH | 143:56:24, 5.5 ft/s, 16.7 nmi below Yankee Clipper | 144:00:03, 13.8 ft/s |
 | TPI, and the midcourse corrections | 144:40:28, 28.2 ft/s; 4.0 ft/s | 144:36:26, 29.0 ft/s |
-| Docking | 145:31:33, the LM's RCS having given 129 ft/s from CSI | 145:36:20 |
-| The second plane change | 159:04:44, 381.2 ft/s in 22.0 s; 63.0 × 56.8 nmi | 159:04:46, 381.8 ft/s in 19.2 s; 64.7 × 56.8 nmi |
-| TEI | 172:22:50, N81 +3,040.4, −89.2, 0.0; 3,042 ft/s in 138.0 s; entry interface after it at 244:21:06 | 172:27:17, N81 +3,027.2, +302.1, −25.3; 3,042 ft/s in 130.3 s; 244:22:19 |
+| Docking | 145:31:39, the LM's RCS having given 124 ft/s from CSI | 145:36:20 |
+| The second plane change | 159:04:44, 381.2 ft/s in 22.0 s; 62.9 × 56.8 nmi | 159:04:46, 381.8 ft/s in 19.2 s; 64.7 × 56.8 nmi |
+| TEI | 172:22:48, N81 +3,040.4, −89.1, 0.0; 3,042 ft/s in 138.0 s; entry interface after it at 244:21:07 | 172:27:17, N81 +3,027.2, +302.1, −25.3; 3,042 ft/s in 130.3 s; 244:22:19 |
 | Transearth midcourse corrections | MCC-5 3.8 ft/s, MCC-7 none | MCC-5 2.0 ft/s, MCC-7 2.4 ft/s |
-| Entry interface | 244:18:31, 36,115 ft/s, 6.54° down, 15.55° S 174.17° E | 244:22:19, 36,116 ft/s, 6.48° down, 13.80° S 173.52° E |
-| The entry | P61 to P64, then P67; 6.69 g at the peak | P61 to P67; 6.1 g on the PAD |
-| Splashdown | 244:33:25, 15.81° S 165.17° W, 0.2 nmi from the target | 244:36:25, 15.78° S 165.15° W, within 2 miles of it |
+| Entry interface | 244:18:33, 36,114 ft/s, 6.55° down, 15.55° S 174.14° E | 244:22:19, 36,116 ft/s, 6.48° down, 13.80° S 173.52° E |
+| The entry | P61 to P64, then P67; 6.70 g at the peak | P61 to P67; 6.1 g on the PAD |
+| Splashdown | 244:33:26, 15.80° S 165.17° W, 0.4 nmi from the target | 244:36:25, 15.78° S 165.15° W, within 2 miles of it |
 
 The table takes these from the flight's figures:
 - TLI's 10,515 ft/s is the J-2's (MSC-01855, Table 5-IV), which the
@@ -810,6 +1009,47 @@ The table takes these from the flight's figures:
 - Where Intrepid came down is LROC's (Wagner et al., 2017), 157 m (515
   ft) northwest of the Surveyor where LROC has it; the mission report's
   535 ft is the 1969 survey's.
+
+Apollo 13 flown from its data alone, from five minutes before the oxygen
+tank failed to the splashdown (`tests/scenarios/test_apollo_13.gd`,
+which holds each row within set limits of the flight's figures), against
+the Apollo 13 Mission Report (MSC-02680) and its guidance supplement, the
+Mission Operations Report and the Apollo Flight Journal:
+
+| Quantity | Simulator | Apollo 13 |
+|---|---|---|
+| The hybrid at the incident | pericynthion 60.0 nmi at 77:28:39 | 63 nmi at 77:28:39 (the PAD's 60) |
+| The oxygen tank | tank 2 fails at 55:54:53; fuel cell 2 carries the CSM until 58:14:25 | 55:54:53; 58:15:11 |
+| The docked coarse align | the CM's N20 355.58, 167.77, 351.88; the LM's V41N20 184.42, 347.77, 8.12 | 355.57, 167.78, 351.87; 302.43, 347.78, 8.13 |
+| The CSM powered down | 58:40:11, 96 A-h in the entry batteries | 58:40, 99 A-h |
+| MCC-2, back to a free return | 61:29:42, N81 −20.1, +3.6, −30.6; 36.8 ft/s in 31.0 s on the DPS; then 137.4 nmi at 77:21:54 | 61:29:43, N81 −21.3, +4.1, −31.2; 37.8 ft/s in 34.2 s; then 136 nmi at 77:20:57 |
+| PC+2 | 79:27:38, N81 +814.2, −32.6, −222.7; 844.7 ft/s in 255.0 s on the DPS; 95,692 to 87,916 lb; the LM's middle and inner gimbals 329.5, 354.1 | 79:27:39, N81 +833.0, −50.9, −213.9; 860.5 ft/s in 263.8 s; 95,424 to 87,456 lb; 330.0, 355.0 |
+| The return after PC+2 | no entry: vacuum perigee 83.8 nmi | no entry: 80.6 nmi |
+| MCC-5, by hand on the AGS | the PAD's 7.3 ft/s; the engine on at 105:18:28 for 14.9 s at 10 %; the DEDA 7.0, trimmed to 7.3; the entry 6.44° down | 7.8 ft/s; 105:18:28, 14 s; 7.4, trimmed to 7.6; 6.52° |
+| MCC-7, on the LM's jets | 137:39:48, 1.0 ft/s in 7.0 s; the entry 6.46° down | 137:39:52, 3.0 ft/s in 21.5 s; 6.26° |
+| SM SEP | 138:01:44; the CM and LM 37,581 lb | 138:01:48; 37,110 lb |
+| The CM's power-up | 120 A-h in the entry batteries; P52 on stars 2 and 43, 0.005° of star angle difference | 118 A-h; stars 36 and 40, 0.00 |
+| Aquarius at LM JETT | 459 A-h left; 10,289 lb in the descent stage, 8,145 lb of it used; 142 lb of the jets' propellant used | 410 A-h; 10,091.6 lb, 8,342.9 used; 467 lb |
+| LM JETT | 141:29:56; the CM pushed back 1.91 ft/s, 12,367.7 lb | 141:30:00; 1.88 ft/s, 12,367.6 lb |
+| Entry interface | 142:41:45, 36,199 ft/s, 6.33° down | 142:40:46, 36,210.6 ft/s, 6.27° down |
+| The entry | P61 to P64, then P67; 5.69 g at the peak | P61 to P67; 5.2 g on the PAD |
+| Splashdown | 142:56:43, 21.67° S 165.36° W, 0.9 nmi from the target; 38 A-h left in the entry batteries | 142:54:41, 21.64° S 165.36° W, about a mile from it; 29 A-h |
+
+The table takes these from the flight's figures:
+- The docked coarse align's outer gimbal: Aquarius's crew added their
+  docking ring's roll calibration (the Apollo Flight Journal, 058:03);
+  the simulator's LM docks at its nominal index, 118° round from
+  Aquarius's. The inner and middle gimbals, which the index leaves alone,
+  are the flight's.
+- PC+2's platform error is the guidance supplement's: the docked
+  alignment 0.351° off, which it found from the burn's 5.27 ft/s error,
+  taken whole at the alignment. It leaves the return missing the
+  atmosphere, as the flight's did.
+- PC+2's PAD is the simulator's RTCC's, solved for the flown return's
+  entry interface time and inclination from the simulator's trajectory:
+  17 ft/s less than the flight's PAD.
+- The simulator's MCC-5 leaves the entry 0.08° shallower than the
+  flight's, and MCC-7 has less to do.
 
 Deliberate simplifications are tagged `[simplified]` in the code. The main
 ones:
@@ -839,9 +1079,11 @@ ones:
   flight, with no drift that follows the acceleration, and its
   accelerometers have no bias or scale error. A coarse align lands within
   0.2° of its angles; the marks and the gimbals read to a CDU count
-  (0.011°). The LGC's IMU is ideal, its REFSMMAT the ECI frame and its
-  attitude true: its P52 with the AOT, and P57 on the surface, are left
-  for later.
+  (0.011°). The LGC's IMU is ideal while the LM flies free, its REFSMMAT
+  the ECI frame and its attitude true: its P52 with the AOT, and P57 on
+  the surface, are left for later (milestone 11). Powered up docked, as
+  Apollo 13's lifeboat, it is a real one, caged until the crew coarse
+  aligns it through the docking.
 - **The optics.** The telescope shares the sextant's star line, without a
   trunnion of its own. Their view shows the 37 navigation stars and the
   Earth, the Moon and the Sun, without the fainter stars, aberration or
@@ -899,7 +1141,9 @@ ones:
   follows the air's pressure, and its propellant ends its burn at the
   flown time. The IU's pitch program is SA-504's; AS-506's own isn't at
   hand. The S-IVB vents and burns 1,051 kg in the parking orbit, taken
-  off at insertion. There are no aborts, and no launch escape.
+  off at insertion. Apollo 8's launch (AS-503) flies SA-504's pitch
+  program too, sped up by 7 % for its lighter vehicle, which puts its
+  flight path angle at the centre engine's cutoff on the flown one.
 - **The launch's view.** Panel 1's launch lights are the Operations
   Handbook's account of them, not their circuits, and their places are
   estimated. The sky is a blend toward blue with the air's pressure and
@@ -920,10 +1164,27 @@ ones:
   that thins out away from the LM, so relief far from it is smoothed. It
   is lit as a plain matte surface, without the Moon's own photometry.
 - **The LM.** Its systems power up as it undocks. Docked, it is dark,
-  and the CSM flies the stack. The crew's throttle-up in DOI is the
+  and the CSM flies the stack, until its crew powers it up (LM PWR), as
+  Apollo 13's did. The crew's throttle-up in DOI is the
   LGC's. The descent engine has no gimbal trim, and staging leaves the
   descent stage behind, no longer simulated. The ascent engine fires only
   after staging (no fire-in-the-hole abort).
+- **Eagle's aborts.** Luminary's cubic in the descent's time to go for
+  the insertion velocity (ABTCOF) is erasable and not at hand: the LGC
+  solves instead for the apolune the cubic was fitted to give, on a
+  simple model of the coelliptic sequence, and P12's orbit is its floor.
+  The aborts' radial rate at insertion is P12's. Apollo 11's later
+  aborts also had a phasing burn at 103:40:00; here CSI at the first
+  apolune sets the coelliptic height instead. ABORT and ABORT STAGE are
+  momentary, and the arming they give their engines holds until ENG ARM
+  goes to OFF. ABORT STAGE stages the LM as it is pressed, not after the
+  hardware's delay for the descent engine's thrust to die away. The
+  LGC's P70 and P71 come only from the pushbuttons. The AGS has no
+  abort guidance.
+- **Eagle's failures.** A failed regulator's pressure falls, and the
+  descent engine's thrust with it, at an estimated rate. An RCS system's
+  jets stop at once when its regulator fails. Only the lights the
+  catalog's failures need are modelled.
 - **The ascent.** The ground times the liftoff from both vehicles' true
   state vectors, and uplinks them as the truth. The lead Columbia has at
   insertion is estimated from Apollo 11's rendezvous. P12's steering
@@ -931,15 +1192,16 @@ ones:
   measured one.
 - **Eagle's cockpit.** On the HUD it is a desktop overlay, not Eagle's
   panels: the LGC's DSKY and the switches the LM's burns and landing
-  need, with no abort guidance section. The window view from Eagle is
+  need, with the abort guidance section's attitude hold and ΔV counter
+  (Apollo 13's) but none of its guidance. The window view from Eagle is
   from its centre of mass, and its chase view gives way to the window
   view below 40 km, where a camera beside it would see the scaled Moon
   from the wrong place.
 - **Eagle's cabin.** It is a blockout, like the CM's: the shell and the
   stations follow the LM in outline, and every panel position is
   estimated. The panels carry only the controls and displays the
-  simulator models. LGC MODE stands in for the PGNS mode control, ABORT
-  STAGE and ENGINE STOP are momentary, and a number stands in for each
+  simulator models. LGC MODE stands in for the PGNS mode control, ABORT,
+  ABORT STAGE and ENGINE STOP are momentary, and a number stands in for each
   tape meter. The LPD's scale is for the commander's design eye. Seen
   from the cabin, the ground is drawn about the eye, at a scale that
   keeps it below the floor, and Columbia no nearer than 2.8 m. Eagle
@@ -996,8 +1258,17 @@ ones:
     sets the lunar orbit's plane where a landing site would. Its REFSMMAT
     is the site's rather than LOI-2's burn attitude, and its altitudes
     count from the Moon's mean radius.
-  - There is no launch for Apollo 8 yet: its start phases begin in the
-    parking orbit.
+  - AS-503's S-IC and S-II leave its S-IVB about 40 m/s more to give at
+    the S-II's cutoff than they left the flight's, where each stage's
+    cutoff comes within 0.06 s of the flown. The S-IC is 19 m/s short at
+    its cutoff, as Apollo 11's is 26 m/s short, and the S-II's figures (its
+    thrust 61 s into its burn, its low mixture ratio's thrust, and its
+    propellant from the vehicle's masses) burn out on time at an Isp of
+    435 s after the shift. So the S-IVB's first burn runs 7 s long, and
+    TLI has 1.5 t less propellant and burns 3.6 s shorter than from the
+    parking-orbit start.
+  - The maximum dynamic pressure comes 7 s early and 3.4 kPa low on the
+    standard atmosphere, as Apollo 11's comes 5 s early and 2.5 kPa low.
 - **Apollo 10.**
   - The phasing and insertion burns are the flown PADs, fixed maneuvers
     timed from the low point the DOI PAD plans, where the ground's
@@ -1052,6 +1323,30 @@ ones:
     Intrepid came down on; Conrad flew over the crater and back.
   - There is no launch for Apollo 12 yet: its start phases begin in the
     parking orbit.
+- **Apollo 13.**
+  - The LM docks at its nominal roll index. Aquarius's docking ring's
+    calibration is not modelled, and the LGC's outer gimbal angle at the
+    docked alignment is 118° from Aquarius's.
+  - The oxygen tank's failure is its effect on the power: the vent's
+    push on the stack, which the ground's tracking saw, is left out, and
+    so are the cabin's carbon dioxide (the crew's adapted scrubbers), its
+    cold and its water.
+  - The stack holds its attitude through the coasts, without passive
+    thermal control, and the LM's jets use a third of the flight's
+    propellant.
+  - The stack weighs from the incident on what the mission report has it
+    weigh: the SM's dry mass takes the SPS's load then, and leaves out
+    the oxygen the incident lost.
+  - The LM's batteries are one store of ampere-hours with a load for each
+    state the crew put it in; the CM's entry batteries charge at a fixed
+    current from the LM.
+  - The AGS holds an attitude and counts the ΔV along the LM's X axis:
+    none of its guidance. The ground's docked alignment, its fine align
+    torquing and its REFSMMAT, comes up at once, and the PGNS comes back
+    at 133:30 on the ground's angles, without the crew's Sun and Moon
+    P52.
+  - There is no launch for Apollo 13 yet: its start phases begin in the
+    parking orbit.
 
 ## Tests
 
@@ -1062,13 +1357,16 @@ godot --headless --path . --import
 godot --headless --path . -s addons/gut/gut_cmdln.gd -gexit
 ```
 
-That runs the whole suite, which takes about 50 minutes, nearly all of
-it in the scenario tests. Add `-gdir=res://tests/unit/` to run only the
-unit tests, in under two minutes, or `-gselect=<name>` to run only the
-scripts whose file names contain `<name>`. CI runs the suite in eight
-parts side by side (`.github/workflows/ci.yml`): the unit tests, and the
-scenario tests dealt out over seven jobs by each file's time on the
-runners (`.github/scenario_seconds.txt`).
+That runs the whole suite, which takes over an hour and a half, nearly
+all of it in the scenario tests. Add `-gdir=res://tests/unit/` to run
+only the unit tests, in about ten minutes, or `-gselect=<name>` to run only the
+scripts whose file names contain `<name>`. CI runs the suite in eleven
+parts side by side (`.github/workflows/ci.yml`): the unit tests dealt
+out over two jobs and the scenario tests over nine, by each file's time
+on the runners (`.github/unit_seconds.txt`,
+`.github/scenario_seconds.txt`). Beside them, its build job
+exports the PC VR presets with Godot 4.4.1's templates and flies a
+minute of the launch on the exported Linux build.
 
 The unit tests cover:
 
@@ -1106,7 +1404,8 @@ The unit tests cover:
   over Tranquility Base at touchdown (the mission report has 10.8°), the
   Moon's pole 6.6° from its orbit's normal, a sidereal month of 27.32
   days, and the mission choosing the model; Apollo 8's (slice 7a),
-  Apollo 10's (slice 7b) and Apollo 12's (slice 7c) against their own
+  Apollo 10's (slice 7b), Apollo 12's (slice 7c) and Apollo 13's (slice
+  7d) against their own
   held-out values, as close
 - The missions (`tests/unit/test_missions.gd`), slice 7a: each under
   `data/missions/` flies its own world and vehicles, Apollo 8's stack
@@ -1128,7 +1427,106 @@ The unit tests cover:
   10,749.6 lb at lift-off; its checklists, with noun 69 in the powered
   descent's; from `lunar_descent` the LGC's state vector 4,400 ft off
   along the track at PDI, as the PDI PAD brought it before the start; and
-  from `lunar_ascent` Yankee Clipper's orbit over Intrepid at the liftoff
+  from `lunar_ascent` Yankee Clipper's orbit over Intrepid at the liftoff.
+  Slice 7d: Apollo 13's stack 96,038.7 lb from the incident, Aquarius
+  33,499.1 lb and the CM 12,367.6 lb for the entry; its checklists,
+  opening on the failure at `tank_failure`, every one of Aquarius's steps
+  checking itself off
+- The lifeboat (`tests/unit/test_lifeboat.gd`), slice 7d: docked, the LM
+  dark until its crew powers it up, then 30 A on its batteries with the
+  PGNS up and 12 A powered down; the docked LGC's platform caged until a
+  coarse align onto the CM's through the docking, as Apollo 13's crew
+  worked the angles out; the LM's descent engine, started by hand, and
+  its jets flying the stack; the AGS holding it and counting its ΔV; the
+  CM powered down to its emergency load and dark, and charging its entry
+  batteries from the LM; tank 1 leaking away 2 h 20 min after tank 2
+  fails; LM JETT from the CM pushing it back; a misaligned platform, the
+  DAP's hold after a burn's program, the PC+2 throttle schedule, and a
+  checkpoint that keeps it all
+- The failure catalog (`tests/unit/test_failures.gd`), slice 9a: each
+  failure in `data/failures.json`, set in a headless flight, lights its
+  caution and warning light, sounds the master alarm and changes its
+  system as the catalog says (the O2 tank vented, the fuel cell's output
+  gone, the quad dead, the CMC's DSKY dark, the IMU caged for good); a
+  checkpoint keeps the armed and the failed, and the clock comes to an
+  armed one on its second; a mission arms its own; the instructor's page
+  fails the one it shows; and a failure opens its malfunction procedure
+- Apollo 11's program alarms (`tests/scenarios/test_program_alarms.gd`),
+  slice 9b: the landing flown as its crew flew it, the rendezvous radar's
+  switch turned to SLEW, Aldrin's V16N68 for ΔH, and Armstrong's ATT HOLD
+  at 102:43:08 and P66 at 430 ft. It brings 1202s 358 and 412 s after
+  PDI in P63, and 1201s at 562 and 592 s in P64, each on V05N09, with
+  Houston's GO; the flight had them 5 min 17 s to 9 min 53 s after PDI.
+  Eagle lands 168 m from the site, 0.5 m/s down, 12 min 17 s after PDI.
+  With the switch at LGC no alarm comes, and the LGC's load peaks at 92 %.
+  `tests/unit/test_lgc_executive.gd`: the eight core sets and five VAC
+  areas and their alarms, the jobs by priority, a load within the LGC
+  never alarming, the radar's CDUs counting only on Apollo 11's LGC away
+  from LGC, the crew's monitor, and a checkpoint of the jobs and restarts
+- The backups (`tests/scenarios/test_backups.gd`), slice 9c: Apollo 11's
+  TEI flown on the SCS with the CMC failed. The GDC is aligned 20 minutes
+  before TIG, the burn attitude found on the FDAI's GDC angles, and the
+  burn ended by the EMS at the PAD's ΔVC. It comes 3,309.0 ft/s against
+  the PAD's 3,309.3, 0.26° off its direction. Apollo 11's entry, the CMC
+  flying it, with the EMS set to the entry PAD: its 0.05 G light 1.2 s
+  after the CM reached 0.05 g, LIFT UP ten seconds on, the scroll's g
+  within 4.5 % of the CM's load and its velocity within 3.5 % of the
+  CM's, and its range 2.9 nmi from zero at the splashdown.
+  `tests/unit/test_scs_ems.gd`: the SCS's hold and rate command at RATE
+  LOW and HIGH and ATT DEADBAND MIN and MAX; the GDC's drift, GDC ALIGN
+  and the FDAIs on it at SCS; the EMS's rocker; the EMS ending an SCS burn
+  (106 ft/s for 100 set, the tail-off after it) and keeping THRUST ON
+  from starting below zero; MTVC pitching the CSM on the gimbal; and a
+  checkpoint
+- The launch's aborts (`tests/scenarios/test_launch_aborts.gd`), slice
+  9d: from a point in each mode's window of Apollo 11's launch, set off
+  by a failure from the catalog. Downrange is measured along the nominal
+  flight's ground track, and crossrange off it:
+
+  | Mode | Set off by | Where it came down | Area (Mission Operation Report) |
+  |---|---|---|---|
+  | IB | S-IC engines 1 and 2 out at 1:00; the EDS aborts on its own | 2.9 nmi downrange, 0.1 nmi off the track; 5.7 g, 8.5 m/s | launch site to 520 nmi |
+  | II | the S-II's engines out at 4:00; Houston's ABORT and the handle; full lift | 530.6 nmi, 0.2 nmi off; 10.5 g | 440 to 3,200 nmi on the track |
+  | III | Apollo 13's O2 tank at 11:00; the ground's 378 m/s retrograde burn; half lift | 3,304.9 nmi, 52.5 nmi south; 7.9 g | 3,000 to 3,350 nmi, about 70 nmi south |
+  | IV | the S-IVB's engine out at 10:30; the SPS's 493 m/s into orbit | 85.6 by 84.9 nmi, still up an hour on | a safe orbit (perigee at least 75 nmi) |
+
+  `tests/unit/test_launch_escape.gd`:
+  - a pad abort on the handle climbs 1,046 m and comes down 1.7 km out
+    to sea; the tower goes at 14.1 s, the drogues at 16.1 s and the mains
+    at 28.1 s, as the handbook's low abort has them;
+  - the EDS aborts on the rates 1.6 s after the IU's platform fails.
+    With LV RATES off it doesn't, and Houston's ABORT asks for the
+    handle;
+  - two S-IC engines out abort, but not after the IU switches the EDS
+    off;
+  - after the tower the handle separates the CSM 3 s on, with the SM's
+    +X jets while held;
+  - the modes are called as Apollo 11's were;
+  - a checkpoint under the tower comes down on the same spot.
+
+  `tests/unit/test_failures.gd`: each launch vehicle failure lights its
+  lamp in its stage, and a failure armed on an event comes that long
+  after it
+- The LM's aborts (`tests/scenarios/test_lm_aborts.gd`), slice 9e: from
+  the checkpoint before Apollo 11's PDI, each abort reaches an orbit and
+  the rendezvous from it docks:
+
+  | Abort | Set off by | Insertion | Rendezvous |
+  |---|---|---|---|
+  | P70, 3 min into P63, 17 km up, Eagle 7.2° ahead of Columbia | the crew's ABORT | on the descent engine in 156 s: 9.1 by 130.0 nmi (the phasing's apolune 131.3), 3,519 kg left | CSI 50.3 ft/s, CDH 116.1, ΔH 15.0 nmi; TPI 2 min after the PDI PAD's 105:12:41, midcourses 8.8 ft/s; docked at 106:04:49 |
+  | P71, in P66 at 500 ft, Columbia 10.4° ahead | DES REG at 504 ft, the descent helium's regulator failed | on the ascent engine in 428 s, no lower than 486 ft: 9.3 by 63.3 nmi (63.5), 171 kg left | CSI 46.2 ft/s, CDH 43.2, ΔH 17.3 nmi; TPI 14 min before the PAD's 107:11:41, midcourses 16.6 ft/s; docked at 107:48:01 |
+
+  A checkpoint in P70 flies on to the same orbit.
+  `tests/unit/test_lm_abort_buttons.gd`: in orbit ABORT STAGE only
+  stages, and V37 can't select P70; each pushbutton arms its engine until
+  ENG ARM goes to OFF; DES QTY lights at 5.6 % without the master alarm,
+  RCS A REG goes out as its valves close, LGC as GUID CONT goes to AGS,
+  and DES REG is dark before the first arming and after staging.
+  `tests/unit/test_failures.gd`: each of the LM's failures lights its
+  light and the LM's master alarm and opens its procedure in Eagle's
+  book. `tests/unit/test_ascent_guidance.gd`: the aborts' apolune is
+  above Columbia's with Eagle ahead, lower the more Columbia leads, and
+  P12's with no TPI time.
 - The terrain: Tranquility Base 1,927 m below the reference sphere, West
   crater 30 m deep east of the LM, and the maps blending without steps;
   Surveyor III 1,432 m below it on its crater's slope, and Intrepid's
@@ -1497,6 +1895,19 @@ The scenario tests fly real segments through the crew interface:
   corrections), then a P52 and the entry on P61 to P67. Each row of Apollo
   8's Fidelity table (above) is held within limits of the flight's
   figures, and CAPCOM's calls come at their times
+- Apollo 8's launch (`tests/scenarios/test_apollo_8_launch.gd`), slice
+  10a's check. From the pad, AS-503 flies Apollo 8 into its parking
+  orbit, and the flight goes on through TLI as the parking-orbit start
+  flies it:
+  - each stage's cutoff within 0.06 s of the flight evaluation report's,
+    the S-II's on all five engines, and the S-IVB's 7.1 s late;
+  - the orbit 100.0 × 100.0 nmi at 32.508°, 0.003° from the flown plane;
+  - Mach 1 and the maximum dynamic pressure near the report's, and the
+    tilt at its flown 12.11 s;
+  - the CMC in P11, the countdown's start sequence and thrust OK, and
+    panel 1's lights through each stage;
+  - the S-IVB left with 71,271 kg for TLI (72,727 flown), and TLI at
+    2:50:15, 3,048 m/s in 313.6 s (2:50:37, 3,040 m/s in 318.4 s flown)
 - Apollo 10 (`tests/scenarios/test_apollo_10.gd`), slice 7b's check. It
   flies from its data alone, from the parking orbit to the splashdown:
   TLI, the evasive maneuver, MCC-1 and MCC-4, LOI-1 and LOI-2; then
@@ -1516,6 +1927,16 @@ The scenario tests fly real segments through the crew interface:
   within 250 m of Surveyor III; the first plane change, P12's liftoff and
   the rendezvous; LM JETT, the second plane change, TEI, the transearth
   corrections, a P52 and the entry on P61 to P67. Each row of Apollo 12's
+  Fidelity table (above) is held within limits of the flight's figures
+- Apollo 13 (`tests/scenarios/test_apollo_13.gd`), slice 7d's check. It
+  flies from its data alone, from five minutes before the oxygen tank
+  failed to the splashdown: the failure and the power-down, Aquarius
+  powered up and coarse aligned to the CM's platform, the CSM dark; the
+  free return and PC+2 on the descent engine, P40 flying the docked
+  stack, PC+2 missing the atmosphere with the flight's platform error;
+  MCC-5 by hand on the AGS; the LM charging the entry batteries; the
+  PGNS again for MCC-7 on the LM's jets; SM SEP, the CM's power-up and
+  alignment, LM JETT and the entry on P61 to P67. Each row of Apollo 13's
   Fidelity table (above) is held within limits of the flight's figures
 
 `tools/screenshot.tscn` renders the images above (`--view=0` window,
@@ -1581,4 +2002,27 @@ landing's site, staged in orbit, and back to Charlie Brown by the
 landing mission's rendezvous. So does Apollo 12 (slice 7c): Intrepid
 lands beside Surveyor III, its landing site moved in powered descent by
 the ground's noun 69, and its commander redesignating onto the crater.
-Apollo 13 comes next (7d).
+And Apollo 13 (slice 7d) comes home after its oxygen tank failed, from
+five minutes before the failure to its splashdown, Aquarius its lifeboat.
+That finishes the other missions. A way in (milestone 8): the flight
+menu picks any mission and start phase, on the desktop and on the wrist,
+and starts it in place of the flight flown (slice 8a), and saves flights
+and resumes them, the settings kept between sessions (slice 8b); CI
+builds the PC VR presets and flies the Linux build before it keeps them
+(slice 8c), and builds a Quest 3 APK, whose pass on the headset is still
+to be run (slice 8d). Of failures, backups and aborts (milestone 9), the
+failures are a catalog, armed by a mission or failed by an instructor,
+each lighting its caution and opening its malfunction procedure (slice
+9a), and Apollo 11's landing brings its 1202 and 1201 alarms, from the
+LGC's Executive and the rendezvous radar's switch as its crew had it
+(slice 9b). With the CMC failed, the SCS and the EMS fly a burn to the
+PAD, and the EMS monitors the entry (slice 9c). The launch aborts in
+each of its four modes, on the EDS, the escape tower and the SPS, set
+off by the catalog's failures (slice 9d). Eagle aborts from P63 on the
+descent engine and from P66 at 500 ft on the ascent engine, into orbits
+phased for the rendezvous, which docks, and has its own failures and
+caution and warning lights (slice 9e). Of every mission from the pad
+(milestone 10), Apollo 8 flies from the pad on AS-503, the first crewed
+Saturn V, into its parking orbit and on through TLI (slice 10a). Apollo
+10's, 12's and 13's launches come next, then the LM's navigation, and
+Apollo 14 to 17.

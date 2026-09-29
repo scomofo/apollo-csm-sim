@@ -13,7 +13,8 @@ class_name LmChecklistFlights
 extends DesktopTest
 
 ## The checklists these flights fly; a checklist added to
-## lm_checklists.json needs a flight here too.
+## lm_checklists.json needs a flight here too. The malfunction procedures
+## after them (data/lm_malfunctions.json) are tests/unit/test_failures.gd's.
 const FLOWN := ["Undocking and DOI (P30 / P40)", "Powered descent (P63 to P68)",
 	"Lunar surface and liftoff (P12)", "Rendezvous and docking (P20, P32 to P35)"]
 ## The braking gates, as test_rendezvous.gd flies them: the closing rate
@@ -27,7 +28,8 @@ func _from() -> String:
 
 
 func test_every_checklist_is_flown_here() -> void:
-	var titles := ChecklistBook.load_lm().lists.map(func(c: Checklist) -> String: return c.title)
+	var titles := ChecklistBook.load_lm().lists.map(func(c: Checklist) -> String: return c.title).filter(
+		func(t: String) -> bool: return not t.begins_with("Malfunction: "))
 	assert_eq(titles, FLOWN)
 
 

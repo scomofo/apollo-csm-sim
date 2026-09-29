@@ -75,17 +75,14 @@ static func simulate_dps_burn(traj: Trajectory, mass: float, dv_lvlh: Vector3, d
 	var f := float(d["thrust_n"])
 	var mdot := f / (float(d["isp_s"]) * Units.G0)
 	var sch := Dps.p40_schedule(schedule)
-	var t_start := float(sch[0])
 	var u := dv_lvlh.normalized()
 	var left := dv_lvlh.length()
 	var m := mass
 	var t := 0.0
 	while left > 1e-4:
-		var k := Dps.throttle_target(float(sch[1]) if t < t_start else float(sch[2]))
+		var k := Dps.throttle_target(Dps.schedule_throttle(sch, t))
 		var acc := f * k / m
-		var h := minf(dt, left / acc)
-		if t < t_start:
-			h = minf(h, t_start - t)
+		var h := minf(minf(dt, left / acc), Dps.schedule_next(sch, t) - t)
 		var a := lvlh_to_inertial(traj, u) * acc
 		traj.step(h, PackedFloat64Array([a.x, a.y, a.z]))
 		left -= acc * h
@@ -101,13 +98,65 @@ static func dps_burn_time(mass: float, dv: float, schedule: Array = []) -> float
 	var ve := float(d["isp_s"]) * Units.G0
 	var mdot := float(d["thrust_n"]) / ve
 	var sch := Dps.p40_schedule(schedule)
-	var t_start := float(sch[0])
-	var k_start := Dps.throttle_target(float(sch[1]))
-	var m_start := mass - mdot * k_start * t_start
-	var dv_start := ve * log(mass / m_start)
-	if absf(dv) <= dv_start:
-		return mass * (1.0 - exp(-absf(dv) / ve)) / (mdot * k_start)
-	return t_start + m_start * (1.0 - exp(-(absf(dv) - dv_start) / ve)) / (mdot * Dps.throttle_target(float(sch[2])))
+	var left := absf(dv)
+	var m := mass
+	var t := 0.0
+	# Each step of the schedule in turn, the rocket equation on each.
+	for i in range(0, sch.size() - 1, 2):
+		var k := Dps.throttle_target(float(sch[i + 1]))
+		var m_end := m - mdot * k * float(sch[i])
+		var dv_step := ve * log(m / m_end)
+		if left <= dv_step:
+			return t + m * (1.0 - exp(-left / ve)) / (mdot * k)
+		left -= dv_step
+		m = m_end
+		t += float(sch[i])
+	return t + m * (1.0 - exp(-left / ve)) / (mdot * Dps.throttle_target(float(sch[-1])))
+
+
+## Fly a burn of [param dv_lvlh] from [param traj]'s TIG on [param engine],
+## as its computer flies it: {"engine": "sps"} (the default) the CMC's P40
+## (simulate_sps_burn()); "dps" the LGC's P40 on the DPS on its throttle
+## schedule ("throttle", Dps.p40_schedule()); "lm_rcs" the LGC's P41, the
+## LM's four +X jets, held along the ΔV's LVLH direction as the LGC holds
+## it. Returns the mass after.
+static func simulate_burn(engine: Dictionary, traj: Trajectory, mass: float, dv_lvlh: Vector3) -> float:
+	match str(engine.get("engine", "sps")):
+		"dps":
+			return simulate_dps_burn(traj, mass, dv_lvlh, 0.5, engine.get("throttle", []))
+		"lm_rcs":
+			var d := SpacecraftData.section("lm_rcs")
+			var f := lm_rcs_x_thrust()
+			var mdot := f / (float(d["isp_s"]) * Units.G0)
+			var u := dv_lvlh.normalized()
+			var left := dv_lvlh.length()
+			var m := mass
+			while left > 1e-4:
+				var acc := f / m
+				var h := minf(0.5, left / acc)
+				var a := lvlh_to_inertial(traj, u) * acc
+				traj.step(h, PackedFloat64Array([a.x, a.y, a.z]))
+				left -= acc * h
+				m -= mdot * h
+			return m
+	return simulate_sps_burn(traj, mass, dv_lvlh)
+
+
+## How long a burn of [param dv] on [param engine] (simulate_burn()) lasts
+## from [param mass], s.
+static func burn_seconds(engine: Dictionary, mass: float, dv: float) -> float:
+	match str(engine.get("engine", "sps")):
+		"dps":
+			return dps_burn_time(mass, dv, engine.get("throttle", []))
+		"lm_rcs":
+			return mass * absf(dv) / lm_rcs_x_thrust()
+	return burn_time(mass, dv)
+
+
+## The LM's jets' +X thrust in P41: both systems' X jets, N.
+static func lm_rcs_x_thrust() -> float:
+	var d := SpacecraftData.section("lm_rcs")
+	return float(d["jet_thrust_n"]) * float(d["x_jets"]) * 2.0
 
 
 static func lvlh_to_inertial(traj: Trajectory, dv_lvlh: Vector3) -> Vector3:
@@ -448,7 +497,9 @@ static func time_to_periapsis(r: Vector3, v: Vector3, mu: float) -> float:
 
 ## Minimum-norm LVLH correction at [param tig] driving metric
 ## [param target_kind] ("moon": signed pericynthion; "earth": signed
-## perigee) to [param target_f]. Toward the Moon with a landing site
+## perigee, past the Moon for a free return from the way out, as Apollo
+## 13's MCC-2) to [param target_f], flown on [param engine]
+## (simulate_burn(): the SPS, or the docked LM's DPS or jets). Toward the Moon with a landing site
 ## [param site_mf], it also keeps the approach's plane on the site at GET
 ## [param t_land], out of plane (Y) as need be; or given the lunar orbit's
 ## plane [param plane_n] (its unit normal), it puts the pericynthion in
@@ -457,10 +508,11 @@ static func time_to_periapsis(r: Vector3, v: Vector3, mu: float) -> float:
 ## GET, the three misses taking the whole correction [published: Apollo
 ## 11's midcourse corrections aimed at the pericynthion's altitude and the
 ## node's position, MSC-00171, section 7.4.3]. Returns a PAD; dv 0 when
-## not required.
+## not required: a miss inside [param tol_m] (m; 20 km toward the Moon,
+## 5 km toward the Earth when not given).
 static func plan_mcc(traj: Trajectory, mass: float, tig: float, target_kind: String, target_f: float, t_max: float,
 		site_mf: Vector3 = Vector3.ZERO, t_land: float = 0.0, t_peri: float = -1.0,
-		plane_n: Vector3 = Vector3.ZERO) -> Dictionary:
+		plane_n: Vector3 = Vector3.ZERO, engine: Dictionary = {}, tol_m: float = -1.0) -> Dictionary:
 	var at := traj.clone()
 	at.coast_to(tig, 60.0, FRAC)
 	var plane := target_kind == "moon" and (site_mf != Vector3.ZERO or plane_n != Vector3.ZERO)
@@ -474,7 +526,7 @@ static func plan_mcc(traj: Trajectory, mass: float, tig: float, target_kind: Str
 	var misses := func(dv_lvlh: Vector3) -> PackedFloat64Array:
 		var tr := at.clone()
 		if dv_lvlh.length() > 1e-6:
-			simulate_sps_burn(tr, mass, dv_lvlh)
+			simulate_burn(engine, tr, mass, dv_lvlh)
 		var res := lunar_approach(tr, t_max) if target_kind == "moon" else earth_return(tr, t_max)
 		var off := 0.0
 		if plane:
@@ -495,7 +547,7 @@ static func plan_mcc(traj: Trajectory, mass: float, tig: float, target_kind: Str
 	var err: Vector2 = metric.call(dv)
 	# A miss within the tolerance needs no burn; a burn, once needed, is
 	# solved to a tenth of it.
-	var tol := 20000.0 if target_kind == "moon" else 5000.0
+	var tol := tol_m if tol_m > 0.0 else (20000.0 if target_kind == "moon" else 5000.0)
 	if absf(err.x) >= tol or absf(err.y) >= tol:
 		tol /= 10.0
 	for _i in 8:
@@ -526,7 +578,7 @@ static func plan_mcc(traj: Trajectory, mass: float, tig: float, target_kind: Str
 		dv += step
 		err = metric.call(dv)
 	return {"name": "MCC", "tig": tig, "dv_lvlh": dv, "dv": dv.length(),
-		"burn_s": burn_time(mass, dv.length()), "residual_m": err.x, "plane_residual_m": err.y}
+		"burn_s": burn_seconds(engine, mass, dv.length()), "residual_m": err.x, "plane_residual_m": err.y}
 
 
 ## plan_mcc() with the pericynthion's time as well: the three misses
@@ -1250,18 +1302,20 @@ static func _tei_free_tig(start: Trajectory, tig: float, sol: Dictionary, mass: 
 	return s1
 
 
-## TEI's ΔV at [param tig] from [param start] (a lunar orbit before it),
-## solved from [param guess] for a return with its vacuum perigee at
-## [param perigee_alt], its orbit about the Earth at [param incl_deg] to
-## the equator, and entry interface (400,000 ft) at GET [param ei_get]: a
-## Newton solve on the three LVLH components, its Jacobian taken by
-## finite differences and then carried by Broyden's update, each step
-## held to TEI_STEP_MPS and halved while it leaves no return. Returns
-## {"dv_lvlh", "ei_get", "incl"}, empty when it does not converge.
+## TEI's ΔV at [param tig] from [param start] (a lunar orbit before it,
+## or Apollo 13's flyby), solved from [param guess] for a return with its
+## vacuum perigee at [param perigee_alt], its orbit about the Earth at
+## [param incl_deg] to the equator, and entry interface (400,000 ft) at
+## GET [param ei_get], flown on [param engine] (simulate_burn(): the SPS,
+## or the docked LM's DPS for Apollo 13's PC+2): a Newton solve on the
+## three LVLH components, its Jacobian taken by finite differences and then
+## carried by Broyden's update, each step held to TEI_STEP_MPS and halved
+## while it leaves no return. Returns {"dv_lvlh", "ei_get", "incl"}, empty
+## when it does not converge.
 static func tei_components(start: Trajectory, tig: float, mass: float, guess: Vector3, perigee_alt: float,
-		incl_deg: float, ei_get: float) -> Dictionary:
+		incl_deg: float, ei_get: float, engine: Dictionary = {}) -> Dictionary:
 	var dv := guess
-	var f := _tei_miss(start, tig, mass, dv, perigee_alt, incl_deg, ei_get)
+	var f := _tei_miss(start, tig, mass, dv, perigee_alt, incl_deg, ei_get, engine)
 	if f.is_empty():
 		return {}
 	var jac: Array[PackedFloat64Array] = []
@@ -1272,7 +1326,7 @@ static func tei_components(start: Trajectory, tig: float, mass: float, guess: Ve
 			for k in 3:
 				var d := Vector3.ZERO
 				d[k] = 0.5
-				var fk := _tei_miss(start, tig, mass, dv + d, perigee_alt, incl_deg, ei_get)
+				var fk := _tei_miss(start, tig, mass, dv + d, perigee_alt, incl_deg, ei_get, engine)
 				if fk.is_empty():
 					return {}
 				jac.append(PackedFloat64Array([(fk[0] - f[0]) / 0.5, (fk[1] - f[1]) / 0.5, (fk[2] - f[2]) / 0.5]))
@@ -1284,7 +1338,7 @@ static func tei_components(start: Trajectory, tig: float, mass: float, guess: Ve
 			step *= TEI_STEP_MPS / step.length()
 		var f2 := PackedFloat64Array()
 		for h in 6:
-			f2 = _tei_miss(start, tig, mass, dv + step, perigee_alt, incl_deg, ei_get)
+			f2 = _tei_miss(start, tig, mass, dv + step, perigee_alt, incl_deg, ei_get, engine)
 			if not f2.is_empty():
 				break
 			step *= 0.5
@@ -1310,10 +1364,10 @@ static func tei_components(start: Trajectory, tig: float, mass: float, guess: Ve
 ## takes its perigee's time less EI_TO_PERIGEE_S for entry interface's.
 ## Empty when it doesn't come back to the Earth.
 static func _tei_miss(start: Trajectory, tig: float, mass: float, dv: Vector3, perigee_alt: float, incl_deg: float,
-		ei_get: float) -> PackedFloat64Array:
+		ei_get: float, engine: Dictionary = {}) -> PackedFloat64Array:
 	var tr := start.clone()
 	tr.coast_to(tig, 30.0, FRAC)
-	simulate_sps_burn(tr, mass, dv)
+	simulate_burn(engine, tr, mass, dv)
 	var near := func(t2: Trajectory) -> bool:
 		return t2.primary == "earth" and t2.radius() < 1.0e8
 	if not tr.coast_until(near, tig + 6.0 * 86400.0, MAX_DT, FRAC):
@@ -1347,6 +1401,127 @@ static func plan_entry(traj: Trajectory, lat_deg: float, lng_deg: float) -> Dict
 		"v400k": p["vpred"], "gamma400k": p["gammaei"], "rtgo": p["rtgo"], "vio": p["vio"]}
 
 
+# --- launch aborts (slice 9d) -----------------------------------------------------
+
+## Mode IV (slice 9d): the SPS's burn from [param traj] at GET [param tig]
+## into orbit, Apollo 11's contingency orbit insertion: the LVLH ΔV that
+## P40 flies (simulate_sps_burn()) to leave the CSM of [param mass] level
+## at burnout, at the circular speed there [simplified: the RTCC's own
+## targeting isn't at hand]. Returns the PAD, {"name": "MODE IV", "tig",
+## "dv_lvlh", "dv", "burn_s", "rp", "ra"}, or {} when it wouldn't
+## converge.
+static func plan_mode_iv(traj: Trajectory, mass: float, tig: float) -> Dictionary:
+	var at := traj.clone()
+	at.coast_to(tig, 10.0)
+	var miss := func(dv: Vector3) -> Vector2:
+		var t := at.clone()
+		simulate_sps_burn(t, mass, dv)
+		var r := t.pos()
+		var v := t.vel()
+		var rr := r.normalized().dot(v)
+		var vh := sqrt(maxf(v.length_squared() - rr * rr, 0.0))
+		return Vector2(rr, vh - sqrt(Bodies.MU_EARTH / r.length()))
+	var r0 := at.pos()
+	var v0 := at.vel()
+	var rr0 := r0.normalized().dot(v0)
+	# LVLH: x ahead, z down: the speed short of circular, and the fall.
+	var dv := Vector3(sqrt(Bodies.MU_EARTH / r0.length()) - sqrt(maxf(v0.length_squared() - rr0 * rr0, 0.0)), 0.0, rr0)
+	for _i in 12:
+		var f: Vector2 = miss.call(dv)
+		if absf(f.x) < 0.05 and absf(f.y) < 0.05:
+			break
+		var h := 1.0
+		var fx: Vector2 = (miss.call(dv + Vector3(h, 0.0, 0.0)) - f) / h
+		var fz: Vector2 = (miss.call(dv + Vector3(0.0, 0.0, h)) - f) / h
+		var det := fx.x * fz.y - fz.x * fx.y
+		if absf(det) < 1e-12:
+			return {}
+		# Solve [fx fz] [dx dz]^T = -f.
+		var dx := (-f.x * fz.y + fz.x * f.y) / det
+		var dz := (-fx.x * f.y + fx.y * f.x) / det
+		dv += Vector3(dx, 0.0, dz)
+	var end := at.clone()
+	simulate_sps_burn(end, mass, dv)
+	var f2: Vector2 = miss.call(dv)
+	if absf(f2.x) > 1.0 or absf(f2.y) > 1.0:
+		return {}
+	var c := end.conic()
+	return {"name": "MODE IV", "tig": tig, "dv_lvlh": dv, "dv": dv.length(), "burn_s": burn_time(mass, dv.length()),
+		"rp": float(c["rp"]), "ra": float(c["ra"])}
+
+
+## Mode III (slice 9d): the SPS's retrograde burn from [param traj] at GET
+## [param tig] that brings the CM's half-lift landing (predict_cm_landing()
+## at [param bank_deg]) to [param target_nmi] from the launch pad
+## [param pad] (latitude and east longitude, deg), or none when it lands
+## short of it already. Returns the PAD {"name": "MODE III", "tig",
+## "dv_lvlh", "dv", "burn_s", "range_nmi" (the landing's, predicted)}, or
+## {} with no landing.
+static func plan_mode_iii(traj: Trajectory, mass: float, tig: float, pad: Vector2, target_nmi: float,
+		bank_deg: float) -> Dictionary:
+	var at := traj.clone()
+	at.coast_to(tig, 10.0)
+	var cm_mass := SpacecraftData.total_mass("cm", 0.0, 0.0, 2.0 * float(SpacecraftData.section("cm_rcs")["ring_propellant_kg"]), 0.0)
+	var range_after := func(dv: float) -> float:
+		var t := at.clone()
+		if dv > 0.0:
+			simulate_sps_burn(t, mass, Vector3(-dv, 0.0, 0.0))
+		var l := predict_cm_landing(t, cm_mass, bank_deg)
+		if l.is_empty():
+			return INF
+		return Bodies.surface_angle(pad, l["geo"]) * Bodies.R_EARTH / Units.NMI
+	var d0: float = range_after.call(0.0)
+	var dv := 0.0
+	if d0 > target_nmi:
+		var g := func(x: float) -> float: return float(range_after.call(x)) - target_nmi
+		dv = solve_scan(g, 0.0, 1500.0, 15, 1.0)
+		if is_nan(dv):
+			return {}
+	return {"name": "MODE III", "tig": tig, "dv_lvlh": Vector3(-dv, 0.0, 0.0), "dv": dv, "burn_s": burn_time(mass, dv),
+		"range_nmi": range_after.call(dv)}
+
+
+## Where the CM of [param mass] comes down from [param traj] (not
+## modified), flying its trim's lift banked [param bank_deg] (positive,
+## the lift to the right of its track) from the air's top: {"t" (the GET),
+## "geo" (latitude and east longitude, deg), "gmax"} at 24,000 ft, where
+## the drogues open, or {} when it stays up [simplified: the chutes' drift
+## below that left out].
+static func predict_cm_landing(traj: Trajectory, mass: float, bank_deg: float) -> Dictionary:
+	var t := traj.clone()
+	if t.altitude() > Bodies.ENTRY_INTERFACE_ALT:
+		var down := func(x: Trajectory) -> bool: return x.altitude() < Bodies.ENTRY_INTERFACE_ALT
+		if not t.coast_until(down, t.t + 6.0 * 3600.0, 10.0, 0.002):
+			return {}
+	var ad := SpacecraftData.section("cm_aero")
+	var cds := float(ad["cd"]) * float(ad["reference_area_m2"])
+	var ld := float(ad["lift_to_drag"])
+	var bank := deg_to_rad(bank_deg)
+	var drogue_alt := float(SpacecraftData.section("els")["drogue_alt_m"])
+	var gmax := 0.0
+	var steps := 0
+	while t.altitude() > drogue_alt and steps < 20000:
+		steps += 1
+		var r := t.pos()
+		var air := Atmosphere.air_velocity(r, t.vel())
+		var sp := air.length()
+		var a := Vector3.ZERO
+		if sp > 1e-3:
+			var q := 0.5 * Atmosphere.density(t.altitude()) * sp * sp
+			var vhat := air / sp
+			a = (-vhat * q * cds + Dynamics.lift_direction(r, vhat, bank) * q * cds * ld) / mass
+		gmax = maxf(gmax, a.length() / Units.G0)
+		if t.altitude() > Bodies.ENTRY_INTERFACE_ALT and t.radial_rate() > 0.0:
+			# Skipped out: coast back down.
+			var down2 := func(x: Trajectory) -> bool: return x.altitude() < Bodies.ENTRY_INTERFACE_ALT
+			if not t.coast_until(down2, t.t + 6.0 * 3600.0, 10.0, 0.002):
+				return {}
+			continue
+		t.step(0.5, PackedFloat64Array([a.x, a.y, a.z]))
+	var p := Bodies.eci_to_earth_fixed([t.s[0], t.s[1], t.s[2]], t.t)
+	return {"t": t.t, "geo": Bodies.fixed_to_geographic(Vector3(p[0], p[1], p[2])), "gmax": gmax}
+
+
 ## PAD text as CAPCOM would read it up.
 static func pad_text(pad: Dictionary) -> String:
 	if pad.is_empty():
@@ -1356,6 +1531,10 @@ static func pad_text(pad: Dictionary) -> String:
 			float(pad["lat"]), float(pad["lng"]), float(pad["gmax"]), float(pad["v400k"]) / Units.FT,
 			float(pad["gamma400k"]), float(pad["rtgo"]), float(pad["vio"]) / Units.FT, Units.hms(float(pad["tig"]))]
 	var dv: Vector3 = pad.get("dv_lvlh", Vector3.ZERO)
-	return "%s PAD: TIG %s  N81 DVX %+.1f DVY %+.1f DVZ %+.1f ft/s  DVT %.1f ft/s  BURN %.0f s" % [
+	var text := "%s PAD: TIG %s  N81 DVX %+.1f DVY %+.1f DVZ %+.1f ft/s  DVT %.1f ft/s  BURN %.0f s" % [
 		pad["name"], Units.hms(float(pad["tig"])), dv.x / Units.FT, dv.y / Units.FT, dv.z / Units.FT,
 		float(pad.get("dv", dv.length())) / Units.FT, float(pad.get("burn_s", 0.0))]
+	if pad.has("att_deg"):
+		var a: Vector3 = pad["att_deg"]
+		text += "  R %03.0f P %03.0f Y %03.0f  DVC %.1f ft/s" % [a.x, a.y, a.z, float(pad["dvc"]) / Units.FT]
+	return text

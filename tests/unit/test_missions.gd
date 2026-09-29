@@ -7,6 +7,8 @@
 ## (slice 7b) flies down to 8 nmi without landing, stages in orbit and
 ## flies the rendezvous: tests/scenarios/test_apollo_10.gd. Apollo 12's
 ## (slice 7c) lands beside Surveyor III: tests/scenarios/test_apollo_12.gd.
+## Apollo 13's (slice 7d) is the lifeboat that brings its crew home after
+## the SM's oxygen tank failed: tests/scenarios/test_apollo_13.gd.
 extends SimTest
 
 const LB := 0.45359237
@@ -17,18 +19,19 @@ func after_all() -> void:
 	Mission.load_default()
 
 
-func test_the_missions_are_apollo_8_10_11_and_12() -> void:
+func test_the_missions_are_apollo_8_10_11_12_and_13() -> void:
 	var ids := Mission.ids()
 	assert_true("apollo_11" in ids, "Apollo 11")
 	assert_true("apollo_10" in ids, "Apollo 10")
 	assert_true("apollo_8" in ids, "Apollo 8")
 	assert_true("apollo_12" in ids, "Apollo 12")
+	assert_true("apollo_13" in ids, "Apollo 13")
 	for id in ids:
 		var m := Mission.load_file(Mission.path_of(id))
 		assert_eq(m.id(), id, "%s's file names it" % id)
 		assert_false(m.data.get("start_phases", []).is_empty(), "%s: its start phases" % id)
 		for p in m.data.get("start_phases", []):
-			assert_true(p in MissionSequencer.PHASES, "%s: %s is a phase" % [id, p])
+			assert_true(p in MissionSequencer.PHASES or p in MissionSequencer.START_ONLY, "%s: %s is a phase" % [id, p])
 			assert_true(SpacecraftData.carries_lm() or not p in MissionSequencer.LM_PHASES, "%s: %s needs an LM" % [id, p])
 
 
@@ -104,6 +107,25 @@ func test_apollo_12_flies_its_own_vehicles() -> void:
 	assert_almost_eq(SpacecraftData.lm_mass(), 15103.0, 1.0, "and Eagle again")
 
 
+func test_apollo_13_flies_its_own_vehicles() -> void:
+	Mission.load_file(Mission.path_of("apollo_13"))
+	assert_true(SpacecraftData.carries_lm(), "Apollo 13 carries Aquarius")
+	var sm := 4.0 * float(SpacecraftData.section("sm_rcs")["quad_propellant_kg"])
+	var cm := 2.0 * float(SpacecraftData.section("cm_rcs")["ring_propellant_kg"])
+	var f := SpacecraftData.lm_full_loads()
+	# The stack after the oxygen tank incident with the SPS's 40,529.7 lb
+	# left, Aquarius at the docking, the CM after LM JETT (MSC-02680, Table
+	# A-I and section 7) [published].
+	assert_almost_eq(SpacecraftData.total_mass("csm_lm", 40529.7 * LB, sm, cm, 0.0), 96038.7 * LB, 1.0,
+		"96,038.7 lb from the incident")
+	assert_almost_eq(SpacecraftData.lm_mass(), 33499.1 * LB, 1.0, "Aquarius, 33,499.1 lb")
+	assert_almost_eq(SpacecraftData.total_mass("cm", 0.0, 0.0, cm, 0.0), 12367.6 * LB, 1.0, "12,367.6 lb for the entry")
+	assert_almost_eq(f[0], 18434.5 * LB, 0.1, "the descent engine's 18,434.5 lb")
+	assert_eq(float(SpacecraftData.section("lm_eps")["battery_ah"]), 2179.0, "the LM's batteries, 2,179 A-h")
+	Mission.load_default()
+	assert_almost_eq(SpacecraftData.lm_mass(), 15103.0, 1.0, "and Eagle again")
+
+
 func test_capcom_calls_each_vehicle_by_its_call_sign() -> void:
 	var a8 := Mission.load_file(Mission.path_of("apollo_8"))
 	assert_eq(a8.words("{csm}, Houston. Welcome home, {mission}."), "Apollo 8, Houston. Welcome home, Apollo 8.")
@@ -113,6 +135,9 @@ func test_capcom_calls_each_vehicle_by_its_call_sign() -> void:
 	var a12 := Mission.load_file(Mission.path_of("apollo_12"))
 	assert_eq(a12.words("{csm} and {lm} are docked. {lm_landed}, Houston."),
 		"Yankee Clipper and Intrepid are docked. Intrepid, Houston.")
+	var a13 := Mission.load_file(Mission.path_of("apollo_13"))
+	assert_eq(a13.words("{csm} and {lm} are docked. Welcome home, {mission}."),
+		"Odyssey and Aquarius are docked. Welcome home, Apollo 13.")
 	var a11 := Mission.load_default()
 	assert_eq(a11.words("{csm} and {lm} are docked. {lm_landed}, Houston."),
 		"Columbia and Eagle are docked. Tranquility Base, Houston.")
@@ -155,10 +180,10 @@ func test_every_timeline_entry_is_one_mission_control_can_make() -> void:
 
 func test_apollo_8_has_its_own_checklists_and_no_lms() -> void:
 	var csm := ChecklistBook.load_default("apollo_8")
-	var titles := csm.lists.map(func(c: Checklist) -> String: return c.title)
-	assert_eq(titles, ["Parking orbit and TLI", "SPS burn (P30 / P40)", "RCS burn (P30 / P41)", "Lunar orbit and TEI",
+	var titles := _flight_titles(csm)
+	assert_eq(titles, ["Launch", "Parking orbit and TLI", "SPS burn (P30 / P40)", "RCS burn (P30 / P41)", "Lunar orbit and TEI",
 		"Entry", "IMU realign (P52)"])
-	for phase in ["parking_orbit", "translunar_coast", "lunar_orbit", "transearth_coast", "entry"]:
+	for phase in ["launch", "parking_orbit", "translunar_coast", "lunar_orbit", "transearth_coast", "entry"]:
 		csm.select_for_phase(phase)
 		assert_true(csm.list().phases.has(phase), "one for %s" % phase)
 	assert_true(ChecklistBook.load_lm("apollo_8").lists.is_empty(), "no LM, no LM checklists")
@@ -170,7 +195,7 @@ func test_apollo_8_has_its_own_checklists_and_no_lms() -> void:
 
 func test_apollo_10_has_its_own_checklists_for_a_flight_without_a_landing() -> void:
 	var csm := ChecklistBook.load_default("apollo_10")
-	var titles := csm.lists.map(func(c: Checklist) -> String: return c.title)
+	var titles := _flight_titles(csm)
 	assert_eq(titles, ["Parking orbit and TLI", "SPS burn (P30 / P40)", "RCS burn (P30 / P41)", "Lunar orbit, Snoopy's flight and TEI",
 		"Entry", "IMU realign (P52)"])
 	for phase in ["parking_orbit", "translunar_coast", "lunar_orbit", "lunar_descent", "lunar_ascent", "transearth_coast", "entry"]:
@@ -179,11 +204,11 @@ func test_apollo_10_has_its_own_checklists_for_a_flight_without_a_landing() -> v
 	var lm := ChecklistBook.load_lm("apollo_10")
 	var lm_for := {"lunar_orbit": "Undocking and DOI (P30 / P40)", "lunar_descent": "The low pass, phasing and staging (P30 / P40)",
 		"lunar_ascent": "Insertion and rendezvous (P42, P20, P32 to P35)"}
-	assert_eq(lm.lists.size(), 3, "Snoopy's three")
+	assert_eq(lm.lists.size(), 6, "Snoopy's three, and the LM's three malfunction procedures")
 	for phase in lm_for:
 		lm.select_for_phase(phase)
 		assert_eq(lm.list().title, lm_for[phase], "Snoopy's for %s" % phase)
-	for c in lm.lists:
+	for c in _flight_lists(lm):
 		for step in c.steps:
 			assert_true(step.has("check"), "%s: \"%s\" has a check" % [c.title, step["text"]])
 			assert_false(str(step["text"]).contains("Eagle") or str(step["text"]).contains("Columbia"), "%s: Apollo 10's" % c.title)
@@ -197,7 +222,7 @@ func test_apollo_10_has_its_own_checklists_for_a_flight_without_a_landing() -> v
 
 func test_apollo_12_has_its_own_checklists_with_the_landing_site_update() -> void:
 	var csm := ChecklistBook.load_default("apollo_12")
-	var titles := csm.lists.map(func(c: Checklist) -> String: return c.title)
+	var titles := _flight_titles(csm)
 	assert_eq(titles, ["Parking orbit and TLI", "SPS burn (P30 / P40)", "RCS burn (P30 / P41)",
 		"Lunar orbit, Intrepid's landing and TEI", "Entry", "IMU realign (P52)"])
 	for phase in ["parking_orbit", "translunar_coast", "lunar_orbit", "lunar_descent", "lunar_surface", "lunar_ascent",
@@ -207,7 +232,7 @@ func test_apollo_12_has_its_own_checklists_with_the_landing_site_update() -> voi
 	var lm := ChecklistBook.load_lm("apollo_12")
 	var lm_for := {"lunar_orbit": "Undocking and DOI (P30 / P40)", "lunar_descent": "Powered descent (P63 to P68)",
 		"lunar_surface": "Lunar surface and liftoff (P12)", "lunar_ascent": "Rendezvous and docking (P20, P32 to P35)"}
-	assert_eq(lm.lists.size(), 4, "Intrepid's four")
+	assert_eq(lm.lists.size(), 7, "Intrepid's four, and the LM's three malfunction procedures")
 	for phase in lm_for:
 		lm.select_for_phase(phase)
 		assert_eq(lm.list().title, lm_for[phase], "Intrepid's for %s" % phase)
@@ -224,6 +249,42 @@ func test_apollo_12_has_its_own_checklists_with_the_landing_site_update() -> voi
 					assert_true(timeline.any(func(e: Dictionary) -> bool: return "timeline_" + str(e["id"]) == ch.trim_prefix("mission.event.")),
 						"%s: %s is on the timeline" % [c.title, ch])
 	assert_eq(n69, 1, "the powered descent's noun 69")
+	Mission.load_default()
+
+
+## Slice 7d: Apollo 13's books open for the tank_failure start on the
+## failure and Aquarius's activation (scenes/main.gd), and every step of
+## Aquarius's checks itself off.
+func test_apollo_13_has_its_own_checklists_for_the_lifeboat() -> void:
+	var csm := ChecklistBook.load_default("apollo_13")
+	var titles := _flight_titles(csm)
+	assert_eq(titles, ["Parking orbit and TLI", "SPS burn (P30 / P40)", "RCS burn (P30 / P41)",
+		"The oxygen tank failure and the lifeboat", "The CM's power-up and entry", "IMU realign (P52)"])
+	var csm_for := {"parking_orbit": "Parking orbit and TLI", "translunar_coast": "SPS burn (P30 / P40)",
+		"tank_failure": "The oxygen tank failure and the lifeboat", "transearth_coast": "The CM's power-up and entry",
+		"entry": "The CM's power-up and entry"}
+	for phase in csm_for:
+		csm.select_for_phase(phase)
+		assert_eq(csm.list().title, csm_for[phase], "Odyssey's for %s" % phase)
+	var lm := ChecklistBook.load_lm("apollo_13")
+	var lm_for := {"tank_failure": "Activation and the docked alignment",
+		"translunar_coast": "Activation and the docked alignment", "transearth_coast": "Transearth: MCC-5 on the AGS"}
+	assert_eq(lm.lists.size(), 7, "Aquarius's four, and the LM's three malfunction procedures")
+	for phase in lm_for:
+		lm.select_for_phase(phase)
+		assert_eq(lm.list().title, lm_for[phase], "Aquarius's for %s" % phase)
+	var timeline: Array = Mission.load_file(Mission.path_of("apollo_13")).section("timeline")["entries"]
+	for book in [csm, lm]:
+		for c in book.lists:
+			for step in c.steps:
+				for other in ["Eagle", "Columbia", "Intrepid", "Yankee Clipper"]:
+					assert_false(str(step["text"]).contains(other), "%s: Apollo 13's" % c.title)
+				if book == lm and c in _flight_lists(lm):
+					assert_true(step.has("check"), "%s: \"%s\" has a check" % [c.title, step["text"]])
+				var ch := str(step.get("check", {}).get("channel", ""))
+				if ch.begins_with("mission.event.timeline_"):
+					assert_true(timeline.any(func(e: Dictionary) -> bool: return "timeline_" + str(e["id"]) == ch.trim_prefix("mission.event.")),
+						"%s: %s is on the timeline" % [c.title, ch])
 	Mission.load_default()
 
 
@@ -339,3 +400,15 @@ func test_an_apollo_8_checkpoint_keeps_its_mission() -> void:
 	assert_eq(rt.sequencer.phase, "lunar_orbit")
 	build("")
 	assert_eq(rt.restore(JSON.parse_string(text)), "checkpoint is for mission 'apollo_8'", "not Apollo 11's")
+
+
+## [param book]'s flight checklists: the malfunction procedures after
+## them are every mission's (test_failures.gd).
+func _flight_lists(book: ChecklistBook) -> Array:
+	return book.lists.filter(func(c: Checklist) -> bool: return not c.title.begins_with("Malfunction: "))
+
+
+## The titles of [param book]'s flight checklists.
+func _flight_titles(book: ChecklistBook) -> Array:
+	return book.lists.map(func(c: Checklist) -> String: return c.title).filter(
+		func(t: String) -> bool: return not t.begins_with("Malfunction: "))

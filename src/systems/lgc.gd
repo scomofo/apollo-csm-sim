@@ -30,7 +30,8 @@
 ##   P40  DPS thrusting, on the burn's throttle schedule, which the ground
 ##        uplinks with its PAD (Dps.p40_schedule()): Apollo 11's DOI started
 ##        at 10 % and burned at 40 % after 15 s, Apollo 10's phasing burn
-##        at full thrust after 26 s [simplified: the crew throttled up by
+##        at full thrust after 26 s, Apollo 13's PC+2 at 12.6 % for 5 s,
+##        40 % for 21 s and then full [simplified: the crew throttled up by
 ##        hand, as the PAD said]
 ##   P41  RCS thrusting: +X translation on the LM RCS
 ##   P42  APS thrusting (the ascent stage, after staging)
@@ -38,7 +39,10 @@
 ##   P63  Braking: the ignition algorithm finds TIG, 470 km (ground range)
 ##        before the landing site, then V50N18 auto maneuver, V99 at TIG-5 s,
 ##        26 s at 10 % throttle, and Klumpp's quadratic guidance at full
-##        thrust until the throttle comes back into its range; V16N68. The
+##        thrust until the throttle comes back into its range; V06N63 (the
+##        speed, altitude rate and altitude) from ignition, as Luminary
+##        099's, and V16N68 (the slant range to the site, the time to go in
+##        braking and ΔH) when the crew asks for it. The
 ##        crew may move the landing site by the ground's correction: V21N69
 ##        loads its downrange part (R1; V22 R2 crossrange, V23 R3 altitude,
 ##        V25 all three, ft), which Luminary 1B added to the site at its
@@ -58,6 +62,19 @@
 ##        flies the attitude, and the throttle holds the descent rate each
 ##        click moves by 1 ft/s; V16N60
 ##   P68  Landing confirmation at touchdown: engine off, V06N43
+##   P70  DPS abort (slice 9e), from P63 to P66 once the descent engine
+##        has lit, at the ABORT pushbutton: the descent engine throttles
+##        up to full thrust and P12's guidance flies the LM to insertion
+##        (AscentGuidance), its vertical rise ended above 25,000 ft, into
+##        an orbit whose apolune phases it for the rendezvous
+##        (AscentGuidance.abort_targets(): the TPI the PDI PAD gave,
+##        uplinked with it); V16N94, then V16N85 at cutoff [published:
+##        Luminary 099's P70-P71, and Bennett, NASA TM X-58040]
+##   P71  APS abort, at ABORT STAGE, from P63 to P66 or from P70: staged,
+##        the ascent engine flies the same guidance, its targets worked out
+##        afresh. Luminary reads the pushbuttons only while its aborts are
+##        enabled (LETABORT); here from the descent's ignition to the
+##        touchdown. [simplified: selected only by the pushbuttons]
 ##
 ## The descent's guidance runs in a frame fixed at the landing site (x up,
 ## y crossrange, z downrange along the ground track), turning with the
@@ -69,7 +86,7 @@
 ## coasts it with its own integration and adds the LM's sensed ΔV
 ## (lm.dyn.dv_step). Its altitude is above the landing site's radius [it
 ## has no terrain model, as Apollo 11's LGC had none]. In P63 to P66 it
-## reads the landing radar every 2 s: N63 shows ΔH, the radar's altitude
+## reads the landing radar every 2 s: N68 shows ΔH, the radar's altitude
 ## less its own, and once the crew permits updates (V57) it weights the
 ## radar's altitude and velocity into its state. The DSKY's ALT and VEL
 ## lamps light while the radar has no good data. On the surface it holds
@@ -82,25 +99,56 @@
 ## last update. [simplified: the IMU is ideal, so the sensed ΔV and the
 ## attitude are true]
 ##
-## The LGC runs while the LM flies free [simplified: the LM powers up as it
-## undocks; docked, and after LM JETT, the LGC is dark and the CSM flies
-## the stack].
+## The LGC runs while the LM's buses are powered (lm.sys.powered, the LM's
+## EPS's) and its PGNS breakers are in (ctl.lm.pgns): while the LM flies
+## free [simplified: the LM powers up as it undocks], or docked once its
+## crew has powered it up, as Apollo 13's did. Docked, it flies the stack:
+## its DAP on the stack's inertia, and P30, P40 and P41 on the LM's engine
+## and jets. Powered up docked, its IMU is a real one, caged until the
+## crew coarse aligns it to the CMC's platform (V41N20, the angles the
+## CMC's N20 gives turned through the docking geometry, Docking.
+## lm_gimbals()) and the ground's REFSMMAT comes up with it; losing its
+## power again loses the platform's orientation and the state vector.
+## Docked and dark, as after LM JETT, the CSM flies the stack.
+##
+## The Executive (slice 9b, LgcExecutive): from ignition to touchdown the
+## descent's jobs share the LGC's time the interrupts leave: the Servicer
+## every 2 s, the landing radar's reading once its altitude is good, P64's
+## landing point designator in AUTO, and a noun the crew monitors with
+## V16. At the
+## descent's peak they take about 90 % of it [published: Apollo 11 Mission
+## Report, section 16.2]. With the rendezvous radar's mode switch
+## (ctl.lm.rr_mode) at AUTO TRACK or SLEW, Luminary 1A (Apollo 11's,
+## rr_cdu_zeroed false) also counts the pulses of the radar's slewing CDUs,
+## about 13 % more (interrupt_duty()). Jobs then wait, each holding a core
+## set, and a VAC area if it has one, and when the Executive has none to
+## give a job it alarms, 1202 (no core sets) or 1201 (no VAC areas), and
+## restarts the software: the PROG lamp, the alarm codes in N09 (V05N09),
+## the crew's display gone and the program's back, the guidance's commands
+## held until the Servicer's next cycle. As on Apollo 11, the crew's
+## V16N68 on top of P63 with the radar's data brings 1202s, and P64 1201s.
 ##
 ## Digital autopilot: ctl.lm.mode 0 FREE, 1 HOLD, 2 AUTO, as the CMC's,
 ## with the ACA (ctl.lm.rhc) about the LM's X, Y and Z axes: the LM crew's
 ## yaw, pitch and roll [simplified: the LM's PGNS MODE CONTROL is OFF,
-## ATT HOLD and AUTO; no AGS]. Powering up, it holds the attitude the LM
-## has.
+## ATT HOLD and AUTO]. Powering up, it holds the attitude the LM has. With
+## the guidance control switch at AGS (ctl.lm.guid_cont) the AGS flies
+## the LM (src/systems/ags.gd) and the DAP follows the attitude.
 ##
 ## Reads:  the core's, lm.dyn.landed, ctl.lm.rod (the ROD switch: +1 up,
-##         -1 down, momentary), the landing radar's lm.lr.*, the
-##         rendezvous radar's lm.rr.*
+##         -1 down, momentary), ctl.lm.rr_mode (the rendezvous radar's
+##         mode switch: 0 LGC, 1 AUTO TRACK, 2 SLEW), the landing radar's
+##         lm.lr.*, the rendezvous radar's lm.rr.*
 ## Writes: the core's channels under lm. (lm.guid.*, lm.dsky.*),
 ##         lm.guid.dps_on, lm.guid.dps_throttle, lm.guid.aps_on (P12, P42),
 ##         lm.guid.lr_antenna (1 in P63, 2 from P64), lm.guid.delta_h_m,
 ##         lm.guid.lr_update (V57 given), lm.guid.ls_corrected (N69 loaded
 ##         since the site's uplink), lm.guid.rr_nav (P20 running),
-##         lm.dsky.lamp.alt, lm.dsky.lamp.vel
+##         lm.guid.exec_load (the Executive's load, a share of the LGC's
+##         time), lm.guid.rr_counting (the radar's CDUs counting),
+##         lm.guid.restarts (software restarts this flight),
+##         lm.guid.restart_get and lm.guid.restart_alarm (the last's GET
+##         and alarm), lm.dsky.lamp.alt, lm.dsky.lamp.vel
 class_name Lgc
 extends AgcCore
 
@@ -109,17 +157,21 @@ const DESCENT := [63, 64, 65, 66, 68]
 const DESCENT_BURN := [63, 64, 65, 66]
 ## Powered ascent.
 const ASCENT := 12
+## The aborts from the powered descent: on the descent engine, and on the
+## ascent engine after staging.
+const ABORTS := [70, 71]
 ## The rendezvous targeting programs: CSI, CDH, TPI, TPM.
 const RENDEZVOUS := [32, 33, 34, 35]
 ## The DSKY's time registers the rendezvous programs show and load.
 const TIME_NOUNS := [11, 13, 37]
 ## The nouns the LGC adds, or means otherwise than the CMC does.
 const LGC_NOUNS := {
+	22: {"name": "NEW ICDU ANGLES", "c": [["OG", "d2", 1.0], ["IG", "d2", 1.0], ["MG", "d2", 1.0]]},
 	43: {"name": "LAT/LONG/ALT", "c": [["LAT", "d2", 1.0], ["LONG", "d2", 1.0], ["ALT", "d1", 1.0 / Dsky.NMI]]},
 	60: {"name": "VH/HDOT/H", "c": [["VH", "d1", 1.0 / Dsky.FT], ["HDOT", "d1", 1.0 / Dsky.FT], ["H", "i", 1.0 / Dsky.FT]]},
-	63: {"name": "DH/HDOT/H", "c": [["DH", "i", 1.0 / Dsky.FT], ["HDOT", "d1", 1.0 / Dsky.FT], ["H", "i", 1.0 / Dsky.FT]]},
+	63: {"name": "VI/HDOT/H", "c": [["VI", "d1", 1.0 / Dsky.FT], ["HDOT", "d1", 1.0 / Dsky.FT], ["H", "i", 1.0 / Dsky.FT]]},
 	64: {"name": "TR LPD/HDOT/H", "c": [["TR LPD", "i", 1.0], ["HDOT", "d1", 1.0 / Dsky.FT], ["H", "i", 1.0 / Dsky.FT]]},
-	68: {"name": "RNG/TGO/V", "c": [["RNG", "d1", 1.0 / Dsky.NMI], ["TGO", "mmss", 1.0], ["V", "i", 1.0 / Dsky.FT]]},
+	68: {"name": "RNG/TGO/DH", "c": [["RNG", "d1", 1.0 / Dsky.NMI], ["TGO", "mmss", 1.0], ["DH", "i", 1.0 / Dsky.FT]]},
 	69: {"name": "LS CORR", "c": [["DZ", "i", 1.0 / Dsky.FT], ["DY", "i", 1.0 / Dsky.FT], ["DX", "i", 1.0 / Dsky.FT]]},
 	74: {"name": "TFI/YAW/PITCH", "c": [["TFI", "mmss", 1.0], ["YAW", "d2", 1.0], ["PITCH", "d2", 1.0]]},
 	76: {"name": "VH/HDOT/XRNG", "c": [["VH", "d1", 1.0 / Dsky.FT], ["HDOT", "d1", 1.0 / Dsky.FT], ["XRNG", "d2", 1.0 / Dsky.NMI]]},
@@ -169,6 +221,13 @@ var csm_nav: Trajectory = null
 var ascent_targets: Dictionary = {}
 var ascent_base: float = 0.0
 var ascent_plane: Vector3 = Vector3.ZERO
+## The aborts' TPI times from the PDI PAD (GET s): for an abort before
+## abort_split_get, and after it; and the one the abort in flight aims at.
+## -1 without them.
+var abort_tpi_early: float = -1.0
+var abort_tpi_late: float = -1.0
+var abort_split_get: float = -1.0
+var abort_tpi: float = -1.0
 ## P20 running: the rendezvous radar's marks update the CSM's state vector.
 var rr_nav: bool = false
 ## Marks taken, and the last one's change to the CSM's position (m) and
@@ -190,6 +249,16 @@ var rdv_dh: float = 0.0
 var rdv_tpi_dv: float = 0.0
 var rdv_tpf_dv: float = 0.0
 var rdv_hp: float = 0.0
+## The Executive, running the powered descent's jobs (LgcExecutive).
+var executive := LgcExecutive.new()
+## Luminary zeroes the rendezvous radar's CDUs while the radar's mode
+## switch is away from LGC, as Luminary 1B did from Apollo 12; Apollo 11's
+## Luminary 1A counted their pulses (mission.json "lgc").
+var rr_cdu_zeroed: bool = true
+## Software restarts this flight, the GET of the last and its alarm.
+var restarts: int = 0
+var restart_get: float = -1.0
+var restart_alarm: int = 0
 var _lr_timer: float = 0.0
 ## The last mark's GET, and whether the next takes the radar's position
 ## outright (the first after the CSM's state vector arrives).
@@ -199,12 +268,19 @@ var _mark_first: bool = true
 var _aca_was: Vector2i = Vector2i.ZERO
 var _rod_was: int = 0
 var _guide_get: float = -1.0
+## The GET of the last step, and until when a restart holds the guidance's
+## commands (the Servicer's next cycle).
+var _step_get: float = -1.0
+var _restart_hold: float = -1.0
 var _restoring: bool = false
-# What the descent displays show: ground range to the site (m), speed over
+## The ABORT pushbutton at the last step, and an abort program being
+## selected by the pushbuttons (change_program() takes only those).
+var _abort_was: bool = false
+var _abort_request: bool = false
+# What the descent displays show: slant range to the site (m), speed over
 # the surface, horizontal and vertical (m/s), footpads' height (m) and the
 # landing point's angle from the LM's +Z axis (°).
-var _range := 0.0
-var _speed := 0.0
+var _slant := 0.0
 var _vh := 0.0
 var _hdot := 0.0
 var _h := 0.0
@@ -223,8 +299,13 @@ func _init() -> void:
 		dsky.lamps[l] = false
 
 
+func _ready() -> void:
+	super()
+	_publish_executive()
+
+
 func programs() -> Array:
-	return [0, ASCENT, 20, 30] + RENDEZVOUS + [40, 41, 42, 47] + DESCENT
+	return [0, ASCENT, 20, 30] + RENDEZVOUS + [40, 41, 42, 47] + DESCENT + ABORTS
 
 
 func thrusting_programs() -> Array:
@@ -232,13 +313,18 @@ func thrusting_programs() -> Array:
 
 
 func engine_thrust(p: int) -> float:
-	if p == 42 or p == ASCENT:
+	if _on_aps(p):
 		return float(SpacecraftData.section("aps")["thrust_n"])
 	return float(SpacecraftData.section("dps")["thrust_n"]) * Dps.throttle_target(throttle())
 
 
 func engine_tau_off(p: int) -> float:
-	return float(SpacecraftData.section("aps" if p == 42 or p == ASCENT else "dps")["tau_off_s"])
+	return float(SpacecraftData.section("aps" if _on_aps(p) else "dps")["tau_off_s"])
+
+
+## Program [param p] fires the ascent engine.
+static func _on_aps(p: int) -> bool:
+	return p in [42, ASCENT, 71]
 
 
 func engine_running() -> bool:
@@ -246,24 +332,31 @@ func engine_running() -> bool:
 
 
 func publish_engine(on: bool) -> void:
-	Bus.set_value("lm.guid.dps_on", on and (program == 40 or program in DESCENT_BURN))
+	Bus.set_value("lm.guid.dps_on", on and (program in [40, 70] or program in DESCENT_BURN))
 	Bus.set_value("lm.guid.dps_throttle", throttle())
-	Bus.set_value("lm.guid.aps_on", on and (program == 42 or program == ASCENT))
+	Bus.set_value("lm.guid.aps_on", on and _on_aps(program))
 
 
 ## The DPS throttle the LGC commands, a fraction of full thrust: in
-## powered descent the guidance's; in P40 the schedule's, its start
-## throttle for its first seconds after ignition, then its burn throttle.
+## powered descent the guidance's; in P70 full thrust; in P40 the
+## schedule's, its start throttle for its first seconds after ignition,
+## then its burn throttle.
 func throttle() -> float:
 	if program in DESCENT_BURN:
 		return descent_throttle
-	if ignition_get < 0.0 or _now() - ignition_get < float(p40_schedule[0]):
-		return float(p40_schedule[1])
-	return float(p40_schedule[2])
+	if program == 70:
+		return 1.0
+	return Dps.schedule_throttle(p40_schedule, _now() - ignition_get if ignition_get >= 0.0 else 0.0)
 
 
 func mode() -> int:
 	return int(Bus.get_value("ctl.lm.mode", 1))
+
+
+## The guidance control switch: 0 PGNS flies the LM, 1 the AGS does, and
+## the DAP follows the attitude.
+func att_source() -> int:
+	return int(Bus.get_value("ctl.lm.guid_cont", 0))
 
 
 ## The ACA, to the DAP; in P64 with the mode switch in AUTO it
@@ -275,7 +368,7 @@ func rhc() -> Vector3:
 
 
 func is_powered() -> bool:
-	return _free() and bool(Bus.get_value("lm.sys.powered", true))
+	return bool(Bus.get_value("lm.sys.powered", false)) and bool(Bus.get_value("ctl.lm.pgns", true))
 
 
 ## On the surface the LM sits on its gear: its DAP fires no jets.
@@ -286,34 +379,61 @@ func dap_enabled() -> bool:
 func auto_rate() -> float:
 	if program in DESCENT_BURN:
 		return deg_to_rad(float(SpacecraftData.section("descent_guidance")["auto_rate_dps"]))
-	if program == ASCENT:
+	if program == ASCENT or program in ABORTS:
 		return deg_to_rad(float(SpacecraftData.section("ascent_guidance")["auto_rate_dps"]))
 	return RATE_AUTO
 
 
 ## The DAP takes up the attitude the LM has as its hold, and the LGC the
-## CSM's state vector (sense() takes it once Dynamics has stepped).
+## CSM's state vector (sense() takes it once Dynamics has stepped). Docked,
+## its IMU is a real one, and caged.
 func powered_up() -> void:
 	_last_source = -1
 	nav = null
 	rr_nav = false
+	if not _free():
+		imu.ideal = false
+		imu.cage(Basis(_true_att()))
+
+
+## The LM dark at the start, flying with the CSM: its power, whenever it
+## comes, is a power-up.
+func start_dark() -> void:
+	_powered = false
+
+
+## The platform's orientation and the state vector are lost.
+func powered_down() -> void:
+	imu.cage(Basis(_true_att()))
+	nav = null
 
 
 func authority() -> Vector3:
+	return jet_authority()
+
+
+## Docked, the LM flies a stack twenty times stiffer in pitch and yaw than
+## in roll: about the error's axis.
+func slew_about_axis() -> bool:
+	return not _free()
+
+
+## The angular acceleration the LM's jets give about its axes, both
+## systems' (rad/s^2); docked, on the stack's inertia (its diagonal the same
+## about the LM's axes as about the CSM's) [simplified: the jets' torques
+## the LM's own]. The LGC's DAP and the AGS's hold fly on it.
+static func jet_authority() -> Vector3:
 	var cfg := str(Bus.get_value("lm.dyn.config", "lm"))
 	var mass := float(Bus.get_value("lm.dyn.mass_kg", SpacecraftData.lm_mass()))
-	var inertia := SpacecraftData.inertia(cfg if cfg in SpacecraftData.LM_CONFIGS else "lm", mass)
+	if str(Bus.get_value("dock.state", "")) == "docked":
+		cfg = str(Bus.get_value("dyn.config", "csm_lm"))
+	elif not cfg in SpacecraftData.LM_CONFIGS:
+		cfg = "lm"
+	var inertia := SpacecraftData.inertia(cfg, mass)
 	var d := SpacecraftData.section("lm_rcs")
 	# Both systems' jets about each axis.
 	var t := float(d["jet_thrust_n"]) * float(d["arm_m"]) * float(d["rotation_jets"]) * 2.0
 	return Vector3(t / inertia.x, t / inertia.y, t / inertia.z)
-
-
-## The LM's accelerometers count only while it flies free, and the LGC's
-## state vector moves on to now with them (the core's sense()).
-func sense(dt: float) -> void:
-	if _free():
-		super.sense(dt)
 
 
 # --- navigation ----------------------------------------------------------------------
@@ -364,13 +484,26 @@ func uplink_liftoff(tig: float) -> void:
 	dsky.set_lamp("uplink_acty", true)
 
 
+## Load the aborts' TPI times from the ground's PDI PAD (GET s): [param early]
+## for an abort before [param split], [param late] after it. P70 and P71
+## phase the LM's orbit for them (AscentGuidance.abort_targets()) [stands
+## in for Luminary's ABTCOF coefficients, erasable loads fitted to them].
+func uplink_abort_tpi(early: float, late: float, split: float) -> void:
+	abort_tpi_early = early
+	abort_tpi_late = late
+	abort_split_get = split
+	abort_tpi = -1.0
+
+
 ## Stage DEPENDENT: coast the state vector to now with this step's sensed
 ## ΔV [param dv] (all of it: Average-G always runs while the LM flies free
 ## [simplified]); on the surface, hold it at the spot it landed at. The
-## CSM's state vector coasts along.
+## CSM's state vector coasts along, but in the powered descent and on the
+## surface, where it waits for an abort or P12 (_csm_now()).
 func _navigate(dv: Vector3) -> void:
 	var now := _now()
-	if csm_nav != null and csm_nav.t < now:
+	var landed := bool(Bus.get_value("lm.dyn.landed", false))
+	if csm_nav != null and csm_nav.t < now and not landed and not program in DESCENT:
 		csm_nav.coast_to(now)
 	if nav == null:
 		super._navigate(dv)   # the LM's truth: the CSM's, handed over at undocking
@@ -422,6 +555,78 @@ func _landing_radar(dt: float) -> void:
 			nav.s[3 + i] += dv[i]
 
 
+## From ignition to touchdown, the powered descent's jobs on the
+## Executive: a job it finds no room for alarms, and restarts the
+## software (_software_restart()).
+func _executive(dt: float, now: float) -> void:
+	if program in DESCENT_BURN and engine_on:
+		var code := executive.step(dt, now, _descent_jobs(), interrupt_duty())
+		if code != 0:
+			_software_restart(code, now)
+	else:
+		executive.stop()
+	_publish_executive()
+
+
+func _publish_executive() -> void:
+	Bus.set_value("lm.guid.exec_load", executive.load)
+	Bus.set_value("lm.guid.rr_counting", rr_counting())
+	Bus.set_value("lm.guid.restarts", restarts)
+	Bus.set_value("lm.guid.restart_get", restart_get)
+	Bus.set_value("lm.guid.restart_alarm", restart_alarm)
+
+
+## The jobs the descent's programs schedule now (data/spacecraft.json
+## "lgc_executive"): the Servicer, at its program's share; the landing
+## radar's reading once its altitude is good; P64's landing point
+## designator while the commander can redesignate, the mode control in
+## AUTO; and a noun the crew monitors with V16.
+func _descent_jobs() -> Dictionary:
+	var jobs: Dictionary = SpacecraftData.section("lgc_executive")["jobs"]
+	var s: Dictionary = jobs["servicer"]
+	var out := {"servicer": s.merged({"duty": float(s["duty_by_program"][str(program)])}, true)}
+	if bool(Bus.get_value("lm.lr.alt_good", false)):
+		out["landing_radar"] = jobs["landing_radar"]
+	if program == 64 and mode() == 2:
+		out["lpd"] = jobs["lpd"]
+	var n := dsky.crew_monitor()
+	if n > 0:
+		var m: Dictionary = jobs["monitor"]
+		out["monitor"] = m.merged({"duty": float(m["duty_by_noun"].get(str(n), m["duty"]))}, true)
+	return out
+
+
+## The share of the LGC's time its interrupts take: its counters' and timed
+## routines', and the rendezvous radar's CDUs' pulses while they count.
+func interrupt_duty() -> float:
+	var e := SpacecraftData.section("lgc_executive")
+	var d := float(e["interrupt_duty"])
+	if rr_counting():
+		d += float(e["rr_cdu_pps"]) * float(e["counter_pulse_s"])
+	return d
+
+
+## The rendezvous radar's CDUs count into the LGC: with its mode switch
+## (ctl.lm.rr_mode) at AUTO TRACK or SLEW, the ATCA's 800 Hz, not in phase
+## with the PGNS's, excites its resolvers and the CDUs slew; unless this
+## Luminary zeroes them.
+func rr_counting() -> bool:
+	return not rr_cdu_zeroed and int(Bus.get_value("ctl.lm.rr_mode", 0)) != 0
+
+
+## The Executive found no room for a job: its alarm (1201 or 1202) and a
+## software restart. Whatever the crew had on the DSKY ends and the
+## program's display comes back; the guidance carries on from its restart
+## point at the Servicer's next cycle.
+func _software_restart(code: int, now: float) -> void:
+	_alarm(code)
+	restarts += 1
+	restart_get = now
+	restart_alarm = code
+	dsky.restart_display()
+	_restart_hold = float(executive.next_get.get("servicer", now))
+
+
 func verb_noun(v: int, n: int) -> bool:
 	if v == 57:
 		# Permit landing radar updates.
@@ -452,27 +657,26 @@ func uplink_landing_site(site_mf: Vector3) -> void:
 
 ## P63 needs the landing site and the LM flying free; P64 to P68 come only
 ## from the descent itself. P12 needs the LM on the surface and the CSM's
-## state vector.
+## state vector; P70 and P71 come only from the abort pushbuttons.
 func change_program(p: int) -> bool:
-	if not _restoring:
-		if p == 63 and (landing_site == Vector3.ZERO or not _free()):
-			_alarm(1520)
-			return false
-		if p in DESCENT and p != 63:
-			_alarm(1520)
-			return false
-		var landed := bool(Bus.get_value("lm.dyn.landed", false))
-		if p == ASCENT and (csm_nav == null or nav == null or not _free() or not landed):
-			_alarm(1520)
-			return false
-		if (p == 20 or p in RENDEZVOUS) and (csm_nav == null or nav == null or not _free() or landed):
-			_alarm(1520)
-			return false
-		var lead := float(SpacecraftData.section("rendezvous_guidance")["tpm_lead_s"])
-		if p == 35 and rdv_intercept_get <= _now() + lead:
-			_alarm(1520)
-			return false
+	if not _restoring and _refused(p):
+		_alarm(1520)
+		return false
 	return super.change_program(p)
+
+
+## Whether the LGC refuses program [param p] (alarm 1520): P63 without the
+## landing site or flying docked; P64 to P68 but from the descent; P12 off
+## the surface or without the state vectors; P20 and P32 to P35 on the
+## surface or without them, and P35 too late for its lead; P70 and P71 but
+## from the pushbuttons.
+func _refused(p: int) -> bool:
+	var landed := bool(Bus.get_value("lm.dyn.landed", false))
+	var navs := csm_nav != null and nav != null and _free()
+	var lead := float(SpacecraftData.section("rendezvous_guidance")["tpm_lead_s"])
+	return (p == 63 and (landing_site == Vector3.ZERO or not _free())) or (p in DESCENT and p != 63) \
+		or (p == ASCENT and not (navs and landed)) or ((p == 20 or p in RENDEZVOUS) and not (navs and not landed)) \
+		or (p == 35 and rdv_intercept_get <= _now() + lead) or (p in ABORTS and not _abort_request)
 
 
 func start_program(p: int) -> void:
@@ -480,6 +684,8 @@ func start_program(p: int) -> void:
 		_start_p63()
 	if p == ASCENT and not _restoring:
 		_start_p12()
+	if p in ABORTS and not _restoring:
+		_start_abort(p)
 	if p == 20:
 		rr_nav = true
 		dsky.show(16, 54)
@@ -522,6 +728,10 @@ func proceed() -> void:
 	if program in RENDEZVOUS:
 		_proceed_rendezvous()
 		return
+	if program in ABORTS:
+		if step_name == "post":
+			change_program(0)
+		return
 	if program == ASCENT:
 		match step_name:
 			"tig":
@@ -554,7 +764,7 @@ func proceed() -> void:
 			"v99":
 				engine_enabled = true
 				step_name = "ignition"
-				dsky.show(16, 68)
+				dsky.show(6, 63)
 		return
 	if program == 68:
 		change_program(0)
@@ -575,14 +785,20 @@ func extra_step() -> void:
 	Bus.set_value("lm.guid.ls_corrected", ls_corrected)
 	Bus.set_value("lm.guid.rr_nav", rr_nav)
 	var now := _now()
-	var dt := now - _guide_get if _guide_get >= 0.0 else 0.0
-	_landing_radar(dt if program in DESCENT else 0.0)
+	var step_dt := now - _step_get if _step_get >= 0.0 else 0.0
+	_step_get = now
+	_landing_radar(step_dt if program in DESCENT else 0.0)
 	_rendezvous_nav(now)
-	if program == ASCENT:
+	_executive(step_dt, now)
+	_abort_discretes()
+	if program == ASCENT or program in ABORTS:
 		_p12_step(now)
 		return
-	if not program in DESCENT:
+	if not program in DESCENT or now < _restart_hold - 1e-6:
+		# Restarted: the guidance carries on from its restart point at the
+		# Servicer's next cycle, its commands held till then.
 		return
+	var dt := now - _guide_get if _guide_get >= 0.0 else 0.0
 	_guide_get = now
 	if program in DESCENT_BURN and bool(Bus.get_value("lm.dyn.landed", false)) and step_name != "tig":
 		_descent_phase(68)
@@ -719,8 +935,7 @@ func _descent_state() -> Dictionary:
 	var rg := gi * (r - mf * landing_site)
 	var vg := gi * rel
 	var rl := r.length()
-	_range = r.angle_to(mf * landing_site) * Bodies.R_MOON
-	_speed = rel.length()
+	_slant = (r - mf * landing_site).length()
 	_vh = vg.z
 	_hdot = vg.x
 	_h = rl - landing_site.length() - Dynamics.lm_cm_height(str(Bus.get_value("lm.dyn.config", "lm")))
@@ -831,6 +1046,16 @@ static func _descent_attitude(u: Vector3, g: Basis) -> Quaternion:
 	return Basis(x, y, x.cross(y)).orthonormalized().get_rotation_quaternion()
 
 
+## The CSM's state vector coasted to the LM's own (the time the LGC's
+## navigation has reached, a step behind the clock until this step's
+## sensing), or null.
+func _csm_now() -> Trajectory:
+	var t := nav.t if nav != null else _now()
+	if csm_nav != null and csm_nav.t < t:
+		csm_nav.coast_to(t)
+	return csm_nav
+
+
 # --- powered ascent ----------------------------------------------------------------
 
 ## P12: the insertion targets above the landing site the LGC has (or, with
@@ -841,22 +1066,80 @@ func _start_p12() -> void:
 	ascent_base = landing_site.length() if landing_site != Vector3.ZERO \
 		else tr.radius() - Dynamics.lm_cm_height(str(Bus.get_value("lm.dyn.config", "lm")))
 	ascent_targets = AscentGuidance.targets(ascent_base)
-	ascent_plane = csm_nav.pos().cross(csm_nav.vel()).normalized()
+	var c := _csm_now()
+	ascent_plane = c.pos().cross(c.vel()).normalized()
 	tgo = 0.0
 	step_name = "tig"
 	dsky.show(6, 33, true)
 
 
+# --- the aborts (slice 9e) ----------------------------------------------------------
+
+## The ABORT and ABORT STAGE pushbuttons, read while the aborts are enabled:
+## from the descent's ignition to the touchdown, and in P70. ABORT STAGE
+## has staged the LM (Dynamics.stage_lm()): P71; ABORT, before staging:
+## P70.
+func _abort_discretes() -> void:
+	var abort := bool(Bus.get_value("ctl.lm.abort", false))
+	var click := abort and not _abort_was
+	_abort_was = abort
+	if not ((program in DESCENT_BURN and engine_on) or program == 70):
+		return
+	if str(Bus.get_value("lm.dyn.config", "lm")) == "lm_ascent":
+		_abort(71)
+	elif click and program != 70:
+		_abort(70)
+
+
+func _abort(p: int) -> void:
+	_abort_request = true
+	change_program(p)
+	_abort_request = false
+
+
+## P70 or P71 [param p]: the insertion targets for the TPI the abort aims
+## at (the PDI PAD's for an abort before the split, or after it), in the
+## CSM's plane; the engine on, from the vertical rise below 25,000 ft or
+## straight into ascent guidance above it.
+func _start_abort(p: int) -> void:
+	var tr := current_traj()
+	var now := _now()
+	ascent_base = landing_site.length() if landing_site != Vector3.ZERO else Bodies.R_MOON
+	var c := _csm_now()
+	ascent_plane = (c.pos().cross(c.vel()) if c != null else tr.pos().cross(tr.vel())).normalized()
+	if abort_tpi < 0.0 and abort_split_get >= 0.0:
+		# The first abort's: P71 after P70 aims at the same.
+		abort_tpi = abort_tpi_early if now < abort_split_get else abort_tpi_late
+	var eng := SpacecraftData.section("aps" if _on_aps(p) else "dps")
+	if c != null:
+		ascent_targets = AscentGuidance.abort_targets(tr.pos(), tr.vel(), c.pos(), c.vel(), ascent_base, now, abort_tpi,
+			_mass(), engine_thrust(p), float(eng["isp_s"]))
+	else:
+		ascent_targets = AscentGuidance.targets(ascent_base)
+	var d := SpacecraftData.section("ascent_guidance")
+	var rise := tr.radial_rate() < float(d["vertical_rise_hdot_mps"]) \
+		and tr.radius() - ascent_base < float(d["abort_vertical_alt_m"])
+	step_name = "vertical" if rise else "ascent"
+	tgo = 0.0
+	engine_enabled = true
+	engine_on = true
+	ignition_get = now
+	auto_active = true
+	dsky.show(16, 94)
+
+
 ## P12's step: the countdown to TIG; from ignition the vertical rise, the
 ## pitchover and ascent guidance to insertion, the steering held for the
 ## last seconds, and cutoff when the time to go is down to the engine's
-## tail-off.
+## tail-off. P70 and P71 fly the same from the vertical rise, on their
+## engine, the rise ended above 25,000 ft too.
 func _p12_step(now: float) -> void:
 	var d := SpacecraftData.section("ascent_guidance")
 	var tr := current_traj()
 	var up := tr.pos().normalized()
+	var eng := SpacecraftData.section("aps" if _on_aps(program) else "dps")
 	var g := AscentGuidance.steer(tr.pos(), tr.vel(), tr.radius(), tr.radial_rate(), ascent_plane, _mass(),
-		ascent_targets, tgo)
+		ascent_targets, tgo, engine_thrust(program), float(eng["isp_s"]))
 	var need: Vector3 = g["vg"]
 	vg = PackedFloat64Array([need.x, need.y, need.z])
 	var next := -1.0
@@ -879,7 +1162,8 @@ func _p12_step(now: float) -> void:
 			else:
 				next = tig_load
 		"vertical":
-			if tr.radial_rate() >= float(d["vertical_rise_hdot_mps"]):
+			if tr.radial_rate() >= float(d["vertical_rise_hdot_mps"]) \
+					or (program in ABORTS and tr.radius() - ascent_base >= float(d["abort_vertical_alt_m"])):
 				step_name = "ascent"
 		"ascent":
 			if float(g["tgo"]) < float(d["hold_s"]):
@@ -897,7 +1181,7 @@ func _p12_step(now: float) -> void:
 		auto_active = true
 	if step_name in ["vertical", "ascent", "hold"]:
 		tgo = g["tgo"]
-		if step_name != "vertical" and tgo <= engine_tau_off(ASCENT):
+		if step_name != "vertical" and tgo <= engine_tau_off(program):
 			engine_on = false
 			step_name = "tailoff"
 	Bus.set_value(_ch("guid.next_event_get_s"), next)
@@ -950,7 +1234,7 @@ func _n74() -> Array:
 ## measured; the CSM's is moved toward them (V81). The first mark after the
 ## CSM's state vector arrives takes the relative position outright.
 func _rendezvous_nav(now: float) -> void:
-	if not rr_nav or nav == null or csm_nav == null or rcs_burn or engine_on:
+	if not rr_nav or nav == null or _csm_now() == null or rcs_burn or engine_on:
 		return
 	var d := SpacecraftData.section("rendezvous_guidance")
 	var interval := float(d["mark_interval_s"])
@@ -1132,11 +1416,11 @@ func noun_values(n: int) -> Variant:
 		60:
 			v = [_vh, _hdot, _h]
 		63:
-			v = [delta_h, _hdot, _h]
+			v = [current_traj().speed(), _hdot, _h]
 		64:
 			v = [floorf(minf(lpd_time(), 99.0)) * 1000.0 + clampf(roundf(_lpd), 0.0, 999.0), _hdot, _h]
 		68:
-			v = [_range, tgo, _speed]
+			v = [_slant, tgo, delta_h]
 		69:
 			# The correction still to add: none, once the site has moved.
 			v = [0.0, 0.0, 0.0]
@@ -1157,7 +1441,7 @@ func noun_values(n: int) -> Variant:
 		49:
 			v = [rr_last_dr, rr_last_dv, rr_marks]
 		54:
-			if nav != null and csm_nav != null:
+			if nav != null and _csm_now() != null:
 				var los := Rendezvous.rel_pos(nav, csm_nav)
 				v = [los.length(), Rendezvous.rel_vel(nav, csm_nav).dot(los.normalized()),
 					rad_to_deg(Rendezvous.elevation(nav, csm_nav))]
@@ -1218,11 +1502,16 @@ func snapshot() -> Dictionary:
 		"frame": [gf.x.x, gf.x.y, gf.x.z, gf.y.x, gf.y.y, gf.y.z, gf.z.x, gf.z.y, gf.z.z],
 		"pdi_tig": pdi_tig, "tgo": tgo, "throttle": descent_throttle, "rod_cmd": rod_cmd, "guide_get": _guide_get,
 		"lr_update": lr_update, "delta_h": delta_h, "lr_timer": _lr_timer, "ls_corrected": ls_corrected,
+		"step_get": _step_get, "restart_hold": _restart_hold,
 	}
+	d["executive"] = executive.snapshot()
+	d["restarts"] = {"count": restarts, "get": restart_get, "alarm": restart_alarm}
 	d["nav_landed_mf"] = [nav_landed_mf.x, nav_landed_mf.y, nav_landed_mf.z]
 	d["p40_schedule"] = p40_schedule.duplicate()
 	d["ascent"] = {"targets": ascent_targets.duplicate(), "base": ascent_base,
 		"plane": [ascent_plane.x, ascent_plane.y, ascent_plane.z]}
+	d["abort"] = {"tpi_early": abort_tpi_early, "tpi_late": abort_tpi_late, "split": abort_split_get, "tpi": abort_tpi,
+		"abort_was": _abort_was}
 	if csm_nav != null:
 		d["csm_nav"] = {"primary": csm_nav.primary, "t": csm_nav.t, "s": Array(csm_nav.s), "field": csm_nav.field_snapshot()}
 	d["rendezvous"] = {
@@ -1244,6 +1533,12 @@ func restore(d: Dictionary) -> void:
 	super.restore(d)
 	_restoring = false
 	nav_landed_mf = _v3(d.get("nav_landed_mf", [0.0, 0.0, 0.0]))
+	executive.restore(d.get("executive", {}))
+	var rs: Dictionary = d.get("restarts", {})
+	restarts = int(rs.get("count", 0))
+	restart_get = float(rs.get("get", -1.0))
+	restart_alarm = int(rs.get("alarm", 0))
+	_publish_executive()
 	p40_schedule = Dps.p40_schedule(d.get("p40_schedule", []))
 	csm_nav = null
 	var cd: Dictionary = d.get("csm_nav", {})
@@ -1255,7 +1550,15 @@ func restore(d: Dictionary) -> void:
 	ascent_targets = (ad.get("targets", {}) as Dictionary).duplicate()
 	ascent_base = float(ad.get("base", 0.0))
 	ascent_plane = _v3(ad.get("plane", [0.0, 0.0, 0.0]))
-	if program == ASCENT:
+	var ab: Dictionary = d.get("abort", {})
+	abort_tpi_early = float(ab.get("tpi_early", -1.0))
+	abort_tpi_late = float(ab.get("tpi_late", -1.0))
+	abort_split_get = float(ab.get("split", -1.0))
+	abort_tpi = float(ab.get("tpi", -1.0))
+	_abort_was = bool(ab.get("abort_was", false))
+	if program in ABORTS:
+		dsky.show(16, 85 if step_name == "post" else 94, step_name == "post")
+	elif program == ASCENT:
 		# The display the restored step shows.
 		var shows := {"tig": [6, 33, true], "targets": [6, 76, true], "wait": [16, 74, false], "v99": [99, 74, true],
 			"post": [16, 85, true]}
@@ -1295,10 +1598,13 @@ func restore(d: Dictionary) -> void:
 		descent_throttle = float(dd["throttle"])
 		rod_cmd = float(dd["rod_cmd"])
 		_guide_get = float(dd["guide_get"])
+		_step_get = float(dd.get("step_get", _guide_get))
+		_restart_hold = float(dd.get("restart_hold", -1.0))
 		# The display the restored step shows.
 		if program == 63:
-			var shows := {"tig": [6, 33, true], "v50n18": [50, 18, true], "maneuver": [6, 18, false], "v99": [99, 68, true]}
-			var sh: Array = shows.get(step_name, [16, 68, false])
+			var shows := {"tig": [6, 33, true], "v50n18": [50, 18, true], "maneuver": [6, 18, false], "wait": [16, 68, false],
+				"v99": [99, 68, true]}
+			var sh: Array = shows.get(step_name, [6, 63, false])
 			dsky.show(sh[0], sh[1], sh[2])
 		elif program in DESCENT:
 			dsky.set_prog(program)

@@ -6,10 +6,24 @@ func test_p40_without_maneuver_is_a_program_alarm() -> void:
 	keys("V37E40E")
 	assert_eq(rt.agc().program, 0)
 	assert_true(rt.agc().dsky.lamps["prog"])
-	keys("V05N09E")   # unknown verb -> operator error
+	# V05N09: the alarm codes in octal, the first in R1.
+	keys("V05N09E")
+	assert_eq(Array(rt.agc().dsky.r), [" 01703", " 00000", " 00000"], "01703: no maneuver stored")
+	keys("V37E40E")
+	keys("V37E40E")
+	keys("V37E40E")
+	keys("V05N09E")
+	assert_eq(Array(rt.agc().dsky.r), [" 01703", " 01703", " 01703"], "the first, the second and the last")
+	keys("R")
+	keys("V05N18E")   # N18 isn't octal -> operator error
 	assert_true(rt.agc().dsky.lamps["opr_err"])
 	keys("R")
 	assert_false(rt.agc().dsky.lamps["prog"])
+	assert_false(rt.agc().dsky.lamps["opr_err"])
+	keys("V05N09E")
+	assert_eq(Array(rt.agc().dsky.r), [" 00000", " 00000", " 00000"], "RSET cleared them")
+	keys("V08N09E")   # unknown verb -> operator error
+	assert_true(rt.agc().dsky.lamps["opr_err"])
 
 
 func test_p30_accepts_crew_loaded_pad_and_predicts_apsides() -> void:

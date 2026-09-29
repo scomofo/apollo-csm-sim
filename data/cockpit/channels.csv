@@ -7,6 +7,17 @@ ctl.sps.arm_a,bool,,crew,DELTA-V THRUST A: SPS pilot valve bank A armed
 ctl.sps.arm_b,bool,,crew,DELTA-V THRUST B: SPS pilot valve bank B armed
 ctl.sps.thrust_on,bool,,crew,SPS THRUST ON hold-button (HUD manual backup)
 ctl.scs.att_source,int,,crew,Attitude control source: 0 CMC 1 SCS 2 DIRECT
+ctl.scs.rate,int,,crew,SCS RATE: 0 LOW 1 HIGH (slice 9c)
+ctl.scs.att_db,int,,crew,SCS ATT DEADBAND: 0 MIN 1 MAX
+ctl.scs.tvc,int,,crew,SCS TVC: 0 AUTO (the gimbal holds the attitude) 1 RATE CMD (MTVC on the hand controller)
+ctl.scs.gdc_align,bool,,crew,GDC ALIGN: the GDC to the IMU's attitude (momentary)
+ctl.ems.function,int,,crew,EMS FUNCTION: 0 OFF 1 DV SET 2 DV 3 RNG SET 4 VO SET 5 ENTRY
+ctl.ems.set,int,,crew,DV/EMS SET rocker: -2 and -1 DECR (hard and soft) +1 and +2 INCR; springs back to 0
+ems.display,float,ft/s or nmi,ems,The EMS's DV/RANGE display
+ems.dv_mode,bool,,ems,The EMS's FUNCTION at DV
+ems.lamp_05g,bool,,ems,The EMS's .05 G light
+ems.corridor_up,bool,,ems,The EMS's upper corridor light: lift up
+ems.corridor_down,bool,,ems,The EMS's lower corridor light: lift down
 ctl.cmc.mode,int,,crew,CMC MODE: 0 FREE 1 HOLD 2 AUTO
 ctl.cmc.up_tlm,bool,,crew,UP TLM CM: ACCEPT (true) takes the ground's uplinks to the CMC (P27); BLOCK refuses them
 ctl.optics.zero,bool,,crew,OPTICS ZERO: ZERO drives the shaft and trunnion to zero
@@ -26,6 +37,8 @@ ctl.eps.fc1,bool,,crew,Fuel cell 1 on the main buses
 ctl.eps.fc2,bool,,crew,Fuel cell 2 on the main buses
 ctl.eps.fc3,bool,,crew,Fuel cell 3 on the main buses
 ctl.eps.batt_bus,bool,,crew,Entry batteries tied to the main buses
+ctl.eps.cm_power,int,,crew,CM POWER: how much of the CM is powered: 0 OFF (dark) 1 EMER (the emergency power-down's loads) 2 ALL
+ctl.eps.lm_power,bool,,crew,LM PWR: the CM takes the docked LM's power through the umbilical (it charges the entry batteries)
 ctl.els.logic,bool,,crew,ELS LOGIC
 ctl.els.auto,bool,,crew,ELS AUTO
 ctl.els.drogue,bool,,crew,Drogue deploy command (momentary)
@@ -36,16 +49,26 @@ ctl.seq.lm_jett,bool,,crew,LM jettison command (momentary)
 ctl.seq.cm_sm_sep,bool,,crew,CM/SM separation command (momentary)
 ctl.cw.master_alarm,bool,,crew,MASTER ALARM switch-light: pressed resets the master alarm (momentary)
 guid.indicator.attitude,quat,,agc,FDAI attitude: body relative to LVLH
+scs.fdai.attitude,quat,,scs,The CSM FDAIs' attitude: the CMC's (guid.indicator.attitude) or with ATT SOURCE at SCS the GDC's (slice 9c)
 time.get_s,float,s,simclock,Ground elapsed time
 eps.bus_a_v,float,V,eps,Main bus A voltage
 eps.bus_b_v,float,V,eps,Main bus B voltage
 sys.master_alarm,bool,,cw,Master alarm: the MASTER ALARM lights and the tone. On as a status light comes on; off at a MASTER ALARM press
+cw.*,bool,,cw,A caution and warning status light (CautionWarning.LIGHTS): lit while its condition holds and the main buses are powered
 sps.thrust_n,float,N,sps,SPS thrust now (newtons)
 lv.eng_light_1,bool,,lv,LV ENGINE light 1: engine 1 of the stage burning or next is below thrust
 lv.eng_light_2,bool,,lv,LV ENGINE light 2: engine 2 of the stage burning or next is below thrust
 lv.eng_light_3,bool,,lv,LV ENGINE light 3: engine 3 of the stage burning or next is below thrust
 lv.eng_light_4,bool,,lv,LV ENGINE light 4: engine 4 of the stage burning or next is below thrust
 lv.eng_light_5,bool,,lv,LV ENGINE light 5: engine 5 of the stage burning or next is below thrust
+ctl.eds.auto,bool,,crew,EDS AUTO: the EDS's automatic aborts (slice 9d)
+ctl.eds.two_eng,bool,,crew,2 ENG OUT: the EDS aborts on two S-IC engines out
+ctl.eds.rates,bool,,crew,LV RATES: the EDS aborts on the launch vehicle's rates past their limits
+ctl.abort,bool,,crew,The abort handle: the translation controller turned counterclockwise (held)
+ctl.les.tower_jett,bool,,crew,TWR JETT: the launch escape tower's jettison (momentary)
+eds.abort_light,bool,,eds,ABORT: the ground asks for a launch abort
+eds.lv_rate_light,bool,,eds,LV RATE: the launch vehicle's rates past the EDS's limits
+eds.lv_guid_light,bool,,eds,LV GUID: the IU's guidance platform lost
 lv.liftoff_light,bool,,lv,LIFTOFF light: from liftoff to the S-IC's separation
 lv.s2_sep_light,bool,,lv,S-II SEP light: from the S-IC's separation to the S-II's aft interstage's
 dsky,group,,agc,The DSKY display channels below
@@ -60,15 +83,33 @@ dsky.comp_acty,bool,,agc,COMP ACTY light
 dsky.lamp.*,bool,,agc,DSKY status and caution lamps
 ctl.lm.mode,int,,crew,LGC MODE (for the PGNS mode control): 0 FREE 1 HOLD 2 AUTO
 ctl.lm.engine_arm,int,,crew,ENG ARM: 0 OFF 1 ASC 2 DES
-ctl.lm.stage,bool,,crew,ABORT STAGE: stage the LM (momentary)
+ctl.lm.stage,bool,,crew,ABORT STAGE: stage the LM (momentary); in the powered descent the LGC's P71 fires the ascent engine it arms (slice 9e)
+ctl.lm.abort,bool,,crew,ABORT: in the powered descent the LGC's P70 on the descent engine it arms (momentary; slice 9e)
+ctl.lm.cw.master_alarm,bool,,crew,The LM's MASTER ALARM pushbutton-light: pressed resets its master alarm (momentary)
+lm.cw.master_alarm,bool,,lm_cw,The LM's master alarm: its MASTER ALARM lights and tone. On as a status light other than DES QTY comes on; off at a MASTER ALARM press
+lm.cw.des_qty,bool,,lm_cw,DES QTY: before staging a descent tank at 5.6 % of its propellant
+lm.cw.des_reg,bool,,lm_cw,DES REG: before staging the descent helium out of 219.2 to 259.1 psia
+lm.cw.rcs_a_reg,bool,,lm_cw,RCS A REG: RCS system A's regulator failed with its valves open
+lm.cw.rcs_b_reg,bool,,lm_cw,RCS B REG: RCS system B's regulator failed with its valves open
+lm.cw.lgc,bool,,lm_cw,LGC: the LGC failed with GUID CONT at PGNS
+lm.cw.iss,bool,,lm_cw,ISS: the LGC's IMU failed with GUID CONT at PGNS
 ctl.lm.eng_start,bool,,crew,ENGINE START pushbutton (momentary)
 ctl.lm.eng_stop,bool,,crew,ENGINE STOP pushbutton (momentary)
 ctl.lm.rcs.sys_a,bool,,crew,LM RCS system A open
 ctl.lm.rcs.sys_b,bool,,crew,LM RCS system B open
 ctl.lm.rod,int,,crew,Rate of descent switch: +1 up (1 ft/s less descent) or -1 down (momentary)
+ctl.lm.power,bool,,crew,LM PWR: the LM's batteries on its buses while docked (its activation)
+ctl.lm.pgns,bool,,crew,PGNS: the LGC's and its IMU's breakers in
+ctl.lm.ags,bool,,crew,AGS: the abort guidance system powered
+ctl.lm.ags_align,bool,,crew,AGS ALIGN: the AGS's body-axis align (the DEDA's 400+5 then 400+0; momentary)
+ctl.lm.guid_cont,int,,crew,GUID CONT: 0 PGNS or 1 AGS flies the LM
+ctl.lm.rr_mode,int,,crew,RNDZ RADAR mode select: 0 LGC 1 AUTO TRACK 2 SLEW; away from LGC Apollo 11's LGC counted the radar's CDU pulses (slice 9b)
 lm.guid.indicator.attitude,quat,,lgc,Eagle's FDAI attitude: body relative to LVLH
 lm.contact_light,bool,,dynamics,LUNAR CONTACT: a landing probe touches the surface
 lm.dps.throttle_pct,float,%,dps,Descent engine thrust
+lm.ags.dv_x_mps,float,m/s,ags,The AGS's ΔV along the LM's X axis since its body-axis align (the DEDA's address 470)
+lm.ags.on,bool,,ags,The AGS is running
+lm.eps.batt_ah,float,A-h,lm_eps,The LM's batteries' charge
 lm.rr.range_m,float,m,rr,Rendezvous radar range to Columbia
 lm.rr.range_rate_mps,float,m/s,rr,Rendezvous radar range rate (positive opening)
 lm.rr.data_good,bool,,rr,Rendezvous radar has Columbia

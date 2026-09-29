@@ -41,6 +41,8 @@
     "reference_area_m2": 79.46,
     "cd_mach": [[0.0, 0.25], [0.6, 0.27], [0.8, 0.32], [1.0, 0.47], [1.2, 0.57], [1.5, 0.48], [2.0, 0.37], [3.0, 0.27], [4.0, 0.21], [6.0, 0.16], [10.0, 0.14]],
     "_cd_source": "The axial force coefficient on the 10.06 m (33 ft) diameter against Mach, from the SA-506 flight manual's typical axial force and dynamic pressure through the S-IC's flight (MSFC-MAN-506, Figures 2-4 and 2-5) [derived]",
+    "guidance_failure_dps": 5.0,
+    "_failure_source": "The launch vehicle's failures (data/failures.json, slice 9d) [estimated]: an engine that fails stops, and its stage burns on the others; with its guidance platform failed the IU loses its attitude reference and turns the vehicle away, within seconds at guidance_failure_dps, past the EDS's 4 deg/s",
     "s_ic": {"engines": 5, "thrust_vac_n": 7986000.0, "exit_area_m2": 12.5, "isp_sl_s": 264.5, "isp_vac_s": 302.0, "propellant_kg": 2074429.0,
       "_source": "The F-1s: 6,719 kN and an Isp of 264.5 s each reduced to sea level (Table 5-1), 7,986 kN each in vacuum at OECO, 3.94 g on 827,292 kg (Tables 4-1 and 20-9); the thrust between them follows the air's pressure, on an exit area that lumps in the thrust's rise as the pumps' inlets pressurise [derived], and the Isp likewise from 264.5 s to 302 s, which empties the tanks, 2,074,429 kg from holddown release (Table 5-2), at the flown OECO [estimated]"},
     "s_ii": {"start_kg": 658547.0, "propellant_kg": 439005.0, "thrust_n": 5141516.0, "flow_kg_s": 1234.5, "low_mr_thrust_n": 3059402.0, "low_mr_flow_kg_s": 732.0,
@@ -60,7 +62,12 @@
     "tau_off_s": 0.25,
     "p40_start_throttle": 0.1,
     "p40_start_s": 15.0,
-    "p40_throttle": 0.4
+    "p40_throttle": 0.4,
+    "_helium": "Slice 9e. The descent tanks' helium, regulated to 245 psia; DES REG lights below 219.2 or above 259.1 psia, and DES QTY when any tank is down to 5.6 % of its propellant, 116 s at hover thrust [published: LM Apollo Operations Handbook, LMA790-3-LM, sections 2.3 and 2.9]. The regulator's failure closed (the failure catalog's dps_he_reg): the pressure falls as the engine draws its propellant, at the rate below at full thrust, and the thrust with it to nothing at the lowest [estimated]",
+    "he_psia": 245.0,
+    "he_decay_psi_s": 10.0,
+    "he_min_psia": 150.0,
+    "low_level_fraction": 0.056
   },
   "aps": {
     "_source": "Ascent engine: 3,500 lbf, fixed thrust [published]; Isp and propellant load [published, rounded]; transients [estimated]",
@@ -122,28 +129,63 @@
     "insertion_apolune_alt_m": 83340.0,
     "vertical_rise_hdot_mps": 12.192,
     "hold_s": 2.0,
-    "auto_rate_dps": 10.0
+    "auto_rate_dps": 10.0,
+    "_aborts": "P70 and P71 (slice 9e). Their vertical rise ends at 40 ft/s up, or above 25,000 ft, 'used for aborts off descent' [published: Bennett, NASA TM X-58040, 1970]. Their insertion's apolune is solved to phase the LM for the PDI PAD's TPI (AscentGuidance.abort_targets()) [derived], no higher than 200 nmi above the site and leaving 20 min of coelliptic flight before TPI [estimated: Apollo 11's no-PDI abort went to 11 by 152 nmi, published]",
+    "abort_vertical_alt_m": 7620.0,
+    "abort_apolune_max_alt_m": 370400.0,
+    "abort_coelliptic_min_s": 1200.0
   },
   "rendezvous_radar": {
     "_source": "The LM's rendezvous radar, tracking the CSM's transponder out to 400 nmi [published]",
     "range_max_m": 740800.0
   },
+  "lgc_executive": {
+    "_source": "The LGC's load in the powered descent (src/systems/lgc_executive.gd, slice 9b). The computer ran at about 90 percent of its capacity at the descent's peak (Apollo 11 Mission Report, MSC-00171, section 16.2) [published]; the shares below are [estimated] to add up to it: 0.12 for the interrupts, and the Servicer's share falling from P63 to P66, with the landing radar's reading, P64's landing point designator job and a noun monitored by the crew with V16 on top (Luminary 1A's N68, the range, time to go and delta-H, dearer than the others, as Apollo 11's crew found). Their priorities are [estimated] in the order the model needs: the crew's monitor lowest. With the rendezvous radar's mode switch at AUTO TRACK or SLEW, its two coupling data units sent the LGC counter pulses of 11.7 microseconds each, 6,400 a second each at most (ibid.) [published]; they took about 13 percent of Apollo 11's LGC (Eyles, 2004) [published], 11,100 a second [derived]",
+    "interrupt_duty": 0.12,
+    "counter_pulse_s": 1.17e-05,
+    "rr_cdu_pps": 11100.0,
+    "rr_cdu_pps_max": 12800.0,
+    "jobs": {
+      "servicer": {"period_s": 2.0, "phase_s": 0.0, "priority": 20, "vac": true,
+        "duty_by_program": {"63": 0.70, "64": 0.66, "65": 0.62, "66": 0.58}},
+      "landing_radar": {"period_s": 2.0, "phase_s": 1.0, "priority": 30, "vac": false, "duty": 0.04},
+      "lpd": {"period_s": 2.0, "phase_s": 0.5, "priority": 12, "vac": true, "duty": 0.065},
+      "monitor": {"period_s": 1.0, "phase_s": 0.25, "priority": 4, "vac": false, "duty": 0.005,
+        "duty_by_noun": {"68": 0.04}}
+    }
+  },
   "rendezvous_guidance": {
     "_source": "The LGC's rendezvous programs. TPI when the CSM stands 26.6 deg above the LM's horizontal, and a transfer that meets it after it has flown 130 deg [published]. P20's radar marks come every 60 s. The first after the CSM's state vector arrives takes the radar's relative position outright; later marks weight it by 0.5, move the velocity by 0.15 of the position's residual per mark interval, and weight the range rate along the line of sight by 0.5. P35 aims its correction 5 min ahead [estimated]",
     "tpi_elevation_deg": 26.6,
     "tpi_transfer_deg": 130.0,
+    "_coelliptic": "CDH puts the LM on an orbit coelliptic with the CSM's, 15 nmi below it [published: Apollo 11 Flight Journal, day 6, part 2]: the height CSI aims for when the LM is above the CSM (an abort's high apolune, Rendezvous.plan_csi()), and the aborts' targeting's (AscentGuidance.abort_targets())",
+    "coelliptic_dh_m": 27780.0,
     "mark_interval_s": 60.0,
     "mark_position_weight": 0.5,
     "mark_velocity_weight": 0.15,
     "mark_range_rate_weight": 0.5,
     "tpm_lead_s": 300.0
   },
+  "lm_eps": {
+    "_source": "The LM's batteries and load (src/systems/lm_eps.gd): the descent stage's four batteries' 1,600 A-h and the ascent stage's two's 592 A-h [published: MSC-02680, section 6.2]; its load powered down, 12 A, and powered up with the PGNS, 30 A at 900 W, Apollo 13's (ibid., sections 6.2 and 7.2.5) [published], the PGNS's the difference [derived]; the AGS's [estimated]",
+    "battery_ah": 2192.0,
+    "base_a": 12.0,
+    "pgns_a": 18.0,
+    "ags_a": 2.0,
+    "bus_v": 30.0
+  },
   "configurations": {
     "saturn_v": {"inertia": [2.0e6, 5.0e8, 5.0e8], "ref_mass_kg": 2899008.0, "rcs_pitch_arm_m": 0.0, "rcs_roll_arm_m": 0.0},
     "stack":  {"inertia": [60000.0, 5000000.0, 5000000.0], "ref_mass_kg": 140000.0, "rcs_pitch_arm_m": 0.0, "rcs_roll_arm_m": 0.0},
-    "csm_lm": {"inertia": [45000.0, 900000.0, 900000.0], "ref_mass_kg": 44000.0, "rcs_pitch_arm_m": 5.0, "rcs_roll_arm_m": 1.95},
-    "csm":    {"inertia": [22000.0, 95000.0, 95000.0], "ref_mass_kg": 28800.0, "rcs_pitch_arm_m": 3.2, "rcs_roll_arm_m": 1.95},
+    "csm_lm": {"inertia": [45000.0, 900000.0, 900000.0], "ref_mass_kg": 44000.0, "rcs_pitch_arm_m": 5.0, "rcs_roll_arm_m": 1.95,
+      "sps_gimbal_arm_m": 6.5},
+    "csm":    {"inertia": [22000.0, 95000.0, 95000.0], "ref_mass_kg": 28800.0, "rcs_pitch_arm_m": 3.2, "rcs_roll_arm_m": 1.95,
+      "sps_gimbal_arm_m": 2.8},
+    "cm_lm":  {"inertia": [32605.0, 125303.0, 127189.0], "ref_mass_kg": 16833.0, "rcs_pitch_arm_m": 1.6, "rcs_roll_arm_m": 1.4,
+      "_source": "Apollo 13's command module and LM after the SM's jettison: 37,109.7 lb, 24,048, 92,418 and 93,809 slug ft2 about their X, Y and Z axes (MSC-02680, Table A-I) [published]; the CM's jets' arms [estimated: the CM's own]"},
     "cm":     {"inertia": [6000.0, 5500.0, 5500.0], "ref_mass_kg": 5560.0, "rcs_pitch_arm_m": 1.6, "rcs_roll_arm_m": 1.4},
+    "cm_les": {"inertia": [7000.0, 60000.0, 60000.0], "ref_mass_kg": 9600.0, "rcs_pitch_arm_m": 1.6, "rcs_roll_arm_m": 1.4,
+      "_source": "The launch escape vehicle, the CM under its tower after an LES abort [estimated]; the escape system turns it (les), not its jets"},
     "lm":     {"inertia": [33000.0, 42000.0, 42000.0], "ref_mass_kg": 15103.0},
     "lm_ascent": {"inertia": [7000.0, 5000.0, 5000.0], "ref_mass_kg": 4821.0}
   },
@@ -158,7 +200,7 @@
     "coarse_align_deg": 0.2
   },
   "docking": {
-    "_source": "Probe-and-drogue docking [estimated throughout]: each docking port's distance from its vehicle's centre of mass along +X (the LM's, whole and as its ascent stage), the probe's push apart at undocking, the capture limits (closing speed, lateral speed, lateral miss, misalignment, relative rate), the radius within which the probe strikes the LM, and the rebound of a contact without capture",
+    "_source": "Probe-and-drogue docking [estimated throughout]: each docking port's distance from its vehicle's centre of mass along +X (the LM's, whole and as its ascent stage), the probe's push apart at undocking, the capture limits (closing speed, lateral speed, lateral miss, misalignment, relative rate), the radius within which the probe strikes the LM, and the rebound of a contact without capture. The docking tunnel's push at LM JETT from the CM: Apollo 13's command module, 12,367.6 lb after it, sensed 1.54, 0.42 and 1.00 ft/s in its axes, 1.88 ft/s (MSC-02680, section 6.4.1 and Table A-I) [published], the impulse that gives it along the docking axis [derived]",
     "csm_port_m": 5.5,
     "lm_port_m": 3.4,
     "lm_ascent_port_m": 1.5,
@@ -169,7 +211,8 @@
     "misalign_max_deg": 10.0,
     "rate_max_dps": 1.0,
     "strike_radius_m": 1.2,
-    "restitution": 0.5
+    "restitution": 0.5,
+    "tunnel_impulse_ns": 3215.0
   },
   "cm_aero": {
     "_source": "Hypersonic trim CD ~1.29, L/D ~0.30 on 3.91 m diameter [published, rounded]. The entry DAP's roll: at most 20 deg/s, the CM's roll acceleration on two jets 9.1 deg/s^2 (Comanche 055's CM entry DAP constants VM and A) [published]",
@@ -180,10 +223,36 @@
     "bank_accel_dps2": 9.1
   },
   "els": {
-    "_source": "Two 16.5 ft drogues at 24,000 ft, three 83.5 ft mains at 10,000 ft [published]; CdS [estimated]",
+    "_source": "Two 16.5 ft drogues at 24,000 ft, three 83.5 ft mains at 10,000 ft [published]; CdS [estimated]. The ELS's controller, armed, comes on below the 24,000 ft baroswitch; it fires the drogues 2.0 s after, and the pilot chutes that pull the mains out below the 10,000 ft baroswitch, but not before 14.0 s after it, as a low abort needs (CSM Apollo Operations Handbook, SM2A-03-BLOCK II-(1), p. 2.9-48) [published]",
     "drogue_alt_m": 7315.0,
     "main_alt_m": 3048.0,
+    "drogue_s": 2.0,
+    "main_s": 14.0,
     "drogue_cds_m2": 26.0,
     "main_cds_m2": 1200.0
+  },
+  "les": {
+    "_source": "The launch escape system (CSM Apollo Operations Handbook, SM2A-03-BLOCK II-(1), section 2.9; Apollo 11 press kit) [published unless marked]: the launch escape motor's 147,000 lbf and at least 515,000 lbf-s, which it gives in 3.5 s [derived]; the pitch control motor's 2,400 lbf and 1,750 lbf-s, 0.73 s [derived], fired only in the first 42 s of the flight (mode IA), to take the crew out to sea; the tower jettison motor's 31,500 lbf. The tower, 8,910 lb with its boost protective cover, is saturn_v.s_ii.les_kg. The canards deploy 11 s after an LES abort and the ELS is armed 3.0 s after them (pp. 2.9-47 and 2.9-48); they turn the launch escape vehicle blunt end forward below Mach 3.8 (Figure 2.9-36). The motor's propellant (an Isp of 220 s [estimated]), the vehicle's drag with its tower forward, and the rates the pitch control motor, the air and the canards turn it at are [estimated]: its attitude follows those rates, not its moments [simplified]",
+    "lem_thrust_n": 653888.0,
+    "lem_burn_s": 3.5,
+    "lem_propellant_kg": 1060.0,
+    "pcm_burn_s": 0.73,
+    "pcm_rate_dps": 20.0,
+    "mode_1a_s": 42.0,
+    "canard_s": 11.0,
+    "elsc_arm_s": 14.0,
+    "canard_mach": 3.8,
+    "cd_tower_forward": 0.4,
+    "weathervane_dps": 30.0,
+    "canard_dps": 30.0,
+    "weathervane_q_pa": 500.0
+  },
+  "eds": {
+    "_source": "The emergency detection system (CSM Apollo Operations Handbook, SM2A-03-BLOCK II-(1), sections 2.9.4.5 to 2.9.4.7 and 2.9.4.14) [published unless marked]: from liftoff to the tower's jettison it aborts on its own for two or more of the S-IC's engines out, or for the launch vehicle's rates past their limits; the IU switches both off just before the S-IC's centre engine's cutoff, and the crew can switch either off. Its limits, roll, pitch and yaw: 20, 4 and 4 deg/s in modes IA and IB, 20, 9 and 9 from mode IC (Apollo 11 Flight Journal). An abort cuts off the launch vehicle's engines, but not in the first 30 s, for range safety. With the tower gone the crew's handle starts the SPS abort: the SM's +X jets fire from then until the handle is back at neutral, and the CSM separates from the launch vehicle 3.0 s after it. The ground lights ABORT ground_abort_s after a failure that ends the launch [estimated]",
+    "rate_limit_dps": [20.0, 4.0, 4.0],
+    "rate_limit_ic_dps": [20.0, 9.0, 9.0],
+    "beco_inhibit_s": 30.0,
+    "csm_sep_s": 3.0,
+    "ground_abort_s": 3.0
   }
 }
