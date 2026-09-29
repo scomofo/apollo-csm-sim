@@ -37,10 +37,20 @@ from gemini-capsule to build, run or test.
 
 ## Running
 
-From the repository root:
+From the repository root, `godot --path .` opens on the flight menu, in
+the cabin: every mission under `data/missions/`, in the order they flew,
+each start phase and a line on where it starts. `< MISSION`, `MISSION >`,
+`< PHASE` and `PHASE >` choose, and START flies it. Closing the menu (M
+on the desktop, the left controller's menu button in a headset) flies the
+flight behind it instead, Apollo 11's parking orbit. The menu is the
+wrist menu's FLIGHT page, clicked on the desktop and pressed with a
+fingertip in a headset; BACK turns to the wrist menu's other buttons. F1, or FLIGHT on the wrist menu, brings it back in a flight, and
+the flight chosen starts in place of the one flown, with the eye height,
+the comfort aids and the checklist highlight kept. A flight given on the
+command line starts without the menu:
 
 ```
-godot --path .                                  # parking orbit, TLI ahead
+godot --path . -- --mission=apollo_11           # parking orbit, TLI ahead
 godot --path . -- --phase=launch                # on the pad, 20 s before liftoff
 godot --path . -- --phase=translunar_coast      # after TLI and docking
 godot --path . -- --phase=lunar_orbit           # after LOI-2, 54 × 66 nmi, Eagle docked
@@ -85,8 +95,8 @@ lifeboat that brings the crew home around the Moon. Its start phases are
 `parking_orbit` (the default), `translunar_coast` and `tank_failure`
 (five minutes before the failure). Each mission is data under
 `data/missions/<id>/`: its dates and the JPL ephemeris for them, its
-vehicles, its orbits, Mission Control's timeline, the call signs and the
-checklists.
+vehicles, its orbits, Mission Control's timeline, the call signs, the
+checklists, and its start phases with the flight menu's line on each.
 
 `godot --path . --xr-mode on` starts OpenXR, which is off by default, and
 puts you in the commander's couch in a headset, or, once Eagle undocks
@@ -128,7 +138,8 @@ tool that renders each voice to a file).
 | Right-drag | Look around (window and chase views) |
 | In the cabin view: click, scroll | Work the control under the cursor: a click cycles a switch or presses a key, scrolling moves a switch up or down |
 | In the cabin view: right-click, Z, Home | Mouse look on and off; inspect the control under the cursor; recentre |
-| In the cabin view: M | Wrist menu: PAD requests, time rate, pause, recentre, eye height, seat (the couches, and the lower equipment bay with the optics), checklist, comfort aids |
+| In the cabin view: M | Wrist menu: PAD requests, time rate, pause, recentre, eye height, seat (the couches, and the lower equipment bay with the optics), checklist, comfort aids, and FLIGHT, the flight menu |
+| F1 | The flight menu, in the cabin view: another mission or start phase, started in place of the one flown |
 | O | The optics, the sextant and the scanning telescope: while they're open, W/S and A/D move them instead of the hand controller, X is MARK and Y MARK REJECT. In the cabin they are at the lower equipment bay, where the same keys and the right stick move them |
 | F5 / F9 | Save / load checkpoint |
 | H | Key help |
@@ -1720,6 +1731,8 @@ lands beside Surveyor III, its landing site moved in powered descent by
 the ground's noun 69, and its commander redesignating onto the crater.
 And Apollo 13 (slice 7d) comes home after its oxygen tank failed, from
 five minutes before the failure to its splashdown, Aquarius its lifeboat.
-That finishes the other missions. Next come a way in (a flight menu,
-saved flights and builds from CI), failures, backups and aborts, every
-mission from the pad, the LM's navigation, and Apollo 14 to 17.
+That finishes the other missions. A way in (milestone 8) has begun:
+the flight menu picks any mission and start phase, on the desktop and on
+the wrist, and starts it in place of the flight flown (slice 8a). Saved
+flights and builds from CI come next, then failures, backups and aborts,
+every mission from the pad, the LM's navigation, and Apollo 14 to 17.

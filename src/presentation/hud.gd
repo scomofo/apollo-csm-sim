@@ -26,6 +26,7 @@ Cabin view    click a control, scroll to move it; right-click: mouse look,
 O             the optics (sextant and telescope): W/S A/D move them,
               X MARK, Y MARK REJECT
 F5 / F9       save / load checkpoint
+F1            the flight menu: another mission or start phase
 H             this help"""
 
 var rt: SimRuntime

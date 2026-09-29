@@ -220,10 +220,10 @@ func rig_click(control: ControlBase, dir: int = 0, hold_s: float = 0.0, wait_rel
 
 
 ## Wait until a clicked pushbutton lets go, so the next click presses it
-## again.
+## again, or is gone with the flight it started a new one in place of.
 func let_go(control: ControlBase) -> void:
 	for i in 600:
-		if control.get("pressed") != true:
+		if not is_instance_valid(control) or control.get("pressed") != true:
 			return
 		await wait_process_frames(1)
 

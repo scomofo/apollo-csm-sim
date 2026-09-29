@@ -1747,25 +1747,28 @@ in Earth orbit, Apollo 7 and 9, are left for later.
 
 ## 8. A way in
 
-**Status: not started.** A flight is chosen by flags on the command line
-(`--mission=`, `--phase=`: `docs/HEADSET_RUN.md`), which nobody in a
-headset can type, and one checkpoint is saved and loaded with F5 and F9
-at the desktop's keyboard. The wrist menu came from gemini-capsule
-without its new-flight and guide buttons, and it saves no settings: the
-eye height is set again each session. CI tests every push but builds
-nothing; the PC VR presets in `export_presets.cfg` are exported by hand.
-This milestone lets a person pick a flight, fly it and come back to it,
+**Status: slice 8a done.** The flight menu opens at launch, and on F1 or
+the wrist menu's FLIGHT during a flight; the flags on the command line
+(`--mission=`, `--phase=`: `docs/HEADSET_RUN.md`) still start a flight
+without it. One checkpoint is saved and loaded with F5 and F9 at the
+desktop's keyboard, and nothing keeps the settings: the eye height is set
+again each session. CI tests every push but builds nothing; the PC VR
+presets in `export_presets.cfg` are exported by hand. This milestone lets a person pick a flight, fly it and come back to it,
 on the desktop or in a headset, from a build CI made, and so lets someone
 who doesn't build the project run the headset pass (2e) and the
 listening pass (6a).
 
 - **The flight menu** lists what `data/missions/` holds: each mission,
-  its start phases (`start_phases`) with a line on each from its data,
-  and the saved flights. Choosing one starts it in place: the runtime is
-  built again (`SimRuntime.free_nodes()`, `build()`), and the rig, the
-  view, the cabin and the checklists follow it, as gemini-capsule's guide
-  asks its mission owner for a new flight. On the desktop a key opens it;
-  in a headset it rides on the wrist, and it is the first thing in view.
+  in the order they flew, its start phases (`start_phases`) with a line
+  on each from its data (`start_notes`), and (8b) the saved flights.
+  Choosing one starts it in place, as gemini-capsule's guide asks its
+  mission owner for a new flight: a new main scene, its runtime, rig,
+  view, cabins and checklists built for it, every node of the old flight
+  freed and the Bus and the clock started again, with the headset
+  session's channels, the settings and the headset recorder's record
+  carried over. It is the wrist menu's FLIGHT page: on the desktop F1
+  opens it in the cabin view, in a headset it rides on the wrist, and at
+  launch it is the first thing in view.
 - **Saved flights** are checkpoints with names, listed with their
   mission, GET and phase; one from an older schema is listed as unusable
   rather than offered. **Settings** (the eye height, the comfort aids,

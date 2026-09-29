@@ -27,6 +27,10 @@ headset runtime. From the repository root:
 godot --path . --xr-mode on -- --phase=lunar_orbit
 ```
 
+Without `-- --phase=`, the simulator opens on the flight menu, on your
+left wrist: press MISSION > and PHASE > with a fingertip until it reads
+Apollo 11 and LUNAR ORBIT, then START.
+
 From the editor, put `--xr-mode on` in *Project Settings → Editor → Run →
 Main Run Args* (with *Advanced Settings* on), then press Play.
 
@@ -81,8 +85,8 @@ rests off centre doesn't turn the spacecraft.
 The wrist menu has the PAD requests (MCC, LOI-1, LOI-2, TEI; in Eagle,
 DOI, PDI, ASCENT and CSI), time rate,
 pause, recentre, eye height ±1 cm, SEAT, CHECKLIST, NEXT STEP, HILITE,
-VIGNETTE, HORIZON and AUTHENTIC. Its top line shows GET, the time rate, the
-worst recent frame time and your seat.
+VIGNETTE, HORIZON, AUTHENTIC and FLIGHT, the flight menu. Its top line
+shows GET, the time rate, the worst recent frame time and your seat.
 
 There's no far-field pointer in the headset yet. You can only work what
 you can reach. SEAT moves you between the commander's couch (left), the

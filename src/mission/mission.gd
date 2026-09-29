@@ -46,12 +46,31 @@ static func load_default() -> Mission:
 	return load_file(DEFAULT_PATH)
 
 
+## Mission [param id]'s data alone, the world and the vehicles flown left
+## as they are: for the flight menu, which lists the missions without
+## flying them.
+static func read(id: String) -> Mission:
+	var m := Mission.new()
+	var f := FileAccess.open(path_of(id), FileAccess.READ)
+	if f != null:
+		var d: Variant = JSON.parse_string(f.get_as_text())
+		if d is Dictionary:
+			m.data = d
+	return m
+
+
 func id() -> String:
 	return str(data.get("id", ""))
 
 
 func section(name: String) -> Dictionary:
 	return data.get(name, {})
+
+
+## The line the mission's data gives its start phase [param phase]
+## ("start_notes"), for the flight menu.
+func start_note(phase: String) -> String:
+	return str(section("start_notes").get(phase, ""))
 
 
 ## [param role]'s call sign ("mission", "csm", "lm", "lm_landed").

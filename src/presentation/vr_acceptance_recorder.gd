@@ -15,7 +15,10 @@
 ## LM, take the recentres made there, a verb and noun typed on the LGC's
 ## DSKY and the touches on its switches. R5's, at the lower equipment bay,
 ## take the seat, how far the right stick turned the optics and the
-## touches on MARK. The seated reference space is 0 (Local) here.
+## touches on MARK. The seated reference space is 0 (Local) here. A new
+## flight from the flight menu (slice 8a) builds a new recorder, which
+## carries on this one's record (carry_state(), carried): one record of
+## the whole headset session.
 ## Presentation only: it writes nothing to the Bus.
 ##
 ## Reads:  player.*, ctl.rhc, dyn.omega, dsky.verb, dsky.noun,
@@ -40,6 +43,9 @@ var xr_interface: XRInterface
 var out_dir: String = OUT_DIR
 ## Write the record when the window closes: main turns it on in a headset.
 var write_on_exit: bool = false
+## Set before the recorder enters the tree: the record of the flight this
+## one's replaced, which it carries on (carry_state()).
+var carried: Dictionary = {}
 
 var record := {
 	"format_version": 1,
@@ -84,7 +90,12 @@ func _ready() -> void:
 	_t0_ms = Time.get_ticks_msec()
 	record["started_utc"] = Time.get_datetime_string_from_system(true)
 	record["reference_space"] = int(ProjectSettings.get_setting("xr/openxr/reference_space", -1))
-	for b in WristMenu.BUTTONS:
+	if not carried.is_empty():
+		record = (carried["record"] as Dictionary).duplicate(true)
+		_t0_ms = int(carried["t0_ms"])
+		_typed = str(carried["typed"])
+		_base = str(carried["base"])
+	for b in WristMenu.BUTTONS + WristMenu.FLIGHT_BUTTONS:
 		_menu_labels[b[1]] = true
 	for pad in WristMenu.PADS["lm"]:
 		_menu_labels[pad[1]] = true
@@ -108,6 +119,12 @@ func _ready() -> void:
 		# so this relies on Godot 4's automatic signal disconnect when the
 		# node is freed at exit; no _exit_tree disconnect needed.
 		xr_interface.session_stopping.connect(_on_session_stopping)
+
+
+## The record so far and what it counts from, for the recorder of the
+## flight that replaces this one.
+func carry_state() -> Dictionary:
+	return {"record": record.duplicate(true), "t0_ms": _t0_ms, "typed": _typed, "base": _base}
 
 
 func _elapsed_s() -> float:
