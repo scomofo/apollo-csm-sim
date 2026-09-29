@@ -16,17 +16,17 @@ concurrency:
 jobs:
   suite:
     # The GUT suite in parts that run side by side: the unit tests, and
-    # the scenario tests, which fly whole mission segments, dealt out
-    # over the scenario parts by their time on the runners. A new
-    # scenario file joins a part by itself.
+    # the scenario tests, which fly whole mission segments, each dealt
+    # out over their parts by their time on the runners. A new test file
+    # joins a part by itself.
     name: test (${{ matrix.part }})
     timeout-minutes: 20
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        part: [unit, scenarios 1 of 9, scenarios 2 of 9, scenarios 3 of 9, scenarios 4 of 9, scenarios 5 of 9,
-          scenarios 6 of 9, scenarios 7 of 9, scenarios 8 of 9, scenarios 9 of 9]
+        part: [unit 1 of 2, unit 2 of 2, scenarios 1 of 9, scenarios 2 of 9, scenarios 3 of 9, scenarios 4 of 9,
+          scenarios 5 of 9, scenarios 6 of 9, scenarios 7 of 9, scenarios 8 of 9, scenarios 9 of 9]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -55,43 +55,47 @@ jobs:
         env:
           PART: ${{ matrix.part }}
         run: |
-          if [ "$PART" = unit ]; then
-            args=(-gdir=res://tests/unit/)
-          else
-            # "scenarios K of N": the scenario files dealt out over the N
-            # parts by their seconds in .github/scenario_seconds.txt (60
-            # for a file not listed), the longest first, each to the part
-            # with the fewest so far; every part deals alike and runs the
-            # Kth share. -gdir= drops .gutconfig.json's directories, so
-            # only the files listed run.
-            read -r _ k _ n <<< "$PART"
-            declare -A secs
-            while read -r name s; do
-              secs[$name]=$s
-            done < <(grep -E '^test_' .github/scenario_seconds.txt)
-            mapfile -t files < <(
-              find tests/scenarios -name 'test_*.gd' | while read -r f; do
-                echo "${secs[$(basename "$f")]:-60} $f"
-              done | LC_ALL=C sort -k1,1nr -k2,2)
-            load=()
-            for (( p = 0; p < n; p++ )); do load[p]=0; done
-            list=()
-            for line in "${files[@]}"; do
-              read -r s f <<< "$line"
-              best=0
-              for (( p = 1; p < n; p++ )); do
-                if (( load[p] < load[best] )); then best=$p; fi
-              done
-              load[best]=$(( load[best] + s ))
-              if (( best == k - 1 )); then list+=("res://$f"); fi
-            done
-            echo "$PART: ${list[*]} (${load[k - 1]} s recorded)"
-            if (( ${#list[@]} == 0 )); then
-              echo "No scenario files for $PART"
-              exit 1
-            fi
-            args=(-gdir= "-gtest=$(IFS=,; echo "${list[*]}")")
+          # "unit K of N" or "scenarios K of N": the test files in
+          # tests/unit or tests/scenarios dealt out over the N parts by
+          # their seconds in .github/unit_seconds.txt or
+          # .github/scenario_seconds.txt (10 or 60 for a file not
+          # listed), the longest first, each to the part with the fewest
+          # so far; every part deals alike and runs the Kth share. -gdir=
+          # drops .gutconfig.json's directories, so only the files listed
+          # run.
+          read -r kind k _ n <<< "$PART"
+          table=.github/scenario_seconds.txt
+          unlisted=60
+          if [ "$kind" = unit ]; then
+            table=.github/unit_seconds.txt
+            unlisted=10
           fi
+          declare -A secs
+          while read -r name s; do
+            secs[$name]=$s
+          done < <(grep -E '^test_' "$table")
+          mapfile -t files < <(
+            find "tests/$kind" -name 'test_*.gd' | while read -r f; do
+              echo "${secs[$(basename "$f")]:-$unlisted} $f"
+            done | LC_ALL=C sort -k1,1nr -k2,2)
+          load=()
+          for (( p = 0; p < n; p++ )); do load[p]=0; done
+          list=()
+          for line in "${files[@]}"; do
+            read -r s f <<< "$line"
+            best=0
+            for (( p = 1; p < n; p++ )); do
+              if (( load[p] < load[best] )); then best=$p; fi
+            done
+            load[best]=$(( load[best] + s ))
+            if (( best == k - 1 )); then list+=("res://$f"); fi
+          done
+          echo "$PART: ${list[*]} (${load[k - 1]} s recorded)"
+          if (( ${#list[@]} == 0 )); then
+            echo "No test files for $PART"
+            exit 1
+          fi
+          args=(-gdir= "-gtest=$(IFS=,; echo "${list[*]}")")
           ~/godot/godot --headless --path . -s addons/gut/gut_cmdln.gd "${args[@]}" -gexit
 
   test:

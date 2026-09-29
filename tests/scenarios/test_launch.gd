@@ -27,24 +27,24 @@ func test_the_saturn_v_flies_apollo_11_into_its_parking_orbit() -> void:
 	# release; the S-IC's start sequence, and its engines' lights out at
 	# thrust.
 	run(15.0, false)
-	assert_eq(_lights(), "11111 00", "the engines not yet at thrust")
+	assert_eq(launch_lights(), "11111 00", "the engines not yet at thrust")
 	run(4.0, false)
 	assert_true(bool(Bus.get_value("lv.held", false)), "held until the release")
 	var now := Bodies.eci_to_earth_fixed(Array(rt.dynamics.traj.earth_state()).slice(0, 3), rt.dynamics.traj.t)
 	assert_almost_eq(Vector3(now[0] - fixed[0], now[1] - fixed[1], now[2] - fixed[2]).length(), 0.0, 0.01, "on the pad")
 	assert_almost_eq(float(lv.events.get("ignition", 0.0)), -8.9, 0.1, "the start sequence at T-8.9 s")
 	assert_almost_eq(float(lv.events.get("thrust_ok", 0.0)), -1.6, 0.1, "all engines at thrust by T-1.6 s")
-	assert_eq(_lights(), "00000 00", "all five at thrust")
+	assert_eq(launch_lights(), "00000 00", "all five at thrust")
 	var states := {}
 	var lights: Array = []
 	var p11 := false
 	while not lv.events.has("insertion") and SimClock.get_seconds < 800.0:
 		run(1.0, false)
 		p11 = p11 or rt.agc().program == 11
-		lights.append([SimClock.get_seconds, _lights()])
+		lights.append([SimClock.get_seconds, launch_lights()])
 		for id in lv.events:
 			if not states.has(id):
-				states[id] = _state()
+				states[id] = ascent_state()
 	for id in FLOWN:
 		assert_true(lv.events.has(id), id)
 	var lines := PackedStringArray()
@@ -96,7 +96,7 @@ func test_the_saturn_v_flies_apollo_11_into_its_parking_orbit() -> void:
 	run(20.0, false)
 	assert_eq(rt.sequencer.phase, "parking_orbit")
 	assert_eq(rt.dynamics.config, "stack")
-	assert_eq(_lights(), "00000 00", "the launch lights out in orbit")
+	assert_eq(launch_lights(), "00000 00", "the launch lights out in orbit")
 	var c: Dictionary = rt.dynamics.traj.conic()
 	var h: Vector3 = c["h"]
 	var incl := rad_to_deg(h.normalized().angle_to(Bodies.earth_omega().normalized()))
@@ -136,22 +136,3 @@ func test_a_checkpoint_mid_launch_flies_on_to_the_same_insertion() -> void:
 	assert_almost_eq(float(lv.events["s4_cutoff"]), cut, 0.05, "the same cutoff, within a step")
 	assert_lt(dv, 0.1, "and the same velocity")
 
-
-## The launch lights now: LV ENGINE 1 to 5, then LIFTOFF and S-II SEP, as
-## "10000 10".
-func _lights() -> String:
-	var s := ""
-	for ch in ["lv.eng_light_1", "lv.eng_light_2", "lv.eng_light_3", "lv.eng_light_4", "lv.eng_light_5", " ",
-			"lv.liftoff_light", "lv.s2_sep_light"]:
-		s += " " if ch == " " else ("1" if bool(Bus.get_value(ch, false)) else "0")
-	return s
-
-
-## Altitude over the pad's radius (km), space-fixed speed (m/s) and flight
-## path angle (deg) now.
-func _state() -> Array:
-	var tr := rt.dynamics.traj
-	var r := tr.pos()
-	var v := tr.vel()
-	return [(r.length() - Bodies.R_EARTH - LaunchVehicle.PAD_HEIGHT_M) / 1000.0, v.length(),
-		rad_to_deg(asin(r.normalized().dot(v.normalized())))]

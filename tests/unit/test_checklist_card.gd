@@ -157,7 +157,7 @@ func test_every_apollo_8_step_names_a_cabin_control_or_one_writes_its_check() ->
 				assert_ne(id, "", "%s: a cabin control writes %s" % [s["text"], channel])
 			if id != "":
 				framed += 1
-	assert_eq(framed, 52, "42 of Apollo 8's steps point at a cabin control, and 10 of the malfunction procedures'")
+	assert_eq(framed, 60, "50 of Apollo 8's steps point at a cabin control, and 10 of the malfunction procedures'")
 
 
 func test_every_apollo_10_step_names_a_control_or_one_writes_its_check() -> void:

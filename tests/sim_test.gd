@@ -820,3 +820,23 @@ func face_x(lm: bool, target: Callable) -> void:
 		run(SimClock.FIXED_DT, false)
 	Bus.set_value(rhc_ch, Vector3.ZERO)
 	run(2.0, false)
+
+
+## The main display console's launch lights now: LV ENGINE 1 to 5, then
+## LIFTOFF and S-II SEP, as "10000 10".
+func launch_lights() -> String:
+	var s := ""
+	for ch in ["lv.eng_light_1", "lv.eng_light_2", "lv.eng_light_3", "lv.eng_light_4", "lv.eng_light_5", " ",
+			"lv.liftoff_light", "lv.s2_sep_light"]:
+		s += " " if ch == " " else ("1" if bool(Bus.get_value(ch, false)) else "0")
+	return s
+
+
+## The launch's state now: altitude over the pad's radius (km), space-fixed
+## speed (m/s) and flight path angle (deg).
+func ascent_state() -> Array:
+	var tr := rt.dynamics.traj
+	var r := tr.pos()
+	var v := tr.vel()
+	return [(r.length() - Bodies.R_EARTH - LaunchVehicle.PAD_HEIGHT_M) / 1000.0, v.length(),
+		rad_to_deg(asin(r.normalized().dot(v.normalized())))]

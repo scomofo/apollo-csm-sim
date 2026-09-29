@@ -181,9 +181,9 @@ func test_every_timeline_entry_is_one_mission_control_can_make() -> void:
 func test_apollo_8_has_its_own_checklists_and_no_lms() -> void:
 	var csm := ChecklistBook.load_default("apollo_8")
 	var titles := _flight_titles(csm)
-	assert_eq(titles, ["Parking orbit and TLI", "SPS burn (P30 / P40)", "RCS burn (P30 / P41)", "Lunar orbit and TEI",
+	assert_eq(titles, ["Launch", "Parking orbit and TLI", "SPS burn (P30 / P40)", "RCS burn (P30 / P41)", "Lunar orbit and TEI",
 		"Entry", "IMU realign (P52)"])
-	for phase in ["parking_orbit", "translunar_coast", "lunar_orbit", "transearth_coast", "entry"]:
+	for phase in ["launch", "parking_orbit", "translunar_coast", "lunar_orbit", "transearth_coast", "entry"]:
 		csm.select_for_phase(phase)
 		assert_true(csm.list().phases.has(phase), "one for %s" % phase)
 	assert_true(ChecklistBook.load_lm("apollo_8").lists.is_empty(), "no LM, no LM checklists")

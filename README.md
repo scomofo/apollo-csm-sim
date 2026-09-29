@@ -80,8 +80,8 @@ trajectory.
 `-- --mission=apollo_8` flies Apollo 8 instead: the CSM alone, the S-IVB
 carrying a test article where Apollo 11's carried Eagle, ten lunar
 orbits, and Mission Control's timeline from TLI to the entry. Its start
-phases are `parking_orbit` (the default), `translunar_coast` (after CSM/LV
-SEP), `lunar_orbit` (after LOI-2, 60 × 61 nmi), `tei`,
+phases are `launch` (on the pad, AS-503 its Saturn V), `parking_orbit`
+(the default), `translunar_coast` (after CSM/LV SEP), `lunar_orbit` (after LOI-2, 60 × 61 nmi), `tei`,
 `transearth_coast` and `entry`. `-- --mission=apollo_10` flies Apollo
 10: Snoopy flies the landing mission down to 8 nmi over the first
 landing's site without landing, stages in orbit and flies the rendezvous
@@ -316,7 +316,10 @@ undocking to TEI) and at entry.
    for P00). The drogue and main parachutes deploy automatically.
 
 **Apollo 8.** With `-- --mission=apollo_8` the flight is Apollo 8's, from
-its parking orbit (it has no launch yet). The S-IVB flies TLI at the
+the pad or its parking orbit. From the pad it's the launch above on the
+first crewed Saturn V, AS-503, at 12:51:00 UTC on 21 December 1968: its
+own stages, clock and flight azimuth, its S-II burning on all five
+engines to its cutoff, and insertion at 11:42. The S-IVB flies TLI at the
 RTCC's TIG (GET 2:50), and CSM/LV SEP leaves the S-IVB and its test
 article behind, with nothing to dock with (it happens by itself 25 min
 after cutoff). Mission Control's timeline then brings each PAD at the
@@ -888,14 +891,21 @@ A flown Apollo 11 profile in the simulator reproduces these values:
 | Drogues | 195:12:39 | 195:12:07 |
 | Splashdown | 195:19:04, 13.33° N 169.18° W, 0.9 nmi from the target, at 8.5 m/s | 195:18:35, 13.30° N 169.15° W, 1.7 nmi from it by the CMC's reckoning |
 
-Apollo 8 flown from its data alone, from its parking orbit to the
-splashdown (`tests/scenarios/test_apollo_8.gd`, which holds each row
-within set limits of the flight's figures), against the Apollo 8 Mission
-Report (MSC-PA-R-69-1), the AS-503 flight evaluation report
+Apollo 8 flown from its data alone, from the pad into its parking orbit
+(`tests/scenarios/test_apollo_8_launch.gd`) and from its parking orbit
+to the splashdown (`tests/scenarios/test_apollo_8.gd`), each holding its
+rows within set limits of the flight's figures, against the Apollo 8
+Mission Report (MSC-PA-R-69-1), the AS-503 flight evaluation report
 (MPR-SAT-FE-69-1) and the Apollo Flight Journal:
 
 | Quantity | Simulator | Apollo 8 |
 |---|---|---|
+| Launch: Mach 1, maximum dynamic pressure | 1:01.3; 33.8 kPa at 1:11.9 | 1:01.5; 37.2 kPa at 1:18.9 |
+| Launch: the S-IC's centre and outboard engines' cutoffs | 2:05.96 at 1,878 m/s and 24.47° up, 2:33.78 at 2,693 m/s and 20.13° | 2:05.93 at 1,894 m/s and 24.53°, 2:33.82 at 2,713 m/s and 20.70° |
+| Launch: the S-II's cutoff, on all five engines | 8:43.98, at 6,781 m/s | 8:44.04, at 6,821 m/s |
+| Launch: the S-IVB's cutoff, and insertion | 11:32.1; 11:41.9 at 7,793.0 m/s | 11:25.0; 11:35.0 at 7,792.8 m/s |
+| Parking orbit, and the S-IVB's propellant for TLI | 100.0 × 100.0 nmi, 32.508°; 71,271 kg | 100.0 × 99.6 nmi, 32.509°; 72,727 kg |
+| TLI, from the pad | GET 2:50:15, 3,048 m/s in 313.6 s, C3 −1,422,250 m²/s² | 2:50:37, 3,040 m/s in 318.4 s, C3 −1,478,917 m²/s² |
 | TLI | GET 2:50:11, 3,046 m/s in 317.2 s, C3 −1,420,280 m²/s² | 2:50:37, 3,040 m/s in 318.4 s, C3 −1,478,917 m²/s² |
 | The separation maneuvers, and the pericynthion after them | 1.1 and 7.7 ft/s radially up; 464.2 nmi at 69:01:20 | 1.1 and 7.7 ft/s; 458.1 nmi at 68:57:40 |
 | MCC-1, and the pericynthion after it | 25.1 ft/s at 10:59:58, N81 +16.5, +1.6, +18.9; 68.1 nmi at 69:10:30 | 24.8 ft/s at 10:59:58, N81 +13.6, −4.5, +20.2 (flown 20.4); 66.3 nmi at 69:10:40 |
@@ -1131,7 +1141,9 @@ ones:
   follows the air's pressure, and its propellant ends its burn at the
   flown time. The IU's pitch program is SA-504's; AS-506's own isn't at
   hand. The S-IVB vents and burns 1,051 kg in the parking orbit, taken
-  off at insertion. There are no aborts, and no launch escape.
+  off at insertion. Apollo 8's launch (AS-503) flies SA-504's pitch
+  program too, sped up by 7 % for its lighter vehicle, which puts its
+  flight path angle at the centre engine's cutoff on the flown one.
 - **The launch's view.** Panel 1's launch lights are the Operations
   Handbook's account of them, not their circuits, and their places are
   estimated. The sky is a blend toward blue with the air's pressure and
@@ -1246,8 +1258,17 @@ ones:
     sets the lunar orbit's plane where a landing site would. Its REFSMMAT
     is the site's rather than LOI-2's burn attitude, and its altitudes
     count from the Moon's mean radius.
-  - There is no launch for Apollo 8 yet: its start phases begin in the
-    parking orbit.
+  - AS-503's S-IC and S-II leave its S-IVB about 40 m/s more to give at
+    the S-II's cutoff than they left the flight's, where each stage's
+    cutoff comes within 0.06 s of the flown. The S-IC is 19 m/s short at
+    its cutoff, as Apollo 11's is 26 m/s short, and the S-II's figures (its
+    thrust 61 s into its burn, its low mixture ratio's thrust, and its
+    propellant from the vehicle's masses) burn out on time at an Isp of
+    435 s after the shift. So the S-IVB's first burn runs 7 s long, and
+    TLI has 1.5 t less propellant and burns 3.6 s shorter than from the
+    parking-orbit start.
+  - The maximum dynamic pressure comes 7 s early and 3.4 kPa low on the
+    standard atmosphere, as Apollo 11's comes 5 s early and 2.5 kPa low.
 - **Apollo 10.**
   - The phasing and insertion burns are the flown PADs, fixed maneuvers
     timed from the low point the DOI PAD plans, where the ground's
@@ -1336,13 +1357,14 @@ godot --headless --path . --import
 godot --headless --path . -s addons/gut/gut_cmdln.gd -gexit
 ```
 
-That runs the whole suite, which takes about 50 minutes, nearly all of
-it in the scenario tests. Add `-gdir=res://tests/unit/` to run only the
-unit tests, in under two minutes, or `-gselect=<name>` to run only the
-scripts whose file names contain `<name>`. CI runs the suite in ten
-parts side by side (`.github/workflows/ci.yml`): the unit tests, and the
-scenario tests dealt out over nine jobs by each file's time on the
-runners (`.github/scenario_seconds.txt`). Beside them, its build job
+That runs the whole suite, which takes over an hour and a half, nearly
+all of it in the scenario tests. Add `-gdir=res://tests/unit/` to run
+only the unit tests, in about ten minutes, or `-gselect=<name>` to run only the
+scripts whose file names contain `<name>`. CI runs the suite in eleven
+parts side by side (`.github/workflows/ci.yml`): the unit tests dealt
+out over two jobs and the scenario tests over nine, by each file's time
+on the runners (`.github/unit_seconds.txt`,
+`.github/scenario_seconds.txt`). Beside them, its build job
 exports the PC VR presets with Godot 4.4.1's templates and flies a
 minute of the launch on the exported Linux build.
 
@@ -1873,6 +1895,19 @@ The scenario tests fly real segments through the crew interface:
   corrections), then a P52 and the entry on P61 to P67. Each row of Apollo
   8's Fidelity table (above) is held within limits of the flight's
   figures, and CAPCOM's calls come at their times
+- Apollo 8's launch (`tests/scenarios/test_apollo_8_launch.gd`), slice
+  10a's check. From the pad, AS-503 flies Apollo 8 into its parking
+  orbit, and the flight goes on through TLI as the parking-orbit start
+  flies it:
+  - each stage's cutoff within 0.06 s of the flight evaluation report's,
+    the S-II's on all five engines, and the S-IVB's 7.1 s late;
+  - the orbit 100.0 × 100.0 nmi at 32.508°, 0.003° from the flown plane;
+  - Mach 1 and the maximum dynamic pressure near the report's, and the
+    tilt at its flown 12.11 s;
+  - the CMC in P11, the countdown's start sequence and thrust OK, and
+    panel 1's lights through each stage;
+  - the S-IVB left with 71,271 kg for TLI (72,727 flown), and TLI at
+    2:50:15, 3,048 m/s in 313.6 s (2:50:37, 3,040 m/s in 318.4 s flown)
 - Apollo 10 (`tests/scenarios/test_apollo_10.gd`), slice 7b's check. It
   flies from its data alone, from the parking orbit to the splashdown:
   TLI, the evasive maneuver, MCC-1 and MCC-4, LOI-1 and LOI-2; then
@@ -1986,5 +2021,8 @@ each of its four modes, on the EDS, the escape tower and the SPS, set
 off by the catalog's failures (slice 9d). Eagle aborts from P63 on the
 descent engine and from P66 at 500 ft on the ascent engine, into orbits
 phased for the rendezvous, which docks, and has its own failures and
-caution and warning lights (slice 9e). Every mission from the pad comes
-next, then the LM's navigation, and Apollo 14 to 17.
+caution and warning lights (slice 9e). Of every mission from the pad
+(milestone 10), Apollo 8 flies from the pad on AS-503, the first crewed
+Saturn V, into its parking orbit and on through TLI (slice 10a). Apollo
+10's, 12's and 13's launches come next, then the LM's navigation, and
+Apollo 14 to 17.

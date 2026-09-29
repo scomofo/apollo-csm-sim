@@ -7,18 +7,23 @@
 ## launch block); Dynamics keeps the vehicle turning with the Earth. The
 ## S-IC's start sequence and its engines' thrust OK come on the clock there
 ## [simplified: the thrust builds against the arms]. Then the program runs
-## on the IU's time bases, as AS-506's did:
+## on the IU's time bases, as AS-506's did, and each mission's vehicle
+## (its "vehicles" "saturn_v") on its own:
 ## - T1, from the umbilical's disconnect: the yaw away from the tower; at
-##   137 m (or T1 13 s) the roll to the flight azimuth and the time-tilt
-##   pitch program, in the pitch plane fixed at guidance reference release;
-##   the S-IC's centre engine's cutoff on the clock.
+##   137 m (or T1 13 s; a launch block without tilt_altitude_m on the clock
+##   alone) the roll to the flight azimuth and the time-tilt pitch program,
+##   in the pitch plane fixed at guidance reference release, its time
+##   scaled by tilt_time_scale where a lighter vehicle than SA-504 flies
+##   SA-504's program faster; the S-IC's centre engine's cutoff on the
+##   clock.
 ## - T2, from that cutoff: the tilt arrest. The outboard engines burn until
 ##   the S-IC's propellant is gone.
 ## - T3, from their cutoff: staging, the S-II's start, its aft interstage's
 ##   and the launch escape tower's jettison; then the iterative guidance
 ##   mode (Sivb.igm_burns()) onto the parking orbit, the S-II's centre
-##   engine's cutoff and the shift to the low mixture ratio on the clock,
-##   and the S-II burning until its propellant is gone.
+##   engine's cutoff (from AS-504; AS-503's S-II burned on all five, its
+##   launch block without the event) and the shift to the low mixture ratio
+##   on the clock, and the S-II burning until its propellant is gone.
 ## - T4, from that cutoff: staging and the S-IVB's first burn, until the
 ##   IU's velocity cutoff on the parking orbit's circular speed (T5), and
 ##   insertion after it, when the sequencer takes the stack on into the
@@ -269,7 +274,7 @@ func _sequence(now: float, r: Vector3) -> void:
 	if not bases.has("T2") and now >= t1 + float(launch["sic_ceco_t1_s"]) - 1e-6:
 		bases["T2"] = now
 		_fire("sic_ceco", now)
-	if tilt_at < 0.0 and (r.length() - Bodies.R_EARTH - PAD_HEIGHT_M >= float(launch["tilt_altitude_m"])
+	if tilt_at < 0.0 and (r.length() - Bodies.R_EARTH - PAD_HEIGHT_M >= float(launch.get("tilt_altitude_m", INF))
 			or now >= t1 + float(launch["tilt_t1_s"]) - 1e-6):
 		tilt_at = now
 		_fire("tilt", now)
@@ -292,7 +297,7 @@ func _sequence(now: float, r: Vector3) -> void:
 			_fire("les_jettison", now)
 		if not events.has("igm") and now >= t3 + float(t3_s["igm"]) - 1e-6:
 			_fire("igm", now)
-		if not events.has("s2_ceco") and now >= t3 + float(t3_s["s2_ceco"]) - 1e-6:
+		if t3_s.has("s2_ceco") and not events.has("s2_ceco") and now >= t3 + float(t3_s["s2_ceco"]) - 1e-6:
 			_fire("s2_ceco", now)
 		if not events.has("emr_shift") and now >= t3 + float(t3_s["emr_shift"]) - 1e-6:
 			_fire("emr_shift", now)
@@ -454,8 +459,10 @@ func _steer(now: float, dt: float) -> void:
 
 
 ## The time-tilt pitch program: degrees from the launch vertical at
-## [param t] T1 seconds, by segment (negative downrange).
+## [param t] T1 seconds, by segment (negative downrange), on the launch
+## block's time scale.
 func _tilt(t: float) -> float:
+	t *= float(launch.get("tilt_time_scale", 1.0))
 	var seg: Array = launch["tilt_segments_s"]
 	var polys: Array = launch["tilt_poly"]
 	var k := 0
@@ -469,7 +476,8 @@ func _tilt(t: float) -> float:
 
 
 ## The burns still to come, for the IGM: the S-II's at the high mixture
-## ratio on five engines, then four, then at the low ratio until its
+## ratio on five engines, then four after its centre engine's cutoff where
+## the vehicle has one (not AS-503), then at the low ratio until its
 ## propellant is gone, the coast to the S-IVB's ignition, and the S-IVB's
 ## burn, whose time the IGM iterates.
 func _burns(now: float) -> Array:
@@ -483,8 +491,10 @@ func _burns(now: float) -> Array:
 		var t3 := float(bases["T3"])
 		var t3_s: Dictionary = launch["t3_s"]
 		var left := s2_prop
-		var phases := [[t3 + float(t3_s["s2_ceco"]), float(s2["thrust_n"]), float(s2["flow_kg_s"])],
-			[t3 + float(t3_s["emr_shift"]), float(s2["thrust_n"]) * 0.8, float(s2["flow_kg_s"]) * 0.8]]
+		var phases := [[t3 + float(t3_s["emr_shift"]), float(s2["thrust_n"]), float(s2["flow_kg_s"])]]
+		if t3_s.has("s2_ceco"):
+			phases = [[t3 + float(t3_s["s2_ceco"]), float(s2["thrust_n"]), float(s2["flow_kg_s"])],
+				[t3 + float(t3_s["emr_shift"]), float(s2["thrust_n"]) * 0.8, float(s2["flow_kg_s"]) * 0.8]]
 		for ph: Array in phases:
 			var end := float(ph[0])
 			if now < end and left > 0.0:

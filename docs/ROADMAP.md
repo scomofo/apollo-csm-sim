@@ -41,12 +41,13 @@ picture).
 - **Start phases stay consistent.** A new `--phase` is built the way the
   existing ones are, from the RTCC's own solutions, so it continues the
   mission it claims to.
-- **CI stays fast.** The suite runs in ten jobs side by side: the unit
-  tests, and the scenario tests in nine parts, dealt out by each file's
-  time on the runners (`.github/scenario_seconds.txt`). Keep each job
-  under ten minutes: start a long scenario from a phase or checkpoint
-  instead of flying the whole mission, record a new scenario file's
-  time, and give the scenarios another part when theirs grow past that.
+- **CI stays fast.** The suite runs in eleven jobs side by side: the
+  unit tests in two parts and the scenario tests in nine, each dealt out
+  by each file's time on the runners (`.github/unit_seconds.txt`,
+  `.github/scenario_seconds.txt`). Keep each job under ten minutes:
+  start a long scenario from a phase or checkpoint instead of flying the
+  whole mission, record a new test file's time, and give the tests
+  another part when theirs grow past that.
 
 ## 1. CI green
 
@@ -1948,8 +1949,9 @@ estimated and tagged.
 
 ## 10. Every mission from the pad
 
-**Status: not started.** Apollo 11 flies from the pad (5d); Apollo 8, 10,
-12 and 13 start in their parking orbits. Each mission's `launch` section
+**Status: slice 10a done.** Apollo 11 flies from the pad (5d), and
+Apollo 8 on AS-503 (10a); Apollo 10, 12 and 13 start in their parking
+orbits. Each mission's `launch` section
 gives its pad, its liftoff, its azimuth and its vehicle from its flight
 evaluation report, as Apollo 11's does, and its launch's troubles come
 from 9a's catalog. Two of them were their flights' first:
@@ -1968,13 +1970,29 @@ from 9a's catalog. Two of them were their flights' first:
 
 | Slice | Work | Check |
 |---|---|---|
-| 10a Apollo 8's launch | Its launch data: 12:51 UTC on 21 December 1968 from LC-39A, the first crewed Saturn V (AS-503) | Test: insertion into Apollo 8's parking orbit within set limits of MPR-SAT-FE-69-1, each stage's burn near its flown times, and the flight on to TLI as its parking-orbit start flies it |
+| 10a (done) Apollo 8's launch | Its launch data: 12:51 UTC on 21 December 1968 from LC-39A, the first crewed Saturn V (AS-503) | Test: insertion into Apollo 8's parking orbit within set limits of MPR-SAT-FE-69-1, each stage's burn near its flown times, and the flight on to TLI as its parking-orbit start flies it |
 | 10b Apollo 10's launch | From LC-39B, the only Saturn V launched from it | Test: as 10a, for Apollo 10 |
 | 10c Apollo 12's launch and the lightning | The strikes as failures: the fuel cells off their buses, the SCE and the telemetry it conditions, SCE to AUX, the platform tumbled; the crew's reset of the fuel cells, and P51 in the parking orbit | Test: the strikes take the fuel cells, the telemetry and the platform as flown, SCE to AUX brings the telemetry back, the Saturn reaches its parking orbit, and P51 aligns the CMC before TLI |
 | 10d Apollo 13's launch and the centre engine | The S-II's centre engine out at its flown time | Test: the outboard engines and the S-IVB burn longer as they did, within set limits, and insertion within set limits of MPR-SAT-FE-70-2 |
 
 **Done when** every mission's start phases begin on the pad too, and
 Apollo 12's and 13's launches fly their troubles as they came.
+
+- **Apollo 8's launch.** Done in 10a. AS-503 is Apollo 8's `vehicles`
+  `saturn_v` over Apollo 11's AS-506: its masses from the flight
+  evaluation report's mass history, the S-IC's thrust from its peak
+  acceleration and its reconstructed sea level thrust, the S-II's and
+  S-IVB's at their standard time slices. Its S-II had no centre engine
+  cutoff (it came in from AS-504), so the launch block leaves the event
+  out and the S-II burns on five to its cutoff. Two figures are tuned: the
+  S-IC's vacuum Isp (304.5 s) and the S-II's flow at the low mixture
+  ratio (908 kg/s), for the flown cutoffs. AS-503's pitch program isn't
+  at hand. SA-504's flies it sped up by 7 % (`tilt_time_scale`) for the
+  lighter vehicle, which puts the flight path angle at the centre
+  engine's cutoff on the flown one, and it starts at the flown 12.11 s.
+  Each stage's cutoff comes within 0.06 s of the flown. The S-IC and S-II
+  leave the S-IVB 40 m/s more to give, so its first burn runs 7 s long
+  (`tests/scenarios/test_apollo_8_launch.gd`, README's Fidelity table).
 
 ## 11. The LM's navigation
 
