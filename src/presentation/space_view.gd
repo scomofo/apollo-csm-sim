@@ -487,8 +487,8 @@ func _process(_delta: float) -> void:
 	# Spacecraft: the one the view is from fixed, in its body axes.
 	csm.transform = Transform3D(body, Vector3.ZERO)
 	var cfg := str(Bus.get_value("dyn.config", "stack"))
-	_parts["sm"].visible = cfg != "cm"
-	_parts["lm"].visible = cfg == "csm_lm"
+	_parts["sm"].visible = SpacecraftData.sm_attached(cfg)
+	_parts["lm"].visible = SpacecraftData.lm_docked(cfg)
 	var staged := str(Bus.get_value("lm.dyn.config", "lm")) == "lm_ascent"
 	_parts["lm"].get_node("Descent").visible = not staged
 	lm_free.get_node("Descent").visible = not staged

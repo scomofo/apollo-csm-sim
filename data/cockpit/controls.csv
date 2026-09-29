@@ -7,7 +7,10 @@
 # source column). Every x/y placement stays confidence D (estimated):
 # Figure 3-1 carries no dimensions. role: historical = the control or
 # display exists in the CM as modelled; proxy = stands in for different
-# CM hardware (one switch for several, or a pushbutton for a guarded switch).
+# CM hardware (one switch for several, or a pushbutton for a guarded switch:
+# CM POWER for the breakers and switches of Apollo 13's emergency power-down
+# and of its power-up for the entry, LM PWR for the switches that took the
+# LM's power through the umbilical).
 id,panel,type,label,x_mm,y_mm,rot_deg,channel,params,source,confidence,status,role
 P1_FDAI,MDC1,fdai,FDAI,-150,70,0,guid.indicator.attitude,scale=1.8,AOH SCS 2.3,D,implemented,historical
 P1_DV_THRUST_A,MDC1,toggle,DELTA-V THRUST A,40,170,0,ctl.sps.arm_a,guarded=true;labels=OFF|NORMAL,AOH SPS 2.4-37,D,implemented,historical
@@ -42,6 +45,8 @@ P3_FC1,MDC3,toggle,FC 1,-200,120,0,ctl.eps.fc1,,AOH §3,D,implemented,proxy
 P3_FC2,MDC3,toggle,FC 2,-130,120,0,ctl.eps.fc2,,AOH §3,D,implemented,proxy
 P3_FC3,MDC3,toggle,FC 3,-60,120,0,ctl.eps.fc3,,AOH §3,D,implemented,proxy
 P3_BATT_BUS,MDC3,toggle,BATT TO BUS,40,120,0,ctl.eps.batt_bus,,AOH §3,D,implemented,proxy
+P3_CM_POWER,MDC3,rotary,CM POWER,-200,-150,0,ctl.eps.cm_power,positions=3;labels=OFF|EMER|ALL;start_angle_deg=-45;detent_deg=45,estimated,D,implemented,proxy
+P3_LM_POWER,MDC3,toggle,LM PWR,-120,-150,0,ctl.eps.lm_power,labels=OFF|ON,estimated,D,implemented,proxy
 P3_MASTER_ALARM,MDC3,pushbutton,MASTER ALARM,200,180,0,ctl.cw.master_alarm,lamp_channel=sys.master_alarm;lamp_colour=ff2a1a,AOH C&W 2.10,D,implemented,historical
 P3_BUS_A_VOLTS,MDC3,numeric,MAIN BUS A V,-120,-40,0,eps.bus_a_v,format=%4.1f;blank_text=----,estimated,D,implemented,historical
 P3_BUS_B_VOLTS,MDC3,numeric,MAIN BUS B V,40,-40,0,eps.bus_b_v,format=%4.1f;blank_text=----,estimated,D,implemented,historical

@@ -5,6 +5,8 @@
 ##   stack   S-IVB + CSM + LM (parking orbit and TLI; the IU flies it)
 ##   csm_lm  CSM docked to the LM (after transposition and docking)
 ##   csm     CSM alone (after undocking or LM jettison)
+##   cm_lm   Command Module docked to the LM, the SM jettisoned (Apollo 13's
+##           last hours, the LM flying them)
 ##   cm      Command Module alone (after CM/SM separation)
 ## and the LM's, while it flies free of the CSM:
 ##   lm         the whole LM
@@ -19,7 +21,7 @@ class_name SpacecraftData
 extends RefCounted
 
 const PATH := "res://data/spacecraft.json"
-const CONFIGS := ["saturn_v", "stack", "csm_lm", "csm", "cm"]
+const CONFIGS := ["saturn_v", "stack", "csm_lm", "csm", "cm_lm", "cm"]
 const LM_CONFIGS := ["lm", "lm_ascent"]
 
 static var _data: Dictionary = {}
@@ -66,6 +68,8 @@ static func total_mass(cfg: String, sps_kg: float, sm_rcs_kg: float, cm_rcs_kg: 
 	var cm := float(m["cm_dry_kg"]) + cm_rcs_kg
 	if cfg == "cm":
 		return cm
+	if cfg == "cm_lm":
+		return cm + (lm_kg if lm_kg >= 0.0 else payload_mass())
 	var csm := cm + float(m["sm_dry_kg"]) + sm_rcs_kg + sps_kg
 	if cfg == "csm":
 		return csm
@@ -73,6 +77,16 @@ static func total_mass(cfg: String, sps_kg: float, sm_rcs_kg: float, cm_rcs_kg: 
 	if cfg == "csm_lm":
 		return csm_lm
 	return csm_lm + float(m["sivb_dry_kg"]) + sivb_kg
+
+
+## The Service Module is still attached in configuration [param cfg].
+static func sm_attached(cfg: String) -> bool:
+	return not cfg in ["cm", "cm_lm"]
+
+
+## The LM is docked in configuration [param cfg].
+static func lm_docked(cfg: String) -> bool:
+	return cfg in ["csm_lm", "cm_lm"]
 
 
 ## The mission carries an LM, in the S-IVB's adapter until transposition

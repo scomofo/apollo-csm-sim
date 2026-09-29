@@ -1614,9 +1614,10 @@ the pass, with `tools/render_voices.gd` to hear each voice on its own.
 
 ## 7. Other missions
 
-**Status: slice 7c done. Apollo 8, Apollo 10 and Apollo 12 fly from
+**Status: slice 7d done. Apollo 8, Apollo 10 and Apollo 12 fly from
 their data alone, from their parking orbits to their splashdowns, and
-Intrepid lands beside Surveyor III.** Each other
+Intrepid lands beside Surveyor III; Apollo 13 comes home from five
+minutes before its oxygen tank failed, Aquarius its lifeboat.** Each other
 mission is data under `data/missions/`, not a code branch: its ephemeris
 fit for its dates, its parking orbit and REFSMMATs, its landing site,
 Mission Control's timeline and its vehicles. What a mission needs that
@@ -1699,12 +1700,42 @@ Slice 7c brought, for the missions after Apollo 12:
   SLDEM2015.
 - **CI's seventh scenario part**, for the whole flight's six minutes.
 
+Slice 7d brought, for the missions after Apollo 13:
+
+- **The LM as a lifeboat.** Docked, the LM is dark until its crew powers
+  it up (LM PWR), on its batteries' ampere-hours (`src/systems/lm_eps.gd`).
+  Then the LGC runs with the PGNS's breakers in, its platform caged until
+  a coarse align onto the CM's through the docking geometry
+  (`Docking.lm_gimbals()`, V41N20 in either computer) and the ground's
+  REFSMMAT, and its DAP, P40 and P41 fly the stack on the LM's descent
+  engine and jets.
+- **The AGS**, as far as Apollo 13 flew with it: a body-axis align, an
+  attitude hold on the LM's jets with the guidance control switch at AGS,
+  and the ΔV along the LM's X axis on the DEDA. The descent engine starts
+  and stops by hand at the TTCA's throttle.
+- **The CM's power** at three levels (CM POWER: all, the emergency
+  power-down's, dark), the CMC's platform lost with it, and the LM's
+  power charging its entry batteries. The failed oxygen tank's partner
+  leaks away over the flown hours, and the last fuel cell stops.
+- **The SM jettisoned with the LM docked** (`cm_lm`), and LM JETT from
+  the CM on the tunnel's pressure.
+- **A start phase that is no flight phase** (`tank_failure`: the stack's
+  attitude, its tanks and its CMC's REFSMMAT as they were), and the
+  checklists opening on it.
+- **A return targeted from a flyby**: the free return's MCC and PC+2
+  solved for the flown return's inclination and entry interface time, a
+  PAD's throttle schedule with any number of steps, and a transearth
+  MCC's own tolerance. The docked alignment's misalignment, the flight's,
+  comes up with the LGC's REFSMMAT (schema 18).
+- **CI's seven scenario parts** take the lifeboat's flight, 139 s on the
+  runners, without an eighth.
+
 | Slice | Work | Check |
 |---|---|---|
 | 7a (done) Apollo 8 | No LM: the S-IVB carries a test article, and the CSM flies ten lunar orbits alone | Test: Apollo 8 flies from its data alone, parking orbit to splashdown, its Fidelity table within set limits of the flight |
 | 7b (done) Apollo 10 | The LM's descent to 8 nmi over the landing site, staging and the rendezvous, without a landing | Test: as 7a, for Apollo 10 |
 | 7c (done) Apollo 12 | A pinpoint landing beside Surveyor III, the landing site updated in P63 as the flown LGC's noun 69 did | Test: as 7a, and Intrepid lands within a set limit of the Surveyor |
-| 7d Apollo 13 | The service module's oxygen tank, the LM as a lifeboat and the free return | Test: as 7a, from the tank's failure to splashdown |
+| 7d (done) Apollo 13 | The service module's oxygen tank, the LM as a lifeboat and the free return | Test: as 7a, from the tank's failure to splashdown |
 
 Apollo 14 flies as 12 did; the J missions (15 to 17), with the rover and
 the SIM bay, are left for later.

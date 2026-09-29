@@ -3,8 +3,8 @@
 ## evaluate them, against JPL Horizons values held out of the fit
 ## (tests/fixtures/ephemeris_check.json). The slice asks for the Moon within
 ## 1 km and the Sun within 0.01°; the fit is far closer. Apollo 8's (slice
-## 7a), Apollo 10's (slice 7b) and Apollo 12's (slice 7c) are held to the
-## same, each against its own points
+## 7a), Apollo 10's (slice 7b), Apollo 12's (slice 7c) and Apollo 13's
+## (slice 7d) are held to the same, each against its own points
 ## (tests/fixtures/ephemeris_check_<mission>.json).
 extends GutTest
 
@@ -12,8 +12,10 @@ const PATH := "res://data/ephemeris/apollo_11.json"
 const CHECK := "res://tests/fixtures/ephemeris_check.json"
 ## The other missions' ephemerides, and the Julian date of each one's range
 ## zero: Apollo 8's 12:51:00 UTC on 21 December 1968, Apollo 10's 16:49:00
-## UTC on 18 May 1969, Apollo 12's 16:22:00 UTC on 14 November 1969.
-const OTHERS := {"apollo_8": 2440212.0354167, "apollo_10": 2440360.2006944, "apollo_12": 2440540.1819444}
+## UTC on 18 May 1969, Apollo 12's 16:22:00 UTC on 14 November 1969, Apollo
+## 13's 19:13:00 UTC on 11 April 1970.
+const OTHERS := {"apollo_8": 2440212.0354167, "apollo_10": 2440360.2006944, "apollo_12": 2440540.1819444,
+	"apollo_13": 2440688.3006944}
 ## Apollo 11's touchdown, 102:45:40 GET, and where.
 const T_LAND := 369940.0
 const SITE_LAT := 0.674
@@ -62,7 +64,7 @@ func test_the_moon_and_the_sun_match_jpl_away_from_the_fitted_points() -> void:
 	_assert_matches_jpl(eph, points)
 
 
-func test_apollo_8s_10s_and_12s_match_jpl_too() -> void:
+func test_apollo_8s_10s_12s_and_13s_match_jpl_too() -> void:
 	for id: String in OTHERS:
 		var e := Ephemeris.load_file("res://data/ephemeris/%s.json" % id)
 		var pts: Array = JSON.parse_string(FileAccess.get_file_as_string(

@@ -79,7 +79,11 @@ Storms, the landing site moved in powered descent by the ground's noun
 `lunar_descent` (Intrepid on its descent orbit, 20 min before PDI),
 `lunar_surface` (10 min after the landing), `lunar_ascent` (20 min before
 the liftoff, Yankee Clipper's first plane change flown), `tei`,
-`transearth_coast` and `entry`. Each mission is data under
+`transearth_coast` and `entry`. `-- --mission=apollo_13` flies Apollo
+13: the SM's oxygen tank fails at 55:54:53, and Aquarius, the LM, is the
+lifeboat that brings the crew home around the Moon. Its start phases are
+`parking_orbit` (the default), `translunar_coast` and `tank_failure`
+(five minutes before the failure). Each mission is data under
 `data/missions/<id>/`: its dates and the JPL ephemeris for them, its
 vehicles, its orbits, Mission Control's timeline, the call signs and the
 checklists.
@@ -275,6 +279,44 @@ with the ACA onto the crater, then take over with the ROD switch (P66)
 at a few hundred feet and fly to your spot. Intrepid's checklists follow
 its flight, with noun 69 in the powered descent's; Yankee Clipper's has
 the plane changes.
+
+**Apollo 13.** With `-- --mission=apollo_13` the flight is Apollo 13's,
+from its parking orbit, or with `-- --phase=tank_failure` from five
+minutes before the failure. TLI puts the stack on the free return, and
+MCC-2 (30:41, on the SPS) takes it onto the hybrid, 60 nmi over the Moon.
+At 55:54:53 the SM's oxygen tank 2 fails: the master alarm, MAIN B
+UNDERVOLT, fuel cells 1 and 3 lost, and tank 1 leaks its oxygen away
+while fuel cell 2 carries the CSM, until about 58:15. The timeline's
+calls and PADs come at the flown times:
+- the emergency power-down (56:16): CM POWER to EMER;
+- into the LM (57:41): LM PWR on, its LGC MODE in FREE while the CMC's
+  DAP still holds the stack, and the CMC's gimbal angles (57:48) for the
+  LGC's coarse align through the docking (V41N20): the CM's inner plus
+  180°, and its middle's negative;
+- the CSM powered down (58:37): CM POWER OFF, LGC MODE HOLD, and the
+  LGC's REFSMMAT, the CMC's carried across (58:44);
+- the free return (61:30) and PC+2 (79:28) on the descent engine, P40
+  flying the docked stack, PC+2 5 s at the minimum, 21 s at 40 % and then
+  full;
+- the PGNS off to save the LM's power (82:03); MCC-5 read up by voice
+  (104:34) and flown by hand on the AGS at 105:18:28: point +X along the
+  burn on the ACA, AGS ALIGN, ullage on the jets, ENGINE START at the
+  TTCA's minimum throttle and ENGINE STOP on the DEDA's count;
+- the LM charging the CM's entry batteries from 112 hours: LM PWR on the
+  CM's panel;
+- the PGNS up again for the ground's coarse align angles and REFSMMAT
+  (134:40, 135:04), and MCC-7 on the LM's jets in P41 (137:40);
+- SM SEP (138:02) with the AGS holding: 0.5 ft/s +X on the jets, CM/SM
+  SEP, 0.5 ft/s back;
+- the CM's coarse align angles (139:52), its power-up (140:10), state
+  vector (140:24) and REFSMMAT (140:45), and a P52; LM JETT (141:30), the
+  docking tunnel's pressure pushing Aquarius off; the entry PAD (141:48)
+  and the final state vector (142:01).
+
+Aquarius's checklists follow the lifeboat's flight: its activation and
+the docked alignment, the descent engine's burns docked, MCC-5 on the
+AGS, and the PGNS again for MCC-7 and SM SEP. Odyssey's open on the
+failure at `tank_failure`, and on the power-up and entry after the Moon.
 
 **State vectors.** The CMC flies on its own state vector. Its
 accelerometers feed it only in P40, P41, P47 and entry, and during TLI. In
@@ -693,7 +735,7 @@ A flown Apollo 11 profile in the simulator reproduces these values:
 | TPI | 26.2 ft/s, 2 h 31 min 57 s after insertion, 2 min 38 s before the plan's time | ~25 ft/s, 2 h 34 min 35 s after insertion, 6 min 39 s after the plan's |
 | Midcourse corrections | 2.6 and 0.4 ft/s | under 1 and about 1.5 ft/s |
 | Braking, then station-keeping | 15 min 44 s, station-keeping 46 min after TPI | 15 min 8 s, station-keeping 48 min after TPI |
-| Docking | GET 127:51:53, 50 min after TPI | 128:03:00, 59 min after TPI |
+| Docking | GET 127:51:29, 50 min after TPI | 128:03:00, 59 min after TPI |
 | Entry interface | 195:03:05, 36,194 ft/s, 6.53° down, 3.23° S 171.88° E | 195:03:05.7, 36,194 ft/s, 6.48° down, 3.19° S 171.96° E |
 | Entry: 0.05 g, and the two peak loads | 195:03:34; 6.5 and 6.1 g | about 195:03:34; 6.5 and 6.0 g |
 | Drogues | 195:12:39 | 195:12:07 |
@@ -751,12 +793,12 @@ and the Apollo Flight Journal:
 | CSI | 103:44:24, 39.0 ft/s; 45.9 × 40.4 nmi | 103:45:55, 45.3 ft/s; 48.7 × 40.7 nmi |
 | CDH | 104:42:14, 6.1 ft/s, 17.6 nmi below Charlie Brown | 104:43:53, 3.0 ft/s, 15.0 nmi |
 | TPI, and the midcourse corrections | 105:12:45, 28.6 ft/s; 7.6 ft/s | 105:22:56, 24.1 ft/s; two small ones |
-| Docking | 106:04:06, the LM's RCS having given 126 ft/s from CSI | 106:22:02 |
-| TEI | 137:36:28, N81 +3,621.0, +137.9, −374.2; 3,643 ft/s in 174.0 s | 137:36:29, N81 +3,625.2, +40.0, +188.0; 3,630 ft/s in 164.8 s |
-| Transearth midcourse corrections | MCC-6 13.0 ft/s, MCC-7 4.7 ft/s | MCC-6 not flown, MCC-7 2.2 ft/s |
-| Entry interface | 191:48:55, 36,307 ft/s, 6.65° down, 23.57° S 174.07° E | 191:48:55, 36,314 ft/s, 6.54° down, 23.60° S 174.39° E |
-| The entry | P61 to P64, then P67; 7.13 g at the peak | P61 to P67; 6.78 g |
-| Splashdown | 192:04:14, 15.07° S 164.70° W, 1.9 nmi from the target | 192:03:23, 15.06° S 164.65° W, 1.3 nmi from it |
+| Docking | 106:03:56, the LM's RCS having given 124 ft/s from CSI | 106:22:02 |
+| TEI | 137:36:28, N81 +3,620.9, +137.9, −375.8; 3,643 ft/s in 174.0 s | 137:36:29, N81 +3,625.2, +40.0, +188.0; 3,630 ft/s in 164.8 s |
+| Transearth midcourse corrections | MCC-6 12.1 ft/s, MCC-7 5.1 ft/s | MCC-6 not flown, MCC-7 2.2 ft/s |
+| Entry interface | 191:49:01, 36,306 ft/s, 6.66° down, 23.58° S 174.02° E | 191:48:55, 36,314 ft/s, 6.54° down, 23.60° S 174.39° E |
+| The entry | P61 to P65, then P67; 7.12 g at the peak | P61 to P67; 6.78 g |
+| Splashdown | 192:04:26, 15.08° S 164.69° W, 1.2 nmi from the target | 192:03:23, 15.06° S 164.65° W, 1.3 nmi from it |
 
 Here too the report's figures don't all agree, and the table takes these:
 - Its TEI gave 3,680.3 ft/s by Table 6-V and 3,630.2 ft/s by the SPS's
@@ -792,13 +834,13 @@ the Apollo Flight Journal and the Apollo Lunar Surface Journal:
 | CSI | 142:58:30, 46.8 ft/s; 44.7 × 42.6 nmi | 143:01:51, 45.0 ft/s; 51.0 × 41.5 nmi |
 | CDH | 143:56:24, 5.5 ft/s, 16.7 nmi below Yankee Clipper | 144:00:03, 13.8 ft/s |
 | TPI, and the midcourse corrections | 144:40:28, 28.2 ft/s; 4.0 ft/s | 144:36:26, 29.0 ft/s |
-| Docking | 145:31:33, the LM's RCS having given 129 ft/s from CSI | 145:36:20 |
-| The second plane change | 159:04:44, 381.2 ft/s in 22.0 s; 63.0 × 56.8 nmi | 159:04:46, 381.8 ft/s in 19.2 s; 64.7 × 56.8 nmi |
-| TEI | 172:22:50, N81 +3,040.4, −89.2, 0.0; 3,042 ft/s in 138.0 s; entry interface after it at 244:21:06 | 172:27:17, N81 +3,027.2, +302.1, −25.3; 3,042 ft/s in 130.3 s; 244:22:19 |
+| Docking | 145:31:39, the LM's RCS having given 124 ft/s from CSI | 145:36:20 |
+| The second plane change | 159:04:44, 381.2 ft/s in 22.0 s; 62.9 × 56.8 nmi | 159:04:46, 381.8 ft/s in 19.2 s; 64.7 × 56.8 nmi |
+| TEI | 172:22:48, N81 +3,040.4, −89.1, 0.0; 3,042 ft/s in 138.0 s; entry interface after it at 244:21:07 | 172:27:17, N81 +3,027.2, +302.1, −25.3; 3,042 ft/s in 130.3 s; 244:22:19 |
 | Transearth midcourse corrections | MCC-5 3.8 ft/s, MCC-7 none | MCC-5 2.0 ft/s, MCC-7 2.4 ft/s |
-| Entry interface | 244:18:31, 36,115 ft/s, 6.54° down, 15.55° S 174.17° E | 244:22:19, 36,116 ft/s, 6.48° down, 13.80° S 173.52° E |
-| The entry | P61 to P64, then P67; 6.69 g at the peak | P61 to P67; 6.1 g on the PAD |
-| Splashdown | 244:33:25, 15.81° S 165.17° W, 0.2 nmi from the target | 244:36:25, 15.78° S 165.15° W, within 2 miles of it |
+| Entry interface | 244:18:33, 36,114 ft/s, 6.55° down, 15.55° S 174.14° E | 244:22:19, 36,116 ft/s, 6.48° down, 13.80° S 173.52° E |
+| The entry | P61 to P64, then P67; 6.70 g at the peak | P61 to P67; 6.1 g on the PAD |
+| Splashdown | 244:33:26, 15.80° S 165.17° W, 0.4 nmi from the target | 244:36:25, 15.78° S 165.15° W, within 2 miles of it |
 
 The table takes these from the flight's figures:
 - TLI's 10,515 ft/s is the J-2's (MSC-01855, Table 5-IV), which the
@@ -810,6 +852,47 @@ The table takes these from the flight's figures:
 - Where Intrepid came down is LROC's (Wagner et al., 2017), 157 m (515
   ft) northwest of the Surveyor where LROC has it; the mission report's
   535 ft is the 1969 survey's.
+
+Apollo 13 flown from its data alone, from five minutes before the oxygen
+tank failed to the splashdown (`tests/scenarios/test_apollo_13.gd`,
+which holds each row within set limits of the flight's figures), against
+the Apollo 13 Mission Report (MSC-02680) and its guidance supplement, the
+Mission Operations Report and the Apollo Flight Journal:
+
+| Quantity | Simulator | Apollo 13 |
+|---|---|---|
+| The hybrid at the incident | pericynthion 60.0 nmi at 77:28:39 | 63 nmi at 77:28:39 (the PAD's 60) |
+| The oxygen tank | tank 2 fails at 55:54:53; fuel cell 2 carries the CSM until 58:14:25 | 55:54:53; 58:15:11 |
+| The docked coarse align | the CM's N20 355.58, 167.77, 351.88; the LM's V41N20 184.42, 347.77, 8.12 | 355.57, 167.78, 351.87; 302.43, 347.78, 8.13 |
+| The CSM powered down | 58:40:11, 96 A-h in the entry batteries | 58:40, 99 A-h |
+| MCC-2, back to a free return | 61:29:42, N81 −20.1, +3.6, −30.6; 36.8 ft/s in 31.0 s on the DPS; then 137.4 nmi at 77:21:54 | 61:29:43, N81 −21.3, +4.1, −31.2; 37.8 ft/s in 34.2 s; then 136 nmi at 77:20:57 |
+| PC+2 | 79:27:38, N81 +814.2, −32.6, −222.7; 844.7 ft/s in 255.0 s on the DPS; 95,692 to 87,916 lb; the LM's middle and inner gimbals 329.5, 354.1 | 79:27:39, N81 +833.0, −50.9, −213.9; 860.5 ft/s in 263.8 s; 95,424 to 87,456 lb; 330.0, 355.0 |
+| The return after PC+2 | no entry: vacuum perigee 83.8 nmi | no entry: 80.6 nmi |
+| MCC-5, by hand on the AGS | the PAD's 7.3 ft/s; the engine on at 105:18:28 for 14.9 s at 10 %; the DEDA 7.0, trimmed to 7.3; the entry 6.44° down | 7.8 ft/s; 105:18:28, 14 s; 7.4, trimmed to 7.6; 6.52° |
+| MCC-7, on the LM's jets | 137:39:48, 1.0 ft/s in 7.0 s; the entry 6.46° down | 137:39:52, 3.0 ft/s in 21.5 s; 6.26° |
+| SM SEP | 138:01:44; the CM and LM 37,581 lb | 138:01:48; 37,110 lb |
+| The CM's power-up | 120 A-h in the entry batteries; P52 on stars 2 and 43, 0.005° of star angle difference | 118 A-h; stars 36 and 40, 0.00 |
+| Aquarius at LM JETT | 459 A-h left; 10,289 lb in the descent stage, 8,145 lb of it used; 142 lb of the jets' propellant used | 410 A-h; 10,091.6 lb, 8,342.9 used; 467 lb |
+| LM JETT | 141:29:56; the CM pushed back 1.91 ft/s, 12,367.7 lb | 141:30:00; 1.88 ft/s, 12,367.6 lb |
+| Entry interface | 142:41:45, 36,199 ft/s, 6.33° down | 142:40:46, 36,210.6 ft/s, 6.27° down |
+| The entry | P61 to P64, then P67; 5.69 g at the peak | P61 to P67; 5.2 g on the PAD |
+| Splashdown | 142:56:43, 21.67° S 165.36° W, 0.9 nmi from the target; 38 A-h left in the entry batteries | 142:54:41, 21.64° S 165.36° W, about a mile from it; 29 A-h |
+
+The table takes these from the flight's figures:
+- The docked coarse align's outer gimbal: Aquarius's crew added their
+  docking ring's roll calibration (the Apollo Flight Journal, 058:03);
+  the simulator's LM docks at its nominal index, 118° round from
+  Aquarius's. The inner and middle gimbals, which the index leaves alone,
+  are the flight's.
+- PC+2's platform error is the guidance supplement's: the docked
+  alignment 0.351° off, which it found from the burn's 5.27 ft/s error,
+  taken whole at the alignment. It leaves the return missing the
+  atmosphere, as the flight's did.
+- PC+2's PAD is the simulator's RTCC's, solved for the flown return's
+  entry interface time and inclination from the simulator's trajectory:
+  17 ft/s less than the flight's PAD.
+- The simulator's MCC-5 leaves the entry 0.08° shallower than the
+  flight's, and MCC-7 has less to do.
 
 Deliberate simplifications are tagged `[simplified]` in the code. The main
 ones:
@@ -1052,6 +1135,30 @@ ones:
     Intrepid came down on; Conrad flew over the crater and back.
   - There is no launch for Apollo 12 yet: its start phases begin in the
     parking orbit.
+- **Apollo 13.**
+  - The LM docks at its nominal roll index. Aquarius's docking ring's
+    calibration is not modelled, and the LGC's outer gimbal angle at the
+    docked alignment is 118° from Aquarius's.
+  - The oxygen tank's failure is its effect on the power: the vent's
+    push on the stack, which the ground's tracking saw, is left out, and
+    so are the cabin's carbon dioxide (the crew's adapted scrubbers), its
+    cold and its water.
+  - The stack holds its attitude through the coasts, without passive
+    thermal control, and the LM's jets use a third of the flight's
+    propellant.
+  - The stack weighs from the incident on what the mission report has it
+    weigh: the SM's dry mass takes the SPS's load then, and leaves out
+    the oxygen the incident lost.
+  - The LM's batteries are one store of ampere-hours with a load for each
+    state the crew put it in; the CM's entry batteries charge at a fixed
+    current from the LM.
+  - The AGS holds an attitude and counts the ΔV along the LM's X axis:
+    none of its guidance. The ground's docked alignment, its fine align
+    torquing and its REFSMMAT, comes up at once, and the PGNS comes back
+    at 133:30 on the ground's angles, without the crew's Sun and Moon
+    P52.
+  - There is no launch for Apollo 13 yet: its start phases begin in the
+    parking orbit.
 
 ## Tests
 
@@ -1106,7 +1213,8 @@ The unit tests cover:
   over Tranquility Base at touchdown (the mission report has 10.8°), the
   Moon's pole 6.6° from its orbit's normal, a sidereal month of 27.32
   days, and the mission choosing the model; Apollo 8's (slice 7a),
-  Apollo 10's (slice 7b) and Apollo 12's (slice 7c) against their own
+  Apollo 10's (slice 7b), Apollo 12's (slice 7c) and Apollo 13's (slice
+  7d) against their own
   held-out values, as close
 - The missions (`tests/unit/test_missions.gd`), slice 7a: each under
   `data/missions/` flies its own world and vehicles, Apollo 8's stack
@@ -1128,7 +1236,22 @@ The unit tests cover:
   10,749.6 lb at lift-off; its checklists, with noun 69 in the powered
   descent's; from `lunar_descent` the LGC's state vector 4,400 ft off
   along the track at PDI, as the PDI PAD brought it before the start; and
-  from `lunar_ascent` Yankee Clipper's orbit over Intrepid at the liftoff
+  from `lunar_ascent` Yankee Clipper's orbit over Intrepid at the liftoff.
+  Slice 7d: Apollo 13's stack 96,038.7 lb from the incident, Aquarius
+  33,499.1 lb and the CM 12,367.6 lb for the entry; its checklists,
+  opening on the failure at `tank_failure`, every one of Aquarius's steps
+  checking itself off
+- The lifeboat (`tests/unit/test_lifeboat.gd`), slice 7d: docked, the LM
+  dark until its crew powers it up, then 30 A on its batteries with the
+  PGNS up and 12 A powered down; the docked LGC's platform caged until a
+  coarse align onto the CM's through the docking, as Apollo 13's crew
+  worked the angles out; the LM's descent engine, started by hand, and
+  its jets flying the stack; the AGS holding it and counting its ΔV; the
+  CM powered down to its emergency load and dark, and charging its entry
+  batteries from the LM; tank 1 leaking away 2 h 20 min after tank 2
+  fails; LM JETT from the CM pushing it back; a misaligned platform, the
+  DAP's hold after a burn's program, the PC+2 throttle schedule, and a
+  checkpoint that keeps it all
 - The terrain: Tranquility Base 1,927 m below the reference sphere, West
   crater 30 m deep east of the LM, and the maps blending without steps;
   Surveyor III 1,432 m below it on its crater's slope, and Intrepid's
@@ -1517,6 +1640,16 @@ The scenario tests fly real segments through the crew interface:
   the rendezvous; LM JETT, the second plane change, TEI, the transearth
   corrections, a P52 and the entry on P61 to P67. Each row of Apollo 12's
   Fidelity table (above) is held within limits of the flight's figures
+- Apollo 13 (`tests/scenarios/test_apollo_13.gd`), slice 7d's check. It
+  flies from its data alone, from five minutes before the oxygen tank
+  failed to the splashdown: the failure and the power-down, Aquarius
+  powered up and coarse aligned to the CM's platform, the CSM dark; the
+  free return and PC+2 on the descent engine, P40 flying the docked
+  stack, PC+2 missing the atmosphere with the flight's platform error;
+  MCC-5 by hand on the AGS; the LM charging the entry batteries; the
+  PGNS again for MCC-7 on the LM's jets; SM SEP, the CM's power-up and
+  alignment, LM JETT and the entry on P61 to P67. Each row of Apollo 13's
+  Fidelity table (above) is held within limits of the flight's figures
 
 `tools/screenshot.tscn` renders the images above (`--view=0` window,
 `1` chase, `2` cabin; `--hud=0` leaves the HUD out, `--menu=1` shows the
@@ -1581,4 +1714,7 @@ landing's site, staged in orbit, and back to Charlie Brown by the
 landing mission's rendezvous. So does Apollo 12 (slice 7c): Intrepid
 lands beside Surveyor III, its landing site moved in powered descent by
 the ground's noun 69, and its commander redesignating onto the crater.
-Apollo 13 comes next (7d).
+And Apollo 13 (slice 7d) comes home after its oxygen tank failed, from
+five minutes before the failure to its splashdown, Aquarius its lifeboat.
+Apollo 14 flies as 12 did; the J missions, with the rover and the SIM
+bay, are left for later.

@@ -24,6 +24,18 @@ static func params() -> Dictionary:
 	return SpacecraftData.section("docking")
 
 
+## The docked LM's gimbal angles (outer, inner, middle; deg) for a platform
+## lying where the CSM's does, from the CSM's ICDU angles [param cm_deg]:
+## the docked alignment's coarse align (V41N20 in the LGC), through the
+## docking geometry (LM_IN_CSM). Apollo 13's crew worked them out by hand
+## from Odyssey's N20 with the docking ring's roll calibration: 300 deg less
+## the CM's outer, plus the calibration; its inner plus 180; its middle's
+## negative (the Apollo Flight Journal, 058:03-058:04) [published]; the LM
+## here docks at its nominal index, 180 deg about Z [estimated].
+static func lm_gimbals(cm_deg: Vector3) -> Vector3:
+	return Imu.gimbal_angles(Imu.gimbal_basis(cm_deg) * Basis(LM_IN_CSM))
+
+
 ## The LM's docking port's distance from its centre of mass along +X, m,
 ## for its configuration [param cfg] ("lm" or "lm_ascent").
 static func lm_port_m(cfg: String) -> float:

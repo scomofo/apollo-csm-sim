@@ -24,7 +24,11 @@
 ## An ideal IMU (the LGC's [simplified: its alignments, P52 with the AOT
 ## and P57, are left for later]) has REFSMMAT the ECI frame, never drifts
 ## and never loses its alignment; its GIMBAL LOCK lamp lights past
-## IDEAL_LAMP_DEG.
+## IDEAL_LAMP_DEG. Powered up docked, as Apollo 13's lifeboat, the LGC's is
+## a real one, caged until the crew coarse aligns it.
+##
+## Without power the platform's orientation is lost: the IMU comes back
+## caged (cage()), NO ATT lit, until a coarse align.
 class_name Imu
 extends RefCounted
 
@@ -89,6 +93,14 @@ func align(m: Basis) -> void:
 	aligned = true
 	mode = "operate"
 	coarse_left = 0.0
+
+
+## REFSMMAT at [param m] and the platform turned from it by [param eps]
+## (rad, about the stable member's axes): an alignment that leaves a burn
+## flown on it off by eps x its ΔV (Apollo 13's LM's at PC+2).
+func misalign(m: Basis, eps: Vector3) -> void:
+	align(m)
+	_set_platform(rotation(eps) * m)
 
 
 ## The platform set to [param b], where it drifts on from.
@@ -221,6 +233,17 @@ func coarse_align(target: Basis, body: Basis) -> void:
 	coarse_left = COARSE_SETTLE_S + d / COARSE_RATE_DEG_S
 
 
+## Cage the IMU where its gimbals are, with the vehicle at [param body]
+## (body to ECI): its orientation is no longer known.
+func cage(body: Basis) -> void:
+	if ideal:
+		return
+	mode = "caged"
+	coarse_target = gimbals(body)
+	coarse_left = 0.0
+	aligned = false
+
+
 ## Torque the gyros through [param angles] (rad about the stable member's
 ## axes): a fine align.
 func torque(angles: Vector3) -> void:
@@ -281,12 +304,14 @@ func snapshot() -> Dictionary:
 		"refsmmat": rows_of(refsmmat), "platform": rows_of(_platform0), "drift_t": _drift_t, "aligned": aligned,
 		"drift": [drift.x, drift.y, drift.z], "coarse_sigma_deg": coarse_sigma_deg, "mode": mode,
 		"coarse_target": rows_of(coarse_target), "coarse_left": coarse_left, "rng_state": str(_rng.state),
+		"ideal": ideal,
 	}
 
 
 func restore(d: Dictionary) -> void:
 	if d.is_empty():
 		return
+	ideal = bool(d.get("ideal", ideal))
 	refsmmat = from_rows(d["refsmmat"])
 	var a: Array = d["drift"]
 	drift = Vector3(a[0], a[1], a[2])

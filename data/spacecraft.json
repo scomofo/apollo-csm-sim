@@ -138,11 +138,21 @@
     "mark_range_rate_weight": 0.5,
     "tpm_lead_s": 300.0
   },
+  "lm_eps": {
+    "_source": "The LM's batteries and load (src/systems/lm_eps.gd): the descent stage's four batteries' 1,600 A-h and the ascent stage's two's 592 A-h [published: MSC-02680, section 6.2]; its load powered down, 12 A, and powered up with the PGNS, 30 A at 900 W, Apollo 13's (ibid., sections 6.2 and 7.2.5) [published], the PGNS's the difference [derived]; the AGS's [estimated]",
+    "battery_ah": 2192.0,
+    "base_a": 12.0,
+    "pgns_a": 18.0,
+    "ags_a": 2.0,
+    "bus_v": 30.0
+  },
   "configurations": {
     "saturn_v": {"inertia": [2.0e6, 5.0e8, 5.0e8], "ref_mass_kg": 2899008.0, "rcs_pitch_arm_m": 0.0, "rcs_roll_arm_m": 0.0},
     "stack":  {"inertia": [60000.0, 5000000.0, 5000000.0], "ref_mass_kg": 140000.0, "rcs_pitch_arm_m": 0.0, "rcs_roll_arm_m": 0.0},
     "csm_lm": {"inertia": [45000.0, 900000.0, 900000.0], "ref_mass_kg": 44000.0, "rcs_pitch_arm_m": 5.0, "rcs_roll_arm_m": 1.95},
     "csm":    {"inertia": [22000.0, 95000.0, 95000.0], "ref_mass_kg": 28800.0, "rcs_pitch_arm_m": 3.2, "rcs_roll_arm_m": 1.95},
+    "cm_lm":  {"inertia": [32605.0, 125303.0, 127189.0], "ref_mass_kg": 16833.0, "rcs_pitch_arm_m": 1.6, "rcs_roll_arm_m": 1.4,
+      "_source": "Apollo 13's command module and LM after the SM's jettison: 37,109.7 lb, 24,048, 92,418 and 93,809 slug ft2 about their X, Y and Z axes (MSC-02680, Table A-I) [published]; the CM's jets' arms [estimated: the CM's own]"},
     "cm":     {"inertia": [6000.0, 5500.0, 5500.0], "ref_mass_kg": 5560.0, "rcs_pitch_arm_m": 1.6, "rcs_roll_arm_m": 1.4},
     "lm":     {"inertia": [33000.0, 42000.0, 42000.0], "ref_mass_kg": 15103.0},
     "lm_ascent": {"inertia": [7000.0, 5000.0, 5000.0], "ref_mass_kg": 4821.0}
@@ -158,7 +168,7 @@
     "coarse_align_deg": 0.2
   },
   "docking": {
-    "_source": "Probe-and-drogue docking [estimated throughout]: each docking port's distance from its vehicle's centre of mass along +X (the LM's, whole and as its ascent stage), the probe's push apart at undocking, the capture limits (closing speed, lateral speed, lateral miss, misalignment, relative rate), the radius within which the probe strikes the LM, and the rebound of a contact without capture",
+    "_source": "Probe-and-drogue docking [estimated throughout]: each docking port's distance from its vehicle's centre of mass along +X (the LM's, whole and as its ascent stage), the probe's push apart at undocking, the capture limits (closing speed, lateral speed, lateral miss, misalignment, relative rate), the radius within which the probe strikes the LM, and the rebound of a contact without capture. The docking tunnel's push at LM JETT from the CM: Apollo 13's command module, 12,367.6 lb after it, sensed 1.54, 0.42 and 1.00 ft/s in its axes, 1.88 ft/s (MSC-02680, section 6.4.1 and Table A-I) [published], the impulse that gives it along the docking axis [derived]",
     "csm_port_m": 5.5,
     "lm_port_m": 3.4,
     "lm_ascent_port_m": 1.5,
@@ -169,7 +179,8 @@
     "misalign_max_deg": 10.0,
     "rate_max_dps": 1.0,
     "strike_radius_m": 1.2,
-    "restitution": 0.5
+    "restitution": 0.5,
+    "tunnel_impulse_ns": 3215.0
   },
   "cm_aero": {
     "_source": "Hypersonic trim CD ~1.29, L/D ~0.30 on 3.91 m diameter [published, rounded]. The entry DAP's roll: at most 20 deg/s, the CM's roll acceleration on two jets 9.1 deg/s^2 (Comanche 055's CM entry DAP constants VM and A) [published]",

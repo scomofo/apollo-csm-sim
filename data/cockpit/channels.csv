@@ -26,6 +26,8 @@ ctl.eps.fc1,bool,,crew,Fuel cell 1 on the main buses
 ctl.eps.fc2,bool,,crew,Fuel cell 2 on the main buses
 ctl.eps.fc3,bool,,crew,Fuel cell 3 on the main buses
 ctl.eps.batt_bus,bool,,crew,Entry batteries tied to the main buses
+ctl.eps.cm_power,int,,crew,CM POWER: how much of the CM is powered: 0 OFF (dark) 1 EMER (the emergency power-down's loads) 2 ALL
+ctl.eps.lm_power,bool,,crew,LM PWR: the CM takes the docked LM's power through the umbilical (it charges the entry batteries)
 ctl.els.logic,bool,,crew,ELS LOGIC
 ctl.els.auto,bool,,crew,ELS AUTO
 ctl.els.drogue,bool,,crew,Drogue deploy command (momentary)
@@ -66,9 +68,17 @@ ctl.lm.eng_stop,bool,,crew,ENGINE STOP pushbutton (momentary)
 ctl.lm.rcs.sys_a,bool,,crew,LM RCS system A open
 ctl.lm.rcs.sys_b,bool,,crew,LM RCS system B open
 ctl.lm.rod,int,,crew,Rate of descent switch: +1 up (1 ft/s less descent) or -1 down (momentary)
+ctl.lm.power,bool,,crew,LM PWR: the LM's batteries on its buses while docked (its activation)
+ctl.lm.pgns,bool,,crew,PGNS: the LGC's and its IMU's breakers in
+ctl.lm.ags,bool,,crew,AGS: the abort guidance system powered
+ctl.lm.ags_align,bool,,crew,AGS ALIGN: the AGS's body-axis align (the DEDA's 400+5 then 400+0; momentary)
+ctl.lm.guid_cont,int,,crew,GUID CONT: 0 PGNS or 1 AGS flies the LM
 lm.guid.indicator.attitude,quat,,lgc,Eagle's FDAI attitude: body relative to LVLH
 lm.contact_light,bool,,dynamics,LUNAR CONTACT: a landing probe touches the surface
 lm.dps.throttle_pct,float,%,dps,Descent engine thrust
+lm.ags.dv_x_mps,float,m/s,ags,The AGS's ΔV along the LM's X axis since its body-axis align (the DEDA's address 470)
+lm.ags.on,bool,,ags,The AGS is running
+lm.eps.batt_ah,float,A-h,lm_eps,The LM's batteries' charge
 lm.rr.range_m,float,m,rr,Rendezvous radar range to Columbia
 lm.rr.range_rate_mps,float,m/s,rr,Rendezvous radar range rate (positive opening)
 lm.rr.data_good,bool,,rr,Rendezvous radar has Columbia
