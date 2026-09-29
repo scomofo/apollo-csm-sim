@@ -304,6 +304,8 @@ func _switch_panel() -> PanelContainer:
 	_toggle(g, "FC 2", "ctl.eps.fc2")
 	_toggle(g, "FC 3", "ctl.eps.fc3")
 	_toggle(g, "BATT TO BUS", "ctl.eps.batt_bus")
+	_option(g, "CM POWER", "ctl.eps.cm_power", ["OFF", "EMER", "ALL"])
+	_toggle(g, "LM PWR", "ctl.eps.lm_power")
 	_toggle(g, "ELS LOGIC", "ctl.els.logic")
 	_toggle(g, "ELS AUTO", "ctl.els.auto")
 	_momentary(g, "DROGUE", "ctl.els.drogue")
@@ -339,7 +341,8 @@ func _momentary(parent: Node, text: String, ch: String, on: Variant = true,
 
 
 ## Eagle's switches: the LGC's mode, the engines, staging, the RCS and the
-## ROD switch.
+## ROD switch; the LM's power, its PGNS and AGS, the AGS's body-axis align
+## and the guidance control switch (Apollo 13's lifeboat).
 func _lm_switch_panel() -> PanelContainer:
 	var p := PanelContainer.new()
 	_style(p)
@@ -357,6 +360,12 @@ func _lm_switch_panel() -> PanelContainer:
 	g.add_child(Control.new())
 	_momentary(g, "ROD UP", "ctl.lm.rod", 1, 0)
 	_momentary(g, "ROD DOWN", "ctl.lm.rod", -1, 0)
+	g.add_child(Control.new())
+	_toggle(g, "LM PWR", "ctl.lm.power")
+	_toggle(g, "PGNS", "ctl.lm.pgns")
+	_toggle(g, "AGS", "ctl.lm.ags")
+	_option(g, "GUID CONT", "ctl.lm.guid_cont", ["PGNS", "AGS"])
+	_momentary(g, "AGS ALIGN", "ctl.lm.ags_align")
 	return p
 
 

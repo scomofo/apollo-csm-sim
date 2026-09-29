@@ -33,12 +33,14 @@
 ##
 ## Mission: the exported mission_id, or "--mission=<id>" after "--" on the
 ## command line, a mission under data/missions/ (apollo_11, apollo_8,
-## apollo_10, apollo_12), with its own checklists.
+## apollo_10, apollo_12, apollo_13), with its own checklists.
 ##
 ## Start phase: the exported start_phase, or "--phase=<name>" after "--" on
 ## the command line (launch, parking_orbit, translunar_coast, lunar_orbit,
 ## lunar_descent, lunar_surface, lunar_ascent, tei, transearth_coast,
-## entry: the mission's start_phases). The LM's phases start in the LM.
+## entry: the mission's start_phases; Apollo 13's tank_failure, minutes
+## before its oxygen tank failed, opens its checklists for the failure). The
+## LM's phases start in the LM.
 ## "--o2-failure-in=<s>" fails the SM's oxygen tank 2 that many seconds
 ## after the start, as Apollo 13's did: its fuel cells' lights sound the
 ## master alarm (the listening pass's, docs/LISTENING_PASS.md).
@@ -155,8 +157,11 @@ func _ready() -> void:
 	hud.name = "Hud"
 	add_child(hud)
 	hud.setup(rt, book, lm_book)
-	# Both vehicles' checklists open for the phase the flight starts in.
+	# Both vehicles' checklists open for the phase the flight starts in, or
+	# the start phase that is none (Apollo 13's tank_failure).
 	var phase := str(Bus.get_value("mission.phase", start_phase))
+	if start_phase in MissionSequencer.START_ONLY:
+		phase = start_phase
 	book.select_for_phase(phase)
 	lm_book.select_for_phase(phase)
 	# In a headset the thumbsticks fly the hand controllers too.

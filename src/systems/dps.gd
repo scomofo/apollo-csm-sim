@@ -1,20 +1,24 @@
 ## Descent Propulsion System: the LM descent stage's throttleable engine.
 ##
-## The engine fires only while the LM flies free with its descent stage,
-## the ENGINE ARM switch is at DES, propellant remains, ENGINE STOP isn't
-## pressed, and the LGC commands it (lm.guid.dps_on) or the crew started it
+## The engine fires only while the LM's buses are powered with its
+## descent stage on (flying free, or docked once its crew has powered it
+## up, when it pushes the stack), the ENGINE ARM switch is at DES,
+## propellant remains, ENGINE STOP isn't pressed, and the LGC commands it
+## (lm.guid.dps_on, with the PGNS in control) or the crew started it
 ## (ENGINE START, which holds until ENGINE STOP or disarming). The LGC sets
-## the throttle (lm.guid.dps_throttle, a fraction of full thrust): the
-## engine throttles between throttle_min and throttle_max, and a command
-## above that range runs it at full thrust [simplified: the real engine's
-## full-throttle position was 92.5 % of its rated thrust]. Thrust follows
-## first-order start, throttle and shutdown transients. [simplified: no
-## manual throttle or gimbal trim; the thrust acts through the centre of
-## mass.]
+## the throttle (lm.guid.dps_throttle, a fraction of full thrust); started
+## by hand, the TTCA's throttle does (ctl.lm.throttle; its minimum, as
+## Apollo 13's manual burn had it). The engine throttles between
+## throttle_min and throttle_max, and a command above that range runs it
+## at full thrust [simplified: the real engine's full-throttle position was
+## 92.5 % of its rated thrust]. Thrust follows first-order start, throttle
+## and shutdown transients. [simplified: no gimbal trim; the thrust acts
+## through the centre of mass.]
 ##
 ## Reads:  ctl.lm.engine_arm (0 OFF, 1 ASC, 2 DES), ctl.lm.eng_start,
-##         ctl.lm.eng_stop, lm.guid.dps_on, lm.guid.dps_throttle,
-##         lm.sys.powered, lm.dyn.config, dock.state
+##         ctl.lm.eng_stop, ctl.lm.throttle, ctl.lm.guid_cont,
+##         lm.guid.dps_on, lm.guid.dps_throttle, lm.sys.powered,
+##         lm.dyn.config, dock.state
 ## Writes: lm.dps.thrust_n, lm.dps.prop_kg, lm.dps.throttle_pct,
 ##         lm.dps.ignitions, lm.dps.burn_time_s, lm.dps.on
 class_name Dps
@@ -55,22 +59,46 @@ func commanded() -> bool:
 	elif start and not _start_was:
 		manual = true
 	_start_was = start
-	return armed and (bool(Bus.get_value("lm.guid.dps_on", false)) or manual) and not bool(Bus.get_value("ctl.lm.eng_stop", false)) \
-		and prop_kg > 0.0 and bool(Bus.get_value("lm.sys.powered", true)) \
-		and str(Bus.get_value("dock.state", "")) == "free" and str(Bus.get_value("lm.dyn.config", "")) == "lm"
+	var guided := bool(Bus.get_value("lm.guid.dps_on", false)) and int(Bus.get_value("ctl.lm.guid_cont", 0)) == 0
+	return armed and (guided or manual) and not bool(Bus.get_value("ctl.lm.eng_stop", false)) \
+		and prop_kg > 0.0 and bool(Bus.get_value("lm.sys.powered", false)) \
+		and str(Bus.get_value("dock.state", "")) in ["free", "docked"] and str(Bus.get_value("lm.dyn.config", "")) == "lm"
 
 
-## P40's throttle schedule, [start_s, start_throttle, throttle]: the start
-## throttle for the first start_s after ignition, then the burn throttle,
-## each a fraction of full thrust (one above the throttleable range is full
-## thrust). [param pad]'s, a PAD's own (Apollo 10's phasing burn: 26 s at
-## 10 %, then full), or given none spacecraft.json's (Apollo 11's DOI: 15 s
-## at 10 %, then 40 %).
+## P40's throttle schedule, [s1, throttle1, s2, throttle2, ..., throttle]:
+## each throttle for its seconds after the last step, from ignition, then
+## the last to the cutoff, each a fraction of full thrust (one above the
+## throttleable range is full thrust). [param pad]'s, a PAD's own (Apollo
+## 10's phasing burn: 26 s at 10 %, then full; Apollo 13's PC+2: 5 s at
+## 12.6 %, 21 s at 40 %, then full), or given none spacecraft.json's
+## (Apollo 11's DOI: 15 s at 10 %, then 40 %).
 static func p40_schedule(pad: Array = []) -> Array:
-	if pad.size() == 3:
-		return [float(pad[0]), float(pad[1]), float(pad[2])]
+	if pad.size() >= 3 and pad.size() % 2 == 1:
+		return pad.map(func(v: Variant) -> float: return float(v))
 	var d := SpacecraftData.section("dps")
 	return [float(d["p40_start_s"]), float(d["p40_start_throttle"]), float(d["p40_throttle"])]
+
+
+## The throttle schedule [param sch] (p40_schedule()) commands
+## [param t] seconds after ignition.
+static func schedule_throttle(sch: Array, t: float) -> float:
+	var end := 0.0
+	for i in range(0, sch.size() - 1, 2):
+		end += float(sch[i])
+		if t < end:
+			return float(sch[i + 1])
+	return float(sch[-1])
+
+
+## When the throttle schedule [param sch] next changes after [param t]
+## seconds from ignition, s; INF after its last step.
+static func schedule_next(sch: Array, t: float) -> float:
+	var end := 0.0
+	for i in range(0, sch.size() - 1, 2):
+		end += float(sch[i])
+		if t < end:
+			return end
+	return INF
 
 
 ## The thrust level the throttle command [param cmd] asks for.
@@ -89,7 +117,8 @@ func tick(dt: float) -> void:
 		ignitions += 1
 	_was_on = on
 	var d := SpacecraftData.section("dps")
-	var target := throttle_target(float(Bus.get_value("lm.guid.dps_throttle", 0.0))) if on else 0.0
+	var cmd := float(Bus.get_value("ctl.lm.throttle" if manual else "lm.guid.dps_throttle", 0.0))
+	var target := throttle_target(cmd) if on else 0.0
 	var tau := float(d["tau_on_s"]) if target > level else float(d["tau_off_s"])
 	level += (target - level) * (1.0 - exp(-dt / tau)) if dt > 0.0 else 0.0
 	if level < 1e-3 and not on:

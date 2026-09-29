@@ -25,7 +25,9 @@
 ##        translation instead of an engine
 ##   P47  Thrust monitor (manual burns): V16N83 body ΔV
 ##   V06/V16 display/monitor, V21-V25 load, V34 terminate, V35 lamp test,
-##   V37 change program, V82 orbit parameters (V16N44)
+##   V37 change program, V82 orbit parameters (V16N44), V41N20 coarse
+##   align: V25N22 flashes for the gimbal angles, and the IMU is driven to
+##   them; REFSMMAT no longer holds
 ##
 ## Navigation: each computer flies on its own state vector (nav), never
 ## truth. It coasts it with its own integration, and adds its vehicle's
@@ -134,6 +136,11 @@ var preferred_refsmmat: Basis = Basis.IDENTITY
 var preferred_valid: bool = false
 ## GET the ground's last state vector came up (P27), or -1.
 var nav_uplink_get: float = -1.0
+
+## V41N20: the gimbal angles loaded into N22, and whether the load is for
+## it.
+var _coarse_load: Vector3 = Vector3.ZERO
+var _v41: bool = false
 
 var alarm_code: int = 0
 var _display_timer: float = 0.0
@@ -247,6 +254,11 @@ func powered_up() -> void:
 	pass
 
 
+## The computer has just lost its power.
+func powered_down() -> void:
+	pass
+
+
 ## The DAP can fly the vehicle as it is.
 func dap_enabled() -> bool:
 	return true
@@ -261,6 +273,15 @@ func auto_rate() -> float:
 ## rad/s².
 func authority() -> Vector3:
 	return Vector3.ONE
+
+
+## The DAP turns the vehicle about a single axis, the error's (eigenaxis),
+## at the rate the axis's weakest jets allow; otherwise each axis on its
+## own. A stack whose inertia differs twentyfold between its axes (the
+## docked LM flying the CSM) needs it: axis by axis, its fast roll turns the
+## error round under its slow pitch and yaw, and the maneuver spirals.
+func slew_about_axis() -> bool:
+	return false
 
 
 ## Start a program the core doesn't know.
@@ -506,11 +527,23 @@ func noun_values(n: int) -> Variant:
 		85:
 			var b := Basis(_att()).inverse() * Vector3(vg[0], vg[1], vg[2])
 			return [b.x, b.y, b.z]
+		22:
+			if _v41:
+				return [_coarse_load.x, _coarse_load.y, _coarse_load.z]
 	return null
 
 
 func noun_load(n: int, idx: int, value: float) -> bool:
 	match n:
+		22:
+			if not _v41:
+				return false
+			_coarse_load[idx] = value
+			if idx == 2:
+				_v41 = false
+				imu.coarse_align(Imu.gimbal_basis(_coarse_load), Basis(_true_att()))
+				imu.aligned = false
+			return true
 		33:
 			var parts := [floorf(tig_load / 3600.0) * 3600.0, floorf(fmod(tig_load, 3600.0) / 60.0) * 60.0, fmod(tig_load, 60.0)]
 			parts[idx] = value
@@ -522,7 +555,12 @@ func noun_load(n: int, idx: int, value: float) -> bool:
 	return false
 
 
-func verb_noun(v: int, _n: int) -> bool:
+func verb_noun(v: int, n: int) -> bool:
+	if v == 41 and n == 20:
+		_v41 = true
+		_coarse_load = icdu()
+		dsky.request_load(25, 22)
+		return true
 	match v:
 		34:
 			change_program(0)
@@ -557,6 +595,30 @@ func uplink_maneuver(tig: float, dv_lvlh: Vector3) -> bool:
 	return true
 
 
+## The ground's REFSMMAT [param m], with the REFSMMAT flag set, when the
+## computer takes uplinks (P27) [simplified: Apollo 13's crew set the flag
+## by hand after the uplink]. Returns whether it took it.
+func uplink_refsmmat(m: Basis) -> bool:
+	if not accepts_uplink():
+		return false
+	imu.refsmmat = m
+	imu.aligned = true
+	reference_changed()
+	_uplink_shown()
+	_publish_imu()
+	return true
+
+
+## The attitude reference moved under the DAP (a new REFSMMAT, or the
+## platform torqued): it holds the vehicle where it is, as the real DAP's
+## CDU angles kept it, not where the old reference had it.
+func reference_changed() -> void:
+	hold_q = _att()
+	desired_q = hold_q
+	auto_active = false
+	maneuver_vias.clear()
+
+
 ## An uplink came in: UPLINK ACTY for a couple of seconds, and in P00 the
 ## DSKY shows P27 and the ground's V71 meanwhile.
 func _uplink_shown() -> void:
@@ -580,6 +642,10 @@ func change_program(p: int) -> bool:
 		_alarm(220)    # IMU orientation unknown
 		return false
 	dsky.lamps["key_rel"] = false
+	if auto_active or program in thrusting_programs():
+		# A program that turned the vehicle (an auto maneuver, a burn's
+		# steering) leaves the DAP holding the attitude it left it at.
+		hold_q = _att()
 	program = p
 	step_name = ""
 	_p27_display = false
@@ -741,8 +807,11 @@ func tick(dt: float) -> void:
 		_publish_dsky()
 		if _powered:
 			powered_up()
+		else:
+			powered_down()
 	if not _powered:
 		Bus.set_value(_ch("guid.rcs_rot_cmd"), Vector3.ZERO)
+		Bus.set_value(_ch("guid.dap_busy"), false)
 		publish_engine(false)
 		dsky.set_lamp("no_att", true)
 		return
@@ -756,8 +825,11 @@ func tick(dt: float) -> void:
 
 
 ## Stage DEPENDENT: step the IMU and integrate its accelerometers after
-## Dynamics stepped.
+## Dynamics stepped, while the computer has power; without it the state
+## vector waits, and is coasted up to the time when power comes back.
 func sense(dt: float) -> void:
+	if not _powered:
+		return
 	imu.step(dt, Basis(_true_att()))
 	var d: Array = Bus.get_value(_ch("dyn.dv_step"), [0.0, 0.0, 0.0])
 	var step := imu.sensed(Vector3(d[0], d[1], d[2]))
@@ -945,11 +1017,20 @@ func _dap(_dt: float) -> void:
 			target = hold_q if not (m == 2 and auto_active) else target
 		var e := _error_vector(target)
 		var w_des := Vector3.ZERO
-		for i in 3:
-			var ei := e[i]
-			# Rate that can still be braked to zero over the error, capped.
-			var brake := sqrt(2.0 * alpha[i] * 0.5 * absf(ei))
-			w_des[i] = signf(ei) * minf(minf(absf(ei) * 0.4, brake), max_rate)
+		if slew_about_axis() and e.length() > 1e-9:
+			# About the error's axis, braked on the jets' authority along it.
+			var u := e.normalized()
+			var a_axis := INF
+			for i in 3:
+				if absf(u[i]) > 1e-6:
+					a_axis = minf(a_axis, alpha[i] / absf(u[i]))
+			w_des = u * minf(minf(e.length() * 0.4, sqrt(a_axis * e.length())), max_rate)
+		else:
+			for i in 3:
+				var ei := e[i]
+				# Rate that can still be braked to zero over the error, capped.
+				var brake := sqrt(2.0 * alpha[i] * 0.5 * absf(ei))
+				w_des[i] = signf(ei) * minf(minf(absf(ei) * 0.4, brake), max_rate)
 		if e.length() < ATT_DEADBAND * 0.1 and w.length() < 5e-5:
 			# At rest: null what rate is left, then leave the jets off (a
 			# coast step needs them off). Resting only inside 0.05°, half
@@ -1044,10 +1125,13 @@ func snapshot() -> Dictionary:
 		"nav_uplink_get": nav_uplink_get,
 		"imu": imu.snapshot(),
 		"preferred": Imu.rows_of(preferred_refsmmat) if preferred_valid else [],
+		"coarse_load": [_coarse_load.x, _coarse_load.y, _coarse_load.z], "v41": _v41, "powered": _powered,
 	}
 
 
 func restore(d: Dictionary) -> void:
+	# Powered or dark as it was, with no power-up or power-down to come.
+	_powered = bool(d.get("powered", _powered))
 	tig_load = float(d["tig_load"])
 	var l: Array = d["dv_lvlh_load"]
 	dv_lvlh_load = Vector3(l[0], l[1], l[2])
@@ -1095,4 +1179,7 @@ func restore(d: Dictionary) -> void:
 	preferred_valid = pr.size() == 9
 	if preferred_valid:
 		preferred_refsmmat = Imu.from_rows(pr)
+	var c: Array = d.get("coarse_load", [0.0, 0.0, 0.0])
+	_coarse_load = Vector3(c[0], c[1], c[2])
+	_v41 = bool(d.get("v41", false))
 	_publish()

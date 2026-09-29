@@ -1,5 +1,6 @@
 ## Reaction Control Systems: four Service Module quads (A-D) while the SM is
-## attached, the two Command Module rings after CM/SM separation.
+## attached, the two Command Module rings after CM/SM separation (with the
+## LM docked too, Apollo 13's).
 ##
 ## Jets are modelled per axis, not per nozzle: each rotation or translation
 ## axis is served by a fixed set of quads (roll by all four, pitch and +/-Z
@@ -92,7 +93,7 @@ func tick(dt: float) -> void:
 	var force := Vector3.ZERO
 	var torque := Vector3.ZERO
 	var jets := 0.0
-	if cfg == "cm":
+	if not SpacecraftData.sm_attached(cfg):
 		var cmd := SpacecraftData.section("cm_rcs")
 		var f := float(cmd["jet_thrust_n"])
 		var live := 0

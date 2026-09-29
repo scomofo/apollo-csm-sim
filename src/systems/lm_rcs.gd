@@ -8,14 +8,18 @@
 ## or empty drops its share. Commands are continuous in [-1, 1] and stand
 ## for the jet duty cycle over the step (pulse-width modulation).
 ##
-## Rotation comes from the LGC's digital autopilot (lm.guid.rcs_rot_cmd)
-## [simplified: no AGS, no hardover or direct modes]; translation from the
-## TTCA (ctl.lm.thc, past its detent) plus lm.guid.rcs_trans_cmd (P41's
-## +X). The jets fire only while the LM flies free [simplified: docked, the
-## CSM flies the stack], and never across a coarse coast step.
+## Rotation comes from the guidance the guidance control switch selects
+## (ctl.lm.guid_cont): the LGC's digital autopilot (lm.guid.rcs_rot_cmd)
+## or the AGS's hold (lm.ags.rcs_rot_cmd) [simplified: no hardover or
+## direct modes]; translation from the TTCA (ctl.lm.thc, past its detent)
+## plus, under the PGNS, lm.guid.rcs_trans_cmd (P41's +X). The jets fire
+## while the LM's buses are powered (lm.sys.powered: flying free, or docked
+## once its crew has powered it up, when they fly the stack), and never
+## across a coarse coast step.
 ##
-## Reads:  lm.guid.rcs_rot_cmd, lm.guid.rcs_trans_cmd, ctl.lm.thc,
-##         ctl.lm.rcs.sys_a, ctl.lm.rcs.sys_b, lm.sys.powered, dock.state
+## Reads:  lm.guid.rcs_rot_cmd, lm.guid.rcs_trans_cmd, lm.ags.rcs_rot_cmd,
+##         ctl.lm.guid_cont, ctl.lm.thc, ctl.lm.rcs.sys_a, ctl.lm.rcs.sys_b,
+##         lm.sys.powered
 ## Writes: lm.rcs.force_body, lm.rcs.torque_body, lm.rcs.active_jets,
 ##         lm.rcs.sys_a_kg, lm.rcs.sys_b_kg, lm.rcs.prop_kg
 extends Node
@@ -46,18 +50,20 @@ static func _db(v: float) -> float:
 
 
 func tick(dt: float) -> void:
-	if str(Bus.get_value("dock.state", "")) != "free" or not bool(Bus.get_value("lm.sys.powered", true)) \
-			or dt > SimClock.FIXED_DT * 1.5:
+	if not bool(Bus.get_value("lm.sys.powered", false)) or dt > SimClock.FIXED_DT * 1.5:
 		if not _quiet:
 			_publish(Vector3.ZERO, Vector3.ZERO, 0)
 			_quiet = true
 		return
 	_quiet = false
 	var d := SpacecraftData.section("lm_rcs")
-	var rot: Vector3 = Bus.get_value("lm.guid.rcs_rot_cmd", Vector3.ZERO)
+	var pgns := int(Bus.get_value("ctl.lm.guid_cont", 0)) == 0
+	var rot: Vector3 = Bus.get_value("lm.guid.rcs_rot_cmd" if pgns else "lm.ags.rcs_rot_cmd", Vector3.ZERO)
 	rot = rot.clamp(-Vector3.ONE, Vector3.ONE)
 	var thc: Vector3 = Bus.get_value("ctl.lm.thc", Vector3.ZERO)
-	var trans: Vector3 = Vector3(_db(thc.x), _db(thc.y), _db(thc.z)) + Bus.get_value("lm.guid.rcs_trans_cmd", Vector3.ZERO)
+	var trans: Vector3 = Vector3(_db(thc.x), _db(thc.y), _db(thc.z))
+	if pgns:
+		trans += Bus.get_value("lm.guid.rcs_trans_cmd", Vector3.ZERO)
 	trans = trans.clamp(-Vector3.ONE, Vector3.ONE)
 	var f := float(d["jet_thrust_n"])
 	var n_rot := float(d["rotation_jets"])

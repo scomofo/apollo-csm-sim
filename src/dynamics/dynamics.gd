@@ -4,8 +4,15 @@
 ## Dynamics of gemini-capsule, https://github.com/scomofo/gemini-capsule).
 ##
 ## The CSM (in any configuration, the docked LM included) publishes dyn.*.
-## After undocking the LM flies free as a second vehicle, under its own
-## engines and RCS, and publishes lm.dyn.*; the docking channels (dock.*)
+## Docked, the LM's descent engine and jets act on the stack when its crew
+## has powered it up (Apollo 13's lifeboat): the engine's thrust along the
+## LM's +X, the CSM's -X, and the jets' forces and torques turned into the
+## CSM's axes [simplified: the thrust through the stack's centre of mass,
+## as the engine's gimbal trim put it; the jets' torques the LM's own],
+## and the docked LM's motion is published under lm.dyn.* as the stack's,
+## in the LM's axes. After undocking the LM flies free as a second vehicle,
+## under its own engines and RCS, and publishes lm.dyn.*; the docking
+## channels (dock.*)
 ## give the ports' relative state (src/dynamics/docking.gd). A contact
 ## between the ports within the capture limits docks the vehicles again;
 ## any other contact rebounds. The LM's mass, docked or free, follows its
@@ -23,14 +30,22 @@
 ## for the commanded forces [simplified: the vent is steady, the LM and the
 ## S-IVB have none].
 ##
+## Apollo 13 jettisoned its SM with the LM docked (cm_lm), and the LM from
+## the CM with the docking tunnel's pressure, which pushed the CM back
+## (spacecraft.json "docking": tunnel_impulse_ns) [simplified: the other
+## missions' LM jettisons, from the CSM, leave it as it was].
+##
 ## Reads:  sps.thrust_n, rcs.force_body, rcs.torque_body, sivb.thrust_n,
 ##         sivb.dir, sps.prop_kg, rcs.sm_prop_kg, rcs.cm_prop_kg,
 ##         sivb.prop_kg, els.drogue, els.mains, guid.bank_cmd_deg,
 ##         guid.bank_auto, ctl.rhc, guid.dap_busy; the LM's lm.dps.thrust_n,
 ##         lm.aps.thrust_n, lm.rcs.force_body, lm.rcs.torque_body,
-##         lm.dps.prop_kg, lm.aps.prop_kg, lm.rcs.prop_kg, lm.guid.dap_busy
+##         lm.dps.prop_kg, lm.aps.prop_kg, lm.rcs.prop_kg, lm.guid.dap_busy,
+##         lm.ags.dap_busy, lm.sys.powered
 ## Writes: dyn.* (see publish_state), lm.dyn.* (the free LM's; docked,
-##         lm.dyn.config alone: "lm", or "lm_ascent"), dock.state, dock.range_m,
+##         its config, and while its crew has it powered its motion as the
+##         stack's: primary, r_m, v_mps, att_q, omega, mass_kg, dv_step),
+##         dock.state, dock.range_m,
 ##         dock.range_rate_mps, dock.rel_pos, dock.rel_vel (the LM's port
 ##         relative to the CSM's, CSM body axes), dock.misalign_deg,
 ##         dock.contact (the last contact, Docking.contact()),
@@ -184,7 +199,7 @@ func _lm_mass(cfg: String) -> float:
 ## The LM is still with the mission: in the S-IVB's adapter, docked, or
 ## flying free (not jettisoned). A mission without one never has it.
 func has_lm() -> bool:
-	return lm != null or (SpacecraftData.carries_lm() and config in ["saturn_v", "stack", "csm_lm"])
+	return lm != null or (SpacecraftData.carries_lm() and config in ["saturn_v", "stack", "csm_lm", "cm_lm"])
 
 
 ## The speed through the air, which turns with the Earth, m/s.
@@ -223,9 +238,16 @@ func tick(dt: float) -> void:
 		var d: Array = Bus.get_value("lv.dir", [1.0, 0.0, 0.0])
 		force_eci += Vector3(d[0], d[1], d[2]).normalized() * float(Bus.get_value("lv.thrust_n", 0.0))
 	elif config != "stack":
-		force_body.x += float(Bus.get_value("sps.thrust_n", 0.0)) if config != "cm" else 0.0
+		force_body.x += float(Bus.get_value("sps.thrust_n", 0.0)) if SpacecraftData.sm_attached(config) else 0.0
 		force_body += Bus.get_value("rcs.force_body", Vector3.ZERO)
 		torque = Bus.get_value("rcs.torque_body", Vector3.ZERO)
+		if lm_flies_stack():
+			# The docked LM's engine and jets, turned from its axes into the
+			# CSM's.
+			var lm_force := Vector3(float(Bus.get_value("lm.dps.thrust_n", 0.0)), 0.0, 0.0)
+			lm_force += Bus.get_value("lm.rcs.force_body", Vector3.ZERO)
+			force_body += Docking.LM_IN_CSM * lm_force
+			torque += Docking.LM_IN_CSM * (Bus.get_value("lm.rcs.torque_body", Vector3.ZERO) as Vector3)
 	else:
 		var sivb_f := float(Bus.get_value("sivb.thrust_n", 0.0))
 		if sivb_f > 0.0:
@@ -269,11 +291,23 @@ func tick(dt: float) -> void:
 	# A coast step may only be long when nothing acts on the vehicle AND no
 	# autopilot is trying to (a controller cannot run at minute steps).
 	var coasting := not commanded and torque == Vector3.ZERO and not aero and not landed \
-		and not bool(Bus.get_value("guid.dap_busy", false))
+		and not bool(Bus.get_value("guid.dap_busy", false)) \
+		and not (lm_flies_stack() and _lm_dap_busy())
 	Bus.set_value("dyn.dv_step", [ext[0] * dt, ext[1] * dt, ext[2] * dt] if ext.size() == 3 else [0.0, 0.0, 0.0])
 	_step_lm(dt)
 	publish_state()
-	_publish_coast(coasting and (lm == null or (lm.coasting and not bool(Bus.get_value("lm.guid.dap_busy", false)))))
+	_publish_coast(coasting and (lm == null or (lm.coasting and not _lm_dap_busy())))
+
+
+## The LM's autopilots are trying to turn it: its LGC's, or its AGS's.
+func _lm_dap_busy() -> bool:
+	return bool(Bus.get_value("lm.guid.dap_busy", false)) or bool(Bus.get_value("lm.ags.dap_busy", false))
+
+
+## The LM is docked and its crew has it powered: its engine and jets fly
+## the stack.
+func lm_flies_stack() -> bool:
+	return SpacecraftData.lm_docked(config) and bool(Bus.get_value("lm.sys.powered", false))
 
 
 ## The coast-step policy holds for both vehicles: a coast step is taken
@@ -507,10 +541,13 @@ func _rebound(g: Dictionary) -> void:
 
 
 func _publish_docking() -> void:
-	Bus.set_value("dock.state", "free" if lm != null else ("docked" if config == "csm_lm" else "none"))
+	var docked := SpacecraftData.lm_docked(config)
+	Bus.set_value("dock.state", "free" if lm != null else ("docked" if docked else "none"))
 	if lm == null:
-		if config == "csm_lm":
+		if docked:
 			Bus.set_value("lm.dyn.config", lm_config)
+			if lm_flies_stack():
+				_publish_docked_lm()
 		return
 	lm.publish()
 	var g := Docking.relative(traj, attitude, lm)
@@ -522,6 +559,42 @@ func _publish_docking() -> void:
 	Bus.set_value("dock.rel_pos", to_body * d)
 	Bus.set_value("dock.rel_vel", to_body * u)
 	Bus.set_value("dock.misalign_deg", g["misalign_deg"])
+
+
+## The docked LM's motion, its crew having it powered: the stack's, in the
+## LM's axes, as its IMU and computer see it.
+func _publish_docked_lm() -> void:
+	var inv := Docking.LM_IN_CSM.inverse()
+	Bus.set_value("lm.dyn.primary", traj.primary)
+	Bus.set_value("lm.dyn.r_m", [traj.s[0], traj.s[1], traj.s[2]])
+	Bus.set_value("lm.dyn.v_mps", [traj.s[3], traj.s[4], traj.s[5]])
+	Bus.set_value("lm.dyn.mass_kg", mass)
+	Bus.set_value("lm.dyn.att_q", (attitude.q * Docking.LM_IN_CSM).normalized())
+	Bus.set_value("lm.dyn.omega", inv * attitude.omega)
+	Bus.set_value("lm.dyn.dv_step", Bus.get_value("dyn.dv_step", [0.0, 0.0, 0.0]))
+	Bus.set_value("lm.dyn.landed", false)
+
+
+## LM JETT from the CM (Apollo 13's, an hour before entry): the docking
+## tunnel's pressure pushes the vehicles apart along the docking axis, its
+## impulse (spacecraft.json "docking": tunnel_impulse_ns) shared by their
+## masses, and the CM flies on alone. From the CSM (the other missions'),
+## the LM is gone and the CSM flies on as it was [simplified]. Returns
+## false unless the LM is docked.
+func jettison_lm() -> bool:
+	if not SpacecraftData.lm_docked(config):
+		return false
+	if config == "cm_lm":
+		var push := float(Docking.params().get("tunnel_impulse_ns", 0.0)) / (mass - _lm_mass(lm_config))
+		var back := attitude.eci_from_body() * Vector3(-push, 0.0, 0.0)
+		for i in 3:
+			traj.s[3 + i] += back[i]
+		set_configuration("cm")
+	else:
+		set_configuration("csm")
+	lm_config = "lm"
+	publish_state()
+	return true
 
 
 ## On the pad, held by the holddown arms: the vehicle turns with the Earth,

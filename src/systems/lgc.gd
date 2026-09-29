@@ -30,7 +30,8 @@
 ##   P40  DPS thrusting, on the burn's throttle schedule, which the ground
 ##        uplinks with its PAD (Dps.p40_schedule()): Apollo 11's DOI started
 ##        at 10 % and burned at 40 % after 15 s, Apollo 10's phasing burn
-##        at full thrust after 26 s [simplified: the crew throttled up by
+##        at full thrust after 26 s, Apollo 13's PC+2 at 12.6 % for 5 s,
+##        40 % for 21 s and then full [simplified: the crew throttled up by
 ##        hand, as the PAD said]
 ##   P41  RCS thrusting: +X translation on the LM RCS
 ##   P42  APS thrusting (the ascent stage, after staging)
@@ -82,15 +83,24 @@
 ## last update. [simplified: the IMU is ideal, so the sensed ΔV and the
 ## attitude are true]
 ##
-## The LGC runs while the LM flies free [simplified: the LM powers up as it
-## undocks; docked, and after LM JETT, the LGC is dark and the CSM flies
-## the stack].
+## The LGC runs while the LM's buses are powered (lm.sys.powered, the LM's
+## EPS's) and its PGNS breakers are in (ctl.lm.pgns): while the LM flies
+## free [simplified: the LM powers up as it undocks], or docked once its
+## crew has powered it up, as Apollo 13's did. Docked, it flies the stack:
+## its DAP on the stack's inertia, and P30, P40 and P41 on the LM's engine
+## and jets. Powered up docked, its IMU is a real one, caged until the
+## crew coarse aligns it to the CMC's platform (V41N20, the angles the
+## CMC's N20 gives turned through the docking geometry, Docking.
+## lm_gimbals()) and the ground's REFSMMAT comes up with it; losing its
+## power again loses the platform's orientation and the state vector.
+## Docked and dark, as after LM JETT, the CSM flies the stack.
 ##
 ## Digital autopilot: ctl.lm.mode 0 FREE, 1 HOLD, 2 AUTO, as the CMC's,
 ## with the ACA (ctl.lm.rhc) about the LM's X, Y and Z axes: the LM crew's
 ## yaw, pitch and roll [simplified: the LM's PGNS MODE CONTROL is OFF,
-## ATT HOLD and AUTO; no AGS]. Powering up, it holds the attitude the LM
-## has.
+## ATT HOLD and AUTO]. Powering up, it holds the attitude the LM has. With
+## the guidance control switch at AGS (ctl.lm.guid_cont) the AGS flies
+## the LM (src/systems/ags.gd) and the DAP follows the attitude.
 ##
 ## Reads:  the core's, lm.dyn.landed, ctl.lm.rod (the ROD switch: +1 up,
 ##         -1 down, momentary), the landing radar's lm.lr.*, the
@@ -115,6 +125,7 @@ const RENDEZVOUS := [32, 33, 34, 35]
 const TIME_NOUNS := [11, 13, 37]
 ## The nouns the LGC adds, or means otherwise than the CMC does.
 const LGC_NOUNS := {
+	22: {"name": "NEW ICDU ANGLES", "c": [["OG", "d2", 1.0], ["IG", "d2", 1.0], ["MG", "d2", 1.0]]},
 	43: {"name": "LAT/LONG/ALT", "c": [["LAT", "d2", 1.0], ["LONG", "d2", 1.0], ["ALT", "d1", 1.0 / Dsky.NMI]]},
 	60: {"name": "VH/HDOT/H", "c": [["VH", "d1", 1.0 / Dsky.FT], ["HDOT", "d1", 1.0 / Dsky.FT], ["H", "i", 1.0 / Dsky.FT]]},
 	63: {"name": "DH/HDOT/H", "c": [["DH", "i", 1.0 / Dsky.FT], ["HDOT", "d1", 1.0 / Dsky.FT], ["H", "i", 1.0 / Dsky.FT]]},
@@ -257,13 +268,17 @@ func publish_engine(on: bool) -> void:
 func throttle() -> float:
 	if program in DESCENT_BURN:
 		return descent_throttle
-	if ignition_get < 0.0 or _now() - ignition_get < float(p40_schedule[0]):
-		return float(p40_schedule[1])
-	return float(p40_schedule[2])
+	return Dps.schedule_throttle(p40_schedule, _now() - ignition_get if ignition_get >= 0.0 else 0.0)
 
 
 func mode() -> int:
 	return int(Bus.get_value("ctl.lm.mode", 1))
+
+
+## The guidance control switch: 0 PGNS flies the LM, 1 the AGS does, and
+## the DAP follows the attitude.
+func att_source() -> int:
+	return int(Bus.get_value("ctl.lm.guid_cont", 0))
 
 
 ## The ACA, to the DAP; in P64 with the mode switch in AUTO it
@@ -275,7 +290,7 @@ func rhc() -> Vector3:
 
 
 func is_powered() -> bool:
-	return _free() and bool(Bus.get_value("lm.sys.powered", true))
+	return bool(Bus.get_value("lm.sys.powered", false)) and bool(Bus.get_value("ctl.lm.pgns", true))
 
 
 ## On the surface the LM sits on its gear: its DAP fires no jets.
@@ -292,28 +307,55 @@ func auto_rate() -> float:
 
 
 ## The DAP takes up the attitude the LM has as its hold, and the LGC the
-## CSM's state vector (sense() takes it once Dynamics has stepped).
+## CSM's state vector (sense() takes it once Dynamics has stepped). Docked,
+## its IMU is a real one, and caged.
 func powered_up() -> void:
 	_last_source = -1
 	nav = null
 	rr_nav = false
+	if not _free():
+		imu.ideal = false
+		imu.cage(Basis(_true_att()))
+
+
+## The LM dark at the start, flying with the CSM: its power, whenever it
+## comes, is a power-up.
+func start_dark() -> void:
+	_powered = false
+
+
+## The platform's orientation and the state vector are lost.
+func powered_down() -> void:
+	imu.cage(Basis(_true_att()))
+	nav = null
 
 
 func authority() -> Vector3:
+	return jet_authority()
+
+
+## Docked, the LM flies a stack twenty times stiffer in pitch and yaw than
+## in roll: about the error's axis.
+func slew_about_axis() -> bool:
+	return not _free()
+
+
+## The angular acceleration the LM's jets give about its axes, both
+## systems' (rad/s^2); docked, on the stack's inertia (its diagonal the same
+## about the LM's axes as about the CSM's) [simplified: the jets' torques
+## the LM's own]. The LGC's DAP and the AGS's hold fly on it.
+static func jet_authority() -> Vector3:
 	var cfg := str(Bus.get_value("lm.dyn.config", "lm"))
 	var mass := float(Bus.get_value("lm.dyn.mass_kg", SpacecraftData.lm_mass()))
-	var inertia := SpacecraftData.inertia(cfg if cfg in SpacecraftData.LM_CONFIGS else "lm", mass)
+	if str(Bus.get_value("dock.state", "")) == "docked":
+		cfg = str(Bus.get_value("dyn.config", "csm_lm"))
+	elif not cfg in SpacecraftData.LM_CONFIGS:
+		cfg = "lm"
+	var inertia := SpacecraftData.inertia(cfg, mass)
 	var d := SpacecraftData.section("lm_rcs")
 	# Both systems' jets about each axis.
 	var t := float(d["jet_thrust_n"]) * float(d["arm_m"]) * float(d["rotation_jets"]) * 2.0
 	return Vector3(t / inertia.x, t / inertia.y, t / inertia.z)
-
-
-## The LM's accelerometers count only while it flies free, and the LGC's
-## state vector moves on to now with them (the core's sense()).
-func sense(dt: float) -> void:
-	if _free():
-		super.sense(dt)
 
 
 # --- navigation ----------------------------------------------------------------------

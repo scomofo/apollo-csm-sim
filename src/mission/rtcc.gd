@@ -75,17 +75,14 @@ static func simulate_dps_burn(traj: Trajectory, mass: float, dv_lvlh: Vector3, d
 	var f := float(d["thrust_n"])
 	var mdot := f / (float(d["isp_s"]) * Units.G0)
 	var sch := Dps.p40_schedule(schedule)
-	var t_start := float(sch[0])
 	var u := dv_lvlh.normalized()
 	var left := dv_lvlh.length()
 	var m := mass
 	var t := 0.0
 	while left > 1e-4:
-		var k := Dps.throttle_target(float(sch[1]) if t < t_start else float(sch[2]))
+		var k := Dps.throttle_target(Dps.schedule_throttle(sch, t))
 		var acc := f * k / m
-		var h := minf(dt, left / acc)
-		if t < t_start:
-			h = minf(h, t_start - t)
+		var h := minf(minf(dt, left / acc), Dps.schedule_next(sch, t) - t)
 		var a := lvlh_to_inertial(traj, u) * acc
 		traj.step(h, PackedFloat64Array([a.x, a.y, a.z]))
 		left -= acc * h
@@ -101,13 +98,65 @@ static func dps_burn_time(mass: float, dv: float, schedule: Array = []) -> float
 	var ve := float(d["isp_s"]) * Units.G0
 	var mdot := float(d["thrust_n"]) / ve
 	var sch := Dps.p40_schedule(schedule)
-	var t_start := float(sch[0])
-	var k_start := Dps.throttle_target(float(sch[1]))
-	var m_start := mass - mdot * k_start * t_start
-	var dv_start := ve * log(mass / m_start)
-	if absf(dv) <= dv_start:
-		return mass * (1.0 - exp(-absf(dv) / ve)) / (mdot * k_start)
-	return t_start + m_start * (1.0 - exp(-(absf(dv) - dv_start) / ve)) / (mdot * Dps.throttle_target(float(sch[2])))
+	var left := absf(dv)
+	var m := mass
+	var t := 0.0
+	# Each step of the schedule in turn, the rocket equation on each.
+	for i in range(0, sch.size() - 1, 2):
+		var k := Dps.throttle_target(float(sch[i + 1]))
+		var m_end := m - mdot * k * float(sch[i])
+		var dv_step := ve * log(m / m_end)
+		if left <= dv_step:
+			return t + m * (1.0 - exp(-left / ve)) / (mdot * k)
+		left -= dv_step
+		m = m_end
+		t += float(sch[i])
+	return t + m * (1.0 - exp(-left / ve)) / (mdot * Dps.throttle_target(float(sch[-1])))
+
+
+## Fly a burn of [param dv_lvlh] from [param traj]'s TIG on [param engine],
+## as its computer flies it: {"engine": "sps"} (the default) the CMC's P40
+## (simulate_sps_burn()); "dps" the LGC's P40 on the DPS on its throttle
+## schedule ("throttle", Dps.p40_schedule()); "lm_rcs" the LGC's P41, the
+## LM's four +X jets, held along the ΔV's LVLH direction as the LGC holds
+## it. Returns the mass after.
+static func simulate_burn(engine: Dictionary, traj: Trajectory, mass: float, dv_lvlh: Vector3) -> float:
+	match str(engine.get("engine", "sps")):
+		"dps":
+			return simulate_dps_burn(traj, mass, dv_lvlh, 0.5, engine.get("throttle", []))
+		"lm_rcs":
+			var d := SpacecraftData.section("lm_rcs")
+			var f := lm_rcs_x_thrust()
+			var mdot := f / (float(d["isp_s"]) * Units.G0)
+			var u := dv_lvlh.normalized()
+			var left := dv_lvlh.length()
+			var m := mass
+			while left > 1e-4:
+				var acc := f / m
+				var h := minf(0.5, left / acc)
+				var a := lvlh_to_inertial(traj, u) * acc
+				traj.step(h, PackedFloat64Array([a.x, a.y, a.z]))
+				left -= acc * h
+				m -= mdot * h
+			return m
+	return simulate_sps_burn(traj, mass, dv_lvlh)
+
+
+## How long a burn of [param dv] on [param engine] (simulate_burn()) lasts
+## from [param mass], s.
+static func burn_seconds(engine: Dictionary, mass: float, dv: float) -> float:
+	match str(engine.get("engine", "sps")):
+		"dps":
+			return dps_burn_time(mass, dv, engine.get("throttle", []))
+		"lm_rcs":
+			return mass * absf(dv) / lm_rcs_x_thrust()
+	return burn_time(mass, dv)
+
+
+## The LM's jets' +X thrust in P41: both systems' X jets, N.
+static func lm_rcs_x_thrust() -> float:
+	var d := SpacecraftData.section("lm_rcs")
+	return float(d["jet_thrust_n"]) * float(d["x_jets"]) * 2.0
 
 
 static func lvlh_to_inertial(traj: Trajectory, dv_lvlh: Vector3) -> Vector3:
@@ -448,7 +497,9 @@ static func time_to_periapsis(r: Vector3, v: Vector3, mu: float) -> float:
 
 ## Minimum-norm LVLH correction at [param tig] driving metric
 ## [param target_kind] ("moon": signed pericynthion; "earth": signed
-## perigee) to [param target_f]. Toward the Moon with a landing site
+## perigee, past the Moon for a free return from the way out, as Apollo
+## 13's MCC-2) to [param target_f], flown on [param engine]
+## (simulate_burn(): the SPS, or the docked LM's DPS or jets). Toward the Moon with a landing site
 ## [param site_mf], it also keeps the approach's plane on the site at GET
 ## [param t_land], out of plane (Y) as need be; or given the lunar orbit's
 ## plane [param plane_n] (its unit normal), it puts the pericynthion in
@@ -457,10 +508,11 @@ static func time_to_periapsis(r: Vector3, v: Vector3, mu: float) -> float:
 ## GET, the three misses taking the whole correction [published: Apollo
 ## 11's midcourse corrections aimed at the pericynthion's altitude and the
 ## node's position, MSC-00171, section 7.4.3]. Returns a PAD; dv 0 when
-## not required.
+## not required: a miss inside [param tol_m] (m; 20 km toward the Moon,
+## 5 km toward the Earth when not given).
 static func plan_mcc(traj: Trajectory, mass: float, tig: float, target_kind: String, target_f: float, t_max: float,
 		site_mf: Vector3 = Vector3.ZERO, t_land: float = 0.0, t_peri: float = -1.0,
-		plane_n: Vector3 = Vector3.ZERO) -> Dictionary:
+		plane_n: Vector3 = Vector3.ZERO, engine: Dictionary = {}, tol_m: float = -1.0) -> Dictionary:
 	var at := traj.clone()
 	at.coast_to(tig, 60.0, FRAC)
 	var plane := target_kind == "moon" and (site_mf != Vector3.ZERO or plane_n != Vector3.ZERO)
@@ -474,7 +526,7 @@ static func plan_mcc(traj: Trajectory, mass: float, tig: float, target_kind: Str
 	var misses := func(dv_lvlh: Vector3) -> PackedFloat64Array:
 		var tr := at.clone()
 		if dv_lvlh.length() > 1e-6:
-			simulate_sps_burn(tr, mass, dv_lvlh)
+			simulate_burn(engine, tr, mass, dv_lvlh)
 		var res := lunar_approach(tr, t_max) if target_kind == "moon" else earth_return(tr, t_max)
 		var off := 0.0
 		if plane:
@@ -495,7 +547,7 @@ static func plan_mcc(traj: Trajectory, mass: float, tig: float, target_kind: Str
 	var err: Vector2 = metric.call(dv)
 	# A miss within the tolerance needs no burn; a burn, once needed, is
 	# solved to a tenth of it.
-	var tol := 20000.0 if target_kind == "moon" else 5000.0
+	var tol := tol_m if tol_m > 0.0 else (20000.0 if target_kind == "moon" else 5000.0)
 	if absf(err.x) >= tol or absf(err.y) >= tol:
 		tol /= 10.0
 	for _i in 8:
@@ -526,7 +578,7 @@ static func plan_mcc(traj: Trajectory, mass: float, tig: float, target_kind: Str
 		dv += step
 		err = metric.call(dv)
 	return {"name": "MCC", "tig": tig, "dv_lvlh": dv, "dv": dv.length(),
-		"burn_s": burn_time(mass, dv.length()), "residual_m": err.x, "plane_residual_m": err.y}
+		"burn_s": burn_seconds(engine, mass, dv.length()), "residual_m": err.x, "plane_residual_m": err.y}
 
 
 ## plan_mcc() with the pericynthion's time as well: the three misses
@@ -1250,18 +1302,20 @@ static func _tei_free_tig(start: Trajectory, tig: float, sol: Dictionary, mass: 
 	return s1
 
 
-## TEI's ΔV at [param tig] from [param start] (a lunar orbit before it),
-## solved from [param guess] for a return with its vacuum perigee at
-## [param perigee_alt], its orbit about the Earth at [param incl_deg] to
-## the equator, and entry interface (400,000 ft) at GET [param ei_get]: a
-## Newton solve on the three LVLH components, its Jacobian taken by
-## finite differences and then carried by Broyden's update, each step
-## held to TEI_STEP_MPS and halved while it leaves no return. Returns
-## {"dv_lvlh", "ei_get", "incl"}, empty when it does not converge.
+## TEI's ΔV at [param tig] from [param start] (a lunar orbit before it,
+## or Apollo 13's flyby), solved from [param guess] for a return with its
+## vacuum perigee at [param perigee_alt], its orbit about the Earth at
+## [param incl_deg] to the equator, and entry interface (400,000 ft) at
+## GET [param ei_get], flown on [param engine] (simulate_burn(): the SPS,
+## or the docked LM's DPS for Apollo 13's PC+2): a Newton solve on the
+## three LVLH components, its Jacobian taken by finite differences and then
+## carried by Broyden's update, each step held to TEI_STEP_MPS and halved
+## while it leaves no return. Returns {"dv_lvlh", "ei_get", "incl"}, empty
+## when it does not converge.
 static func tei_components(start: Trajectory, tig: float, mass: float, guess: Vector3, perigee_alt: float,
-		incl_deg: float, ei_get: float) -> Dictionary:
+		incl_deg: float, ei_get: float, engine: Dictionary = {}) -> Dictionary:
 	var dv := guess
-	var f := _tei_miss(start, tig, mass, dv, perigee_alt, incl_deg, ei_get)
+	var f := _tei_miss(start, tig, mass, dv, perigee_alt, incl_deg, ei_get, engine)
 	if f.is_empty():
 		return {}
 	var jac: Array[PackedFloat64Array] = []
@@ -1272,7 +1326,7 @@ static func tei_components(start: Trajectory, tig: float, mass: float, guess: Ve
 			for k in 3:
 				var d := Vector3.ZERO
 				d[k] = 0.5
-				var fk := _tei_miss(start, tig, mass, dv + d, perigee_alt, incl_deg, ei_get)
+				var fk := _tei_miss(start, tig, mass, dv + d, perigee_alt, incl_deg, ei_get, engine)
 				if fk.is_empty():
 					return {}
 				jac.append(PackedFloat64Array([(fk[0] - f[0]) / 0.5, (fk[1] - f[1]) / 0.5, (fk[2] - f[2]) / 0.5]))
@@ -1284,7 +1338,7 @@ static func tei_components(start: Trajectory, tig: float, mass: float, guess: Ve
 			step *= TEI_STEP_MPS / step.length()
 		var f2 := PackedFloat64Array()
 		for h in 6:
-			f2 = _tei_miss(start, tig, mass, dv + step, perigee_alt, incl_deg, ei_get)
+			f2 = _tei_miss(start, tig, mass, dv + step, perigee_alt, incl_deg, ei_get, engine)
 			if not f2.is_empty():
 				break
 			step *= 0.5
@@ -1310,10 +1364,10 @@ static func tei_components(start: Trajectory, tig: float, mass: float, guess: Ve
 ## takes its perigee's time less EI_TO_PERIGEE_S for entry interface's.
 ## Empty when it doesn't come back to the Earth.
 static func _tei_miss(start: Trajectory, tig: float, mass: float, dv: Vector3, perigee_alt: float, incl_deg: float,
-		ei_get: float) -> PackedFloat64Array:
+		ei_get: float, engine: Dictionary = {}) -> PackedFloat64Array:
 	var tr := start.clone()
 	tr.coast_to(tig, 30.0, FRAC)
-	simulate_sps_burn(tr, mass, dv)
+	simulate_burn(engine, tr, mass, dv)
 	var near := func(t2: Trajectory) -> bool:
 		return t2.primary == "earth" and t2.radius() < 1.0e8
 	if not tr.coast_until(near, tig + 6.0 * 86400.0, MAX_DT, FRAC):

@@ -29,6 +29,14 @@ launch_refsmmat block: the orientation the CMC's IMU was released at
 liftoff, X horizontal along the flight azimuth (the report's), Z down
 along the pad's geodetic vertical and Y = Z x X, each row a stable member
 axis in the ICRF.
+
+For a mission whose figures give two burns' velocities to be gained both
+in the IMU's axes and in the Earth-centred inertial axes of its mission
+report ("burns", Apollo 13's MCC-2 and PC+2, flown on the same platform),
+it prints the REFSMMAT that platform held: the rotation that takes the
+one pair onto the other (TRIAD, the longer burn's direction kept exactly),
+from the report's axes, taken as the mean equator and equinox of the
+Besselian year of the flight [estimated], to the ICRF.
 """
 import json
 import math
@@ -72,6 +80,23 @@ MISSIONS = {
     "apollo_12": {"flight_azimuth": 72.029, "inclination": 32.540, "descending_node": 123.126,
                   "insertion_s": 703.91, "insertion_lat": 32.682, "insertion_lon": -51.131,
                   "insertion_alt_km": 190.9, "tli_inclination": 30.355, "tli_descending_node": 120.338},
+    # AS-508, from Launch Complex 39A: the Apollo/Saturn V postflight
+    # trajectory (the azimuth, 72.043 deg) and the Saturn V flight
+    # evaluation report (MPR-SAT-FE-70-2): Tables 4-5 (insertion) and 4-6
+    # (TLI). Its burns: MCC-2's and PC+2's velocities to be gained in the
+    # LM IMU's axes as planned (the Apollo 13 Mission Operations Report,
+    # Appendix D) and in the mission report's Earth-centred inertial axes as
+    # desired (MSC-02680, Table 6.4-I), ft/s, the table's signs reversed:
+    # its components run against the burns (the simulator's PC+2, its N81
+    # the flown PAD's to a few ft/s, burns along their negative), and taken
+    # so the platform's Z axis lies within 0.06 deg of the ecliptic's south
+    # pole and its Y axis against the equinox, a passive thermal control
+    # REFSMMAT's form.
+    "apollo_13": {"flight_azimuth": 72.043, "inclination": 32.525, "descending_node": 123.084,
+                  "insertion_s": 759.83, "insertion_lat": 32.694, "insertion_lon": -50.490,
+                  "insertion_alt_km": 191.6, "tli_inclination": 31.817, "tli_descending_node": 122.997,
+                  "burns": {"imu": [[-37.89, 2.96, -1.21], [743.08, -426.42, 90.84]],
+                            "eci": [[-2.9, 34.3, 16.2], [426.4, -645.6, -379.0]]}},
 }
 FIGURES = MISSIONS[MISSION_ID]
 PAD_LAT, PAD_LON = FIGURES.get("pad", PAD_39A)
@@ -187,6 +212,45 @@ def main():
     for name, row in zip("xyz", rows):
         print('  "%s": [%.9f, %.9f, %.9f]' % (name, row[0], row[1], row[2]))
     print("its Y axis is %.3f deg from the parking orbit's negative normal" % tilt)
+    if "burns" in FIGURES:
+        burn_refsmmat(epoch)
+
+
+def unit(v):
+    n = math.sqrt(sum(x * x for x in v))
+    return [x / n for x in v]
+
+
+def cross(a, b):
+    return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
+
+
+def triad(p, q):
+    """Rows: p's direction, then the normal to p and q, then the third."""
+    t1 = unit(p)
+    t2 = unit(cross(p, q))
+    return [t1, t2, cross(t1, t2)]
+
+
+def burn_refsmmat(epoch):
+    """The REFSMMAT the burns' platform held (the docstring's), its rows
+    the stable member's axes in the ICRF."""
+    b = FIGURES["burns"]
+    imu_1, imu_2 = b["imu"]
+    eci_1, eci_2 = b["eci"]
+    angle = lambda u, v: math.degrees(math.acos(sum(x * y for x, y in zip(unit(u), unit(v)))))
+    print("the burns %.3f deg apart in the IMU's axes, %.3f in the report's" % (angle(imu_1, imu_2), angle(eci_1, eci_2)))
+    # Stable member from report axes: IMU triad's transpose times the
+    # report's triad.
+    m = mul(transpose(triad(imu_2, imu_1)), triad(eci_2, eci_1))
+    # The Besselian year of the flight: its start, B1970.0.
+    year = round(2000.0 + (epoch - J2000_JD) / 365.25)
+    jd_b = 2415020.31352 + 365.242198781 * (year - 1900)
+    to_j2000 = transpose(precession(jd_b))
+    print("burns' REFSMMAT (ICRF rows, from the mean equator and equinox of B%d.0):" % year)
+    for name, row in zip("xyz", m):
+        r = apply(to_j2000, row)
+        print('  "%s": [%.9f, %.9f, %.9f]' % (name, r[0], r[1], r[2]))
 
 
 if __name__ == "__main__":
