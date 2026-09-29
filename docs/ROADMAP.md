@@ -1892,8 +1892,9 @@ EDS and the handle. Eagle has no ABORT or ABORT STAGE yet.
   tower the handle cuts the booster off, fires the SM's +X jets and
   separates the CSM 3 s later; mode II falls to a full-lift entry, mode
   III burns retrograde on the ground's PAD to land short of Africa on
-  half lift, and mode IV burns into orbit. Houston marks the modes as
-  Apollo 11's were, and lights ABORT for a failure that ends the launch.
+  half lift, and mode IV burns into orbit. The modes are called as
+  Apollo 11's were (Armstrong's One Bravo, then Houston's), and Houston
+  lights ABORT for a failure that ends the launch.
   Checkpoint schema 22. CI gets an eighth scenario part for the aborts'
   flights, each file's time measured again on 9c's runs.
 

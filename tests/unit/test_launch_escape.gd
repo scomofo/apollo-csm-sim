@@ -6,9 +6,9 @@
 ## engine's cutoff or the tower goes; the crew can switch it off, and the
 ## ground's ABORT then asks for the handle. After the tower the handle
 ## starts the SPS abort: the booster's cutoff, the SM's +X jets while it
-## is held, and the CSM's separation 3 s after it. Houston marks the modes
-## as Apollo 11's were, and a checkpoint under the tower flies on to the
-## same splashdown. The modes' landings are
+## is held, and the CSM's separation 3 s after it. The modes are called as
+## Apollo 11's were, and a checkpoint under the tower flies on to the same
+## splashdown. The modes' landings are
 ## tests/scenarios/test_launch_aborts.gd's.
 extends SimTest
 
@@ -146,7 +146,7 @@ func test_after_the_tower_the_handle_separates_the_csm() -> void:
 	assert_eq(rt.sequencer.phase, "abort")
 
 
-func test_houston_marks_the_modes_as_apollo_11s_were() -> void:
+func test_the_modes_are_called_as_apollo_11s_were() -> void:
 	build("launch")
 	var said := {}
 	rt.sequencer.capcom.connect(func(text: String) -> void: said[text] = SimClock.get_seconds)

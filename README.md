@@ -195,9 +195,9 @@ the flight's Mission Operation Report (`src/systems/eds.gd`,
   burns the SPS retrograde. The crew turns the CSM on the SCS at RATE
   HIGH, flies P40, then enters on half lift, rolled 60° to the south. In
   mode IV (from 9:00) Houston's PAD takes the CSM into orbit on the SPS.
-- Houston calls the modes as Apollo 11's were: One Bravo at 0:44, Mode
-  One Charlie at 1:58, S-IVB to COI capability at 5:27 and Mode IV
-  capability at 9:00.
+- The modes are called as Apollo 11's were: Armstrong's One Bravo at
+  0:44, then Houston's Mode One Charlie at 1:58, S-IVB to COI capability
+  at 5:27 and Mode IV capability at 9:00.
 
 The launch vehicle's engines and its guidance platform are on the
 failure catalog. A failure can also be armed a time after a mission
@@ -1437,7 +1437,7 @@ The unit tests cover:
     off;
   - after the tower the handle separates the CSM 3 s on, with the SM's
     +X jets while held;
-  - Houston marks the modes as Apollo 11's were;
+  - the modes are called as Apollo 11's were;
   - a checkpoint under the tower comes down on the same spot.
 
   `tests/unit/test_failures.gd`: each launch vehicle failure lights its
