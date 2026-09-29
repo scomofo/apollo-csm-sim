@@ -27,7 +27,8 @@
 ##   rumble                 the air, by its dynamic pressure (dyn.q_pa)
 ##   fan                    the cabin's fans while it is powered
 ##   breath                 the crew's breathing above BREATH_G
-##   alarm                  the master alarm's tone (sys.master_alarm)
+##   alarm                  the master alarm's tone (sys.master_alarm; in
+##                          Eagle, lm.cw.master_alarm)
 ## Each voice is heard in its vehicle's cabin (player.vehicle), and in either
 ## while the two are docked [simplified: through the tunnel, at full level].
 ## The continuous voices hush while the clock is paused. The cabin's bus
@@ -46,8 +47,8 @@
 ##         lv.thrust_n, lv.stage, lv.engines, les.thrust_n, sivb.thrust_n,
 ##         sps.chamber_pct,
 ##         lm.dps.thrust_n, lm.dps.throttle_pct, lm.aps.chamber_pct,
-##         dyn.q_pa, dyn.g_load, sys.powered, sys.master_alarm, dock.state,
-##         player.vehicle, player.sound_db
+##         dyn.q_pa, dyn.g_load, sys.powered, sys.master_alarm,
+##         lm.cw.master_alarm, dock.state, player.vehicle, player.sound_db
 ## Writes: audio.events, audio.last, audio.<voice>_gain
 class_name AudioDirector
 extends Node
@@ -134,7 +135,7 @@ const EVENTS := {
 ## continuous voice's.
 const SILENT_EVENTS := ["ignition", "thrust_ok", "tilt", "mach_1", "max_q", "sic_ceco", "sic_oeco", "s2_ignition",
 	"igm", "s2_ceco", "emr_shift", "s2_oeco", "s4_ignition", "s4_cutoff", "insertion", "tli_ignition", "tli_cutoff",
-	"lm_liftoff", "lm_insertion", "abort_request", "lv_cutoff", "sic_engine_1_failure", "sic_engine_2_failure",
+	"lm_liftoff", "lm_insertion", "lm_abort", "abort_request", "lv_cutoff", "sic_engine_1_failure", "sic_engine_2_failure",
 	"lv_guidance_failure", "s2_engines_failure", "s4_engine_failure"]
 const SILENT_PREFIXES := ["start_", "phase_", "pad_", "timeline_"]
 ## Channels that move continuously (the hand controllers) or aren't the
@@ -340,11 +341,12 @@ func gains() -> Dictionary:
 		+ (int(Bus.get_value("lm.rcs.active_jets", 0)) if _heard("lm") else 0)
 	if jets > 0:
 		g["jets"] = minf(0.1 + 0.04 * jets, 0.4)
-	# The listener's own cabin: its fans, the crew's breathing, the CM's
-	# master alarm in the headsets [simplified: no ECS, so the fans run
-	# while the CM's buses are powered, and in Eagle while it flies].
+	# The listener's own cabin: its fans, the crew's breathing, its master
+	# alarm in the headsets [simplified: no ECS, so the fans run while the
+	# CM's buses are powered, and in Eagle while it flies].
 	if aboard == "lm":
 		g["fan"] = 0.25 if str(Bus.get_value("dock.state", "")) == "free" else 0.0
+		g["alarm"] = 0.3 if bool(Bus.get_value("lm.cw.master_alarm", false)) else 0.0
 	else:
 		g["fan"] = 0.25 if bool(Bus.get_value("sys.powered", false)) else 0.0
 		g["breath"] = clampf((float(Bus.get_value("dyn.g_load", 0.0)) - BREATH_G) / 3.0, 0.0, 1.0)

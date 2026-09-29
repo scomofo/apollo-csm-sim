@@ -83,7 +83,16 @@ dsky.comp_acty,bool,,agc,COMP ACTY light
 dsky.lamp.*,bool,,agc,DSKY status and caution lamps
 ctl.lm.mode,int,,crew,LGC MODE (for the PGNS mode control): 0 FREE 1 HOLD 2 AUTO
 ctl.lm.engine_arm,int,,crew,ENG ARM: 0 OFF 1 ASC 2 DES
-ctl.lm.stage,bool,,crew,ABORT STAGE: stage the LM (momentary)
+ctl.lm.stage,bool,,crew,ABORT STAGE: stage the LM (momentary); in the powered descent the LGC's P71 fires the ascent engine it arms (slice 9e)
+ctl.lm.abort,bool,,crew,ABORT: in the powered descent the LGC's P70 on the descent engine it arms (momentary; slice 9e)
+ctl.lm.cw.master_alarm,bool,,crew,The LM's MASTER ALARM pushbutton-light: pressed resets its master alarm (momentary)
+lm.cw.master_alarm,bool,,lm_cw,The LM's master alarm: its MASTER ALARM lights and tone. On as a status light other than DES QTY comes on; off at a MASTER ALARM press
+lm.cw.des_qty,bool,,lm_cw,DES QTY: before staging a descent tank at 5.6 % of its propellant
+lm.cw.des_reg,bool,,lm_cw,DES REG: before staging the descent helium out of 219.2 to 259.1 psia
+lm.cw.rcs_a_reg,bool,,lm_cw,RCS A REG: RCS system A's regulator failed with its valves open
+lm.cw.rcs_b_reg,bool,,lm_cw,RCS B REG: RCS system B's regulator failed with its valves open
+lm.cw.lgc,bool,,lm_cw,LGC: the LGC failed with GUID CONT at PGNS
+lm.cw.iss,bool,,lm_cw,ISS: the LGC's IMU failed with GUID CONT at PGNS
 ctl.lm.eng_start,bool,,crew,ENGINE START pushbutton (momentary)
 ctl.lm.eng_stop,bool,,crew,ENGINE STOP pushbutton (momentary)
 ctl.lm.rcs.sys_a,bool,,crew,LM RCS system A open

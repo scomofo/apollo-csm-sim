@@ -204,11 +204,11 @@ func test_apollo_10_has_its_own_checklists_for_a_flight_without_a_landing() -> v
 	var lm := ChecklistBook.load_lm("apollo_10")
 	var lm_for := {"lunar_orbit": "Undocking and DOI (P30 / P40)", "lunar_descent": "The low pass, phasing and staging (P30 / P40)",
 		"lunar_ascent": "Insertion and rendezvous (P42, P20, P32 to P35)"}
-	assert_eq(lm.lists.size(), 3, "Snoopy's three")
+	assert_eq(lm.lists.size(), 6, "Snoopy's three, and the LM's three malfunction procedures")
 	for phase in lm_for:
 		lm.select_for_phase(phase)
 		assert_eq(lm.list().title, lm_for[phase], "Snoopy's for %s" % phase)
-	for c in lm.lists:
+	for c in _flight_lists(lm):
 		for step in c.steps:
 			assert_true(step.has("check"), "%s: \"%s\" has a check" % [c.title, step["text"]])
 			assert_false(str(step["text"]).contains("Eagle") or str(step["text"]).contains("Columbia"), "%s: Apollo 10's" % c.title)
@@ -232,7 +232,7 @@ func test_apollo_12_has_its_own_checklists_with_the_landing_site_update() -> voi
 	var lm := ChecklistBook.load_lm("apollo_12")
 	var lm_for := {"lunar_orbit": "Undocking and DOI (P30 / P40)", "lunar_descent": "Powered descent (P63 to P68)",
 		"lunar_surface": "Lunar surface and liftoff (P12)", "lunar_ascent": "Rendezvous and docking (P20, P32 to P35)"}
-	assert_eq(lm.lists.size(), 4, "Intrepid's four")
+	assert_eq(lm.lists.size(), 7, "Intrepid's four, and the LM's three malfunction procedures")
 	for phase in lm_for:
 		lm.select_for_phase(phase)
 		assert_eq(lm.list().title, lm_for[phase], "Intrepid's for %s" % phase)
@@ -269,7 +269,7 @@ func test_apollo_13_has_its_own_checklists_for_the_lifeboat() -> void:
 	var lm := ChecklistBook.load_lm("apollo_13")
 	var lm_for := {"tank_failure": "Activation and the docked alignment",
 		"translunar_coast": "Activation and the docked alignment", "transearth_coast": "Transearth: MCC-5 on the AGS"}
-	assert_eq(lm.lists.size(), 4, "Aquarius's four")
+	assert_eq(lm.lists.size(), 7, "Aquarius's four, and the LM's three malfunction procedures")
 	for phase in lm_for:
 		lm.select_for_phase(phase)
 		assert_eq(lm.list().title, lm_for[phase], "Aquarius's for %s" % phase)
@@ -279,7 +279,7 @@ func test_apollo_13_has_its_own_checklists_for_the_lifeboat() -> void:
 			for step in c.steps:
 				for other in ["Eagle", "Columbia", "Intrepid", "Yankee Clipper"]:
 					assert_false(str(step["text"]).contains(other), "%s: Apollo 13's" % c.title)
-				if book == lm:
+				if book == lm and c in _flight_lists(lm):
 					assert_true(step.has("check"), "%s: \"%s\" has a check" % [c.title, step["text"]])
 				var ch := str(step.get("check", {}).get("channel", ""))
 				if ch.begins_with("mission.event.timeline_"):
@@ -402,8 +402,13 @@ func test_an_apollo_8_checkpoint_keeps_its_mission() -> void:
 	assert_eq(rt.restore(JSON.parse_string(text)), "checkpoint is for mission 'apollo_8'", "not Apollo 11's")
 
 
-## The titles of [param book]'s flight checklists: the malfunction
-## procedures after them are every mission's (test_failures.gd).
+## [param book]'s flight checklists: the malfunction procedures after
+## them are every mission's (test_failures.gd).
+func _flight_lists(book: ChecklistBook) -> Array:
+	return book.lists.filter(func(c: Checklist) -> bool: return not c.title.begins_with("Malfunction: "))
+
+
+## The titles of [param book]'s flight checklists.
 func _flight_titles(book: ChecklistBook) -> Array:
 	return book.lists.map(func(c: Checklist) -> String: return c.title).filter(
 		func(t: String) -> bool: return not t.begins_with("Malfunction: "))

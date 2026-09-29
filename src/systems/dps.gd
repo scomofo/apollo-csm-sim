@@ -15,12 +15,25 @@
 ## and shutdown transients. [simplified: no gimbal trim; the thrust acts
 ## through the centre of mass.]
 ##
+## Slice 9e: the ABORT pushbutton arms the engine whatever ENG ARM says
+## [published: "under abort or emergency conditions, the ABORT and ABORT
+## STAGE pushbuttons are used to perform the arming function", LM Apollo
+## Operations Handbook, LMA790-3-LM, section 2.1], until the crew sets ENG
+## ARM to OFF [simplified: the pushbutton latched in until pressed again].
+## ABORT STAGE shuts the engine down at once (Dynamics.stage_lm() leaves
+## no descent stage to fire). The tanks' helium regulator holds them at
+## he_psia; failed closed (fail("he_reg"), the failure catalog's
+## dps_he_reg) the pressure falls as the engine draws its propellant, and
+## the thrust with it (spacecraft.json "dps"). lm.dps.low_level is the
+## low-level sensors' 5.6 % (DES QTY).
+##
 ## Reads:  ctl.lm.engine_arm (0 OFF, 1 ASC, 2 DES), ctl.lm.eng_start,
-##         ctl.lm.eng_stop, ctl.lm.throttle, ctl.lm.guid_cont,
+##         ctl.lm.eng_stop, ctl.lm.throttle, ctl.lm.guid_cont, ctl.lm.abort,
 ##         lm.guid.dps_on, lm.guid.dps_throttle, lm.sys.powered,
 ##         lm.dyn.config, dock.state
 ## Writes: lm.dps.thrust_n, lm.dps.prop_kg, lm.dps.throttle_pct,
-##         lm.dps.ignitions, lm.dps.burn_time_s, lm.dps.on
+##         lm.dps.ignitions, lm.dps.burn_time_s, lm.dps.on, lm.dps.he_psia,
+##         lm.dps.low_level, lm.dps.abort_armed
 class_name Dps
 extends Node
 
@@ -34,15 +47,24 @@ var prop_kg: float = -1.0
 var level: float = 0.0
 var ignitions: int = 0
 var burn_time: float = 0.0
+## Armed by the ABORT pushbutton, until ENG ARM goes to OFF.
+var abort_armed: bool = false
+## The helium regulator failed closed, and the pressure it leaves, psia.
+var he_failed: bool = false
+var he_psia: float = -1.0
 var _was_on: bool = false
 ## Started by hand (ENGINE START), until ENGINE STOP or disarmed.
 var manual: bool = false
 var _start_was: bool = false
+var _abort_was: bool = false
+var _arm_was: int = 0
 
 
 func _ready() -> void:
 	if prop_kg < 0.0:
 		prop_kg = float(SpacecraftData.section("dps")["propellant_kg"])
+	if he_psia < 0.0:
+		he_psia = float(SpacecraftData.section("dps")["he_psia"])
 	SimClock.add_ticker(tick, SimClock.Stage.SYSTEMS)
 	_publish()
 
@@ -52,7 +74,14 @@ func _exit_tree() -> void:
 
 
 func commanded() -> bool:
-	var armed := int(Bus.get_value("ctl.lm.engine_arm", 0)) == ARM_DES
+	var arm := int(Bus.get_value("ctl.lm.engine_arm", 0))
+	var abort := bool(Bus.get_value("ctl.lm.abort", false))
+	if abort and not _abort_was or arm == 0 and _arm_was != 0:
+		abort_armed = abort and not _abort_was
+		Bus.set_value("lm.dps.abort_armed", abort_armed)
+	_abort_was = abort
+	_arm_was = arm
+	var armed := arm == ARM_DES or abort_armed
 	var start := bool(Bus.get_value("ctl.lm.eng_start", false))
 	if not armed or bool(Bus.get_value("ctl.lm.eng_stop", false)):
 		manual = false
@@ -108,6 +137,19 @@ static func throttle_target(cmd: float) -> float:
 	return c if c <= float(d["throttle_max"]) else 1.0
 
 
+## Fail [param part]: "he_reg", the tanks' helium regulator, closed.
+func fail(part: String) -> void:
+	if part == "he_reg":
+		he_failed = true
+
+
+## The thrust the tanks' pressure leaves, a fraction of the throttle's.
+func _pressure_factor() -> float:
+	var d := SpacecraftData.section("dps")
+	var lo := float(d["he_min_psia"])
+	return clampf((he_psia - lo) / (float(d["he_psia"]) - lo), 0.0, 1.0)
+
+
 func tick(dt: float) -> void:
 	var on := commanded()
 	if not on and level == 0.0:
@@ -126,26 +168,34 @@ func tick(dt: float) -> void:
 	if level > 0.0:
 		burn_time += dt
 		var mdot := float(d["thrust_n"]) / (float(d["isp_s"]) * Units.G0)
-		prop_kg = maxf(0.0, prop_kg - mdot * level * dt)
+		var draw := level * _pressure_factor()
+		prop_kg = maxf(0.0, prop_kg - mdot * draw * dt)
+		if he_failed:
+			he_psia = maxf(float(d["he_min_psia"]), he_psia - float(d["he_decay_psi_s"]) * draw * dt)
 	_publish()
 
 
 func thrust() -> float:
-	return float(SpacecraftData.section("dps")["thrust_n"]) * level
+	return float(SpacecraftData.section("dps")["thrust_n"]) * level * _pressure_factor()
 
 
 func _publish() -> void:
+	var d := SpacecraftData.section("dps")
 	Bus.set_value("lm.dps.thrust_n", thrust())
 	Bus.set_value("lm.dps.prop_kg", prop_kg)
-	Bus.set_value("lm.dps.throttle_pct", level * 100.0)
-	Bus.set_value("lm.dps.on", level > ON_LEVEL)
+	Bus.set_value("lm.dps.throttle_pct", level * _pressure_factor() * 100.0)
+	Bus.set_value("lm.dps.on", level * _pressure_factor() > ON_LEVEL)
 	Bus.set_value("lm.dps.ignitions", ignitions)
 	Bus.set_value("lm.dps.burn_time_s", burn_time)
+	Bus.set_value("lm.dps.he_psia", he_psia)
+	Bus.set_value("lm.dps.low_level", prop_kg <= float(d["low_level_fraction"]) * float(d["propellant_kg"]))
+	Bus.set_value("lm.dps.abort_armed", abort_armed)
 
 
 func snapshot() -> Dictionary:
 	return {"prop_kg": prop_kg, "level": level, "ignitions": ignitions, "burn_time": burn_time, "was_on": _was_on,
-		"manual": manual}
+		"manual": manual, "abort_armed": abort_armed, "he_failed": he_failed, "he_psia": he_psia,
+		"abort_was": _abort_was, "arm_was": _arm_was}
 
 
 func restore(d: Dictionary) -> void:
@@ -155,4 +205,9 @@ func restore(d: Dictionary) -> void:
 	burn_time = float(d["burn_time"])
 	_was_on = bool(d.get("was_on", false))
 	manual = bool(d.get("manual", false))
+	abort_armed = bool(d.get("abort_armed", false))
+	he_failed = bool(d.get("he_failed", false))
+	he_psia = float(d.get("he_psia", SpacecraftData.section("dps")["he_psia"]))
+	_abort_was = bool(d.get("abort_was", false))
+	_arm_was = int(d.get("arm_was", 0))
 	_publish()

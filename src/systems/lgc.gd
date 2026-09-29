@@ -62,6 +62,19 @@
 ##        flies the attitude, and the throttle holds the descent rate each
 ##        click moves by 1 ft/s; V16N60
 ##   P68  Landing confirmation at touchdown: engine off, V06N43
+##   P70  DPS abort (slice 9e), from P63 to P66 once the descent engine
+##        has lit, at the ABORT pushbutton: the descent engine throttles
+##        up to full thrust and P12's guidance flies the LM to insertion
+##        (AscentGuidance), its vertical rise ended above 25,000 ft, into
+##        an orbit whose apolune phases it for the rendezvous
+##        (AscentGuidance.abort_targets(): the TPI the PDI PAD gave,
+##        uplinked with it); V16N94, then V16N85 at cutoff [published:
+##        Luminary 099's P70-P71, and Bennett, NASA TM X-58040]
+##   P71  APS abort, at ABORT STAGE, from P63 to P66 or from P70: staged,
+##        the ascent engine flies the same guidance, its targets worked out
+##        afresh. Luminary reads the pushbuttons only while its aborts are
+##        enabled (LETABORT); here from the descent's ignition to the
+##        touchdown. [simplified: selected only by the pushbuttons]
 ##
 ## The descent's guidance runs in a frame fixed at the landing site (x up,
 ## y crossrange, z downrange along the ground track), turning with the
@@ -144,6 +157,9 @@ const DESCENT := [63, 64, 65, 66, 68]
 const DESCENT_BURN := [63, 64, 65, 66]
 ## Powered ascent.
 const ASCENT := 12
+## The aborts from the powered descent: on the descent engine, and on the
+## ascent engine after staging.
+const ABORTS := [70, 71]
 ## The rendezvous targeting programs: CSI, CDH, TPI, TPM.
 const RENDEZVOUS := [32, 33, 34, 35]
 ## The DSKY's time registers the rendezvous programs show and load.
@@ -205,6 +221,13 @@ var csm_nav: Trajectory = null
 var ascent_targets: Dictionary = {}
 var ascent_base: float = 0.0
 var ascent_plane: Vector3 = Vector3.ZERO
+## The aborts' TPI times from the PDI PAD (GET s): for an abort before
+## abort_split_get, and after it; and the one the abort in flight aims at.
+## -1 without them.
+var abort_tpi_early: float = -1.0
+var abort_tpi_late: float = -1.0
+var abort_split_get: float = -1.0
+var abort_tpi: float = -1.0
 ## P20 running: the rendezvous radar's marks update the CSM's state vector.
 var rr_nav: bool = false
 ## Marks taken, and the last one's change to the CSM's position (m) and
@@ -250,6 +273,10 @@ var _guide_get: float = -1.0
 var _step_get: float = -1.0
 var _restart_hold: float = -1.0
 var _restoring: bool = false
+## The ABORT pushbutton at the last step, and an abort program being
+## selected by the pushbuttons (change_program() takes only those).
+var _abort_was: bool = false
+var _abort_request: bool = false
 # What the descent displays show: slant range to the site (m), speed over
 # the surface, horizontal and vertical (m/s), footpads' height (m) and the
 # landing point's angle from the LM's +Z axis (°).
@@ -278,7 +305,7 @@ func _ready() -> void:
 
 
 func programs() -> Array:
-	return [0, ASCENT, 20, 30] + RENDEZVOUS + [40, 41, 42, 47] + DESCENT
+	return [0, ASCENT, 20, 30] + RENDEZVOUS + [40, 41, 42, 47] + DESCENT + ABORTS
 
 
 func thrusting_programs() -> Array:
@@ -286,13 +313,18 @@ func thrusting_programs() -> Array:
 
 
 func engine_thrust(p: int) -> float:
-	if p == 42 or p == ASCENT:
+	if _on_aps(p):
 		return float(SpacecraftData.section("aps")["thrust_n"])
 	return float(SpacecraftData.section("dps")["thrust_n"]) * Dps.throttle_target(throttle())
 
 
 func engine_tau_off(p: int) -> float:
-	return float(SpacecraftData.section("aps" if p == 42 or p == ASCENT else "dps")["tau_off_s"])
+	return float(SpacecraftData.section("aps" if _on_aps(p) else "dps")["tau_off_s"])
+
+
+## Program [param p] fires the ascent engine.
+static func _on_aps(p: int) -> bool:
+	return p in [42, ASCENT, 71]
 
 
 func engine_running() -> bool:
@@ -300,17 +332,20 @@ func engine_running() -> bool:
 
 
 func publish_engine(on: bool) -> void:
-	Bus.set_value("lm.guid.dps_on", on and (program == 40 or program in DESCENT_BURN))
+	Bus.set_value("lm.guid.dps_on", on and (program in [40, 70] or program in DESCENT_BURN))
 	Bus.set_value("lm.guid.dps_throttle", throttle())
-	Bus.set_value("lm.guid.aps_on", on and (program == 42 or program == ASCENT))
+	Bus.set_value("lm.guid.aps_on", on and _on_aps(program))
 
 
 ## The DPS throttle the LGC commands, a fraction of full thrust: in
-## powered descent the guidance's; in P40 the schedule's, its start
-## throttle for its first seconds after ignition, then its burn throttle.
+## powered descent the guidance's; in P70 full thrust; in P40 the
+## schedule's, its start throttle for its first seconds after ignition,
+## then its burn throttle.
 func throttle() -> float:
 	if program in DESCENT_BURN:
 		return descent_throttle
+	if program == 70:
+		return 1.0
 	return Dps.schedule_throttle(p40_schedule, _now() - ignition_get if ignition_get >= 0.0 else 0.0)
 
 
@@ -344,7 +379,7 @@ func dap_enabled() -> bool:
 func auto_rate() -> float:
 	if program in DESCENT_BURN:
 		return deg_to_rad(float(SpacecraftData.section("descent_guidance")["auto_rate_dps"]))
-	if program == ASCENT:
+	if program == ASCENT or program in ABORTS:
 		return deg_to_rad(float(SpacecraftData.section("ascent_guidance")["auto_rate_dps"]))
 	return RATE_AUTO
 
@@ -449,13 +484,26 @@ func uplink_liftoff(tig: float) -> void:
 	dsky.set_lamp("uplink_acty", true)
 
 
+## Load the aborts' TPI times from the ground's PDI PAD (GET s): [param early]
+## for an abort before [param split], [param late] after it. P70 and P71
+## phase the LM's orbit for them (AscentGuidance.abort_targets()) [stands
+## in for Luminary's ABTCOF coefficients, erasable loads fitted to them].
+func uplink_abort_tpi(early: float, late: float, split: float) -> void:
+	abort_tpi_early = early
+	abort_tpi_late = late
+	abort_split_get = split
+	abort_tpi = -1.0
+
+
 ## Stage DEPENDENT: coast the state vector to now with this step's sensed
 ## ΔV [param dv] (all of it: Average-G always runs while the LM flies free
 ## [simplified]); on the surface, hold it at the spot it landed at. The
-## CSM's state vector coasts along.
+## CSM's state vector coasts along, but in the powered descent and on the
+## surface, where it waits for an abort or P12 (_csm_now()).
 func _navigate(dv: Vector3) -> void:
 	var now := _now()
-	if csm_nav != null and csm_nav.t < now:
+	var landed := bool(Bus.get_value("lm.dyn.landed", false))
+	if csm_nav != null and csm_nav.t < now and not landed and not program in DESCENT:
 		csm_nav.coast_to(now)
 	if nav == null:
 		super._navigate(dv)   # the LM's truth: the CSM's, handed over at undocking
@@ -609,27 +657,26 @@ func uplink_landing_site(site_mf: Vector3) -> void:
 
 ## P63 needs the landing site and the LM flying free; P64 to P68 come only
 ## from the descent itself. P12 needs the LM on the surface and the CSM's
-## state vector.
+## state vector; P70 and P71 come only from the abort pushbuttons.
 func change_program(p: int) -> bool:
-	if not _restoring:
-		if p == 63 and (landing_site == Vector3.ZERO or not _free()):
-			_alarm(1520)
-			return false
-		if p in DESCENT and p != 63:
-			_alarm(1520)
-			return false
-		var landed := bool(Bus.get_value("lm.dyn.landed", false))
-		if p == ASCENT and (csm_nav == null or nav == null or not _free() or not landed):
-			_alarm(1520)
-			return false
-		if (p == 20 or p in RENDEZVOUS) and (csm_nav == null or nav == null or not _free() or landed):
-			_alarm(1520)
-			return false
-		var lead := float(SpacecraftData.section("rendezvous_guidance")["tpm_lead_s"])
-		if p == 35 and rdv_intercept_get <= _now() + lead:
-			_alarm(1520)
-			return false
+	if not _restoring and _refused(p):
+		_alarm(1520)
+		return false
 	return super.change_program(p)
+
+
+## Whether the LGC refuses program [param p] (alarm 1520): P63 without the
+## landing site or flying docked; P64 to P68 but from the descent; P12 off
+## the surface or without the state vectors; P20 and P32 to P35 on the
+## surface or without them, and P35 too late for its lead; P70 and P71 but
+## from the pushbuttons.
+func _refused(p: int) -> bool:
+	var landed := bool(Bus.get_value("lm.dyn.landed", false))
+	var navs := csm_nav != null and nav != null and _free()
+	var lead := float(SpacecraftData.section("rendezvous_guidance")["tpm_lead_s"])
+	return (p == 63 and (landing_site == Vector3.ZERO or not _free())) or (p in DESCENT and p != 63) \
+		or (p == ASCENT and not (navs and landed)) or ((p == 20 or p in RENDEZVOUS) and not (navs and not landed)) \
+		or (p == 35 and rdv_intercept_get <= _now() + lead) or (p in ABORTS and not _abort_request)
 
 
 func start_program(p: int) -> void:
@@ -637,6 +684,8 @@ func start_program(p: int) -> void:
 		_start_p63()
 	if p == ASCENT and not _restoring:
 		_start_p12()
+	if p in ABORTS and not _restoring:
+		_start_abort(p)
 	if p == 20:
 		rr_nav = true
 		dsky.show(16, 54)
@@ -678,6 +727,10 @@ static func pdi_time(tr: Trajectory, site_mf: Vector3, pdi_range: float) -> floa
 func proceed() -> void:
 	if program in RENDEZVOUS:
 		_proceed_rendezvous()
+		return
+	if program in ABORTS:
+		if step_name == "post":
+			change_program(0)
 		return
 	if program == ASCENT:
 		match step_name:
@@ -737,7 +790,8 @@ func extra_step() -> void:
 	_landing_radar(step_dt if program in DESCENT else 0.0)
 	_rendezvous_nav(now)
 	_executive(step_dt, now)
-	if program == ASCENT:
+	_abort_discretes()
+	if program == ASCENT or program in ABORTS:
 		_p12_step(now)
 		return
 	if not program in DESCENT or now < _restart_hold - 1e-6:
@@ -992,6 +1046,16 @@ static func _descent_attitude(u: Vector3, g: Basis) -> Quaternion:
 	return Basis(x, y, x.cross(y)).orthonormalized().get_rotation_quaternion()
 
 
+## The CSM's state vector coasted to the LM's own (the time the LGC's
+## navigation has reached, a step behind the clock until this step's
+## sensing), or null.
+func _csm_now() -> Trajectory:
+	var t := nav.t if nav != null else _now()
+	if csm_nav != null and csm_nav.t < t:
+		csm_nav.coast_to(t)
+	return csm_nav
+
+
 # --- powered ascent ----------------------------------------------------------------
 
 ## P12: the insertion targets above the landing site the LGC has (or, with
@@ -1002,22 +1066,80 @@ func _start_p12() -> void:
 	ascent_base = landing_site.length() if landing_site != Vector3.ZERO \
 		else tr.radius() - Dynamics.lm_cm_height(str(Bus.get_value("lm.dyn.config", "lm")))
 	ascent_targets = AscentGuidance.targets(ascent_base)
-	ascent_plane = csm_nav.pos().cross(csm_nav.vel()).normalized()
+	var c := _csm_now()
+	ascent_plane = c.pos().cross(c.vel()).normalized()
 	tgo = 0.0
 	step_name = "tig"
 	dsky.show(6, 33, true)
 
 
+# --- the aborts (slice 9e) ----------------------------------------------------------
+
+## The ABORT and ABORT STAGE pushbuttons, read while the aborts are enabled:
+## from the descent's ignition to the touchdown, and in P70. ABORT STAGE
+## has staged the LM (Dynamics.stage_lm()): P71; ABORT, before staging:
+## P70.
+func _abort_discretes() -> void:
+	var abort := bool(Bus.get_value("ctl.lm.abort", false))
+	var click := abort and not _abort_was
+	_abort_was = abort
+	if not ((program in DESCENT_BURN and engine_on) or program == 70):
+		return
+	if str(Bus.get_value("lm.dyn.config", "lm")) == "lm_ascent":
+		_abort(71)
+	elif click and program != 70:
+		_abort(70)
+
+
+func _abort(p: int) -> void:
+	_abort_request = true
+	change_program(p)
+	_abort_request = false
+
+
+## P70 or P71 [param p]: the insertion targets for the TPI the abort aims
+## at (the PDI PAD's for an abort before the split, or after it), in the
+## CSM's plane; the engine on, from the vertical rise below 25,000 ft or
+## straight into ascent guidance above it.
+func _start_abort(p: int) -> void:
+	var tr := current_traj()
+	var now := _now()
+	ascent_base = landing_site.length() if landing_site != Vector3.ZERO else Bodies.R_MOON
+	var c := _csm_now()
+	ascent_plane = (c.pos().cross(c.vel()) if c != null else tr.pos().cross(tr.vel())).normalized()
+	if abort_tpi < 0.0 and abort_split_get >= 0.0:
+		# The first abort's: P71 after P70 aims at the same.
+		abort_tpi = abort_tpi_early if now < abort_split_get else abort_tpi_late
+	var eng := SpacecraftData.section("aps" if _on_aps(p) else "dps")
+	if c != null:
+		ascent_targets = AscentGuidance.abort_targets(tr.pos(), tr.vel(), c.pos(), c.vel(), ascent_base, now, abort_tpi,
+			_mass(), engine_thrust(p), float(eng["isp_s"]))
+	else:
+		ascent_targets = AscentGuidance.targets(ascent_base)
+	var d := SpacecraftData.section("ascent_guidance")
+	var rise := tr.radial_rate() < float(d["vertical_rise_hdot_mps"]) \
+		and tr.radius() - ascent_base < float(d["abort_vertical_alt_m"])
+	step_name = "vertical" if rise else "ascent"
+	tgo = 0.0
+	engine_enabled = true
+	engine_on = true
+	ignition_get = now
+	auto_active = true
+	dsky.show(16, 94)
+
+
 ## P12's step: the countdown to TIG; from ignition the vertical rise, the
 ## pitchover and ascent guidance to insertion, the steering held for the
 ## last seconds, and cutoff when the time to go is down to the engine's
-## tail-off.
+## tail-off. P70 and P71 fly the same from the vertical rise, on their
+## engine, the rise ended above 25,000 ft too.
 func _p12_step(now: float) -> void:
 	var d := SpacecraftData.section("ascent_guidance")
 	var tr := current_traj()
 	var up := tr.pos().normalized()
+	var eng := SpacecraftData.section("aps" if _on_aps(program) else "dps")
 	var g := AscentGuidance.steer(tr.pos(), tr.vel(), tr.radius(), tr.radial_rate(), ascent_plane, _mass(),
-		ascent_targets, tgo)
+		ascent_targets, tgo, engine_thrust(program), float(eng["isp_s"]))
 	var need: Vector3 = g["vg"]
 	vg = PackedFloat64Array([need.x, need.y, need.z])
 	var next := -1.0
@@ -1040,7 +1162,8 @@ func _p12_step(now: float) -> void:
 			else:
 				next = tig_load
 		"vertical":
-			if tr.radial_rate() >= float(d["vertical_rise_hdot_mps"]):
+			if tr.radial_rate() >= float(d["vertical_rise_hdot_mps"]) \
+					or (program in ABORTS and tr.radius() - ascent_base >= float(d["abort_vertical_alt_m"])):
 				step_name = "ascent"
 		"ascent":
 			if float(g["tgo"]) < float(d["hold_s"]):
@@ -1058,7 +1181,7 @@ func _p12_step(now: float) -> void:
 		auto_active = true
 	if step_name in ["vertical", "ascent", "hold"]:
 		tgo = g["tgo"]
-		if step_name != "vertical" and tgo <= engine_tau_off(ASCENT):
+		if step_name != "vertical" and tgo <= engine_tau_off(program):
 			engine_on = false
 			step_name = "tailoff"
 	Bus.set_value(_ch("guid.next_event_get_s"), next)
@@ -1111,7 +1234,7 @@ func _n74() -> Array:
 ## measured; the CSM's is moved toward them (V81). The first mark after the
 ## CSM's state vector arrives takes the relative position outright.
 func _rendezvous_nav(now: float) -> void:
-	if not rr_nav or nav == null or csm_nav == null or rcs_burn or engine_on:
+	if not rr_nav or nav == null or _csm_now() == null or rcs_burn or engine_on:
 		return
 	var d := SpacecraftData.section("rendezvous_guidance")
 	var interval := float(d["mark_interval_s"])
@@ -1318,7 +1441,7 @@ func noun_values(n: int) -> Variant:
 		49:
 			v = [rr_last_dr, rr_last_dv, rr_marks]
 		54:
-			if nav != null and csm_nav != null:
+			if nav != null and _csm_now() != null:
 				var los := Rendezvous.rel_pos(nav, csm_nav)
 				v = [los.length(), Rendezvous.rel_vel(nav, csm_nav).dot(los.normalized()),
 					rad_to_deg(Rendezvous.elevation(nav, csm_nav))]
@@ -1387,6 +1510,8 @@ func snapshot() -> Dictionary:
 	d["p40_schedule"] = p40_schedule.duplicate()
 	d["ascent"] = {"targets": ascent_targets.duplicate(), "base": ascent_base,
 		"plane": [ascent_plane.x, ascent_plane.y, ascent_plane.z]}
+	d["abort"] = {"tpi_early": abort_tpi_early, "tpi_late": abort_tpi_late, "split": abort_split_get, "tpi": abort_tpi,
+		"abort_was": _abort_was}
 	if csm_nav != null:
 		d["csm_nav"] = {"primary": csm_nav.primary, "t": csm_nav.t, "s": Array(csm_nav.s), "field": csm_nav.field_snapshot()}
 	d["rendezvous"] = {
@@ -1425,7 +1550,15 @@ func restore(d: Dictionary) -> void:
 	ascent_targets = (ad.get("targets", {}) as Dictionary).duplicate()
 	ascent_base = float(ad.get("base", 0.0))
 	ascent_plane = _v3(ad.get("plane", [0.0, 0.0, 0.0]))
-	if program == ASCENT:
+	var ab: Dictionary = d.get("abort", {})
+	abort_tpi_early = float(ab.get("tpi_early", -1.0))
+	abort_tpi_late = float(ab.get("tpi_late", -1.0))
+	abort_split_get = float(ab.get("split", -1.0))
+	abort_tpi = float(ab.get("tpi", -1.0))
+	_abort_was = bool(ab.get("abort_was", false))
+	if program in ABORTS:
+		dsky.show(16, 85 if step_name == "post" else 94, step_name == "post")
+	elif program == ASCENT:
 		# The display the restored step shows.
 		var shows := {"tig": [6, 33, true], "targets": [6, 76, true], "wait": [16, 74, false], "v99": [99, 74, true],
 			"post": [16, 85, true]}

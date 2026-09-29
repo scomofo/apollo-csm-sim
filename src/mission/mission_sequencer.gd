@@ -519,14 +519,27 @@ func _on_lm_liftoff(_get_s: float) -> void:
 	_say("Houston: we have liftoff. {lm}, you're looking good.")
 
 
-## After the liftoff, or after staging in orbit once the ascent engine has
-## burned, the ascent engine is off with the LM in orbit: insertion. The
-## orbit's apsides are above the landing site.
+## The LGC's abort from the powered descent (slice 9e): P70 or P71 under
+## way. The ground takes the rendezvous from the orbit it reaches, TPI at
+## the time the PDI PAD gave for the abort (plan "abort_tpi"; csi_pad()).
+func _check_lm_abort() -> void:
+	if _has("lm_abort") or not int(Bus.get_value("lm.guid.program", 0)) in Lgc.ABORTS:
+		return
+	var lgc: Lgc = systems.get("lgc")
+	plan["abort_tpi"] = lgc.abort_tpi if lgc != null else -1.0
+	_fire("lm_abort")
+	_say("Houston: Roger, {lm}. We copy the abort.")
+
+
+## After the liftoff, after an abort from the descent, or after staging in
+## orbit once the ascent engine has burned, the engines are off with the
+## LM in orbit: insertion. The orbit's apsides are above the landing site.
 func _check_insertion() -> void:
 	var lm := dynamics.lm
-	var ascended := _has("lm_liftoff") or (_has("lm_staging") and int(Bus.get_value("lm.aps.ignitions", 0)) > 0)
+	var ascended := _has("lm_liftoff") or _has("lm_abort") \
+		or (_has("lm_staging") and int(Bus.get_value("lm.aps.ignitions", 0)) > 0)
 	if lm == null or lm.landed or not ascended or _has("lm_insertion") or lm.traj.primary != "moon" \
-			or bool(Bus.get_value("lm.aps.on", false)):
+			or bool(Bus.get_value("lm.aps.on", false)) or bool(Bus.get_value("lm.dps.on", false)):
 		return
 	var c := lm.traj.conic()
 	var site_r := landing_site().length()
@@ -571,6 +584,7 @@ func _automation() -> void:
 			_separate()
 	if dynamics.landed and not _has("landing"):
 		_fire("landing")
+	_check_lm_abort()
 	_check_insertion()
 
 
@@ -684,15 +698,15 @@ func _insert() -> void:
 
 ## In lunar orbit, the LM's part of the flight: its descent (from DOI, its
 ## perilune low, to touchdown), its stay on the surface, and its ascent
-## (from liftoff, or from staging in orbit, until it docks); otherwise
-## lunar orbit.
+## (from liftoff, from an abort in the descent, or from staging in orbit,
+## until it docks); otherwise lunar orbit.
 func _lunar_phase() -> String:
 	var lm := dynamics.lm
 	if lm == null:
 		return "lunar_orbit"
 	if lm.landed:
 		return "lunar_surface"
-	if _has("lm_liftoff") or lm.config == "lm_ascent":
+	if _has("lm_liftoff") or _has("lm_abort") or lm.config == "lm_ascent":
 		return "lunar_ascent"
 	if not _has("lm_landing") and lm.traj.primary == "moon" \
 			and float(lm.traj.conic()["rp"]) - Bodies.R_MOON < DESCENT_PERILUNE_M:
@@ -1278,12 +1292,34 @@ func pdi_pad() -> Dictionary:
 	while at.t > now.t + 1e-9:
 		at.step(-minf(clampf(0.005 * at.radius() / maxf(at.speed(), 1.0), 0.02, 60.0), at.t - now.t))
 	lgc.uplink_state(at)
+	# The CSM's too, off by MSFN's tracking error, for the aborts (P70 and
+	# P71) to fly into its plane and phase the LM for the rendezvous; and
+	# the aborts' TPI times (slice 9e).
+	var csm := dynamics.traj.clone()
+	var cv := Trajectory.lvlh_basis(csm.pos(), csm.vel())
+	var r := mission.section("rendezvous")
+	var cdp: Vector3 = cv * _v3(r.get("csm_state_error_lvlh_m", [0.0, 0.0, 0.0]))
+	var cdv: Vector3 = cv * _v3(r.get("csm_state_error_lvlh_mps", [0.0, 0.0, 0.0]))
+	for i in 3:
+		csm.s[i] += cdp[i]
+		csm.s[3 + i] += cdv[i]
+	lgc.uplink_csm_state(csm)
 	var pad := {"name": "PDI", "tig": tig}
+	var aborts := ""
+	if e.has("abort_tpi_early_s"):
+		pad["abort_tpi_early"] = tig + float(e["abort_tpi_early_s"])
+		pad["abort_tpi_late"] = tig + float(e["abort_tpi_late_s"])
+		pad["abort_split"] = tig + float(e["abort_late_after_s"])
+		for k in ["abort_tpi_early", "abort_tpi_late", "abort_split"]:
+			plan[k] = pad[k]
+		lgc.uplink_abort_tpi(pad["abort_tpi_early"], pad["abort_tpi_late"], pad["abort_split"])
+		aborts = "  PDI ABORT <%.0f MIN TPI %s  >%.0f MIN TPI %s" % [float(e["abort_late_after_s"]) / 60.0,
+			Units.hms(pad["abort_tpi_early"]), float(e["abort_late_after_s"]) / 60.0, Units.hms(pad["abort_tpi_late"])]
 	last_pad = pad
 	pads["pdi"] = pad
 	plan["pdi_tig"] = tig
 	plan["pdi_pad_tig"] = tig
-	var text := "PDI PAD: TIG %s, state vector uplinked" % Units.hms(tig)
+	var text := "PDI PAD: TIG %s, state vectors uplinked%s" % [Units.hms(tig), aborts]
 	Bus.set_value("mission.pad_text", text)
 	_say("Houston: {lm}, we've uplinked your state vector. " + text)
 	_fire("pad_pdi")
@@ -1368,10 +1404,11 @@ func ascent_pad(earliest: float = -1.0) -> Dictionary:
 
 ## The CSI PAD, with the LM in orbit after insertion: the RTCC's plan for
 ## the coelliptic sequence (Rtcc.plan_rendezvous()), with TPI as long after
-## insertion as Apollo 11 had it (mission.json "rendezvous"). The ground
+## insertion as Apollo 11 had it (mission.json "rendezvous"), or after an
+## abort from the descent when the PDI PAD gave it (slice 9e). The ground
 ## uplinks CSI's and TPI's TIGs, and the CSM's state vector as MSFN tracked
-## it, off by its tracking error. Returns the PAD, or {} without an LM in
-## orbit.
+## it, off by its tracking error; after an abort, the LM's too. Returns the
+## PAD, or {} without an LM in orbit.
 func csi_pad() -> Dictionary:
 	var lgc: Lgc = systems.get("lgc")
 	var lm := dynamics.lm
@@ -1382,7 +1419,10 @@ func csi_pad() -> Dictionary:
 		var ins := event_get("lm_insertion")
 		if ins < 0.0:
 			ins = SimClock.get_seconds
-		pad = Rtcc.plan_rendezvous(lm.traj, dynamics.traj, lm.mass, ins + float(r["tpi_after_insertion_s"]),
+		var t_tpi := ins + float(r["tpi_after_insertion_s"])
+		if _has("lm_abort") and float(plan.get("abort_tpi", -1.0)) > ins:
+			t_tpi = float(plan["abort_tpi"])
+		pad = Rtcc.plan_rendezvous(lm.traj, dynamics.traj, lm.mass, t_tpi,
 			deg_to_rad(float(g["tpi_elevation_deg"])), deg_to_rad(float(g["tpi_transfer_deg"])))
 	last_pad = pad
 	if pad.is_empty():
@@ -1400,6 +1440,19 @@ func csi_pad() -> Dictionary:
 		csm.s[i] += dp[i]
 		csm.s[3 + i] += dv[i]
 	lgc.uplink_csm_state(csm)
+	if _has("lm_abort"):
+		# After an abort MSFN has tracked the LM from the descent into its
+		# orbit: its state vector goes up too, off by the same tracking
+		# error [estimated: the LGC's own, integrated through the abort,
+		# drifts kilometres from it on the abort's long, eccentric orbit].
+		var l := lm.traj.clone()
+		var ll := Trajectory.lvlh_basis(l.pos(), l.vel())
+		var ldp: Vector3 = ll * _v3(r["csm_state_error_lvlh_m"])
+		var ldv: Vector3 = ll * _v3(r["csm_state_error_lvlh_mps"])
+		for i in 3:
+			l.s[i] += ldp[i]
+			l.s[3 + i] += ldv[i]
+		lgc.uplink_state(l)
 	var text := "CSI PAD: TIG %s  N81 DVX %+.1f ft/s  BURN %.0f s  CDH %s %.1f ft/s  TPI %s %.1f ft/s  BRAKING %.1f ft/s" % [
 		Units.hms(float(pad["tig"])), float(pad["dv"]) / Units.FT, float(pad["burn_s"]), Units.hms(float(pad["cdh_get"])),
 		float(pad["cdh_dv"]) / Units.FT, Units.hms(float(pad["tpi_get"])), float(pad["tpi_dv"]) / Units.FT,

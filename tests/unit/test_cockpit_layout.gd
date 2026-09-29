@@ -186,7 +186,7 @@ func test_every_hud_switch_has_a_cabin_control() -> void:
 	# SPS THRUST ON is the HUD's manual backup: the cabin's is a lamp.
 	assert_eq(_hud_switches_without_a_control("_switch_panel", layout, 36), ["ctl.sps.thrust_on"], "Columbia's")
 	assert_eq(_hud_switches_without_a_control("_optics_panel", layout, 5), [], "the optics'")
-	assert_eq(_hud_switches_without_a_control("_lm_switch_panel", CockpitLayout.load_lm(), 14), [], "Eagle's")
+	assert_eq(_hud_switches_without_a_control("_lm_switch_panel", CockpitLayout.load_lm(), 16), [], "Eagle's")
 
 
 ## Work every button of the HUD's switch panel [param panel_method],
@@ -281,7 +281,7 @@ func test_the_desktop_rig_can_click_every_control_from_its_station() -> void:
 	# Columbia's console from the commander's couch; the optics' switches
 	# and the second DSKY from the lower equipment bay.
 	await _click_every_control(CmCabin.new(), layout, 36 + 19 + 5 + 19)
-	await _click_every_control(LmCabin.new(), CockpitLayout.load_lm(), 14 + 19)
+	await _click_every_control(LmCabin.new(), CockpitLayout.load_lm(), 17 + 19)
 
 
 ## Build [param p_layout] onto [param cabin] in a viewport and point the

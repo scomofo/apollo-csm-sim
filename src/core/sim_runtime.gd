@@ -42,7 +42,11 @@ extends RefCounted
 ##    state, the launch vehicle's failures and cutoff, the ELS's
 ##    controller, the failures armed on an event, and the abort's mode and
 ##    the ground's calls.
-const SCHEMA_VERSION := 22
+## 23: the LM's aborts (slice 9e): the LGC's abort programs and their TPI
+##    times, the engines' abort arming, the descent helium, the LM RCS's
+##    failed regulators, the LM's caution and warning, and the ground's
+##    abort TPI.
+const SCHEMA_VERSION := 23
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],
@@ -70,6 +74,7 @@ const LM_SYSTEMS := [
 	["aps", "res://src/systems/aps.gd"],
 	["lr", "res://src/systems/landing_radar.gd"],
 	["rr", "res://src/systems/rendezvous_radar.gd"],
+	["lm_cw", "res://src/systems/lm_caution_warning.gd"],
 ]
 ## Crew control defaults: CMC attitude source, HOLD, SPS disarmed, UP TLM
 ## CM in ACCEPT, the SCS at RATE LOW, ATT DEADBAND MIN and TVC AUTO, the
@@ -80,7 +85,7 @@ const LM_SYSTEMS := [
 ## switch at AUTO TRACK (0 LGC, 1 AUTO TRACK, 2 SLEW), where Apollo 11's
 ## radar ranging test after DOI left it, and docked, the LM powered down;
 ## EDS AUTO, 2 ENG OUT and LV RATES on, as the launch has them, the abort
-## handle at neutral.
+## handle at neutral; the LM's ABORT out.
 const CONTROL_DEFAULTS := {
 	"ctl.scs.att_source": 0, "ctl.cmc.mode": 1, "ctl.cmc.up_tlm": true,
 	"ctl.scs.rate": 0, "ctl.scs.att_db": 0, "ctl.scs.gdc_align": false, "ctl.scs.tvc": 0,
@@ -98,7 +103,7 @@ const CONTROL_DEFAULTS := {
 	"ctl.lm.engine_arm": 0, "ctl.lm.stage": false, "ctl.lm.rcs.sys_a": true, "ctl.lm.rcs.sys_b": true,
 	"ctl.lm.eng_start": false, "ctl.lm.eng_stop": false, "ctl.lm.rod": 0,
 	"ctl.lm.power": false, "ctl.lm.pgns": true, "ctl.lm.ags": false, "ctl.lm.ags_align": false, "ctl.lm.guid_cont": 0,
-	"ctl.lm.throttle": 0.1, "ctl.lm.rr_mode": 1,
+	"ctl.lm.throttle": 0.1, "ctl.lm.rr_mode": 1, "ctl.lm.abort": false, "ctl.lm.cw.master_alarm": false,
 }
 
 var mission: Mission

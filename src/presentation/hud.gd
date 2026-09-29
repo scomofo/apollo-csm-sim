@@ -368,7 +368,8 @@ func _momentary(parent: Node, text: String, ch: String, on: Variant = true,
 ## Eagle's switches: the LGC's mode, the engines, staging, the RCS and the
 ## ROD switch; the LM's power, its PGNS and AGS, the AGS's body-axis align
 ## and the guidance control switch (Apollo 13's lifeboat); the rendezvous
-## radar's mode select (Apollo 11's program alarms).
+## radar's mode select (Apollo 11's program alarms); ABORT and the master
+## alarm (the LM's aborts).
 func _lm_switch_panel() -> PanelContainer:
 	var p := PanelContainer.new()
 	_style(p)
@@ -380,10 +381,10 @@ func _lm_switch_panel() -> PanelContainer:
 	_momentary(g, "ABORT STAGE", "ctl.lm.stage")
 	_momentary(g, "ENG START", "ctl.lm.eng_start")
 	_momentary(g, "ENG STOP", "ctl.lm.eng_stop")
-	g.add_child(Control.new())
+	_momentary(g, "ABORT", "ctl.lm.abort")
 	_toggle(g, "RCS SYS A", "ctl.lm.rcs.sys_a")
 	_toggle(g, "RCS SYS B", "ctl.lm.rcs.sys_b")
-	g.add_child(Control.new())
+	_momentary(g, "MASTER ALARM", "ctl.lm.cw.master_alarm")
 	_momentary(g, "ROD UP", "ctl.lm.rod", 1, 0)
 	_momentary(g, "ROD DOWN", "ctl.lm.rod", -1, 0)
 	g.add_child(Control.new())
@@ -542,12 +543,18 @@ LAMPS %s""" % [
 		" ".join(lamps) if not lamps.is_empty() else "--"]
 
 
-## Eagle's engines, RCS and LGC.
+## Eagle's engines, RCS and LGC, and its caution and warning lights.
 func _lm_systems_text() -> String:
 	var mnvr := ""
 	if bool(Bus.get_value("lm.guid.maneuver_valid", false)):
 		mnvr = "MNVR LOADED TIG " + Units.hms(float(Bus.get_value("lm.guid.maneuver_tig", 0.0)))
-	return """DPS  %6.0f lb  THR %3.0f%%  %s
+	var lit := PackedStringArray()
+	for light: String in LmCautionWarning.LIGHTS:
+		if bool(Bus.get_value("lm.cw." + light, false)):
+			lit.append(LmCautionWarning.LEGENDS[light])
+	if bool(Bus.get_value("lm.cw.master_alarm", false)):
+		lit.append("MASTER ALARM")
+	return ("""DPS  %6.0f lb  THR %3.0f%%  %s
 APS  %6.0f lb  %s
 RCS  A %4.0f  B %4.0f lb
 LGC  P%02d %s  VG %.1f ft/s  %s""" % [
@@ -559,7 +566,7 @@ LGC  P%02d %s  VG %.1f ft/s  %s""" % [
 		Units.kg_to_lb(float(Bus.get_value("lm.rcs.sys_a_kg", 0.0))),
 		Units.kg_to_lb(float(Bus.get_value("lm.rcs.sys_b_kg", 0.0))),
 		int(Bus.get_value("lm.guid.program", 0)), str(Bus.get_value("lm.guid.step", "")),
-		float(Bus.get_value("lm.guid.vg_mps", 0.0)) / Units.FT, mnvr]
+		float(Bus.get_value("lm.guid.vg_mps", 0.0)) / Units.FT, mnvr]) + ("\nC&W  " + "  ".join(lit) if not lit.is_empty() else "")
 
 
 ## While the LM flies free: where its docking port is from the CSM's, in

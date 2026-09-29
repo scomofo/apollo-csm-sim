@@ -41,8 +41,8 @@ picture).
 - **Start phases stay consistent.** A new `--phase` is built the way the
   existing ones are, from the RTCC's own solutions, so it continues the
   mission it claims to.
-- **CI stays fast.** The suite runs in nine jobs side by side: the unit
-  tests, and the scenario tests in eight parts, dealt out by each file's
+- **CI stays fast.** The suite runs in ten jobs side by side: the unit
+  tests, and the scenario tests in nine parts, dealt out by each file's
   time on the runners (`.github/scenario_seconds.txt`). Keep each job
   under ten minutes: start a long scenario from a phase or checkpoint
   instead of flying the whole mission, record a new scenario file's
@@ -1817,7 +1817,7 @@ version there.
 
 ## 9. Failures, backups and aborts
 
-**Status: slices 9a to 9d done.** The simulators the crews trained on were
+**Status: done.** The simulators the crews trained on were
 there for the failures: the simulation supervisor's team failed the
 spacecraft, and the crew worked the malfunction procedures until the
 answers came without thinking. Slice 9a gives the CSM a catalog of ten:
@@ -1828,7 +1828,8 @@ the flight menu's instructor's page. Slice 9b brings Apollo 11's own
 trouble: its landing's 1202 and 1201 alarms. Slice 9c gives the crew the
 backups a failed CMC leaves them: the SCS and the EMS. Slice 9d gives
 the launch its aborts: the escape tower's, the SPS's modes II to IV, the
-EDS and the handle. Eagle has no ABORT or ABORT STAGE yet.
+EDS and the handle. Slice 9e gives Eagle its ABORT and ABORT STAGE in the
+powered descent, and its own failures and caution and warning lights.
 
 - **The catalog.** A failure is data (`data/failures.json`): the system
   and the part, what fails and how, and the caution and warning light it
@@ -1840,8 +1841,11 @@ EDS and the handle. Eagle has no ABORT or ABORT STAGE yet.
   applies them, each system's `fail(part)` changes it, CRYO PRESS, SM
   RCS A to D, CMC and ISS light with the handbook's triggers, and a
   failure opens its procedure (`data/malfunctions.json`). The LM's
-  failures, with its own caution and warning lights, come with its
-  aborts (9e). A failure armed on an event, rather than a GET, came with
+  failures came with its aborts (9e): the descent engine's helium
+  regulator, each RCS system's, the LGC and its IMU, with the LM's own
+  lights (DES REG, RCS A and B REG, LGC and ISS, and DES QTY at the
+  descent tanks' 5.6 %) and master alarm, and their procedures in the
+  LM's book. A failure armed on an event, rather than a GET, came with
   the launch's aborts (9d): the launch vehicle's engines and its guidance
   platform join the catalog, with the console's launch vehicle lights.
 - **Apollo 11's program alarms**, the first of the flights' own troubles.
@@ -1897,6 +1901,30 @@ EDS and the handle. Eagle has no ABORT or ABORT STAGE yet.
   lights ABORT for a failure that ends the launch.
   Checkpoint schema 22. CI gets an eighth scenario part for the aborts'
   flights, each file's time measured again on 9c's runs.
+  Done in 9e for the LM (Luminary 099's P70 and P71; Bennett, NASA TM
+  X-58040; the LM Apollo Operations Handbook, LMA790-3-LM; the Apollo 11
+  Flight Journal): from the descent's ignition to the touchdown the LGC
+  reads the pushbuttons, each of which arms its engine whatever ENG ARM
+  says. ABORT brings P70: the descent engine at full thrust on P12's
+  guidance. ABORT STAGE stages the LM and brings P71 on the ascent
+  engine, from P63 to P66 or from P70. Both fly to P12's insertion, 60,000
+  ft up, the vertical rise ended above 25,000 ft too, but not into P12's
+  orbit: Luminary's targets "vary as a function of phase relationship
+  between the LM and CSM" (Bennett). Early in the descent Eagle is ahead
+  of Columbia and must climb above it to fall behind, as Apollo 11's
+  no-PDI abort's 11 by 152 nmi did; later Columbia is ahead. Luminary's
+  cubic for the insertion velocity (ABTCOF) is erasable and not at hand,
+  so `AscentGuidance.abort_targets()` solves for the apolune it was
+  fitted to give: the one whose coelliptic sequence brings TPI at the
+  PDI PAD's time for the abort, 105:12:30 in the first ten minutes,
+  107:11:30 after (the PAD as read to Eagle). The ground uplinks
+  Columbia's state vector with Eagle's before PDI for it, and after
+  insertion the CSI PAD plans the rendezvous for that TPI. An ABORT three
+  minutes into P63 flies the descent engine into a 9 by 130 nmi orbit;
+  a DES REG in P66, the descent engine's thrust dying away, brings ABORT
+  STAGE at 500 ft and a 9 by 63 nmi orbit on the ascent engine; each
+  rendezvous docks. Checkpoint schema 23. CI gets a ninth scenario part
+  for the aborts' rendezvous.
 
 | Slice | Work | Check |
 |---|---|---|
@@ -1904,7 +1932,7 @@ EDS and the handle. Eagle has no ABORT or ABORT STAGE yet.
 | 9b (done) Apollo 11's program alarms | The LGC's Executive and its load, its restarts, the rendezvous radar's counter interrupts with its switch as Apollo 11's crew had it, the alarms on the DSKY and the ground's GO | Test: Apollo 11's landing with the switch as flown brings 1202 and 1201 alarms 5 to 10 minutes after PDI, as it did, and still lands within the Fidelity table's limits; with the switch at LGC none come |
 | 9c (done) The backups | The SCS's attitude hold and rate command on its own gyros, MTVC, and the EMS's ΔV counter and entry scroll | Test: with the CMC failed (9a), a transearth SPS burn flown on the SCS to the EMS's count comes within a set limit of its PAD, and the EMS's scroll follows the CMC's entry within its tolerance |
 | 9d (done) The launch's aborts | The launch escape system (mode I) and the SPS's modes II to IV; the EDS, the abort lights, the crew's handle and the ground's calls of the mode | Test: from a point in each mode's window of Apollo 11's launch, set off by a failure from 9a, the CM comes down within a set limit of the flight plan's landing area for it, or mode IV reaches a safe orbit |
-| 9e The LM's aborts | ABORT (P70, on the descent engine) and ABORT STAGE (P71, on the ascent engine after staging) in the powered descent, into an orbit the rendezvous takes from | Test: aborts from P63 and from P66 at 500 ft each reach an orbit, and from it the rendezvous docks |
+| 9e (done) The LM's aborts | ABORT (P70, on the descent engine) and ABORT STAGE (P71, on the ascent engine after staging) in the powered descent, into an orbit the rendezvous takes from | Test: aborts from P63 and from P66 at 500 ft each reach an orbit, and from it the rendezvous docks |
 
 **Done when** an instructor can fail any part in the catalog at any time
 of any flight, the crew has the backups and the aborts the flight had,

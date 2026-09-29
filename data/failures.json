@@ -1,5 +1,5 @@
 {
-  "_comment": "The failure catalog (docs/ROADMAP.md, slice 9a; src/systems/failures.gd). A failure is a part of a system that fails: 'system' is the runtime system's key (SimRuntime.SYSTEMS) and 'part' what its fail(part) takes. 'caution' is the caution and warning status light that comes on (CautionWarning.LIGHTS), with the trigger the CSM Apollo Operations Handbook, SM2A-03-BLOCK II-(1), pp. 2.10-5 to 2.10-8, gives it [published]; 'effect' what the system does then, as the simulator models it; 'expect' a Bus check that holds once it has (after 200 s at most); 'procedure' the malfunction procedure's title in data/malfunctions.json; 'event' the mission event it fires, and 'call' the crew's words to Houston, where it has them. A mission arms its failures at a GET in its mission.json ('failures': [{id, get_s}]), or a time after one of its events ([{id, event, after_s}], slice 9d); the instructor's page on the wrist menu fails any of them at once. The launch vehicle's failures (vehicle 'lv', slice 9d) light the main display console's launch vehicle lights ('lamp', its channel, and 'light') instead of a caution light; 'launch' is what the ground does about a failure in the launch: 'abort' ends it in the abort mode the flight is in, 'return' brings the crew home at once (mode III rather than IV).",
+  "_comment": "The failure catalog (docs/ROADMAP.md, slice 9a; src/systems/failures.gd). A failure is a part of a system that fails: 'system' is the runtime system's key (SimRuntime.SYSTEMS) and 'part' what its fail(part) takes. 'caution' is the caution and warning status light that comes on (CautionWarning.LIGHTS), with the trigger the CSM Apollo Operations Handbook, SM2A-03-BLOCK II-(1), pp. 2.10-5 to 2.10-8, gives it [published]; 'effect' what the system does then, as the simulator models it; 'expect' a Bus check that holds once it has (after 200 s at most); 'procedure' the malfunction procedure's title in data/malfunctions.json; 'event' the mission event it fires, and 'call' the crew's words to Houston, where it has them. A mission arms its failures at a GET in its mission.json ('failures': [{id, get_s}]), or a time after one of its events ([{id, event, after_s}], slice 9d); the instructor's page on the wrist menu fails any of them at once. The launch vehicle's failures (vehicle 'lv', slice 9d) light the main display console's launch vehicle lights ('lamp', its channel, and 'light') instead of a caution light; 'launch' is what the ground does about a failure in the launch: 'abort' ends it in the abort mode the flight is in, 'return' brings the crew home at once (mode III rather than IV). The LM's failures (vehicle 'lm', slice 9e) light the LM's caution and warning lights (LmCautionWarning.LIGHTS), with the triggers of the LM Apollo Operations Handbook, LMA790-3-LM, section 2.9.4 [published], and open their procedures in data/lm_malfunctions.json, in the LM's checklist book.",
   "failures": [
     {"id": "o2_tank_2", "title": "Cryogenic oxygen tank 2", "vehicle": "csm", "system": "eps", "part": "o2_tank_2",
      "caution": "cryo_press", "light": "CRYO PRESS",
@@ -66,6 +66,30 @@
      "effect": "The J-2 shuts down short of orbit: mode IV takes the CSM on into orbit on the SPS",
      "expect": {"channel": "lv.thrust_n", "op": "eq", "value": 0.0}, "procedure": "Malfunction: LV ENG, LV RATE or LV GUID",
      "event": "s4_engine_failure",
-     "_comment": "Apollo 11's alternate mission 1: the S-IVB failing before insertion, the CSM's contingency orbit insertion on the SPS (press kit) [published]"}
+     "_comment": "Apollo 11's alternate mission 1: the S-IVB failing before insertion, the CSM's contingency orbit insertion on the SPS (press kit) [published]"},
+    {"id": "dps_he_reg", "title": "The descent engine's helium regulator", "vehicle": "lm", "system": "dps", "part": "he_reg",
+     "caution": "des_reg", "light": "DES REG",
+     "effect": "The regulator fails closed: the descent tanks' pressure falls as the engine burns, and its thrust dies away with it; in the descent the crew abort stage",
+     "expect": {"channel": "lm.dps.he_psia", "op": "lt", "value": 219.2}, "procedure": "Malfunction: DES REG",
+     "_comment": "DES REG lights for the helium downstream of the regulators below 219.2 or above 259.1 psia, before staging, once the descent engine has first been armed [published]; the pressure's fall and the thrust's [estimated] (spacecraft.json \"dps\")"},
+    {"id": "lm_rcs_a", "title": "LM RCS system A's regulator", "vehicle": "lm", "system": "lm_rcs", "part": "a",
+     "caution": "rcs_a_reg", "light": "RCS A REG",
+     "effect": "System A's helium pressure goes out of limits and its jets stop: the LM flies on system B's; closing A's main shutoff valves puts the light out",
+     "expect": {"channel": "lm.rcs.sys_a_live", "op": "eq", "value": false}, "procedure": "Malfunction: RCS A or B REG",
+     "_comment": "RCS A REG lights for system A's helium above 218.8 or below 164.4 psia, and goes out when its main shutoff valves close [published]; the jets stop at once [simplified]"},
+    {"id": "lm_rcs_b", "title": "LM RCS system B's regulator", "vehicle": "lm", "system": "lm_rcs", "part": "b",
+     "caution": "rcs_b_reg", "light": "RCS B REG",
+     "effect": "System B's helium pressure goes out of limits and its jets stop: the LM flies on system A's; closing B's main shutoff valves puts the light out",
+     "expect": {"channel": "lm.rcs.sys_b_live", "op": "eq", "value": false}, "procedure": "Malfunction: RCS A or B REG"},
+    {"id": "lgc", "title": "The LGC", "vehicle": "lm", "system": "lgc", "part": "lgc",
+     "caution": "lgc", "light": "LGC",
+     "effect": "The computer stops: its DSKY goes dark and its autopilot and programs stop; with GUID CONT at AGS the AGS holds the LM and the light goes out",
+     "expect": {"channel": "lm.dsky.prog", "op": "eq", "value": ""}, "procedure": "Malfunction: LGC or ISS",
+     "_comment": "LGC lights for the LGC's power failure among others, unless GUID CONT is at AGS [published]"},
+    {"id": "lm_imu", "title": "The LM's IMU", "vehicle": "lm", "system": "lgc", "part": "imu",
+     "caution": "iss", "light": "ISS",
+     "effect": "The LGC's platform fails and is caged: NO ATT on the DSKY; with GUID CONT at AGS the AGS holds the LM and the light goes out",
+     "expect": {"channel": "lm.imu.mode", "op": "eq", "value": "caged"}, "procedure": "Malfunction: LGC or ISS",
+     "_comment": "ISS lights for a failure in the inertial subsystem, unless GUID CONT is at AGS [published]"}
   ]
 }

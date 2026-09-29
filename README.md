@@ -199,6 +199,30 @@ the flight's Mission Operation Report (`src/systems/eds.gd`,
   0:44, then Houston's Mode One Charlie at 1:58, S-IVB to COI capability
   at 5:27 and Mode IV capability at 9:00.
 
+**Eagle's aborts.** From the descent's ignition to the touchdown, the
+LGC answers Eagle's two abort pushbuttons (Luminary 099's P70 and P71;
+the switches are on panel 1 and the HUD):
+- **ABORT** (P70): the descent engine throttles up to full thrust and
+  P12's guidance flies it to insertion, 60,000 ft up.
+- **ABORT STAGE** (P71): the descent engine stops, the LM stages, and the
+  ascent engine flies the same guidance, from P63 to P66 or from P70 when
+  the descent engine runs low. Each button arms its engine whatever ENG
+  ARM says. Below 25,000 ft the LM first rises vertically to 40 ft/s up.
+- **The orbit** depends on where Columbia is. Early in the descent Eagle
+  is ahead of it, and climbs into an orbit with a high apolune to fall
+  behind; later Columbia is ahead, and Eagle goes into a lower one. The
+  apolune is the one that brings TPI at the time the PDI PAD gives for
+  the abort: 105:12:30 in the first ten minutes, 107:11:30 after, as
+  Apollo 11's did. Houston uplinks Columbia's state vector with Eagle's
+  before PDI for it, and five minutes after insertion the CSI PAD, from
+  which the rendezvous goes as after a liftoff.
+- **Eagle's caution and warning lights** (panels 1 and 2, and the HUD's
+  C&W line) light its master alarm: DES REG for the descent tanks'
+  helium, RCS A or B REG for an RCS system's regulator, LGC and ISS for
+  the PGNS. DES QTY comes on quietly with 5.6 % of the descent
+  propellant left, about two minutes of hovering. Each failure opens its
+  procedure in Eagle's checklist book.
+
 The launch vehicle's engines and its guidance platform are on the
 failure catalog. A failure can also be armed a time after a mission
 event, rather than at a GET.
@@ -624,15 +648,16 @@ and P47, and ENGINE START lifts a landed ascent stage off by hand.
 back to Columbia when the two dock or Eagle is jettisoned. While Eagle
 flies free, **L** changes vehicles. The HUD becomes Eagle's:
 - The LGC's DSKY, which the keys type into.
-- Eagle's switches: LGC MODE, ENG ARM (ASC or DES), ABORT STAGE, ENG
-  START and STOP, RCS SYS A and B, ROD UP and DOWN for P66, and the
-  rendezvous radar's mode, RNDZ RADAR (LGC, AUTO TRACK or SLEW).
+- Eagle's switches: LGC MODE, ENG ARM (ASC or DES), ABORT and ABORT
+  STAGE, ENG START and STOP, RCS SYS A and B, MASTER ALARM, ROD UP and
+  DOWN for P66, and the rendezvous radar's mode, RNDZ RADAR (LGC, AUTO
+  TRACK or SLEW).
 - Its flight data: its height over the ground below it, its vertical
   speed and its speed over the turning surface, its orbit, its mass and
   rates, the landing radar's ΔH, the rendezvous radar's range and range
   rate, and the ALT and VEL lamps and CONTACT LIGHT.
-- Its engines, RCS and LGC, and Mission Control's LM PADs: DOI, PDI,
-  ASCENT and CSI.
+- Its engines, RCS and LGC, its caution and warning lights, and Mission
+  Control's LM PADs: DOI, PDI, ASCENT and CSI.
 - The FDAI, on Eagle's attitude and rates and its LGC's errors.
 
 The hand controllers fly its ACA and TTCA. The view is out of its
@@ -645,10 +670,11 @@ you standing at the commander's station in Eagle's cabin
 switch of Eagle's HUD and its displays (`data/cockpit/lm_controls.csv`):
 - Panel 1, to your right: the mission timer, the rendezvous radar's range
   and range rate, the descent engine's thrust, the FDAI, LUNAR CONTACT,
-  ENG ARM and ABORT STAGE. ENG ARM is lever-locked: the first push pulls
+  ENG ARM, ABORT and ABORT STAGE, a MASTER ALARM, and the LGC, ISS, DES
+  QTY and DES REG lights. ENG ARM is lever-locked: the first push pulls
   the lever out, the second moves it.
-- Panel 2, the LM pilot's: its own FDAI and LUNAR CONTACT, and RCS SYS A
-  and B.
+- Panel 2, the LM pilot's: its own FDAI, LUNAR CONTACT and MASTER ALARM,
+  RCS SYS A and B, and the RCS A and B REG lights.
 - Panel 3, between you: LGC MODE and RNDZ RADAR, the rendezvous radar's
   mode.
 - Panel 4, below it: the LGC's DSKY, with its ALT and VEL lamps.
@@ -1131,6 +1157,22 @@ ones:
   LGC's. The descent engine has no gimbal trim, and staging leaves the
   descent stage behind, no longer simulated. The ascent engine fires only
   after staging (no fire-in-the-hole abort).
+- **Eagle's aborts.** Luminary's cubic in the descent's time to go for
+  the insertion velocity (ABTCOF) is erasable and not at hand: the LGC
+  solves instead for the apolune the cubic was fitted to give, on a
+  simple model of the coelliptic sequence, and P12's orbit is its floor.
+  The aborts' radial rate at insertion is P12's. Apollo 11's later
+  aborts also had a phasing burn at 103:40:00; here CSI at the first
+  apolune sets the coelliptic height instead. ABORT and ABORT STAGE are
+  momentary, and the arming they give their engines holds until ENG ARM
+  goes to OFF. ABORT STAGE stages the LM as it is pressed, not after the
+  hardware's delay for the descent engine's thrust to die away. The
+  LGC's P70 and P71 come only from the pushbuttons. The AGS has no
+  abort guidance.
+- **Eagle's failures.** A failed regulator's pressure falls, and the
+  descent engine's thrust with it, at an estimated rate. An RCS system's
+  jets stop at once when its regulator fails. Only the lights the
+  catalog's failures need are modelled.
 - **The ascent.** The ground times the liftoff from both vehicles' true
   state vectors, and uplinks them as the truth. The lead Columbia has at
   insertion is estimated from Apollo 11's rendezvous. P12's steering
@@ -1146,8 +1188,8 @@ ones:
 - **Eagle's cabin.** It is a blockout, like the CM's: the shell and the
   stations follow the LM in outline, and every panel position is
   estimated. The panels carry only the controls and displays the
-  simulator models. LGC MODE stands in for the PGNS mode control, ABORT
-  STAGE and ENGINE STOP are momentary, and a number stands in for each
+  simulator models. LGC MODE stands in for the PGNS mode control, ABORT,
+  ABORT STAGE and ENGINE STOP are momentary, and a number stands in for each
   tape meter. The LPD's scale is for the commander's design eye. Seen
   from the cabin, the ground is drawn about the eye, at a scale that
   keeps it below the floor, and Columbia no nearer than 2.8 m. Eagle
@@ -1297,9 +1339,9 @@ godot --headless --path . -s addons/gut/gut_cmdln.gd -gexit
 That runs the whole suite, which takes about 50 minutes, nearly all of
 it in the scenario tests. Add `-gdir=res://tests/unit/` to run only the
 unit tests, in under two minutes, or `-gselect=<name>` to run only the
-scripts whose file names contain `<name>`. CI runs the suite in nine
+scripts whose file names contain `<name>`. CI runs the suite in ten
 parts side by side (`.github/workflows/ci.yml`): the unit tests, and the
-scenario tests dealt out over eight jobs by each file's time on the
+scenario tests dealt out over nine jobs by each file's time on the
 runners (`.github/scenario_seconds.txt`). Beside them, its build job
 exports the PC VR presets with Godot 4.4.1's templates and flies a
 minute of the launch on the exported Linux build.
@@ -1443,6 +1485,26 @@ The unit tests cover:
   `tests/unit/test_failures.gd`: each launch vehicle failure lights its
   lamp in its stage, and a failure armed on an event comes that long
   after it
+- The LM's aborts (`tests/scenarios/test_lm_aborts.gd`), slice 9e: from
+  the checkpoint before Apollo 11's PDI, each abort reaches an orbit and
+  the rendezvous from it docks:
+
+  | Abort | Set off by | Insertion | Rendezvous |
+  |---|---|---|---|
+  | P70, 3 min into P63, 17 km up, Eagle 7.2° ahead of Columbia | the crew's ABORT | on the descent engine in 156 s: 9.1 by 130.0 nmi (the phasing's apolune 131.3), 3,519 kg left | CSI 50.3 ft/s, CDH 116.1, ΔH 15.0 nmi; TPI 2 min after the PDI PAD's 105:12:41, midcourses 8.8 ft/s; docked at 106:04:49 |
+  | P71, in P66 at 500 ft, Columbia 10.4° ahead | DES REG at 504 ft, the descent helium's regulator failed | on the ascent engine in 428 s, no lower than 486 ft: 9.3 by 63.3 nmi (63.5), 171 kg left | CSI 46.2 ft/s, CDH 43.2, ΔH 17.3 nmi; TPI 14 min before the PAD's 107:11:41, midcourses 16.6 ft/s; docked at 107:48:01 |
+
+  A checkpoint in P70 flies on to the same orbit.
+  `tests/unit/test_lm_abort_buttons.gd`: in orbit ABORT STAGE only
+  stages, and V37 can't select P70; each pushbutton arms its engine until
+  ENG ARM goes to OFF; DES QTY lights at 5.6 % without the master alarm,
+  RCS A REG goes out as its valves close, LGC as GUID CONT goes to AGS,
+  and DES REG is dark before the first arming and after staging.
+  `tests/unit/test_failures.gd`: each of the LM's failures lights its
+  light and the LM's master alarm and opens its procedure in Eagle's
+  book. `tests/unit/test_ascent_guidance.gd`: the aborts' apolune is
+  above Columbia's with Eagle ahead, lower the more Columbia leads, and
+  P12's with no TPI time.
 - The terrain: Tranquility Base 1,927 m below the reference sphere, West
   crater 30 m deep east of the LM, and the maps blending without steps;
   Surveyor III 1,432 m below it on its crater's slope, and Intrepid's
@@ -1921,5 +1983,8 @@ LGC's Executive and the rendezvous radar's switch as its crew had it
 (slice 9b). With the CMC failed, the SCS and the EMS fly a burn to the
 PAD, and the EMS monitors the entry (slice 9c). The launch aborts in
 each of its four modes, on the EDS, the escape tower and the SPS, set
-off by the catalog's failures (slice 9d). Eagle's aborts come next, then
-every mission from the pad, the LM's navigation, and Apollo 14 to 17.
+off by the catalog's failures (slice 9d). Eagle aborts from P63 on the
+descent engine and from P66 at 500 ft on the ascent engine, into orbits
+phased for the rendezvous, which docks, and has its own failures and
+caution and warning lights (slice 9e). Every mission from the pad comes
+next, then the LM's navigation, and Apollo 14 to 17.

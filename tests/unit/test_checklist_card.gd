@@ -178,7 +178,7 @@ func test_every_apollo_10_step_names_a_control_or_one_writes_its_check() -> void
 					assert_ne(id, "", "%s: a cabin control writes %s" % [s["text"], channel])
 				if id != "":
 					framed[1 if lm else 0] += 1
-	assert_eq(framed, [53, 59], "Charlie Brown's (10 of them the malfunction procedures') and Snoopy's steps that point at a cabin control")
+	assert_eq(framed, [53, 66], "Charlie Brown's and Snoopy's steps that point at a cabin control (10 and 7 of them the malfunction procedures')")
 
 
 func test_every_apollo_12_step_names_a_control_or_one_writes_its_check() -> void:
@@ -199,7 +199,7 @@ func test_every_apollo_12_step_names_a_control_or_one_writes_its_check() -> void
 					assert_ne(id, "", "%s: a cabin control writes %s" % [s["text"], channel])
 				if id != "":
 					framed[1 if lm else 0] += 1
-	assert_eq(framed, [53, 58], "Yankee Clipper's (10 of them the malfunction procedures') and Intrepid's steps that point at a cabin control")
+	assert_eq(framed, [53, 65], "Yankee Clipper's and Intrepid's steps that point at a cabin control (10 and 7 of them the malfunction procedures')")
 
 
 func test_every_eagle_step_names_one_of_its_controls_or_one_writes_its_check() -> void:
@@ -216,7 +216,7 @@ func test_every_eagle_step_names_one_of_its_controls_or_one_writes_its_check() -
 				assert_ne(id, "", "%s: a control in Eagle's cabin writes %s" % [s["text"], channel])
 			if id != "":
 				framed += 1
-	assert_eq(framed, 57, "57 of Eagle's steps point at a control in its cabin")
+	assert_eq(framed, 64, "64 of Eagle's steps point at a control in its cabin, 7 of them the malfunction procedures'")
 
 
 func test_the_highlight_follows_the_player_into_eagle() -> void:

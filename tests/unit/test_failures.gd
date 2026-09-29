@@ -8,7 +8,10 @@
 ## launch vehicle's (slice 9d) light the console's launch vehicle lights
 ## and change the vehicle, in its stage, and a failure armed on an event
 ## comes that long after it; the aborts they set off are
-## tests/scenarios/test_launch_aborts.gd's.
+## tests/scenarios/test_launch_aborts.gd's. The LM's (slice 9e) light the
+## LM's caution and warning lights and its master alarm, and open their
+## procedures in the LM's book; the abort DES REG sets off is
+## tests/scenarios/test_lm_aborts.gd's.
 extends SimTest
 
 const MAIN_SCENE := "res://scenes/main.tscn"
@@ -22,7 +25,9 @@ func after_all() -> void:
 func test_the_catalog_names_what_the_flight_has() -> void:
 	var procedures := {}
 	for c: Checklist in Checklist.load_all(ChecklistBook.MALFUNCTIONS):
-		procedures[c.title] = true
+		procedures[c.title] = "csm"
+	for c: Checklist in Checklist.load_all(ChecklistBook.LM_MALFUNCTIONS):
+		procedures[c.title] = "lm"
 	var systems := {}
 	for pair in SimRuntime.SYSTEMS + SimRuntime.LM_SYSTEMS:
 		systems[pair[0]] = true
@@ -37,14 +42,18 @@ func test_the_catalog_names_what_the_flight_has() -> void:
 		assert_true(systems.has(f["system"]), "%s: a runtime system" % f["id"])
 		if f["vehicle"] == "lv":
 			assert_true(lamps.has(f["lamp"]), "%s: a lamp on the console, %s" % [f["id"], f["lamp"]])
+		elif f["vehicle"] == "lm":
+			assert_has(LmCautionWarning.LIGHTS, f["caution"], "%s: an LM caution light" % f["id"])
+			assert_eq(LmCautionWarning.LEGENDS[f["caution"]], f["light"], "%s: its legend" % f["id"])
 		else:
 			assert_has(CautionWarning.LIGHTS, f["caution"], "%s: a caution light" % f["id"])
 			assert_eq(CautionWarning.LEGENDS[f["caution"]], f["light"], "%s: its legend" % f["id"])
-		assert_true(procedures.has(f["procedure"]), "%s: its procedure, %s" % [f["id"], f["procedure"]])
+		assert_eq(procedures.get(f["procedure"], ""), "lm" if f["vehicle"] == "lm" else "csm",
+			"%s: its procedure, %s, in its vehicle's book" % [f["id"], f["procedure"]])
 		assert_true(str(f.get("launch", "")) in ["", "abort", "return"], "%s: what the ground does in the launch" % f["id"])
 		for k in ["title", "part", "effect", "expect", "light"]:
 			assert_true(f.has(k), "%s: %s" % [f["id"], k])
-	assert_eq(ids.size(), 15)
+	assert_eq(ids.size(), 20)
 
 
 func test_each_failure_lights_its_caution_sounds_the_master_alarm_and_changes_its_system() -> void:
@@ -52,16 +61,27 @@ func test_each_failure_lights_its_caution_sounds_the_master_alarm_and_changes_it
 		var id := str(f["id"])
 		if f["vehicle"] == "lv":
 			continue
-		build("parking_orbit")
+		# The LM's in its descent orbit, flying free, its descent engine armed
+		# and, for its helium, burning at its minimum throttle.
+		var lm: bool = f["vehicle"] == "lm"
+		var cw := "lm.cw." if lm else "cw."
+		var alarm := "lm.cw.master_alarm" if lm else "sys.master_alarm"
+		build("lunar_descent" if lm else "parking_orbit")
+		if lm:
+			Bus.set_value("ctl.lm.engine_arm", 2)
 		run(10.0, false)
-		assert_false(bool(Bus.get_value("cw." + str(f["caution"]))), "%s: dark before" % id)
-		assert_false(bool(Bus.get_value("sys.master_alarm")), "%s: all well before" % id)
+		assert_false(bool(Bus.get_value(cw + str(f["caution"]), false)), "%s: dark before" % id)
+		assert_false(bool(Bus.get_value(alarm)), "%s: all well before" % id)
 		assert_false(Checklist.holds(f["expect"]), "%s: the system as it was" % id)
 		assert_true(rt.failures.fail(id), id)
 		assert_false(rt.failures.fail(id), "%s: once" % id)
-		var light := func() -> bool: return bool(Bus.get_value("cw." + str(f["caution"])))
+		if f["system"] == "dps":
+			Bus.set_value("ctl.lm.eng_start", true)
+			run(0.2, false)
+			Bus.set_value("ctl.lm.eng_start", false)
+		var light := func() -> bool: return bool(Bus.get_value(cw + str(f["caution"]), false))
 		assert_true(run_until(light, 200.0, 5.0, false), "%s lights %s" % [id, f["light"]])
-		assert_true(bool(Bus.get_value("sys.master_alarm")), "%s sounds the master alarm" % id)
+		assert_true(bool(Bus.get_value(alarm)), "%s sounds the master alarm" % id)
 		assert_true(run_until(func() -> bool: return Checklist.holds(f["expect"]), 200.0, 5.0, false),
 			"%s: %s" % [id, f["effect"]])
 		assert_eq(Bus.get_value("failures.active"), [id])
@@ -167,7 +187,7 @@ func test_the_instructors_page_fails_the_failure_it_shows() -> void:
 	menu.activate("instructor")
 	assert_eq(menu.page, "failures")
 	assert_true(menu.button("fail").is_visible_in_tree())
-	assert_string_contains(menu.choice_label.text, "INSTRUCTOR: FAILURE 1 OF 15")
+	assert_string_contains(menu.choice_label.text, "INSTRUCTOR: FAILURE 1 OF 20")
 	assert_string_contains(menu.choice_label.text, "Cryogenic oxygen tank 2: CRYO PRESS light")
 	assert_string_contains(menu.choice_label.text, "READY")
 	menu.activate("failure_next")
@@ -179,7 +199,7 @@ func test_the_instructors_page_fails_the_failure_it_shows() -> void:
 	menu.activate("failure_prev")
 	menu.activate("failure_prev")
 	menu.activate("failure_prev")
-	assert_string_contains(menu.choice_label.text, "FAILURE 15 OF 15", "round to the last")
+	assert_string_contains(menu.choice_label.text, "FAILURE 20 OF 20", "round to the last")
 	menu.activate("failures_back")
 	assert_eq(menu.page, "flight")
 
@@ -193,8 +213,10 @@ func test_a_failure_opens_its_malfunction_procedure() -> void:
 	await wait_process_frames(2)
 	var titles: Array = main.book.lists.map(func(c: Checklist) -> String: return c.title)
 	assert_has(titles, "Malfunction: CMC", "the CSM's book carries the procedures")
-	assert_eq(main.lm_book.lists.filter(func(c: Checklist) -> bool: return c.title.begins_with("Malfunction")), [],
-		"not the LM's")
+	var lm_titles: Array = main.lm_book.lists.map(func(c: Checklist) -> String: return c.title).filter(
+		func(t: String) -> bool: return t.begins_with("Malfunction"))
+	assert_eq(lm_titles, ["Malfunction: DES REG", "Malfunction: RCS A or B REG", "Malfunction: LGC or ISS"],
+		"the LM's book its own")
 	main.rt.failures.fail("cmc")
 	assert_eq(main.book.list().title, "Malfunction: CMC", "open at the failure")
 	SimClock.rate = 1.0
@@ -209,4 +231,6 @@ func test_a_failure_opens_its_malfunction_procedure() -> void:
 	main.book.update()
 	assert_string_contains(main.book.list().steps[main.book.list().index]["text"], "ATT SOURCE - SCS",
 		"the alarm reset, on to the SCS")
+	main.rt.failures.fail("lgc")
+	assert_eq(main.lm_book.list().title, "Malfunction: LGC or ISS", "an LM failure opens the LM's book's")
 	main.rt.free_nodes()

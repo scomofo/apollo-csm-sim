@@ -5,12 +5,14 @@
 ## (load_lm()), each with its own open checklist, and each mission has its
 ## own (data/missions/<id>/): Apollo 8's has no LM book. The CSM's book
 ## ends with the malfunction procedures (data/malfunctions.json, slice 9a),
-## which no flight phase opens: a failure opens its own (select_title()).
+## and the LM's with its own (data/lm_malfunctions.json, slice 9e), which
+## no flight phase opens: a failure opens its own (select_title()).
 ## Presentation state, like the HUD's before it: checkpoints don't save it.
 class_name ChecklistBook
 extends RefCounted
 
 const MALFUNCTIONS := "res://data/malfunctions.json"
+const LM_MALFUNCTIONS := "res://data/lm_malfunctions.json"
 
 var lists: Array[Checklist] = []
 ## Index of the open checklist.
@@ -25,9 +27,13 @@ static func load_default(mission_id: String = Mission.DEFAULT_ID) -> ChecklistBo
 	return b
 
 
-## The LM's checklists for mission [param mission_id]: none without an LM.
+## The LM's checklists for mission [param mission_id], and its
+## malfunction procedures: none without an LM.
 static func load_lm(mission_id: String = Mission.DEFAULT_ID) -> ChecklistBook:
-	return load_file(Mission.DIR + mission_id + "/lm_checklists.json")
+	var b := load_file(Mission.DIR + mission_id + "/lm_checklists.json")
+	if not b.lists.is_empty():
+		b.lists.append_array(Checklist.load_all(LM_MALFUNCTIONS))
+	return b
 
 
 static func load_file(path: String) -> ChecklistBook:

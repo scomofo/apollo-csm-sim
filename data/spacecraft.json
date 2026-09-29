@@ -62,7 +62,12 @@
     "tau_off_s": 0.25,
     "p40_start_throttle": 0.1,
     "p40_start_s": 15.0,
-    "p40_throttle": 0.4
+    "p40_throttle": 0.4,
+    "_helium": "Slice 9e. The descent tanks' helium, regulated to 245 psia; DES REG lights below 219.2 or above 259.1 psia, and DES QTY when any tank is down to 5.6 % of its propellant, 116 s at hover thrust [published: LM Apollo Operations Handbook, LMA790-3-LM, sections 2.3 and 2.9]. The regulator's failure closed (the failure catalog's dps_he_reg): the pressure falls as the engine draws its propellant, at the rate below at full thrust, and the thrust with it to nothing at the lowest [estimated]",
+    "he_psia": 245.0,
+    "he_decay_psi_s": 10.0,
+    "he_min_psia": 150.0,
+    "low_level_fraction": 0.056
   },
   "aps": {
     "_source": "Ascent engine: 3,500 lbf, fixed thrust [published]; Isp and propellant load [published, rounded]; transients [estimated]",
@@ -124,7 +129,11 @@
     "insertion_apolune_alt_m": 83340.0,
     "vertical_rise_hdot_mps": 12.192,
     "hold_s": 2.0,
-    "auto_rate_dps": 10.0
+    "auto_rate_dps": 10.0,
+    "_aborts": "P70 and P71 (slice 9e). Their vertical rise ends at 40 ft/s up, or above 25,000 ft, 'used for aborts off descent' [published: Bennett, NASA TM X-58040, 1970]. Their insertion's apolune is solved to phase the LM for the PDI PAD's TPI (AscentGuidance.abort_targets()) [derived], no higher than 200 nmi above the site and leaving 20 min of coelliptic flight before TPI [estimated: Apollo 11's no-PDI abort went to 11 by 152 nmi, published]",
+    "abort_vertical_alt_m": 7620.0,
+    "abort_apolune_max_alt_m": 370400.0,
+    "abort_coelliptic_min_s": 1200.0
   },
   "rendezvous_radar": {
     "_source": "The LM's rendezvous radar, tracking the CSM's transponder out to 400 nmi [published]",
@@ -149,6 +158,8 @@
     "_source": "The LGC's rendezvous programs. TPI when the CSM stands 26.6 deg above the LM's horizontal, and a transfer that meets it after it has flown 130 deg [published]. P20's radar marks come every 60 s. The first after the CSM's state vector arrives takes the radar's relative position outright; later marks weight it by 0.5, move the velocity by 0.15 of the position's residual per mark interval, and weight the range rate along the line of sight by 0.5. P35 aims its correction 5 min ahead [estimated]",
     "tpi_elevation_deg": 26.6,
     "tpi_transfer_deg": 130.0,
+    "_coelliptic": "CDH puts the LM on an orbit coelliptic with the CSM's, 15 nmi below it [published: Apollo 11 Flight Journal, day 6, part 2]: the height CSI aims for when the LM is above the CSM (an abort's high apolune, Rendezvous.plan_csi()), and the aborts' targeting's (AscentGuidance.abort_targets())",
+    "coelliptic_dh_m": 27780.0,
     "mark_interval_s": 60.0,
     "mark_position_weight": 0.5,
     "mark_velocity_weight": 0.15,
