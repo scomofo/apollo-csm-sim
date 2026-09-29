@@ -148,6 +148,30 @@ at their times, as Apollo 13's tank. FAILURES on the flight menu is the
 instructor's page: `< FAILURE` and `FAILURE >` step through the catalog,
 and FAIL fails the one shown at once.
 
+**The backups.** With the CMC gone, the SCS and the EMS fly the CSM
+(`src/systems/scs.gd`, `src/systems/ems.gd`; their switches are on MDC-1
+and the HUD):
+- **The SCS.** Its body-mounted gyros feed the GDC, which keeps its own
+  attitude; GDC ALIGN brings it to the IMU's while the CMC reads it, and
+  it drifts a few tenths of a degree an hour from there. With ATT SOURCE
+  at SCS the FDAIs show the GDC's attitude. The hand controller commands
+  rates: 0.7°/s at full deflection with RATE LOW, 7°/s (20°/s in roll)
+  with HIGH. Released, the SCS holds the attitude within its deadband:
+  0.2° at RATE LOW and ATT DEADBAND MIN, up to 8° at HIGH and MAX.
+- **The SPS under the SCS.** While the SPS fires, its gimbal (±4.5°)
+  holds the attitude (SCS TVC AUTO), or turns the CSM on the hand
+  controller (RATE CMD, MTVC).
+- **The EMS.** Its ΔV counter, set on the ΔV/EMS SET rocker, counts down
+  the ΔV its own accelerometer senses along X. With the EMS in ΔV,
+  THRUST ON starts the SPS and the EMS ends the burn at −0.1 ft/s.
+  Houston's maneuver PADs now give the burn attitude as the FDAI's R, P
+  and Y and the counter's setting, ΔVC: the ΔV less the SPS's tail-off.
+- **The EMS in the entry.** Set its scroll to the entry PAD's VIO (VO
+  SET) and its range to RTGO (RNG SET), and turn it to ENTRY. At 0.05 g
+  its light comes on, and the scroll traces g against velocity while the
+  range counts down. Ten seconds on, a corridor light says which way the
+  lift must point.
+
 | Input | Action |
 |---|---|
 | W/S, A/D, Q/E | Rotational hand controller: pitch, yaw, roll (hold Shift for 10 %); in Eagle, its ACA |
@@ -1343,6 +1367,21 @@ The unit tests cover:
   areas and their alarms, the jobs by priority, a load within the LGC
   never alarming, the radar's CDUs counting only on Apollo 11's LGC away
   from LGC, the crew's monitor, and a checkpoint of the jobs and restarts
+- The backups (`tests/scenarios/test_backups.gd`), slice 9c: Apollo 11's
+  TEI flown on the SCS with the CMC failed. The GDC is aligned 20 minutes
+  before TIG, the burn attitude found on the FDAI's GDC angles, and the
+  burn ended by the EMS at the PAD's ΔVC. It comes 3,309.0 ft/s against
+  the PAD's 3,309.3, 0.26° off its direction. Apollo 11's entry, the CMC
+  flying it, with the EMS set to the entry PAD: its 0.05 G light 1.2 s
+  after the CM reached 0.05 g, LIFT UP ten seconds on, the scroll's g
+  within 4.5 % of the CM's load and its velocity within 3.5 % of the
+  CM's, and its range 2.9 nmi from zero at the splashdown.
+  `tests/unit/test_scs_ems.gd`: the SCS's hold and rate command at RATE
+  LOW and HIGH and ATT DEADBAND MIN and MAX; the GDC's drift, GDC ALIGN
+  and the FDAIs on it at SCS; the EMS's rocker; the EMS ending an SCS burn
+  (106 ft/s for 100 set, the tail-off after it) and keeping THRUST ON
+  from starting below zero; MTVC pitching the CSM on the gimbal; and a
+  checkpoint
 - The terrain: Tranquility Base 1,927 m below the reference sphere, West
   crater 30 m deep east of the LM, and the maps blending without steps;
   Surveyor III 1,432 m below it on its crater's slope, and Intrepid's
@@ -1818,5 +1857,7 @@ failures are a catalog, armed by a mission or failed by an instructor,
 each lighting its caution and opening its malfunction procedure (slice
 9a), and Apollo 11's landing brings its 1202 and 1201 alarms, from the
 LGC's Executive and the rendezvous radar's switch as its crew had it
-(slice 9b). The backups and the aborts come next, then every mission
-from the pad, the LM's navigation, and Apollo 14 to 17.
+(slice 9b). With the CMC failed, the SCS and the EMS fly a burn to the
+PAD, and the EMS monitors the entry (slice 9c). The aborts come next,
+then every mission from the pad, the LM's navigation, and Apollo 14 to
+17.

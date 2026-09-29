@@ -7,6 +7,17 @@ ctl.sps.arm_a,bool,,crew,DELTA-V THRUST A: SPS pilot valve bank A armed
 ctl.sps.arm_b,bool,,crew,DELTA-V THRUST B: SPS pilot valve bank B armed
 ctl.sps.thrust_on,bool,,crew,SPS THRUST ON hold-button (HUD manual backup)
 ctl.scs.att_source,int,,crew,Attitude control source: 0 CMC 1 SCS 2 DIRECT
+ctl.scs.rate,int,,crew,SCS RATE: 0 LOW 1 HIGH (slice 9c)
+ctl.scs.att_db,int,,crew,SCS ATT DEADBAND: 0 MIN 1 MAX
+ctl.scs.tvc,int,,crew,SCS TVC: 0 AUTO (the gimbal holds the attitude) 1 RATE CMD (MTVC on the hand controller)
+ctl.scs.gdc_align,bool,,crew,GDC ALIGN: the GDC to the IMU's attitude (momentary)
+ctl.ems.function,int,,crew,EMS FUNCTION: 0 OFF 1 DV SET 2 DV 3 RNG SET 4 VO SET 5 ENTRY
+ctl.ems.set,int,,crew,DV/EMS SET rocker: -2 and -1 DECR (hard and soft) +1 and +2 INCR; springs back to 0
+ems.display,float,ft/s or nmi,ems,The EMS's DV/RANGE display
+ems.dv_mode,bool,,ems,The EMS's FUNCTION at DV
+ems.lamp_05g,bool,,ems,The EMS's .05 G light
+ems.corridor_up,bool,,ems,The EMS's upper corridor light: lift up
+ems.corridor_down,bool,,ems,The EMS's lower corridor light: lift down
 ctl.cmc.mode,int,,crew,CMC MODE: 0 FREE 1 HOLD 2 AUTO
 ctl.cmc.up_tlm,bool,,crew,UP TLM CM: ACCEPT (true) takes the ground's uplinks to the CMC (P27); BLOCK refuses them
 ctl.optics.zero,bool,,crew,OPTICS ZERO: ZERO drives the shaft and trunnion to zero
@@ -38,6 +49,7 @@ ctl.seq.lm_jett,bool,,crew,LM jettison command (momentary)
 ctl.seq.cm_sm_sep,bool,,crew,CM/SM separation command (momentary)
 ctl.cw.master_alarm,bool,,crew,MASTER ALARM switch-light: pressed resets the master alarm (momentary)
 guid.indicator.attitude,quat,,agc,FDAI attitude: body relative to LVLH
+scs.fdai.attitude,quat,,scs,The CSM FDAIs' attitude: the CMC's (guid.indicator.attitude) or with ATT SOURCE at SCS the GDC's (slice 9c)
 time.get_s,float,s,simclock,Ground elapsed time
 eps.bus_a_v,float,V,eps,Main bus A voltage
 eps.bus_b_v,float,V,eps,Main bus B voltage

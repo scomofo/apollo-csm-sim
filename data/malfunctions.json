@@ -23,13 +23,13 @@
       {"text": "CMC: the computer has failed. Its DSKY is dark and its autopilot stopped"},
       {"text": "MASTER ALARM - press", "control": "P1_MASTER_ALARM", "check": {"channel": "sys.master_alarm", "op": "eq", "value": false}},
       {"text": "ATT SOURCE - SCS: the SCS holds the attitude", "control": "P1_ATT_SOURCE", "check": {"channel": "ctl.scs.att_source", "op": "eq", "value": 1}},
-      {"text": "Houston's PADs from here: the burns flown by hand"}
+      {"text": "Houston's PADs from here: each burn on the SCS, turned to the PAD's R, P and Y on the FDAI's GDC angles, to the EMS's count of its DVC (EMS FUNCTION DV, THRUST ON)"}
     ]},
     {"title": "Malfunction: ISS", "phases": [], "steps": [
       {"text": "ISS: the IMU has failed. NO ATT on the DSKY: the CMC has no attitude"},
       {"text": "MASTER ALARM - press", "control": "P1_MASTER_ALARM", "check": {"channel": "sys.master_alarm", "op": "eq", "value": false}},
       {"text": "ATT SOURCE - SCS: the SCS holds the attitude", "control": "P1_ATT_SOURCE", "check": {"channel": "ctl.scs.att_source", "op": "eq", "value": 1}},
-      {"text": "No coarse align, P51 or P52 brings the platform back: the burns flown by hand"}
+      {"text": "No coarse align, P51 or P52 brings the platform back: the burns on the SCS, to the EMS's count"}
     ]}
   ]
 }

@@ -1817,7 +1817,7 @@ version there.
 
 ## 9. Failures, backups and aborts
 
-**Status: slices 9a and 9b done.** The simulators the crews trained on were
+**Status: slices 9a to 9c done.** The simulators the crews trained on were
 there for the failures: the simulation supervisor's team failed the
 spacecraft, and the crew worked the malfunction procedures until the
 answers came without thinking. Slice 9a gives the CSM a catalog of ten:
@@ -1825,9 +1825,10 @@ an oxygen tank (Apollo 13's, moved onto it), the fuel cells, the SM RCS
 quads, the CMC and the IMU. Each lights its caution and warning light,
 from a matrix on MDC-2. They're armed by a mission or failed by hand on
 the flight menu's instructor's page. Slice 9b brings Apollo 11's own
-trouble: its landing's 1202 and 1201 alarms. Nothing aborts yet: the
-launch escape tower is jettisoned unused, and Eagle has no ABORT or
-ABORT STAGE.
+trouble: its landing's 1202 and 1201 alarms. Slice 9c gives the crew the
+backups a failed CMC leaves them: the SCS and the EMS. Nothing aborts
+yet: the launch escape tower is jettisoned unused, and Eagle has no
+ABORT or ABORT STAGE.
 
 - **The catalog.** A failure is data (`data/failures.json`): the system
   and the part, what fails and how, and the caution and warning light it
@@ -1865,7 +1866,15 @@ ABORT STAGE.
 - **The backups** a failure leaves the crew: the SCS, with its
   body-mounted gyros and attitude set, holding the attitude and turning
   the SPS by hand (MTVC) on the RHC, and the EMS, whose ΔV counter ends a
-  burn the CMC isn't flying and whose scroll monitors the entry.
+  burn the CMC isn't flying and whose scroll monitors the entry. Done in
+  9c (the CSM Apollo Operations Handbook's section 2.3):
+  `src/systems/scs.gd` holds the attitude on its BMAGs and GDC within
+  its deadbands (RATE LOW and HIGH, ATT DEADBAND MIN and MAX), commands
+  rates on the RHC, and while the SPS fires holds the attitude on the
+  gimbal or turns it by hand (MTVC); `src/systems/ems.gd` counts the ΔV
+  and gives the thrust-off, and in the entry lights 0.05 G and the
+  corridor lights and traces its scroll. The maneuver PADs give the burn
+  attitude (R, P, Y) and ΔVC. Checkpoint schema 21.
 - **The aborts**: the launch's four modes, the escape tower's (mode I)
   and the service propulsion system's (modes II to IV), with the EDS's
   automatic aborts, the abort lights and the crew's handle; and the
@@ -1875,7 +1884,7 @@ ABORT STAGE.
 |---|---|---|
 | 9a (done) The failure catalog | Failures as data, armed by a mission or set by hand on an instructor's panel; Apollo 13's tank moved onto it; the caution and warning lights it needs, and the malfunction procedures in the checklists | Tests: each failure in the catalog, set in a headless flight, lights its caution, sounds the master alarm and changes its system as the catalog says; a checkpoint keeps the armed and the active ones; Apollo 13's flight passes as it did |
 | 9b (done) Apollo 11's program alarms | The LGC's Executive and its load, its restarts, the rendezvous radar's counter interrupts with its switch as Apollo 11's crew had it, the alarms on the DSKY and the ground's GO | Test: Apollo 11's landing with the switch as flown brings 1202 and 1201 alarms 5 to 10 minutes after PDI, as it did, and still lands within the Fidelity table's limits; with the switch at LGC none come |
-| 9c The backups | The SCS's attitude hold and rate command on its own gyros, MTVC, and the EMS's ΔV counter and entry scroll | Test: with the CMC failed (9a), a transearth SPS burn flown on the SCS to the EMS's count comes within a set limit of its PAD, and the EMS's scroll follows the CMC's entry within its tolerance |
+| 9c (done) The backups | The SCS's attitude hold and rate command on its own gyros, MTVC, and the EMS's ΔV counter and entry scroll | Test: with the CMC failed (9a), a transearth SPS burn flown on the SCS to the EMS's count comes within a set limit of its PAD, and the EMS's scroll follows the CMC's entry within its tolerance |
 | 9d The launch's aborts | The launch escape system (mode I) and the SPS's modes II to IV; the EDS, the abort lights, the crew's handle and the ground's calls of the mode | Test: from a point in each mode's window of Apollo 11's launch, set off by a failure from 9a, the CM comes down within a set limit of the flight plan's landing area for it, or mode IV reaches a safe orbit |
 | 9e The LM's aborts | ABORT (P70, on the descent engine) and ABORT STAGE (P71, on the ascent engine after staging) in the powered descent, into an orbit the rendezvous takes from | Test: aborts from P63 and from P66 at 500 ft each reach an orbit, and from it the rendezvous docks |
 

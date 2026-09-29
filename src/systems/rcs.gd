@@ -11,7 +11,8 @@
 ##
 ## Rotation command source (ctl.scs.att_source):
 ##   0 CMC   the computer's digital autopilot (guid.rcs_rot_cmd)
-##   1 SCS   Stabilization and Control System rate command from the RHC
+##   1 SCS   the Stabilization and Control System's attitude hold and
+##           rate command (scs.rot_cmd, src/systems/scs.gd)
 ##   2 DIRECT RHC straight to the jets (direct coils)
 ## Translation always comes from the THC (ctl.thc) plus guid.rcs_trans_cmd.
 ##
@@ -27,9 +28,6 @@
 extends Node
 
 const QUADS := ["a", "b", "c", "d"]
-## SCS rate-command gains: full RHC deflection commands this rate.
-const SCS_MAX_RATE := 0.034906585  # 2 deg/s
-const SCS_GAIN := 25.0
 const DEADBAND := 0.05
 ## A quad's secondary fuel pressure in flight, psia [estimated: within the
 ## caution and warning limits, 145 to 215 psia, AOH p. 2.10-5].
@@ -76,11 +74,8 @@ func rotation_command() -> Vector3:
 	var rhc := _db3(Bus.get_value("ctl.rhc", Vector3.ZERO))
 	match src:
 		1:
-			var w: Vector3 = Bus.get_value("dyn.omega", Vector3.ZERO)
-			var err := rhc * SCS_MAX_RATE - w
-			if err.length() < 0.0005:
-				return Vector3.ZERO
-			return (err * SCS_GAIN).clamp(-Vector3.ONE, Vector3.ONE)
+			var c1: Vector3 = Bus.get_value("scs.rot_cmd", Vector3.ZERO)
+			return c1.clamp(-Vector3.ONE, Vector3.ONE)
 		2:
 			return rhc
 		_:

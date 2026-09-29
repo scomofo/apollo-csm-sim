@@ -35,7 +35,8 @@
 ## (spacecraft.json "docking": tunnel_impulse_ns) [simplified: the other
 ## missions' LM jettisons, from the CSM, leave it as it was].
 ##
-## Reads:  sps.thrust_n, rcs.force_body, rcs.torque_body, sivb.thrust_n,
+## Reads:  sps.thrust_n, sps.gimbal_rad, scs.busy, rcs.force_body,
+##         rcs.torque_body, sivb.thrust_n,
 ##         sivb.dir, sps.prop_kg, rcs.sm_prop_kg, rcs.cm_prop_kg,
 ##         sivb.prop_kg, els.drogue, els.mains, guid.bank_cmd_deg,
 ##         guid.bank_auto, ctl.rhc, guid.dap_busy; the LM's lm.dps.thrust_n,
@@ -238,9 +239,12 @@ func tick(dt: float) -> void:
 		var d: Array = Bus.get_value("lv.dir", [1.0, 0.0, 0.0])
 		force_eci += Vector3(d[0], d[1], d[2]).normalized() * float(Bus.get_value("lv.thrust_n", 0.0))
 	elif config != "stack":
-		force_body.x += float(Bus.get_value("sps.thrust_n", 0.0)) if SpacecraftData.sm_attached(config) else 0.0
 		force_body += Bus.get_value("rcs.force_body", Vector3.ZERO)
 		torque = Bus.get_value("rcs.torque_body", Vector3.ZERO)
+		if SpacecraftData.sm_attached(config):
+			var sps := _sps_thrust()
+			force_body += sps[0]
+			torque += sps[1]
 		if lm_flies_stack():
 			# The docked LM's engine and jets, turned from its axes into the
 			# CSM's.
@@ -291,12 +295,28 @@ func tick(dt: float) -> void:
 	# A coast step may only be long when nothing acts on the vehicle AND no
 	# autopilot is trying to (a controller cannot run at minute steps).
 	var coasting := not commanded and torque == Vector3.ZERO and not aero and not landed \
-		and not bool(Bus.get_value("guid.dap_busy", false)) \
+		and not bool(Bus.get_value("guid.dap_busy", false)) and not bool(Bus.get_value("scs.busy", false)) \
 		and not (lm_flies_stack() and _lm_dap_busy())
 	Bus.set_value("dyn.dv_step", [ext[0] * dt, ext[1] * dt, ext[2] * dt] if ext.size() == 3 else [0.0, 0.0, 0.0])
 	_step_lm(dt)
 	publish_state()
 	_publish_coast(coasting and (lm == null or (lm.coasting and not _lm_dap_busy())))
+
+
+## The SPS's force and torque in body axes, [force, torque]: its thrust
+## along +X turned by the gimbal (sps.gimbal_rad, pitch and yaw), about its
+## arm to the centre of mass (configurations' sps_gimbal_arm_m
+## [estimated: the gimbal ring about 2.8 m behind the CSM's centre of mass,
+## 6.5 m with the LM docked]). At its trim the thrust passes through the
+## centre of mass.
+func _sps_thrust() -> Array:
+	var t := float(Bus.get_value("sps.thrust_n", 0.0))
+	var g: Vector2 = Bus.get_value("sps.gimbal_rad", Vector2.ZERO)
+	if t == 0.0 or g == Vector2.ZERO:
+		return [Vector3(t, 0.0, 0.0), Vector3.ZERO]
+	var arm := float(SpacecraftData.config(config).get("sps_gimbal_arm_m", 0.0))
+	var f := Vector3(t * cos(g.x) * cos(g.y), -t * sin(g.y), t * sin(g.x))
+	return [f, Vector3(0.0, arm * f.z, -arm * f.y)]
 
 
 ## The LM's autopilots are trying to turn it: its LGC's, or its AGS's.

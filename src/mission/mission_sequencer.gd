@@ -915,6 +915,7 @@ func _lm_mass(cfg: String) -> float:
 func _uplink(kind: String, pad: Dictionary, tracked: Trajectory) -> Dictionary:
 	last_pad = pad
 	pads[kind] = pad
+	_scs_figures(pad, tracked)
 	var text := Rtcc.pad_text(pad)
 	Bus.set_value("mission.pad_text", text)
 	var agc: AgcCore = systems.get("agc")
@@ -927,6 +928,34 @@ func _uplink(kind: String, pad: Dictionary, tracked: Trajectory) -> Dictionary:
 		_say("Houston: {csm}, we can't uplink, we need P00 and UP TLM to ACCEPT. By voice: " + text)
 	_fire("pad_" + kind)
 	return pad
+
+
+## The PAD's figures for a burn flown on the SCS (slice 9c): the burn
+## attitude, "att_deg", as the IMU's gimbal angles on the CMC's REFSMMAT
+## (R, P, Y), the thrust along the velocity to be gained at ignition as P40
+## flies it, heads up; and the EMS's ΔV counter setting, "dvc", the burn's
+## ΔV less the ΔV of the SPS's tail-off after the thrust-off [published:
+## the Maneuver PAD's R, P, Y and ΔVC lines].
+func _scs_figures(pad: Dictionary, tracked: Trajectory) -> void:
+	var agc: AgcCore = systems.get("agc")
+	if agc == null or not pad.has("dv_lvlh") or not pad.has("tig") or tracked == null:
+		return
+	var at := tracked.clone()
+	at.coast_to(float(pad["tig"]))
+	var dv := Trajectory.lvlh_basis(at.pos(), at.vel()) * (pad["dv_lvlh"] as Vector3)
+	if dv.length() <= 0.0:
+		return
+	var sps := SpacecraftData.section("sps")
+	var thrust := float(sps["thrust_n"])
+	var mass := float(Bus.get_value("dyn.mass_kg", 30000.0))
+	var ut := AgcCore.external_dv_vg(at.pos(), at.vel(), dv, mass, thrust)
+	pad["att_deg"] = Imu.gimbal_angles(agc.imu.refsmmat * Basis(agc.burn_attitude(ut.normalized(), at.pos())))
+	var total := float(pad.get("dv", dv.length()))
+	var tail := 0.0
+	if total >= SPS_MIN_MPS:
+		var m_end := mass * exp(-total / (float(sps["isp_s"]) * Units.G0))
+		tail = thrust * float(sps["tau_off_s"]) / m_end
+	pad["dvc"] = total - tail
 
 
 ## The CSM's state vector for the CMC (P27, V71): the state MSFN tracked.

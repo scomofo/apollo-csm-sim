@@ -36,11 +36,15 @@ extends RefCounted
 ## 20: Apollo 11's program alarms (slice 9b): the LGC's Executive (its jobs
 ##    and their schedule), its restarts and alarm registers, and the
 ##    ground's answers to them.
-const SCHEMA_VERSION := 20
+## 21: the backups (slice 9c): the SCS's GDC, hold and SPS latch, the SPS's
+##    gimbal, and the EMS's counters and scroll.
+const SCHEMA_VERSION := 21
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],
 	["agc", "res://src/systems/agc.gd"],
+	["ems", "res://src/systems/ems.gd"],
+	["scs", "res://src/systems/scs.gd"],
 	["rcs", "res://src/systems/rcs.gd"],
 	["sps", "res://src/systems/sps.gd"],
 	["lv", "res://src/systems/launch_vehicle.gd"],
@@ -62,7 +66,8 @@ const LM_SYSTEMS := [
 	["rr", "res://src/systems/rendezvous_radar.gd"],
 ]
 ## Crew control defaults: CMC attitude source, HOLD, SPS disarmed, UP TLM
-## CM in ACCEPT, the optics in CMC mode at MED speed, the CM's loads all on
+## CM in ACCEPT, the SCS at RATE LOW, ATT DEADBAND MIN and TVC AUTO, the
+## EMS OFF, the optics in CMC mode at MED speed, the CM's loads all on
 ## its own buses; the LM's DAP in HOLD, its engines disarmed and both RCS
 ## systems open, the PGNS's breakers in and its guidance in control, the
 ## AGS off, the TTCA's throttle at its minimum, the rendezvous radar's mode
@@ -70,6 +75,8 @@ const LM_SYSTEMS := [
 ## radar ranging test after DOI left it, and docked, the LM powered down.
 const CONTROL_DEFAULTS := {
 	"ctl.scs.att_source": 0, "ctl.cmc.mode": 1, "ctl.cmc.up_tlm": true,
+	"ctl.scs.rate": 0, "ctl.scs.att_db": 0, "ctl.scs.gdc_align": false, "ctl.scs.tvc": 0,
+	"ctl.ems.function": 0, "ctl.ems.set": 0,
 	"ctl.optics.zero": false, "ctl.optics.mode": 1, "ctl.optics.speed": 1, "ctl.optics.hc": Vector3.ZERO,
 	"ctl.optics.mark": false, "ctl.optics.mark_reject": false,
 	"ctl.sps.arm_a": false, "ctl.sps.arm_b": false, "ctl.sps.thrust_on": false,

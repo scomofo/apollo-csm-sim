@@ -164,8 +164,10 @@
   "configurations": {
     "saturn_v": {"inertia": [2.0e6, 5.0e8, 5.0e8], "ref_mass_kg": 2899008.0, "rcs_pitch_arm_m": 0.0, "rcs_roll_arm_m": 0.0},
     "stack":  {"inertia": [60000.0, 5000000.0, 5000000.0], "ref_mass_kg": 140000.0, "rcs_pitch_arm_m": 0.0, "rcs_roll_arm_m": 0.0},
-    "csm_lm": {"inertia": [45000.0, 900000.0, 900000.0], "ref_mass_kg": 44000.0, "rcs_pitch_arm_m": 5.0, "rcs_roll_arm_m": 1.95},
-    "csm":    {"inertia": [22000.0, 95000.0, 95000.0], "ref_mass_kg": 28800.0, "rcs_pitch_arm_m": 3.2, "rcs_roll_arm_m": 1.95},
+    "csm_lm": {"inertia": [45000.0, 900000.0, 900000.0], "ref_mass_kg": 44000.0, "rcs_pitch_arm_m": 5.0, "rcs_roll_arm_m": 1.95,
+      "sps_gimbal_arm_m": 6.5},
+    "csm":    {"inertia": [22000.0, 95000.0, 95000.0], "ref_mass_kg": 28800.0, "rcs_pitch_arm_m": 3.2, "rcs_roll_arm_m": 1.95,
+      "sps_gimbal_arm_m": 2.8},
     "cm_lm":  {"inertia": [32605.0, 125303.0, 127189.0], "ref_mass_kg": 16833.0, "rcs_pitch_arm_m": 1.6, "rcs_roll_arm_m": 1.4,
       "_source": "Apollo 13's command module and LM after the SM's jettison: 37,109.7 lb, 24,048, 92,418 and 93,809 slug ft2 about their X, Y and Z axes (MSC-02680, Table A-I) [published]; the CM's jets' arms [estimated: the CM's own]"},
     "cm":     {"inertia": [6000.0, 5500.0, 5500.0], "ref_mass_kg": 5560.0, "rcs_pitch_arm_m": 1.6, "rcs_roll_arm_m": 1.4},

@@ -222,11 +222,13 @@ func p37() -> Vector3:
 ## The entry from here, as its checklist flies it: V37E61E and PRO through
 ## P61's N61, N60 and N63; P62's V50N25 00041 answered with CM/SM SEP and
 ## PRO, its N61 with PRO in CMC MODE AUTO; ELS LOGIC and AUTO; PRO at P65's
-## N69 and P67's N67; on to the splashdown, or [param max_s]. Returns
+## N69 and P67's N67; on to the splashdown, or [param max_s], [param chunk]
+## seconds at a time in the atmosphere (30 s outside it), calling
+## [param each] after each. Returns
 ## {"programs": the programs flown, in turn; "peaks": the load's peaks
 ## over 1 g (g), each pass's; "n67": N67's range to go, latitude and
 ## longitude}.
-func fly_entry(max_s: float = 3.0 * 3600.0) -> Dictionary:
+func fly_entry(max_s: float = 3.0 * 3600.0, each: Callable = Callable(), chunk: float = EntryGuidance.PASS_S) -> Dictionary:
 	var agc := rt.agc()
 	keys("V37E61E")
 	keys("PPP")
@@ -244,7 +246,9 @@ func fly_entry(max_s: float = 3.0 * 3600.0) -> Dictionary:
 	var n67 := []
 	var end := SimClock.get_seconds + max_s
 	while not rt.dynamics.landed and SimClock.get_seconds < end:
-		run(EntryGuidance.PASS_S if rt.dynamics.in_atmosphere() else 30.0)
+		run(chunk if rt.dynamics.in_atmosphere() else 30.0)
+		if each.is_valid():
+			each.call()
 		if agc.program != programs[-1]:
 			programs.append(agc.program)
 		g.append(rt.dynamics.g_load)

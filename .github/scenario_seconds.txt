@@ -5,8 +5,9 @@
 # the longer of slice 7a's two (41a24cc's), test_apollo_10.gd's the longer
 # of slice 7b's two (86f10a4's), and test_apollo_12.gd's the longer of slice
 # 7c's two (bf7787b's), test_apollo_13.gd's the longer of slice 7d's
-# two (e954913's), and test_flight_menu.gd's slice 8b's, its two flows
-# (4193da7's push; its pull request made no run).
+# two (e954913's), test_flight_menu.gd's slice 8b's, its two flows
+# (4193da7's push; its pull request made no run), and
+# test_program_alarms.gd's the longer of slice 9b's two (93eea57's).
 # A file not listed counts 60 s.
 # Add a new file's time once CI has run it, and measure again when the
 # parts drift apart.
@@ -34,6 +35,7 @@ test_mascons.gd 8
 test_onboard_navigation.gd 99
 test_onboard_state.gd 5
 test_p40_steering.gd 43
+test_program_alarms.gd 85
 test_rendezvous.gd 111
 test_tli.gd 24
 test_vr_acceptance_recorder.gd 4

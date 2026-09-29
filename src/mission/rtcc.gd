@@ -1410,6 +1410,10 @@ static func pad_text(pad: Dictionary) -> String:
 			float(pad["lat"]), float(pad["lng"]), float(pad["gmax"]), float(pad["v400k"]) / Units.FT,
 			float(pad["gamma400k"]), float(pad["rtgo"]), float(pad["vio"]) / Units.FT, Units.hms(float(pad["tig"]))]
 	var dv: Vector3 = pad.get("dv_lvlh", Vector3.ZERO)
-	return "%s PAD: TIG %s  N81 DVX %+.1f DVY %+.1f DVZ %+.1f ft/s  DVT %.1f ft/s  BURN %.0f s" % [
+	var text := "%s PAD: TIG %s  N81 DVX %+.1f DVY %+.1f DVZ %+.1f ft/s  DVT %.1f ft/s  BURN %.0f s" % [
 		pad["name"], Units.hms(float(pad["tig"])), dv.x / Units.FT, dv.y / Units.FT, dv.z / Units.FT,
 		float(pad.get("dv", dv.length())) / Units.FT, float(pad.get("burn_s", 0.0))]
+	if pad.has("att_deg"):
+		var a: Vector3 = pad["att_deg"]
+		text += "  R %03.0f P %03.0f Y %03.0f  DVC %.1f ft/s" % [a.x, a.y, a.z, float(pad["dvc"]) / Units.FT]
+	return text

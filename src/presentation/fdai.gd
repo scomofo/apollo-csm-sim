@@ -1,6 +1,7 @@
 ## Simplified Flight Director Attitude Indicator: an attitude "ball" drawn
-## relative to the computer's reference (guid.indicator.attitude: the
-## CMC's stable member, so total attitude against REFSMMAT, or LVLH for the
+## relative to the computer's reference (the CSM's scs.fdai.attitude, the
+## CMC's stable member, so total attitude against REFSMMAT, or with ATT
+## SOURCE at SCS the GDC's; lm.guid.indicator.attitude, LVLH, for the
 ## LGC), with body-rate needles on the edges and the computer's
 ## attitude-error needles across the face. It shows the CSM (vehicle
 ## "csm": nose along body X, crew's down along Z) or the LM ("lm": windows
@@ -31,7 +32,8 @@ func _draw() -> void:
 	draw_circle(c, rad + 2.0, Color(0.05, 0.05, 0.05))
 	# The body's attitude in the reference's axes (X forward, Y right, Z
 	# down on the ball).
-	var b := Basis(Bus.get_value(p + "guid.indicator.attitude", Quaternion.IDENTITY) as Quaternion)
+	var ch := "lm.guid.indicator.attitude" if vehicle == "lm" else "scs.fdai.attitude"
+	var b := Basis(Bus.get_value(ch, Quaternion.IDENTITY) as Quaternion)
 	var lm := vehicle == "lm"
 	var fwd := b * (Vector3(0, 0, 1) if lm else Vector3(1, 0, 0))   # nose
 	var down_body := b * (Vector3(-1, 0, 0) if lm else Vector3(0, 0, 1))

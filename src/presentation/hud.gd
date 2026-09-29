@@ -316,7 +316,26 @@ func _switch_panel() -> PanelContainer:
 	_momentary(g, "LM JETT", "ctl.seq.lm_jett")
 	_momentary(g, "CM/SM SEP", "ctl.seq.cm_sm_sep")
 	_momentary(g, "MASTER ALARM", "ctl.cw.master_alarm")
+	_option(g, "SCS RATE", "ctl.scs.rate", ["LOW", "HIGH"])
+	_option(g, "ATT DEADBAND", "ctl.scs.att_db", ["MIN", "MAX"])
+	_option(g, "SCS TVC", "ctl.scs.tvc", ["AUTO", "RATE CMD"])
+	_momentary(g, "GDC ALIGN", "ctl.scs.gdc_align")
+	_option(g, "EMS FUNCTION", "ctl.ems.function", ["OFF", "DV SET", "DV", "RNG SET", "VO SET", "ENTRY"])
+	g.add_child(Control.new())
+	_momentary(g, "EMS SET DECR", "ctl.ems.set", -2, 0)
+	_momentary(g, "EMS SET decr", "ctl.ems.set", -1, 0)
+	_momentary(g, "EMS SET incr", "ctl.ems.set", 1, 0)
+	_momentary(g, "EMS SET INCR", "ctl.ems.set", 2, 0)
 	return p
+
+
+## The EMS's lights, as the HUD lists them.
+static func _ems_lights() -> String:
+	var lit := PackedStringArray()
+	for pair in [[".05 G", "ems.lamp_05g"], ["LIFT UP", "ems.corridor_up"], ["LIFT DOWN", "ems.corridor_down"]]:
+		if bool(Bus.get_value(pair[1], false)):
+			lit.append(pair[0])
+	return "  ".join(lit)
 
 
 func _toggle(parent: Node, text: String, ch: String) -> void:
@@ -624,6 +643,7 @@ RATE  %+.2f %+.2f %+.2f °/s""" % [
 	_flight.text += _docking_text()
 	_flight.text += _launch_text()
 	var o2 := float(Bus.get_value("eps.o2_tank1_kg", 0.0)) + float(Bus.get_value("eps.o2_tank2_kg", 0.0))
+	var gdc: Vector3 = Bus.get_value("scs.gdc_deg", Vector3.ZERO)
 	var fc := PackedStringArray()
 	for n in 3:
 		var ok := bool(Bus.get_value("eps.fc%d_ok" % (n + 1), true))
@@ -634,7 +654,9 @@ EPS  MAIN A %4.1f V  B %4.1f V  load %4.0f W
 FC   %s
 CRYO O2 T1 %5.1f T2 %5.1f lb   H2 %4.1f lb
 BAT  A %4.1f  B %4.1f  C %4.1f Ah   %s
-CMC  P%02d %s  VG %.1f ft/s  %s""" % [
+CMC  P%02d %s  VG %.1f ft/s  %s
+SCS  GDC %06.2f %06.2f %06.2f  %s
+EMS  %+.1f  %s""" % [
 		Units.kg_to_lb(float(Bus.get_value("sps.prop_kg", 0.0))), float(Bus.get_value("sps.chamber_pct", 0.0)),
 		"FIRING" if bool(Bus.get_value("sps.on", false)) else "", int(Bus.get_value("sps.ignitions", 0)),
 		Units.kg_to_lb(float(Bus.get_value("rcs.quad_a_kg", 0.0))), Units.kg_to_lb(float(Bus.get_value("rcs.quad_b_kg", 0.0))),
@@ -648,7 +670,9 @@ CMC  P%02d %s  VG %.1f ft/s  %s""" % [
 		"MASTER ALARM" if bool(Bus.get_value("sys.master_alarm", false)) else "",
 		int(Bus.get_value("guid.program", 0)), str(Bus.get_value("guid.step", "")),
 		float(Bus.get_value("guid.vg_mps", 0.0)) / ft,
-		"MNVR LOADED TIG " + Units.hms(float(Bus.get_value("guid.maneuver_tig", 0.0))) if bool(Bus.get_value("guid.maneuver_valid", false)) else ""]
+		"MNVR LOADED TIG " + Units.hms(float(Bus.get_value("guid.maneuver_tig", 0.0))) if bool(Bus.get_value("guid.maneuver_valid", false)) else "",
+		gdc.x, gdc.y, gdc.z, "HOLD" if bool(Bus.get_value("scs.hold", false)) else "",
+		float(Bus.get_value("ems.display", 0.0)), _ems_lights()]
 	if o2 <= 0.0:
 		_systems.text += "\nO2 DEPLETED"
 	var lit := PackedStringArray()
