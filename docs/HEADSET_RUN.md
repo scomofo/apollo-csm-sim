@@ -41,10 +41,13 @@ active (see above) and the simulator has started on the desktop rig.
 
 ### From an export
 
-The *PC VR* presets in `export_presets.cfg` (Windows and Linux) need the
-same argument: `ApolloVR.exe --xr-mode on -- --phase=lunar_orbit`. A full
-export needs Godot 4.4.1's export templates (*Editor → Manage Export
-Templates*):
+CI exports the *PC VR* presets in `export_presets.cfg` (Windows and
+Linux) on every merge to `main`: the run's `ApolloVR-pc-vr` artifact on
+the repository's *Actions* page holds a zip for each, and a tag's release
+has them attached. Unzip one and run it with the same argument as above:
+`ApolloVR.exe --xr-mode on -- --phase=lunar_orbit`, or without
+`-- --phase=` for the flight menu. To export them yourself you need Godot
+4.4.1's export templates (*Editor → Manage Export Templates*):
 
 ```
 mkdir -p build/windows

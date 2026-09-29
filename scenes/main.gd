@@ -44,6 +44,8 @@
 ## "--o2-failure-in=<s>" fails the SM's oxygen tank 2 that many seconds
 ## after the start, as Apollo 13's did: its fuel cells' lights sound the
 ## master alarm (the listening pass's, docs/LISTENING_PASS.md).
+## "--quit-after=<s>" quits once the flight has flown that many seconds of
+## GET, as CI flies an exported build (docs/ROADMAP.md, slice 8c).
 ##
 ## The flight menu (docs/ROADMAP.md, slice 8a) is the wrist menu's flight
 ## page: every mission and its start phases. At launch, unless the command
@@ -95,6 +97,8 @@ var resume_path: String = ""
 var settings_path: String = ""
 var saves_dir: String = ""
 var saves: SavedFlights
+## Quit once the flight has flown this many seconds of GET; negative: fly on.
+var quit_after_s: float = -1.0
 
 var rt: SimRuntime
 var view: Node3D
@@ -133,6 +137,8 @@ var _mark_held: bool = false
 var _reject_held: bool = false
 ## The flight phase the flight started in.
 var _first_phase: String = ""
+## The GET the flight started at.
+var _start_get_s: float = 0.0
 
 
 func _ready() -> void:
@@ -146,6 +152,8 @@ func _ready() -> void:
 			flight_given = true
 		elif arg.begins_with("--o2-failure-in="):
 			o2_failure_in = float(arg.trim_prefix("--o2-failure-in="))
+		elif arg.begins_with("--quit-after="):
+			quit_after_s = float(arg.trim_prefix("--quit-after="))
 	if not mission_id in Mission.ids():
 		push_error("main: no mission '%s' under %s; flying %s" % [mission_id, Mission.DIR, Mission.DEFAULT_ID])
 		mission_id = Mission.DEFAULT_ID
@@ -159,6 +167,7 @@ func _ready() -> void:
 	var resumed := _resume()
 	if not resumed:
 		rt.sequencer.start(start_phase)
+	_start_get_s = SimClock.get_seconds
 	if o2_failure_in >= 0.0:
 		rt.mission.data["failures"] = rt.mission.section("failures").merged(
 			{"o2_tank_2_get_s": SimClock.get_seconds + o2_failure_in}, true)
@@ -535,6 +544,11 @@ func set_view(mode: int) -> void:
 
 
 func _process(_delta: float) -> void:
+	if quit_after_s >= 0.0 and SimClock.get_seconds - _start_get_s >= quit_after_s:
+		print("Main: flew %d s of %s from %s; quitting" % [roundi(SimClock.get_seconds - _start_get_s),
+			rt.mission.id(), start_phase])
+		quit_after_s = -1.0
+		get_tree().quit()
 	if SimClock.controls_locked():
 		return
 	var t := Input.is_key_pressed(KEY_T) and vehicles.vehicle != "lm"

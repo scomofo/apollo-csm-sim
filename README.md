@@ -105,6 +105,12 @@ lifeboat that brings the crew home around the Moon. Its start phases are
 vehicles, its orbits, Mission Control's timeline, the call signs, the
 checklists, and its start phases with the flight menu's line on each.
 
+Builds of the PC VR presets (Windows and Linux) come from CI on every
+merge to `main`, as the run's `ApolloVR-pc-vr` artifact, and are attached
+to a tag's release; each has the executable and its `.pck` side by side.
+CI flies a minute of the launch on the Linux build, headless, before it
+keeps them (`-- --quit-after=<s>` quits after that many seconds of GET).
+
 `godot --path . --xr-mode on` starts OpenXR, which is off by default, and
 puts you in the commander's couch in a headset, or, once Eagle undocks
 and in its start phases, at Eagle's commander's station. No headset run
@@ -1197,7 +1203,9 @@ unit tests, in under two minutes, or `-gselect=<name>` to run only the
 scripts whose file names contain `<name>`. CI runs the suite in eight
 parts side by side (`.github/workflows/ci.yml`): the unit tests, and the
 scenario tests dealt out over seven jobs by each file's time on the
-runners (`.github/scenario_seconds.txt`).
+runners (`.github/scenario_seconds.txt`). Beside them, its build job
+exports the PC VR presets with Godot 4.4.1's templates and flies a
+minute of the launch on the exported Linux build.
 
 The unit tests cover:
 
@@ -1742,5 +1750,7 @@ That finishes the other missions. A way in (milestone 8) has begun:
 the flight menu picks any mission and start phase, on the desktop and on
 the wrist, and starts it in place of the flight flown (slice 8a), and
 saves flights and resumes them, the settings kept between sessions
-(slice 8b). Builds from CI come next, then failures, backups and aborts,
-every mission from the pad, the LM's navigation, and Apollo 14 to 17.
+(slice 8b), and CI builds the PC VR presets and flies the Linux build
+before it keeps them (slice 8c). A standalone headset comes next, then
+failures, backups and aborts, every mission from the pad, the LM's
+navigation, and Apollo 14 to 17.

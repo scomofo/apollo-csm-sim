@@ -103,6 +103,97 @@ jobs:
       - name: Every part of the suite passed
         run: test "${{ needs.suite.result }}" = success
 
+  build:
+    # The PC VR presets (export_presets.cfg) exported with Godot's own
+    # templates, and the Linux build flown headless for a minute of the
+    # launch. A merge to main keeps the builds as the run's artifacts, and
+    # a tag attaches them to its release as well.
+    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Cache Godot
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot
+          key: godot-${{ env.GODOT_VERSION }}-linux
+
+      - name: Download Godot
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot
+          curl -sSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip -d ~/godot
+          mv ~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 ~/godot/godot
+          chmod +x ~/godot/godot
+
+      # Only the PC VR presets' templates, out of the 1.2 GB archive.
+      - name: Cache the export templates
+        id: cache-templates
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.stable
+          key: godot-templates-${{ env.GODOT_VERSION }}-pc
+
+      - name: Download the export templates
+        if: steps.cache-templates.outputs.cache-hit != 'true'
+        run: |
+          curl -sSL -o templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          dir="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$dir"
+          unzip -j -q templates.tpz templates/version.txt templates/linux_release.x86_64 \
+            templates/windows_release_x86_64.exe templates/windows_release_x86_64_console.exe -d "$dir"
+          rm templates.tpz
+
+      - name: Import project
+        run: timeout 300 ~/godot/godot --headless --path . --import
+
+      - name: Export the PC VR presets
+        run: |
+          mkdir -p build/linux build/windows
+          timeout 300 ~/godot/godot --headless --path . --export-release "PC VR (Linux)" build/linux/ApolloVR.x86_64
+          timeout 300 ~/godot/godot --headless --path . --export-release "PC VR (Windows)" build/windows/ApolloVR.exe
+          ls -l build/linux build/windows
+          test -s build/linux/ApolloVR.x86_64 && test -s build/linux/ApolloVR.pck
+          test -s build/windows/ApolloVR.exe && test -s build/windows/ApolloVR.pck
+
+      # The exported build, not the editor: a minute of the launch, from
+      # 20 s before liftoff, at 1x, with no error on the way.
+      - name: Fly a minute of the launch on the Linux build
+        run: |
+          timeout 300 build/linux/ApolloVR.x86_64 --headless -- --phase=launch --quit-after=60 2>&1 | tee smoke.log
+          grep -Eq "Main: flew [0-9]+ s of apollo_11 from launch" smoke.log
+          if grep -E "SCRIPT ERROR|^ERROR" smoke.log; then exit 1; fi
+
+      - name: Zip the builds
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
+        run: |
+          cd build
+          zip -qr ../ApolloVR-linux-x86_64.zip linux
+          zip -qr ../ApolloVR-windows-x86_64.zip windows
+
+      - name: Keep the builds
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
+        uses: actions/upload-artifact@v4
+        with:
+          name: ApolloVR-pc-vr
+          path: ApolloVR-*.zip
+          retention-days: 30
+
+      - name: Attach the builds to the tag's release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
+          gh release upload "$GITHUB_REF_NAME" ApolloVR-linux-x86_64.zip ApolloVR-windows-x86_64.zip --clobber
+
   lint:
     # Static checks that need no Godot binary. gdlint is advisory
     # (continue-on-error) until the pre-existing findings are triaged;

@@ -1747,13 +1747,14 @@ in Earth orbit, Apollo 7 and 9, are left for later.
 
 ## 8. A way in
 
-**Status: slices 8a and 8b done.** The flight menu opens at launch, and
+**Status: slices 8a to 8c done.** The flight menu opens at launch, and
 on F1 or the wrist menu's FLIGHT during a flight; the flags on the
 command line (`--mission=`, `--phase=`: `docs/HEADSET_RUN.md`) still
 start a flight without it. Its SAVES page saves, resumes and deletes
 flights, F5 and F9 keep a quick save among them, and the settings are
-kept between sessions. CI tests every push but builds nothing; the PC VR
-presets in `export_presets.cfg` are exported by hand. This milestone lets a person pick a flight, fly it and come back to it,
+kept between sessions. CI exports the PC VR presets in
+`export_presets.cfg` on every push, flies a minute of the launch on the
+Linux build, and keeps the builds from `main` and tags. This milestone lets a person pick a flight, fly it and come back to it,
 on the desktop or in a headset, from a build CI made, and so lets someone
 who doesn't build the project run the headset pass (2e) and the
 listening pass (6a).
@@ -1777,10 +1778,14 @@ listening pass (6a).
   eye height, the comfort aids, the highlight, the sound's level, new
   on the wrist menu) are kept in `user://settings.json` between
   sessions.
-- **Builds** come from CI: the PC VR presets exported with Godot 4.4.1's
-  templates on each merge to `main`, kept as the run's artifacts and
-  attached to a release on a tag, the exported Linux build first flying a
-  minute of a start phase headless.
+- **Builds** come from CI (`build` in `.github/workflows/ci.yml`): the
+  PC VR presets exported with Godot 4.4.1's templates (only the Linux and
+  Windows release templates, cached), kept as the run's artifacts from
+  `main` and attached to a release on a tag, the exported Linux build
+  first flying a minute of the launch headless (`--quit-after=60`) with
+  no error on the way. The Windows export warns that it can't set the
+  executable's icon and version information without rcedit, which the
+  runner doesn't have.
 - **A standalone headset** last: gemini-capsule's Quest 3 preset (the
   `gl_compatibility` renderer, ARM64), the procedural Earth, Moon and sky
   and the lunar terrain measured on the headset and cut to its frame
