@@ -178,7 +178,7 @@ func test_every_apollo_10_step_names_a_control_or_one_writes_its_check() -> void
 					assert_ne(id, "", "%s: a cabin control writes %s" % [s["text"], channel])
 				if id != "":
 					framed[1 if lm else 0] += 1
-	assert_eq(framed, [53, 66], "Charlie Brown's and Snoopy's steps that point at a cabin control (10 and 7 of them the malfunction procedures')")
+	assert_eq(framed, [61, 66], "Charlie Brown's and Snoopy's steps that point at a cabin control (10 and 7 of them the malfunction procedures')")
 
 
 func test_every_apollo_12_step_names_a_control_or_one_writes_its_check() -> void:

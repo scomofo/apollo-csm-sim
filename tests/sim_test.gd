@@ -836,6 +836,49 @@ func launch_lights() -> String:
 	return s
 
 
+## Fly the launch from where it is to insertion (or GET [param max_s]), a
+## second at a time: each launch vehicle event's ascent_state() as it
+## came ("states"), panel 1's lights each second ("lights", [GET,
+## launch_lights()]), and whether the CMC came up in P11 ("p11").
+func fly_launch(max_s: float = 800.0) -> Dictionary:
+	var lv: LaunchVehicle = rt.systems["lv"]
+	var states := {}
+	var lights: Array = []
+	var p11 := false
+	while not lv.events.has("insertion") and SimClock.get_seconds < max_s:
+		run(1.0, false)
+		p11 = p11 or rt.agc().program == 11
+		lights.append([SimClock.get_seconds, launch_lights()])
+		for id in lv.events:
+			if not states.has(id):
+				states[id] = ascent_state()
+	return {"states": states, "lights": lights, "p11": p11}
+
+
+## Panel 1's launch lights [param after] s after the launch vehicle's
+## event [param id], in fly_launch()'s [param flight].
+func lights_after(flight: Dictionary, id: String, after: float) -> String:
+	var at := float((rt.systems["lv"] as LaunchVehicle).events[id]) + after
+	for l: Array in flight["lights"]:
+		if float(l[0]) >= at:
+			return l[1]
+	return ""
+
+
+## fly_launch()'s [param flight] against the flown: each event's GET
+## beside [param flown]'s, and its state beside [param flown_states]'
+## (altitude km, velocity m/s, flight path angle deg), a line each.
+func launch_table(flight: Dictionary, flown: Dictionary, flown_states: Dictionary) -> String:
+	var lv: LaunchVehicle = rt.systems["lv"]
+	var lines := PackedStringArray()
+	for id: String in flown:
+		var s: Array = flight["states"].get(id, [0.0, 0.0, 0.0])
+		lines.append("%-19s %7.2f s (flown %7.2f)  %6.1f km  %7.1f m/s  %6.3f deg%s" % [id, float(lv.events.get(id, -1.0)),
+			float(flown[id]), s[0], s[1], s[2],
+			"  (flown %.1f km, %.1f m/s, %.3f deg)" % flown_states[id] if flown_states.has(id) else ""])
+	return "\n".join(lines)
+
+
 ## The launch's state now: altitude over the pad's radius (km), space-fixed
 ## speed (m/s) and flight path angle (deg).
 func ascent_state() -> Array:

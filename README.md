@@ -85,8 +85,9 @@ phases are `launch` (on the pad, AS-503 its Saturn V), `parking_orbit`
 `transearth_coast` and `entry`. `-- --mission=apollo_10` flies Apollo
 10: Snoopy flies the landing mission down to 8 nmi over the first
 landing's site without landing, stages in orbit and flies the rendezvous
-back to Charlie Brown. Its start phases are `parking_orbit` (the
-default), `translunar_coast`, `lunar_orbit` (after LOI-2, 61 × 59 nmi),
+back to Charlie Brown. Its start phases are `launch` (on LC-39B, AS-505
+its Saturn V), `parking_orbit` (the default), `translunar_coast`,
+`lunar_orbit` (after LOI-2, 61 × 59 nmi),
 `lunar_descent` (Snoopy on its descent orbit, 20 min before the low
 pass), `tei`, `transearth_coast` and `entry`. `-- --mission=apollo_12`
 flies Apollo 12: Intrepid lands beside Surveyor III in the Ocean of
@@ -338,7 +339,10 @@ P41 (the RCS burn checklist), the rest on P40. Realign the platform
 before the entry, with P52 option 3.
 
 **Apollo 10.** With `-- --mission=apollo_10` the flight is Apollo 10's,
-from its parking orbit. The S-IVB flies TLI at the RTCC's TIG (GET 2:33),
+from the pad or its parking orbit. From the pad it's the launch above on
+AS-505, from Launch Complex 39B, the only Saturn V launched from it, at
+16:49:00 UTC on 18 May 1969, with insertion at 11:58. The S-IVB flies
+TLI at the RTCC's TIG (GET 2:33),
 and transposition, docking and extraction follow by themselves 24 min
 after cutoff. The timeline's PADs come at the flown times:
 - the evasive maneuver on the SPS (4:39);
@@ -928,14 +932,22 @@ The report's own figures don't all agree, and the table takes these:
   spacecraft before it separated. The RTCC aims TLI at the flight's
   pericynthion after the separations instead (below).
 
-Apollo 10 flown from its data alone, from its parking orbit to the
-splashdown (`tests/scenarios/test_apollo_10.gd`, which holds each row
-within set limits of the flight's figures), against the Apollo 10 Mission
-Report (MSC-00126), the AS-505 postflight trajectory (Boeing D5-15560-5)
-and the Apollo Flight Journal:
+Apollo 10 flown from its data alone, from the pad into its parking orbit
+(`tests/scenarios/test_apollo_10_launch.gd`) and from its parking orbit
+to the splashdown (`tests/scenarios/test_apollo_10.gd`), each holding its
+rows within set limits of the flight's figures, against the Apollo 10
+Mission Report (MSC-00126), the AS-505 flight evaluation report
+(MPR-SAT-FE-69-7), its postflight trajectory (Boeing D5-15560-5) and the
+Apollo Flight Journal:
 
 | Quantity | Simulator | Apollo 10 |
 |---|---|---|
+| Launch: Mach 1, maximum dynamic pressure | 1:07.0; 32.9 kPa at 1:18.6 | 1:06.8; 33.2 kPa at 1:22.6 |
+| Launch: the S-IC's centre and outboard engines' cutoffs | 2:15.16 at 1,973 m/s and 23.36° up, 2:41.58 at 2,727 m/s and 19.71° | 2:15.16 at 1,973 m/s and 22.81°, 2:41.63 at 2,752 m/s and 18.95° |
+| Launch: the S-II's centre engine's cutoff, and its own | 7:40.56 at 5,661 m/s; 9:12.60 at 6,883 m/s | 7:40.61 at 5,678 m/s; 9:12.64 at 6,898 m/s |
+| Launch: the S-IVB's cutoff, and insertion | 11:48.2; 11:58.0 at 7,793.0 m/s | 11:43.8; 11:53.8 at 7,793.1 m/s |
+| Parking orbit, and the S-IVB's propellant for TLI | 100.0 × 100.0 nmi, 32.546°; 72,850 kg | 100.3 × 99.7 nmi, 32.546°; 73,462 kg |
+| TLI from the pad, and the pericynthion after it | GET 2:33:16, 3,050 m/s in 339.8 s, C3 −1,299,414 m²/s²; 908.2 nmi at 76:10:18 | 2:33:28, 3,056 m/s in 342.9 s, C3 −1,308,471 m²/s²; 907.7 nmi at 76:10:18 |
 | TLI, and the pericynthion after it | GET 2:33:13, 3,050 m/s in 341.4 s, C3 −1,298,719 m²/s²; 907.9 nmi at 76:10:17 | 2:33:28, 3,056 m/s in 342.9 s, C3 −1,308,471 m²/s²; 907.7 nmi at 76:10:18 |
 | The evasive maneuver, and the pericynthion after it | 19.7 ft/s on the SPS; 259.3 nmi at 76:41:52 | 18.8 ft/s (the PAD's 19.7); 286.1 nmi at 76:40:01 |
 | MCC-1, and the pericynthion after it | 52.1 ft/s at 26:32:56, N81 −40.8, +16.0, −28.2; 55.5 nmi at 76:00:17 | 48.7 ft/s at 26:32:56, N81 −39.8, +10.9, −25.8 (flown 49.2); 60.9 nmi at 76:00:15 |
@@ -1270,6 +1282,13 @@ ones:
   - The maximum dynamic pressure comes 7 s early and 3.4 kPa low on the
     standard atmosphere, as Apollo 11's comes 5 s early and 2.5 kPa low.
 - **Apollo 10.**
+  - AS-505's S-IC is 25 m/s short at its cutoff, as AS-506's is, and its
+    S-II 15 m/s short at its own, so the S-IVB's first burn runs 4.4 s
+    long. Each stage's cutoff comes within 0.05 s of the flown. The S-II
+    burns out on time on the report's thrusts, its flow at the low
+    mixture ratio from the Isp it gives a second before the cutoff, and
+    its flow at the high ratio 0.45 % under the report's 61 s into its
+    burn, to fit the propellant the vehicle's masses give.
   - The phasing and insertion burns are the flown PADs, fixed maneuvers
     timed from the low point the DOI PAD plans, where the ground's
     two-impulse processor solved them for the rendezvous. The crew
@@ -1895,6 +1914,19 @@ The scenario tests fly real segments through the crew interface:
   corrections), then a P52 and the entry on P61 to P67. Each row of Apollo
   8's Fidelity table (above) is held within limits of the flight's
   figures, and CAPCOM's calls come at their times
+- Apollo 10's launch (`tests/scenarios/test_apollo_10_launch.gd`), slice
+  10b's check. From LC-39B, AS-505 flies Apollo 10 into its parking
+  orbit, and the flight goes on through TLI as the parking-orbit start
+  flies it:
+  - each stage's cutoff within 0.05 s of the flight evaluation report's,
+    and the S-IVB's 4.4 s late;
+  - the orbit 100.0 × 100.0 nmi at 32.546°, 0.003° from the flown plane;
+  - Mach 1, the maximum dynamic pressure and the tilt's start near the
+    report's;
+  - the CMC in P11, and panel 1's lights through each stage;
+  - the S-IVB left with 72,850 kg for TLI (73,462 flown), and TLI at
+    2:33:16, 3,050 m/s in 339.8 s, onto the free return past the Moon
+    908.2 nmi up at 76:10:18 (907.7 nmi at 76:10:18 flown)
 - Apollo 8's launch (`tests/scenarios/test_apollo_8_launch.gd`), slice
   10a's check. From the pad, AS-503 flies Apollo 8 into its parking
   orbit, and the flight goes on through TLI as the parking-orbit start
@@ -2023,6 +2055,6 @@ descent engine and from P66 at 500 ft on the ascent engine, into orbits
 phased for the rendezvous, which docks, and has its own failures and
 caution and warning lights (slice 9e). Of every mission from the pad
 (milestone 10), Apollo 8 flies from the pad on AS-503, the first crewed
-Saturn V, into its parking orbit and on through TLI (slice 10a). Apollo
-10's, 12's and 13's launches come next, then the LM's navigation, and
-Apollo 14 to 17.
+Saturn V, into its parking orbit and on through TLI (slice 10a), and
+Apollo 10 from LC-39B on AS-505 (slice 10b). Apollo 12's and 13's
+launches come next, then the LM's navigation, and Apollo 14 to 17.

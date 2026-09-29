@@ -1949,9 +1949,9 @@ estimated and tagged.
 
 ## 10. Every mission from the pad
 
-**Status: slice 10a done.** Apollo 11 flies from the pad (5d), and
-Apollo 8 on AS-503 (10a); Apollo 10, 12 and 13 start in their parking
-orbits. Each mission's `launch` section
+**Status: slices 10a and 10b done.** Apollo 11 flies from the pad (5d),
+Apollo 8 on AS-503 (10a) and Apollo 10 on AS-505 from LC-39B (10b);
+Apollo 12 and 13 start in their parking orbits. Each mission's `launch` section
 gives its pad, its liftoff, its azimuth and its vehicle from its flight
 evaluation report, as Apollo 11's does, and its launch's troubles come
 from 9a's catalog. Two of them were their flights' first:
@@ -1971,7 +1971,7 @@ from 9a's catalog. Two of them were their flights' first:
 | Slice | Work | Check |
 |---|---|---|
 | 10a (done) Apollo 8's launch | Its launch data: 12:51 UTC on 21 December 1968 from LC-39A, the first crewed Saturn V (AS-503) | Test: insertion into Apollo 8's parking orbit within set limits of MPR-SAT-FE-69-1, each stage's burn near its flown times, and the flight on to TLI as its parking-orbit start flies it |
-| 10b Apollo 10's launch | From LC-39B, the only Saturn V launched from it | Test: as 10a, for Apollo 10 |
+| 10b (done) Apollo 10's launch | From LC-39B, the only Saturn V launched from it | Test: as 10a, for Apollo 10 |
 | 10c Apollo 12's launch and the lightning | The strikes as failures: the fuel cells off their buses, the SCE and the telemetry it conditions, SCE to AUX, the platform tumbled; the crew's reset of the fuel cells, and P51 in the parking orbit | Test: the strikes take the fuel cells, the telemetry and the platform as flown, SCE to AUX brings the telemetry back, the Saturn reaches its parking orbit, and P51 aligns the CMC before TLI |
 | 10d Apollo 13's launch and the centre engine | The S-II's centre engine out at its flown time | Test: the outboard engines and the S-IVB burn longer as they did, within set limits, and insertion within set limits of MPR-SAT-FE-70-2 |
 
@@ -1993,6 +1993,16 @@ Apollo 12's and 13's launches fly their troubles as they came.
   Each stage's cutoff comes within 0.06 s of the flown. The S-IC and S-II
   leave the S-IVB 40 m/s more to give, so its first burn runs 7 s long
   (`tests/scenarios/test_apollo_8_launch.gd`, README's Fidelity table).
+- **Apollo 10's launch.** Done in 10b, from LC-39B (the postflight
+  trajectory's coordinates). AS-505 was AS-506's twin in mass, so it flies
+  SA-504's pitch program as it is, from its flown start at 13.05 s. Its
+  S-II had the centre engine cutoff and shifted its mixture ratio on the
+  IU's clock. The S-II's flow at the low ratio is the report's (its thrust
+  at the Isp a second before the cutoff); its flow at the high ratio,
+  0.45 % under the report's, is the one tuned for the flown cutoff, as the
+  S-IC's vacuum Isp (303.8 s) is for its own. Each stage's cutoff comes
+  within 0.05 s of the flown, the S-IVB's 4.4 s late
+  (`tests/scenarios/test_apollo_10_launch.gd`).
 
 ## 11. The LM's navigation
 
