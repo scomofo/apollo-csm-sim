@@ -385,6 +385,60 @@ func realign(option: int = 3) -> Dictionary:
 	return {"sad": sad, "torque": torque, "stars": stars}
 
 
+## The stars the crew could mark with the optics from the CSM's true
+## attitude: within the trunnion's reach, clear of the Earth and the Moon.
+func stars_in_reach() -> Array:
+	var tr := rt.dynamics.traj
+	var to_body := Basis(rt.dynamics.attitude.q).inverse()
+	var near := Agc._near_bodies(tr)
+	var out := []
+	for c in Stars.codes():
+		var s := Stars.direction(c)
+		if Optics.angles_for(to_body * s).y > 45.0:
+			continue
+		var hidden := false
+		for body in near:
+			if rad_to_deg(s.angle_to(body[0])) < float(body[1]) + 5.0:
+				hidden = true
+		if not hidden:
+			out.append(c)
+	return out
+
+
+## P51 as the crew flies it: V37E51E; the IMU run up at zero gimbal angles
+## ([param on_coarse] is called then); two stars the crew finds, rolling
+## the CSM heads down first if the optics can reach none (the Moon or the
+## Earth on their side), each acquired (PRO at V50N25), centred in the
+## sextant, marked and named at V01N71; PRO at N05. Returns {"sad": N05
+## (deg), "stars": the two codes}.
+func p51(on_coarse: Callable = Callable()) -> Dictionary:
+	var agc := rt.agc()
+	keys("V37E51E")
+	assert_eq(agc.program, 51, "P51")
+	var up := run_until(func() -> bool: return agc.step_name == "acquire", 60.0, 1.0, false)
+	assert_true(up, "coarse aligned to zero")
+	if on_coarse.is_valid():
+		on_coarse.call()
+	var stars := stars_in_reach()
+	if stars.size() < 2:
+		roll_over()
+		stars = stars_in_reach()
+	assert_gt(stars.size(), 1, "stars in the optics' reach")
+	var pair := [stars[0], stars[stars.size() - 1]]
+	for c in pair:
+		keys("P")   # V50N25: acquired
+		assert_eq(agc.step_name, "mark", "V51")
+		centre_star(c)
+		mark()
+		assert_eq(Bus.get_value("dsky.noun"), "71", "V01N71: which star")
+		keys("V21E%dEP" % c)
+	assert_eq(agc.step_name, "n05")
+	var sad := agc.align_sad_deg
+	keys("P")
+	assert_eq(agc.program, 0, "P51 done")
+	return {"sad": sad, "stars": pair}
+
+
 ## Fly an uplinked PAD the way the crew does: P30 accept; P52 with
 ## [param p52_option] (1, the preferred orientation P30 worked out; 0 for
 ## none) 25 minutes before TIG; a quarter of an hour before TIG, CMC MODE
@@ -837,16 +891,19 @@ func launch_lights() -> String:
 
 
 ## Fly the launch from where it is to insertion (or GET [param max_s]), a
-## second at a time: each launch vehicle event's ascent_state() as it
-## came ("states"), panel 1's lights each second ("lights", [GET,
-## launch_lights()]), and whether the CMC came up in P11 ("p11").
-func fly_launch(max_s: float = 800.0) -> Dictionary:
+## second at a time, calling [param each] after each (the crew's part):
+## each launch vehicle event's ascent_state() as it came ("states"), panel
+## 1's lights each second ("lights", [GET, launch_lights()]), and whether
+## the CMC came up in P11 ("p11").
+func fly_launch(max_s: float = 800.0, each: Callable = Callable()) -> Dictionary:
 	var lv: LaunchVehicle = rt.systems["lv"]
 	var states := {}
 	var lights: Array = []
 	var p11 := false
 	while not lv.events.has("insertion") and SimClock.get_seconds < max_s:
 		run(1.0, false)
+		if each.is_valid():
+			each.call()
 		p11 = p11 or rt.agc().program == 11
 		lights.append([SimClock.get_seconds, launch_lights()])
 		for id in lv.events:

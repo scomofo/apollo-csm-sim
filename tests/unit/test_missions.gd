@@ -224,9 +224,9 @@ func test_apollo_10_has_its_own_checklists_for_a_flight_without_a_landing() -> v
 func test_apollo_12_has_its_own_checklists_with_the_landing_site_update() -> void:
 	var csm := ChecklistBook.load_default("apollo_12")
 	var titles := _flight_titles(csm)
-	assert_eq(titles, ["Parking orbit and TLI", "SPS burn (P30 / P40)", "RCS burn (P30 / P41)",
+	assert_eq(titles, ["Launch", "Parking orbit and TLI", "SPS burn (P30 / P40)", "RCS burn (P30 / P41)",
 		"Lunar orbit, Intrepid's landing and TEI", "Entry", "IMU realign (P52)"])
-	for phase in ["parking_orbit", "translunar_coast", "lunar_orbit", "lunar_descent", "lunar_surface", "lunar_ascent",
+	for phase in ["launch", "parking_orbit", "translunar_coast", "lunar_orbit", "lunar_descent", "lunar_surface", "lunar_ascent",
 			"transearth_coast", "entry"]:
 		csm.select_for_phase(phase)
 		assert_true(csm.list().phases.has(phase), "Yankee Clipper's for %s" % phase)

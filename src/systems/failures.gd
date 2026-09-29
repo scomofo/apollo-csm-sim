@@ -106,6 +106,15 @@ func on_event(event: String) -> void:
 			arm(id, SimClock.get_seconds + after)
 
 
+## Drop the failures armed on mission event [param event]: the flight
+## starts past it (MissionSequencer.start()).
+func disarm_on(event: String) -> void:
+	for id: String in armed_on.keys():
+		if str(armed_on[id]["event"]) == event:
+			armed_on.erase(id)
+	_publish()
+
+
 ## Fail [param id] now. Returns whether it did: not for a failure already
 ## failed, or one whose system this flight hasn't.
 func fail(id: String) -> bool:

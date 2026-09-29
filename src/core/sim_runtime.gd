@@ -46,7 +46,10 @@ extends RefCounted
 ##    times, the engines' abort arming, the descent helium, the LM RCS's
 ##    failed regulators, the LM's caution and warning, and the ground's
 ##    abort TPI.
-const SCHEMA_VERSION := 23
+## 24: Apollo 12's lightning (slice 10c): the fuel cells tripped off their
+##    buses and their switches, the SCE's NORM supply, the platform
+##    tumbled, and the ground's calls about them.
+const SCHEMA_VERSION := 24
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],
@@ -61,6 +64,7 @@ const SYSTEMS := [
 	["sivb", "res://src/systems/sivb.gd"],
 	["els", "res://src/systems/els.gd"],
 	["optics", "res://src/systems/optics.gd"],
+	["sce", "res://src/systems/sce.gd"],
 	["cw", "res://src/systems/caution_warning.gd"],
 ]
 ## The LM's systems. They come after the CSM's, so in each clock stage
@@ -85,7 +89,7 @@ const LM_SYSTEMS := [
 ## switch at AUTO TRACK (0 LGC, 1 AUTO TRACK, 2 SLEW), where Apollo 11's
 ## radar ranging test after DOI left it, and docked, the LM powered down;
 ## EDS AUTO, 2 ENG OUT and LV RATES on, as the launch has them, the abort
-## handle at neutral; the LM's ABORT out.
+## handle at neutral; the LM's ABORT out; SCE PWR at NORM.
 const CONTROL_DEFAULTS := {
 	"ctl.scs.att_source": 0, "ctl.cmc.mode": 1, "ctl.cmc.up_tlm": true,
 	"ctl.scs.rate": 0, "ctl.scs.att_db": 0, "ctl.scs.gdc_align": false, "ctl.scs.tvc": 0,
@@ -96,6 +100,7 @@ const CONTROL_DEFAULTS := {
 	"ctl.rhc": Vector3.ZERO, "ctl.thc": Vector3.ZERO,
 	"ctl.els.logic": false, "ctl.els.auto": false, "ctl.cw.master_alarm": false,
 	"ctl.eps.fc1": true, "ctl.eps.fc2": true, "ctl.eps.fc3": true, "ctl.eps.cm_power": 2, "ctl.eps.lm_power": false,
+	"ctl.sce.power": 1,
 	"ctl.seq.csm_sep": false, "ctl.seq.undock": false, "ctl.seq.lm_jett": false, "ctl.seq.cm_sm_sep": false,
 	"ctl.eds.auto": true, "ctl.eds.two_eng": true, "ctl.eds.rates": true, "ctl.abort": false, "ctl.les.tower_jett": false,
 	"ctl.ground.pad_request": "",

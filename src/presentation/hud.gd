@@ -307,6 +307,7 @@ func _switch_panel() -> PanelContainer:
 	_toggle(g, "BATT TO BUS", "ctl.eps.batt_bus")
 	_option(g, "CM POWER", "ctl.eps.cm_power", ["OFF", "EMER", "ALL"])
 	_toggle(g, "LM PWR", "ctl.eps.lm_power")
+	_option(g, "SCE PWR", "ctl.sce.power", ["OFF", "NORM", "AUX"])
 	_toggle(g, "ELS LOGIC", "ctl.els.logic")
 	_toggle(g, "ELS AUTO", "ctl.els.auto")
 	_momentary(g, "DROGUE", "ctl.els.drogue")
@@ -673,10 +674,16 @@ RATE  %+.2f %+.2f %+.2f °/s""" % [
 	var fc := PackedStringArray()
 	for n in 3:
 		var ok := bool(Bus.get_value("eps.fc%d_ok" % (n + 1), true))
-		fc.append("%d:%s" % [n + 1, "%.2fkW" % float(Bus.get_value("eps.fc%d_kw" % (n + 1), 0.0)) if ok else "FAIL"])
+		var state := "%.2fkW" % float(Bus.get_value("eps.fc%d_kw" % (n + 1), 0.0)) if ok else "FAIL"
+		if ok and bool(Bus.get_value("eps.fc%d_tripped" % (n + 1), false)):
+			state = "TRIP"
+		fc.append("%d:%s" % [n + 1, state])
+	var sce: String = ["OFF", "NORM", "AUX"][clampi(int(Bus.get_value("ctl.sce.power", 1)), 0, 2)]
+	if not bool(Bus.get_value("tm.valid", true)):
+		sce += " TM LOST"
 	_systems.text = """SPS  %6.0f lb  PC %3.0f%%  %s   ignitions %d
 RCS  A %3.0f  B %3.0f  C %3.0f  D %3.0f lb   CM %3.0f lb
-EPS  MAIN A %4.1f V  B %4.1f V  load %4.0f W
+EPS  MAIN A %4.1f V  B %4.1f V  load %4.0f W  SCE %s
 FC   %s
 CRYO O2 T1 %5.1f T2 %5.1f lb   H2 %4.1f lb
 BAT  A %4.1f  B %4.1f  C %4.1f Ah   %s
@@ -689,7 +696,7 @@ EMS  %+.1f  %s""" % [
 		Units.kg_to_lb(float(Bus.get_value("rcs.quad_c_kg", 0.0))), Units.kg_to_lb(float(Bus.get_value("rcs.quad_d_kg", 0.0))),
 		Units.kg_to_lb(float(Bus.get_value("rcs.cm_prop_kg", 0.0))),
 		float(Bus.get_value("eps.bus_a_v", 0.0)), float(Bus.get_value("eps.bus_b_v", 0.0)), float(Bus.get_value("eps.load_w", 0.0)),
-		"  ".join(fc),
+		sce, "  ".join(fc),
 		Units.kg_to_lb(float(Bus.get_value("eps.o2_tank1_kg", 0.0))), Units.kg_to_lb(float(Bus.get_value("eps.o2_tank2_kg", 0.0))),
 		Units.kg_to_lb(float(Bus.get_value("eps.h2_tank1_kg", 0.0)) + float(Bus.get_value("eps.h2_tank2_kg", 0.0))),
 		float(Bus.get_value("eps.batt_a_ah", 0.0)), float(Bus.get_value("eps.batt_b_ah", 0.0)), float(Bus.get_value("eps.batt_c_ah", 0.0)),

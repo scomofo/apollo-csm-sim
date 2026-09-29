@@ -792,10 +792,22 @@ func _entry_attitude(dt: float) -> void:
 	attitude.omega = Vector3.ZERO
 
 
-## The Instrument Unit holds the stack in a prograde, heads-down attitude
-## (orbital-rate pitch) in parking orbit and during TLI.
+## The Instrument Unit holds the stack prograde in the local horizontal
+## (orbital-rate pitch). In parking orbit it holds it heads down, rolled
+## half a turn, the CM's +Z, the optics' side toward the crew's feet, up
+## from the Earth [published: Apollo 12's crew aligned the platform with
+## P51 and P52 in the parking orbit on the S-IVB's attitude, MSC-01855,
+## section 9.3]; from its turn for TLI (sivb.steering) through the burn
+## and after it, heads up, as the CSM flies its burns [simplified: each
+## maneuver made at once].
 func _align_iu() -> void:
-	_align_prograde()
+	var r := traj.pos()
+	var v := traj.vel()
+	if v.length() > 1e-6:
+		var b := Trajectory.lvlh_basis(r, v)
+		if not bool(Bus.get_value("sivb.steering", false)):
+			b = Basis(b.x, -b.y, -b.z)
+		attitude.align_to(b)
 	attitude.omega = Vector3.ZERO
 
 

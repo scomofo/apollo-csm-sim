@@ -16,7 +16,8 @@
 ## flown burn reproduces the planned one.
 ##
 ## Writes: sivb.thrust_n, sivb.dir, sivb.prop_kg, sivb.burning, sivb.state,
-##         seq.next_event_get_s (the armed TIG)
+##         sivb.steering (the IU turned for TLI, ALIGN_S before its
+##         ignition, and after), seq.next_event_get_s (the armed TIG)
 class_name Sivb
 extends Node
 
@@ -343,6 +344,8 @@ func _publish(thrust: float, u: Vector3) -> void:
 	Bus.set_value("sivb.prop_kg", prop_kg)
 	Bus.set_value("sivb.burning", thrust > 0.0)
 	Bus.set_value("sivb.state", state)
+	var now := float(Bus.get_value("time.get_s", 0.0))
+	Bus.set_value("sivb.steering", state in ["burning", "done"] or state == "armed" and now >= tig - ALIGN_S)
 
 
 ## Fly the TLI on [param traj] (Earth primary) from its current time, the

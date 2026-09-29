@@ -1949,9 +1949,10 @@ estimated and tagged.
 
 ## 10. Every mission from the pad
 
-**Status: slices 10a and 10b done.** Apollo 11 flies from the pad (5d),
-Apollo 8 on AS-503 (10a) and Apollo 10 on AS-505 from LC-39B (10b);
-Apollo 12 and 13 start in their parking orbits. Each mission's `launch` section
+**Status: slices 10a to 10c done.** Apollo 11 flies from the pad (5d),
+Apollo 8 on AS-503 (10a), Apollo 10 on AS-505 from LC-39B (10b) and
+Apollo 12 on AS-507 through its lightning (10c); Apollo 13 starts in its
+parking orbit. Each mission's `launch` section
 gives its pad, its liftoff, its azimuth and its vehicle from its flight
 evaluation report, as Apollo 11's does, and its launch's troubles come
 from 9a's catalog. Two of them were their flights' first:
@@ -1972,7 +1973,7 @@ from 9a's catalog. Two of them were their flights' first:
 |---|---|---|
 | 10a (done) Apollo 8's launch | Its launch data: 12:51 UTC on 21 December 1968 from LC-39A, the first crewed Saturn V (AS-503) | Test: insertion into Apollo 8's parking orbit within set limits of MPR-SAT-FE-69-1, each stage's burn near its flown times, and the flight on to TLI as its parking-orbit start flies it |
 | 10b (done) Apollo 10's launch | From LC-39B, the only Saturn V launched from it | Test: as 10a, for Apollo 10 |
-| 10c Apollo 12's launch and the lightning | The strikes as failures: the fuel cells off their buses, the SCE and the telemetry it conditions, SCE to AUX, the platform tumbled; the crew's reset of the fuel cells, and P51 in the parking orbit | Test: the strikes take the fuel cells, the telemetry and the platform as flown, SCE to AUX brings the telemetry back, the Saturn reaches its parking orbit, and P51 aligns the CMC before TLI |
+| 10c (done) Apollo 12's launch and the lightning | The strikes as failures: the fuel cells off their buses, the SCE and the telemetry it conditions, SCE to AUX, the platform tumbled; the crew's reset of the fuel cells, and P51 in the parking orbit | Test: the strikes take the fuel cells, the telemetry and the platform as flown, SCE to AUX brings the telemetry back, the Saturn reaches its parking orbit, and P51 aligns the CMC before TLI |
 | 10d Apollo 13's launch and the centre engine | The S-II's centre engine out at its flown time | Test: the outboard engines and the S-IVB burn longer as they did, within set limits, and insertion within set limits of MPR-SAT-FE-70-2 |
 
 **Done when** every mission's start phases begin on the pad too, and
@@ -2003,6 +2004,30 @@ Apollo 12's and 13's launches fly their troubles as they came.
   S-IC's vacuum Isp (303.8 s) is for its own. Each stage's cutoff comes
   within 0.05 s of the flown, the S-IVB's 4.4 s late
   (`tests/scenarios/test_apollo_10_launch.gd`).
+- **Apollo 12's launch and the lightning.** Done in 10c. AS-507 flies
+  SA-504's pitch program as it is, from its flown start at 12.8 s, and
+  its S-II shifts its mixture ratio at the engines' 490.0 s. The S-IC's
+  vacuum Isp (303.8 s) and the S-II's flow at the high ratio (0.8 % under
+  the report's, which counts the pressurization's) are tuned for the
+  flown cutoffs; each comes within 0.03 s, the S-IVB's 9 s late. The
+  strikes are three failures in 9a's catalog, armed on the liftoff:
+  - `fc_bus_trip`: every fuel cell on line trips off its buses until its
+    FC switch goes OFF and ON; the entry batteries carry the mains at
+    25.5 V under FC 1 to 3, FC BUS DISCONNECT (a new light) and both
+    UNDERVOLTs, the CM's systems running down to 20 V;
+  - `sce_norm`: the signal conditioning equipment (a new system, its SCE
+    PWR switch on MDC-3) drops out and the ground's telemetry with it,
+    with no light; AUX brings it back;
+  - `imu_tumble`: the platform caged, ISS lit, until a coarse align.
+
+  Houston calls for SCE to AUX 59.5 s after the telemetry goes, and for
+  the fuel cells' reset 29 s after it shows them, as 1:36 and 2:19 came.
+  In the parking orbit P51 finds the platform before TLI: the IU now
+  holds the stack heads down there, the optics on the sky, as Apollo 12's
+  P51 and P52s on it show it did, until it turns heads up for TLI. The parking orbit's insertion point was
+  mis-transcribed (51.131° W for 53.131° W); its argument of latitude is
+  87.42°, not 89.1° (`tests/scenarios/test_apollo_12_launch.gd`,
+  `tests/unit/test_lightning.gd`).
 
 ## 11. The LM's navigation
 

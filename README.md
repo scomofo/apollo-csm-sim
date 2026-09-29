@@ -92,7 +92,8 @@ its Saturn V), `parking_orbit` (the default), `translunar_coast`,
 pass), `tei`, `transearth_coast` and `entry`. `-- --mission=apollo_12`
 flies Apollo 12: Intrepid lands beside Surveyor III in the Ocean of
 Storms, the landing site moved in powered descent by the ground's noun
-69. Its start phases are `parking_orbit` (the default),
+69. Its start phases are `launch` (on LC-39A, AS-507 its Saturn V, into
+the overcast and its lightning), `parking_orbit` (the default),
 `translunar_coast`, `lunar_orbit` (after LOI-2, 66 × 54 nmi),
 `lunar_descent` (Intrepid on its descent orbit, 20 min before PDI),
 `lunar_surface` (10 min after the landing), `lunar_ascent` (20 min before
@@ -144,8 +145,12 @@ Failures are data (`data/failures.json`): an O2 tank, a fuel cell, an SM
 RCS quad, the CMC or the IMU fails as the catalog says, lights its caution
 and warning light (CRYO PRESS, FC 1 to 3, SM RCS A to D, CMC or ISS, on
 MDC-2 and the HUD's C&W line) and sounds the master alarm, and its
-malfunction procedure opens on the checklist card. A mission arms its own
-at their times, as Apollo 13's tank. FAILURES on the flight menu is the
+malfunction procedure opens on the checklist card. Apollo 12's lightning
+is three of them: the fuel cells tripped off their buses (FC BUS
+DISCONNECT), the SCE's NORM supply, which no light shows (the ground's
+telemetry goes, and Houston calls for SCE to AUX), and the platform
+tumbled (ISS, until a coarse align). A mission arms its own at their
+times, as Apollo 13's tank. FAILURES on the flight menu is the
 instructor's page: `< FAILURE` and `FAILURE >` step through the catalog,
 and FAIL fails the one shown at once.
 
@@ -368,7 +373,24 @@ Snoopy's checklists follow its flight: the undocking and DOI; the low
 pass, phasing and staging; the insertion and the rendezvous.
 
 **Apollo 12.** With `-- --mission=apollo_12` the flight is Apollo 12's,
-from its parking orbit. The S-IVB flies TLI onto the free return at the
+from the pad or its parking orbit. From the pad it's the launch above on
+AS-507 at 16:22:00 UTC on 14 November 1969, into the overcast, and
+lightning strikes it twice:
+- at 0:36.5 the fuel cells trip off their buses: FC 1 to 3, FC BUS
+  DISCONNECT and both MN BUS UNDERVOLTs light, and the entry batteries
+  carry the mains at 25.5 V. The strike drops the SCE out too, and
+  Houston's telemetry with it (the HUD's EPS line reads TM LOST);
+- at 0:52 the second tumbles the platform: ISS and NO ATT.
+
+The IU flies on to orbit regardless. At 1:36 Houston calls "Try SCE to
+Auxiliary": set SCE PWR (MDC-3, and the HUD) to AUX. Once the telemetry
+is back Houston calls for the fuel cells' reset: set each FC switch
+(MDC-3) OFF and back ON, as Apollo 12's crew did for 1 and 2 at 2:22 and
+3 at 2:50. Insertion is at 11:53. In the parking orbit, P51 (`V37E51E`)
+finds the platform again on two stars before TLI; the IU holds the stack
+heads down, the optics on the sky.
+
+The S-IVB flies TLI onto the free return at the
 RTCC's TIG (GET 2:47), and transposition, docking and extraction follow
 25 min after cutoff. The timeline's PADs come at the flown times:
 - MCC-2 (30:53), which takes the stack off the free return onto the
@@ -979,37 +1001,50 @@ Here too the report's figures don't all agree, and the table takes these:
 - The phasing burn flew 176.0 ft/s against its PAD's 176.9: the test
   holds the simulator to the PAD, which P40 flies.
 
-Apollo 12 flown from its data alone, from its parking orbit to the
-splashdown (`tests/scenarios/test_apollo_12.gd`, which holds each row
-within set limits of the flight's figures), against the Apollo 12 Mission
-Report (MSC-01855), the AS-507 flight evaluation report (MPR-SAT-FE-70-1),
-the Apollo Flight Journal and the Apollo Lunar Surface Journal:
+Apollo 12 flown from its data alone, from the pad through its lightning
+into its parking orbit (`tests/scenarios/test_apollo_12_launch.gd`) and
+from its parking orbit to the splashdown
+(`tests/scenarios/test_apollo_12.gd`), each holding its rows within set
+limits of the flight's figures, against the Apollo 12 Mission Report
+(MSC-01855), the AS-507 flight evaluation report (MPR-SAT-FE-70-1), the
+Mission Director's summary report (M-932-69-12), the Apollo Flight
+Journal and the Apollo Lunar Surface Journal:
 
 | Quantity | Simulator | Apollo 12 |
 |---|---|---|
-| TLI, and the pericynthion after it | GET 2:47:21, 10,560 ft/s from the J-2 in 343.6 s, C3 −1,821,247 m²/s²; 279.5 nmi at 83:44:04 | 2:47:23, 10,515 ft/s in 341.3 s, C3 −1,834,425 m²/s²; 280.2 nmi at 83:44:04 |
+| Launch: the first strike, 0:36.5 | FC 1 to 3, FC BUS DISCONNECT, MN BUS A and B UNDERVOLT; the mains at 25.5 V on the batteries; the telemetry gone | the same lights, with the AC buses'; 24 V; the SCE dropped out |
+| Launch: the second strike, 0:52 | ISS and NO ATT, the platform caged | ISS at about 50 s, the platform tumbling |
+| Launch: SCE to AUX, and the fuel cells' reset | Houston's calls at 1:36.0 and 2:19.0; the telemetry back on AUX at 1:50; fuel cells 1 and 2 on line at 2:22 and 3 at 2:50 | the calls at 1:36 and 2:19; SCE to AUX at 1:50 on the onboard tape (working again at 97.5 s, the Mission Director's report); 1 and 2 by 142.5 s, 3 at 170.5 s |
+| Launch: Mach 1, maximum dynamic pressure | 1:06.5; 32.4 kPa at 1:17.4 | 1:06.1; 32.7 kPa at 1:21.1 |
+| Launch: the S-IC's centre and outboard engines' cutoffs | 2:15.24 at 1,972 m/s and 23.52° up, 2:41.76 at 2,728 m/s and 19.83° | 2:15.24 at 1,980 m/s and 23.94°, 2:41.74 at 2,751 m/s and 20.51° |
+| Launch: the S-II's centre engine's cutoff, and its own | 7:40.78 at 5,681 m/s; 9:12.34 at 6,912 m/s | 7:40.75 at 5,723 m/s; 9:12.34 at 6,959 m/s |
+| Launch: the S-IVB's cutoff, and insertion | 11:42.9; 11:52.7 at 7,793.3 m/s | 11:33.9; 11:43.9 at 7,792.5 m/s |
+| Parking orbit, and the S-IVB's propellant for TLI | 99.7 × 99.7 nmi, 32.540°; 72,127 kg | 100.1 × 97.8 nmi, 32.540°; 73,775 kg to depletion |
+| P51 in the parking orbit | 0:45:09, Diphda and Sirius, 0.001° from the catalog's angle | the first night, Rigel and Sirius, 0.01° |
+| TLI from the pad, and the pericynthion after it | GET 2:47:50 for 339.4 s, C3 −1,820,312 m²/s²; 279.5 nmi at 83:44:04 | 2:47:23 for 341.3 s, C3 −1,834,425 m²/s²; 280.2 nmi at 83:44:04 |
+| TLI, and the pericynthion after it | GET 2:47:45, 10,559 ft/s from the J-2 in 343.6 s, C3 −1,821,128 m²/s²; 279.5 nmi at 83:44:04 | 2:47:23, 10,515 ft/s in 341.3 s, C3 −1,834,425 m²/s²; 280.2 nmi at 83:44:04 |
 | MCC-2, off the free return | 57.8 ft/s at 30:52:43, N81 −56.0, −8.8, −11.0; 69.0 nmi at 83:28:37 | 61.7 ft/s at 30:52:44, N81 −60.1, −12.6, +5.6 (flown 61.8); 65.1 nmi at 83:28:39 |
-| MCC-4 | 2.2 ft/s; 67.1 nmi at 83:28:42 | not needed |
-| LOI-1 | 83:25:18, N81 −2,855.6, +786.7, +162.1; 2,966 ft/s in 379.0 s; 169.7 × 59.9 nmi, 13.6° to the lunar equator | 83:25:19, N81 −2,821.3, +603.6, +112.4; 2,889.5 ft/s in 352.3 s; 168.8 × 62.6 nmi, 14.6° |
-| LOI-2 | 87:48:42, N81 −136.8, 0.0, −136.6, 193.2 ft/s; 66.2 × 53.9 nmi | 87:48:48, N81 −139.2, +0.1, −89.5, 165.2 ft/s; 66.1 × 54.3 nmi |
-| The CSM's separation maneuver | 2.5 ft/s radially down; Yankee Clipper in 64.1 × 55.8 nmi | 2.4 ft/s (the PAD's 2.5); 63.5 × 56.3 nmi |
-| DOI | 109:20:07, 69.3 ft/s in 30 s; 60.9 × 9.0 nmi | 109:23:40, 72.4 ft/s in 29.0 s; 60.6 × 8.1 nmi |
-| PDI, and the crossrange | 110:19:50; the site 4.3 nmi south of the orbit's plane, the lateral velocity up to 86 ft/s 225 s on | 110:20:38; about 5 miles south, up to 78 ft/s about 5 min on |
-| Noun 69, and the landing radar | +4,400 ft 80 s after PDI; ΔH −883 ft at 35,631 ft | +4,200 ft 79 s after PDI; ΔH −918, −1,000 ft, the radar's altitude from 41,438 ft |
-| P64 | 110:28:29 at 8,040 ft, aiming 400 ft from the Surveyor; 61 LPD clicks | 110:29:11 near 7,000 ft, aiming 416 ft from it |
-| The landing | P66 at 110:30:39 at 393 ft; touchdown 110:31:55, 515 ft from Surveyor III, where Intrepid came down; 1,367 lb of the DPS's propellant left | P66 at 110:30:50 at 400 ft; 110:32:36, 535 ft from it; 1,175 lb |
-| The first plane change | 119:45:12, N81 −9.3, +314.6, 0; 314.6 ft/s in 19.1 s; 62.6 × 57.0 nmi | 119:47:13, N81 −11.5, +349.6, 0; 349.9 ft/s in 18.2 s; 62.5 × 57.6 nmi |
-| The ascent | liftoff 142:01:25, N76 5,532.7 and 37.0 ft/s, 0.33 nmi crossrange; 441 s on the APS; 45.4 × 8.7 nmi, 0.03° from Yankee Clipper's plane | 142:03:48 (planned 142:01:18), N76 5,535.0 and 37.0 ft/s, 0.2 nmi; 423.2 s; 46.3 × 8.8 nmi |
-| CSI | 142:58:30, 46.8 ft/s; 44.7 × 42.6 nmi | 143:01:51, 45.0 ft/s; 51.0 × 41.5 nmi |
-| CDH | 143:56:24, 5.5 ft/s, 16.7 nmi below Yankee Clipper | 144:00:03, 13.8 ft/s |
-| TPI, and the midcourse corrections | 144:40:28, 28.2 ft/s; 4.0 ft/s | 144:36:26, 29.0 ft/s |
-| Docking | 145:31:39, the LM's RCS having given 124 ft/s from CSI | 145:36:20 |
-| The second plane change | 159:04:44, 381.2 ft/s in 22.0 s; 62.9 × 56.8 nmi | 159:04:46, 381.8 ft/s in 19.2 s; 64.7 × 56.8 nmi |
-| TEI | 172:22:48, N81 +3,040.4, −89.1, 0.0; 3,042 ft/s in 138.0 s; entry interface after it at 244:21:07 | 172:27:17, N81 +3,027.2, +302.1, −25.3; 3,042 ft/s in 130.3 s; 244:22:19 |
-| Transearth midcourse corrections | MCC-5 3.8 ft/s, MCC-7 none | MCC-5 2.0 ft/s, MCC-7 2.4 ft/s |
-| Entry interface | 244:18:33, 36,114 ft/s, 6.55° down, 15.55° S 174.14° E | 244:22:19, 36,116 ft/s, 6.48° down, 13.80° S 173.52° E |
-| The entry | P61 to P64, then P67; 6.70 g at the peak | P61 to P67; 6.1 g on the PAD |
-| Splashdown | 244:33:26, 15.80° S 165.17° W, 0.4 nmi from the target | 244:36:25, 15.78° S 165.15° W, within 2 miles of it |
+| MCC-4 | 2.4 ft/s; 67.1 nmi at 83:28:42 | not needed |
+| LOI-1 | 83:25:18, N81 −2,856.5, +793.4, +163.8; 2,969 ft/s in 379.4 s; 169.5 × 59.9 nmi, 13.6° to the lunar equator | 83:25:19, N81 −2,821.3, +603.6, +112.4; 2,889.5 ft/s in 352.3 s; 168.8 × 62.6 nmi, 14.6° |
+| LOI-2 | 87:48:43, N81 −136.5, 0.0, −136.1, 192.7 ft/s; 66.2 × 53.9 nmi | 87:48:48, N81 −139.2, +0.1, −89.5, 165.2 ft/s; 66.1 × 54.3 nmi |
+| The CSM's separation maneuver | 2.5 ft/s radially down; Yankee Clipper in 64.1 × 55.9 nmi | 2.4 ft/s (the PAD's 2.5); 63.5 × 56.3 nmi |
+| DOI | 109:20:05, 69.6 ft/s in 30 s; 60.7 × 9.1 nmi | 109:23:40, 72.4 ft/s in 29.0 s; 60.6 × 8.1 nmi |
+| PDI, and the crossrange | 110:19:48; the site 4.3 nmi south of the orbit's plane, the lateral velocity up to 85 ft/s 225 s on | 110:20:38; about 5 miles south, up to 78 ft/s about 5 min on |
+| Noun 69, and the landing radar | +4,400 ft 80 s after PDI; ΔH −883 ft at 35,664 ft | +4,200 ft 79 s after PDI; ΔH −918, −1,000 ft, the radar's altitude from 41,438 ft |
+| P64 | 110:28:27 at 8,074 ft, aiming 399 ft from the Surveyor; 58 LPD clicks | 110:29:11 near 7,000 ft, aiming 416 ft from it |
+| The landing | P66 at 110:30:36 at 397 ft; touchdown 110:31:52, 514 ft from Surveyor III, where Intrepid came down; 1,368 lb of the DPS's propellant left | P66 at 110:30:50 at 400 ft; 110:32:36, 535 ft from it; 1,175 lb |
+| The first plane change | 119:45:09, N81 −9.2, +313.6, 0; 313.8 ft/s in 19.0 s; 62.5 × 57.1 nmi | 119:47:13, N81 −11.5, +349.6, 0; 349.9 ft/s in 18.2 s; 62.5 × 57.6 nmi |
+| The ascent | liftoff 142:01:26, N76 5,532.7 and 37.0 ft/s, 0.29 nmi crossrange; 440 s on the APS; 45.3 × 8.7 nmi, 0.03° from Yankee Clipper's plane | 142:03:48 (planned 142:01:18), N76 5,535.0 and 37.0 ft/s, 0.2 nmi; 423.2 s; 46.3 × 8.8 nmi |
+| CSI | 142:58:28, 47.4 ft/s; 44.7 × 43.0 nmi | 143:01:51, 45.0 ft/s; 51.0 × 41.5 nmi |
+| CDH | 143:56:24, 6.0 ft/s, 16.4 nmi below Yankee Clipper | 144:00:03, 13.8 ft/s |
+| TPI, and the midcourse corrections | 144:40:36, 27.9 ft/s; 4.0 ft/s | 144:36:26, 29.0 ft/s |
+| Docking | 145:31:45, the LM's RCS having given 124 ft/s from CSI | 145:36:20 |
+| The second plane change | 159:04:44, 381.4 ft/s in 22.0 s; 63.0 × 56.8 nmi | 159:04:46, 381.8 ft/s in 19.2 s; 64.7 × 56.8 nmi |
+| TEI | 172:22:52, N81 +3,040.1, −100.6, 0.0; 3,042 ft/s in 138.0 s; entry interface after it at 244:20:36 | 172:27:17, N81 +3,027.2, +302.1, −25.3; 3,042 ft/s in 130.3 s; 244:22:19 |
+| Transearth midcourse corrections | MCC-5 3.3 ft/s, MCC-7 none | MCC-5 2.0 ft/s, MCC-7 2.4 ft/s |
+| Entry interface | 244:18:25, 36,115 ft/s, 6.55° down, 15.55° S 174.17° E | 244:22:19, 36,116 ft/s, 6.48° down, 13.80° S 173.52° E |
+| The entry | P61 to P64, then P67; 6.71 g at the peak | P61 to P67; 6.1 g on the PAD |
+| Splashdown | 244:33:17, 15.80° S 165.17° W, 0.7 nmi from the target | 244:36:25, 15.78° S 165.15° W, within 2 miles of it |
 
 The table takes these from the flight's figures:
 - TLI's 10,515 ft/s is the J-2's (MSC-01855, Table 5-IV), which the
@@ -1248,11 +1283,13 @@ ones:
   cabin, and at full level through the tunnel while the two are docked.
   The fans run while the CM's buses are powered, and Eagle's while it
   flies, since the ECS isn't modelled.
-- **Caution and warning.** Only the EPS has status lights: FC 1 to 3,
-  for a failed fuel cell rather than the handbook's flow, temperature and
-  pH limits, and MN BUS A and B UNDERVOLT. They are on the Bus, not on a
-  panel, and there are no CSM/CM, NORMAL/BOOST/ACK or lamp test
-  switches. MDC-1's and MDC-3's MASTER ALARM switch-lights are in the
+- **Caution and warning.** Only the status lights the modelled systems
+  and the failure catalog need: FC 1 to 3 (for a failed fuel cell rather
+  than the handbook's flow, temperature and pH limits, or one tripped off
+  its buses), FC BUS DISCONNECT, MN BUS A and B UNDERVOLT, CRYO PRESS, SM
+  RCS A to D, CMC and ISS, on MDC-2's lamp matrix and the HUD's C&W line.
+  There are no CSM/CM, NORMAL/BOOST/ACK or lamp test switches, and no AC
+  bus lights. MDC-1's and MDC-3's MASTER ALARM switch-lights are in the
   cabin, but not the lower equipment bay's.
 - **Apollo 8.**
   - The S-IVB's venting after TLI isn't modelled. So the RTCC aims TLI at
@@ -1309,8 +1346,6 @@ ones:
     corridor, the simulator's needs the transearth corrections.
   - The ground deleted MCC-4, its 2.8 ft/s not needed; the RTCC here flies
     it when the tracking has left the approach off.
-  - There is no launch for Apollo 10 yet: its start phases begin in the
-    parking orbit.
 - **Apollo 12.**
   - The free return the RTCC's TLI leaves passes the Moon 4° north of the
     flight's (25.6° S against 29.7° S), and the approach the midcourse
@@ -1340,8 +1375,35 @@ ones:
   - The LM carries its crew from TLI, and its RCS's load at liftoff is
     estimated. The test's commander flies the LPD and P66 to the spot
     Intrepid came down on; Conrad flew over the crater and back.
-  - There is no launch for Apollo 12 yet: its start phases begin in the
-    parking orbit.
+  - AS-507's S-IC is 23 m/s short at its cutoff, as AS-506's is, and its
+    S-II another 25 m/s at its own, so the S-IVB's first burn runs 9 s
+    long, and TLI has 1.6 t less propellant than from the parking-orbit
+    start. Each stage's cutoff comes within 0.03 s of the flown. The S-II
+    burns out on time at its flow at the high mixture ratio 0.8 % under
+    the report's 61 s in (which counts the pressurization's flow), its
+    shift at the engines' 490.0 s rather than the IU's command at 487.3
+    s, and its flow at the low ratio at the 427 s Isp of the report's
+    Figure 6-3 [estimated].
+  - The lightning is what the crew and the ground saw of it. The mains
+    read 25.5 V on the batteries, where the flight's read 24 V, and the
+    CM's systems run down to 20 V [estimated: the flight's CMC ran on at
+    24 V, restarting in the dip to 18 or 19 V]. The CMC's five restarts,
+    the AC buses' lights, the event timer, the nine measurements lost for
+    good and the SM RCS quantity gauges aren't modelled. The tumbled
+    platform is caged at once, where the flight's gimbals drove round at
+    35°/s until the crew pulled the IMU's breakers in orbit; the CMC
+    integrates the ascent on it, and the ground's state vector uplinks put
+    its navigation right, as the flight's did.
+  - The IU holds the stack heads down in the parking orbit, the optics on
+    the sky, as Apollo 12's P51 and P52s on it need. It rolls to it from
+    the launch's attitude at once at insertion, and back heads up at once
+    when it turns for TLI, 60 s before the ignition, as the CSM's burns
+    fly.
+  - The crew's reset of the fuel cells is each cell's FC switch, standing
+    for its MN BUS A and B switches; the ground calls for it 29 s after
+    the telemetry shows the cells off the line, as 2:19 came after the
+    switch to AUX at 1:50 on the onboard tape [derived]. The Mission
+    Director's report has the SCE working again at 97.5 s.
 - **Apollo 13.**
   - The LM docks at its nominal roll index. Aquarius's docking ring's
     calibration is not modelled, and the LGC's outer gimbal angle at the
@@ -1546,6 +1608,16 @@ The unit tests cover:
   book. `tests/unit/test_ascent_guidance.gd`: the aborts' apolune is
   above Columbia's with Eagle ahead, lower the more Columbia leads, and
   P12's with no TPI time.
+- The lightning's pieces (`tests/unit/test_lightning.gd`), slice 10c: the
+  fuel cells tripped off their buses until each FC switch goes OFF and
+  ON, a cell switched off before it not tripped; the mains on two
+  batteries under the undervolt limit, the CM running on; the SCE on
+  AUX, OFF or NORM; the ground's calls for SCE to AUX 59.5 s after the
+  telemetry goes and for the reset 29 s after it shows the cells, by
+  name for one, and none for a CM powered down; a tumbled platform's ISS
+  out at a coarse align; and a checkpoint of them all. The catalog's
+  test runs the three as the others, the SCE's without a light, and
+  Apollo 12's launch start alone arms them on its liftoff
 - The terrain: Tranquility Base 1,927 m below the reference sphere, West
   crater 30 m deep east of the LM, and the maps blending without steps;
   Surveyor III 1,432 m below it on its crater's slope, and Intrepid's
@@ -1927,6 +1999,27 @@ The scenario tests fly real segments through the crew interface:
   - the S-IVB left with 72,850 kg for TLI (73,462 flown), and TLI at
     2:33:16, 3,050 m/s in 339.8 s, onto the free return past the Moon
     908.2 nmi up at 76:10:18 (907.7 nmi at 76:10:18 flown)
+- Apollo 12's launch and its lightning
+  (`tests/scenarios/test_apollo_12_launch.gd`), slice 10c's check. From
+  LC-39A, AS-507 flies Apollo 12 through its two strikes into its parking
+  orbit, and the flight goes on through TLI as the parking-orbit start
+  flies it:
+  - the first strike at 36.5 s lights FC 1 to 3, FC BUS DISCONNECT and
+    both UNDERVOLTs, the talkbacks barber pole, the mains on the
+    batteries under 26.25 V and the telemetry gone; the second at 52 s
+    ISS and NO ATT, the platform caged;
+  - Houston's "SCE to AUX" at 1:36 and its call to reset the fuel cells at
+    2:19, each within a second of the flight's; SCE PWR at AUX brings the
+    telemetry back, and each FC switch OFF and ON its cell, until only ISS
+    is lit;
+  - each stage's cutoff within 0.03 s of the flight evaluation report's,
+    and the S-IVB's 9 s late; the velocities within 50 m/s and the flight
+    path angles within 1°;
+  - the orbit at 32.540°, 0.003° from the flown plane, and the S-IVB's
+    propellant within 2 t of the parking-orbit start's;
+  - P51 in the parking orbit on two stars, N05 0.001°, the ISS light out;
+  - TLI at 2:47:50 for 339.4 s, onto the free return past the Moon 279.5
+    nmi up at 83:44:04 (280.2 nmi at 83:44:04 flown)
 - Apollo 8's launch (`tests/scenarios/test_apollo_8_launch.gd`), slice
   10a's check. From the pad, AS-503 flies Apollo 8 into its parking
   orbit, and the flight goes on through TLI as the parking-orbit start
@@ -2055,6 +2148,9 @@ descent engine and from P66 at 500 ft on the ascent engine, into orbits
 phased for the rendezvous, which docks, and has its own failures and
 caution and warning lights (slice 9e). Of every mission from the pad
 (milestone 10), Apollo 8 flies from the pad on AS-503, the first crewed
-Saturn V, into its parking orbit and on through TLI (slice 10a), and
-Apollo 10 from LC-39B on AS-505 (slice 10b). Apollo 12's and 13's
-launches come next, then the LM's navigation, and Apollo 14 to 17.
+Saturn V, into its parking orbit and on through TLI (slice 10a),
+Apollo 10 from LC-39B on AS-505 (slice 10b), and Apollo 12 on AS-507
+through its lightning: the fuel cells off their buses, SCE to AUX, the
+platform tumbled and aligned again with P51 in the parking orbit (slice
+10c). Apollo 13's launch comes next, then the LM's navigation, and
+Apollo 14 to 17.

@@ -353,8 +353,9 @@ func _show_failure() -> void:
 		return
 	failure_index = posmod(failure_index, list.size())
 	var e: Dictionary = list[failure_index]
-	choice_label.text = "INSTRUCTOR: FAILURE %d OF %d\n%s: %s light\n%s" % [failure_index + 1, list.size(),
-		e["title"], e["light"], failures.state_line(str(e["id"])) if failures != null else "no flight to fail"]
+	var light := "%s light" % e["light"] if str(e["light"]) != "" else "no light, Houston's to see"
+	choice_label.text = "INSTRUCTOR: FAILURE %d OF %d\n%s: %s\n%s" % [failure_index + 1, list.size(),
+		e["title"], light, failures.state_line(str(e["id"])) if failures != null else "no flight to fail"]
 
 
 ## The saves page's lines, for the save chosen.

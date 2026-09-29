@@ -78,7 +78,7 @@ MISSIONS = {
     # (MPR-SAT-FE-70-1): section 4.1 (the azimuth), Tables 4-5 (insertion)
     # and 4-6 (TLI).
     "apollo_12": {"flight_azimuth": 72.029, "inclination": 32.540, "descending_node": 123.126,
-                  "insertion_s": 703.91, "insertion_lat": 32.682, "insertion_lon": -51.131,
+                  "insertion_s": 703.91, "insertion_lat": 32.682, "insertion_lon": -53.131,
                   "insertion_alt_km": 190.9, "tli_inclination": 30.355, "tli_descending_node": 120.338},
     # AS-508, from Launch Complex 39A: the Apollo/Saturn V postflight
     # trajectory (the azimuth, 72.043 deg) and the Saturn V flight

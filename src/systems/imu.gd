@@ -29,6 +29,16 @@
 ##
 ## Without power the platform's orientation is lost: the IMU comes back
 ## caged (cage()), NO ATT lit, until a coarse align.
+##
+## Slice 10c: a transient can tumble the platform (tumble(), Apollo 12's
+## second lightning strike): the CDUs' readings jumped past 85 deg, the
+## CMC switched the platform to coarse align, which in the launch's
+## configuration drove its gimbals round, and its orientation was lost,
+## the ISS light on [published: MSC-01540, pp. 21 to 23]. It is caged
+## here, tumbled, until a coarse align (P51's among them) runs it up again
+## [simplified: the flight's gimbals drove at about 35 deg/s until the
+## crew pulled the IMU's breakers in orbit and set them again 3 minutes
+## later].
 class_name Imu
 extends RefCounted
 
@@ -70,6 +80,8 @@ var coarse_left: float = 0.0
 var ideal: bool = false
 ## The IMU failed (the failure catalog's, slice 9a): caged for good.
 var failed: bool = false
+## A transient tumbled the platform (tumble()): caged until a coarse align.
+var tumbled: bool = false
 var _rng := RandomNumberGenerator.new()
 ## The platform's orientation when it was last set, and the time it has
 ## drifted since (s): a step's drift is far below a float's resolution
@@ -246,6 +258,16 @@ func cage(body: Basis) -> void:
 	aligned = false
 
 
+## Tumble the platform, with the vehicle at [param body]: caged where its
+## gimbals are and its orientation lost, as cage() leaves it, until a
+## coarse align.
+func tumble(body: Basis) -> void:
+	if ideal:
+		return
+	cage(body)
+	tumbled = true
+
+
 ## Fail the IMU, with the vehicle at [param body]: caged where its gimbals
 ## are, its orientation lost, and no coarse align or torquing brings it
 ## back.
@@ -283,6 +305,7 @@ func step(dt: float, body: Basis) -> void:
 			if coarse_left <= 0.0:
 				coarse_left = 0.0
 				mode = "operate"
+				tumbled = false
 				_set_platform(rotation(_coarse_error()) * platform)
 		"caged":
 			_set_platform(coarse_target * body.inverse())
@@ -315,7 +338,7 @@ func snapshot() -> Dictionary:
 		"refsmmat": rows_of(refsmmat), "platform": rows_of(_platform0), "drift_t": _drift_t, "aligned": aligned,
 		"drift": [drift.x, drift.y, drift.z], "coarse_sigma_deg": coarse_sigma_deg, "mode": mode,
 		"coarse_target": rows_of(coarse_target), "coarse_left": coarse_left, "rng_state": str(_rng.state),
-		"ideal": ideal, "failed": failed,
+		"ideal": ideal, "failed": failed, "tumbled": tumbled,
 	}
 
 
@@ -324,6 +347,7 @@ func restore(d: Dictionary) -> void:
 		return
 	ideal = bool(d.get("ideal", ideal))
 	failed = bool(d.get("failed", false))
+	tumbled = bool(d.get("tumbled", false))
 	refsmmat = from_rows(d["refsmmat"])
 	var a: Array = d["drift"]
 	drift = Vector3(a[0], a[1], a[2])

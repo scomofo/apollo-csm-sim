@@ -45,10 +45,16 @@
 ## ground plans mode III's and IV's burns (_abort_pad()), and the flight
 ## ends at a splashdown down the range, or in orbit ("earth_orbit").
 ##
+## The ground reads the CSM's telemetry (slice 10c, _ground_calls()): lost
+## with the spacecraft powered, EECOM's "SCE to AUX" comes about a minute
+## on, and fuel cells it shows tripped off their buses bring a call to
+## reset them, as Apollo 12's lightning did.
+##
 ## Reads:  ctl.seq.csm_sep, ctl.seq.undock, ctl.seq.lm_jett,
 ##         ctl.seq.cm_sm_sep, ctl.lm.stage (crew pushbuttons,
 ##         edge-triggered), ctl.ground.pad_request (String),
-##         lm.guid.restarts, lm.guid.restart_get, lm.guid.restart_alarm
+##         lm.guid.restarts, lm.guid.restart_get, lm.guid.restart_alarm,
+##         tm.valid, sys.powered, eps.fc<n>_tripped
 ## Writes: mission.phase, mission.capcom, mission.pad_text, mission.event.<id>,
 ##         mission.result, mission.tli_tig, mission.next_event_get_s (the
 ##         timeline's next entry or the scripted failure, which SimClock
@@ -84,6 +90,15 @@ const TIMELINE_GRACE_S := 600.0
 ## first, and the later ones (Apollo 11's: 31 s and 7 s).
 const ALARM_GO_FIRST_S := 30.0
 const ALARM_GO_AGAIN_S := 7.0
+## How long the ground takes to call "SCE to AUX" once the CSM's telemetry
+## is lost with the spacecraft powered, and to call a reset of the fuel
+## cells once its telemetry shows them off their buses [derived: Apollo
+## 12's, the telemetry lost at the strike, 36.5 s, EECOM's "SCE to
+## Auxiliary" at 1:36; the reset at 2:19, 29 s after the crew's "SCE to
+## Aux" at 1:50 on the onboard tape (the Apollo Flight Journal); the
+## Mission Director's report has the SCE working again at 97.5 s].
+const TM_CALL_S := 59.5
+const FC_RESET_CALL_S := 29.0
 ## The planned time that marks each PAD as still to be flown: the timeline
 ## doesn't uplink one while the last is.
 const PAD_PENDING := {"doi": "doi_tig", "pdi": "pdi_pad_tig", "ascent": "liftoff_tig", "csi": "csi_tig",
@@ -148,6 +163,13 @@ var ground_abort_due: bool = false
 var ground_abort_get: float = 0.0
 var ground_abort_return: bool = false
 var mode_calls_said: int = 0
+## The ground's calls on the telemetry and power (_ground_calls()): the GET
+## the CSM's telemetry was lost, and that its fuel cells were seen off
+## their buses, or -1; and whether each has had its call.
+var tm_lost_get: float = -1.0
+var tm_call_said: bool = false
+var fc_trip_get: float = -1.0
+var fc_call_said: bool = false
 ## The seed the flight's dispersions are drawn from.
 var dispersion_seed: int = 0
 var _edges: Dictionary = {}
@@ -271,6 +293,10 @@ func start(p_phase: String) -> void:
 	ground_abort_due = false
 	ground_abort_return = false
 	mode_calls_said = 0
+	tm_lost_get = -1.0
+	tm_call_said = false
+	fc_trip_get = -1.0
+	fc_call_said = false
 	tli_pad = {}
 	tli_cutoff_get = -1.0
 	pads = {}
@@ -304,6 +330,10 @@ func start(p_phase: String) -> void:
 		systems["lv"].state = "idle"
 		if systems.has("les"):
 			systems["les"].stow()
+	if p_phase != "launch" and failures != null:
+		# The failures the mission arms on the liftoff (Apollo 12's
+		# lightning) come only in the launch.
+		failures.disarm_on("liftoff")
 	if p_phase == "translunar_coast":
 		var pad := _plan_tli(tr)
 		assert(not pad.is_empty(), "no TLI solution")
@@ -441,7 +471,44 @@ func tick(_dt: float) -> void:
 	_launch_aborts()
 	_timeline()
 	_alarm_calls()
+	_ground_calls()
 	_update_phase()
+
+
+## The ground's calls on the CSM's telemetry and power (slice 10c): with
+## the spacecraft powered and its telemetry lost (the SCE's NORM supply
+## gone, tm.valid false), EECOM's "SCE to AUX" TM_CALL_S on; with the
+## telemetry good and fuel cells tripped off their buses, their reset
+## FC_RESET_CALL_S after it shows them. Each once, until its condition
+## clears.
+func _ground_calls() -> void:
+	var now := SimClock.get_seconds
+	var tm := bool(Bus.get_value("tm.valid", true))
+	if bool(Bus.get_value("sys.powered", false)) and not tm:
+		if tm_lost_get < 0.0:
+			tm_lost_get = now
+		if not tm_call_said and now >= tm_lost_get + TM_CALL_S - 1e-6:
+			_say("{mission}, Houston. Try SCE to Auxiliary. Over.")
+			tm_call_said = true
+	else:
+		tm_lost_get = -1.0
+		tm_call_said = false
+	var tripped: Array[int] = []
+	for i in range(1, 4):
+		if bool(Bus.get_value("eps.fc%d_tripped" % i, false)):
+			tripped.append(i)
+	if tm and not tripped.is_empty():
+		if fc_trip_get < 0.0:
+			fc_trip_get = now
+		if not fc_call_said and now >= fc_trip_get + FC_RESET_CALL_S - 1e-6:
+			if tripped.size() == 1:
+				_say("{mission}, Houston. Try to reset fuel cell %d now." % tripped[0])
+			else:
+				_say("{mission}, Houston. Try to reset your fuel cells now.")
+			fc_call_said = true
+	else:
+		fc_trip_get = -1.0
+		fc_call_said = false
 
 
 ## GO on the LGC's restarts not yet answered: ALARM_GO_FIRST_S after the
@@ -2048,7 +2115,9 @@ func snapshot() -> Dictionary:
 		"timeline_done": timeline_done.duplicate(), "seed": dispersion_seed, "rng_state": str(_rng.state),
 		"alarms_answered": alarms_answered, "abort_mode": abort_mode, "ground_abort_due": ground_abort_due,
 		"ground_abort_get": ground_abort_get,
-		"ground_abort_return": ground_abort_return, "mode_calls_said": mode_calls_said}
+		"ground_abort_return": ground_abort_return, "mode_calls_said": mode_calls_said,
+		"tm_lost_get": tm_lost_get, "tm_call_said": tm_call_said, "fc_trip_get": fc_trip_get,
+		"fc_call_said": fc_call_said}
 
 
 func restore(d: Dictionary) -> void:
@@ -2065,6 +2134,10 @@ func restore(d: Dictionary) -> void:
 	ground_abort_get = float(d.get("ground_abort_get", 0.0))
 	ground_abort_return = bool(d.get("ground_abort_return", false))
 	mode_calls_said = int(d.get("mode_calls_said", 0))
+	tm_lost_get = float(d.get("tm_lost_get", -1.0))
+	tm_call_said = bool(d.get("tm_call_said", false))
+	fc_trip_get = float(d.get("fc_trip_get", -1.0))
+	fc_call_said = bool(d.get("fc_call_said", false))
 	dispersion_seed = int(d.get("seed", 0))
 	_rng.seed = dispersion_seed + 1
 	_rng.state = str(d.get("rng_state", str(_rng.state))).to_int()

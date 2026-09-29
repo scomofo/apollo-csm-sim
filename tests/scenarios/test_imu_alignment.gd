@@ -119,26 +119,6 @@ func test_a_burn_on_a_misaligned_platform_misses_by_what_the_misalignment_predic
 		(float(ra["rp"]) - Bodies.R_EARTH) / 1000.0, (float(rb["rp"]) - Bodies.R_EARTH) / 1000.0])
 
 
-## The stars the crew could mark with the optics from the CSM's true
-## attitude: within the trunnion's reach, clear of the Earth and the Moon.
-func _stars_in_reach() -> Array:
-	var tr := rt.dynamics.traj
-	var to_body := Basis(rt.dynamics.attitude.q).inverse()
-	var near := Agc._near_bodies(tr)
-	var out := []
-	for c in Stars.codes():
-		var s := Stars.direction(c)
-		if Optics.angles_for(to_body * s).y > 45.0:
-			continue
-		var hidden := false
-		for body in near:
-			if rad_to_deg(s.angle_to(body[0])) < float(body[1]) + 5.0:
-				hidden = true
-		if not hidden:
-			out.append(c)
-	return out
-
-
 func test_gimbal_lock_loses_the_alignment_and_p51_finds_it_again() -> void:
 	build("lunar_orbit")
 	Bus.set_value("ctl.seq.lm_jett", true)
@@ -168,35 +148,16 @@ func test_gimbal_lock_loses_the_alignment_and_p51_finds_it_again() -> void:
 	assert_eq(agc.alarm_code, 220, "IMU orientation unknown")
 	keys("R")
 	# P51: the IMU run up at zero gimbal angles, then two stars the crew
-	# finds and names.
-	keys("V37E51E")
-	assert_eq(agc.program, 51)
-	var up := run_until(func() -> bool: return agc.step_name == "acquire", 60.0, 1.0, false)
-	assert_true(up, "coarse aligned to zero")
-	var g := agc.icdu()
-	for i in 3:
-		assert_lt(absf(wrapf(g[i], -180.0, 180.0)), 1.0, "gimbal %d at zero, to the coarse align's accuracy" % i)
-	assert_false(dsky_lamp("no_att"), "NO ATT out")
-	# The optics look out of the CM's +Z side, at the Moon: the crew rolls
-	# heads down to find stars.
-	var stars := _stars_in_reach()
-	if stars.size() < 2:
-		roll_over()
-		stars = _stars_in_reach()
-	assert_gt(stars.size(), 1, "stars in the optics' reach")
-	var pair := [stars[0], stars[stars.size() - 1]]
-	for c in pair:
-		keys("P")   # V50N25: acquired
-		assert_eq(agc.step_name, "mark", "V51")
-		centre_star(c)
-		mark()
-		assert_eq(Bus.get_value("dsky.noun"), "71", "V01N71: which star")
-		keys("V21E%dEP" % c)
-	assert_eq(agc.step_name, "n05")
-	gut.p("P51 on %s and %s: N05 %.3f deg" % [Stars.name_of(pair[0]), Stars.name_of(pair[1]), agc.align_sad_deg])
-	assert_lt(agc.align_sad_deg, 0.02, "N05")
-	keys("P")
-	assert_eq(agc.program, 0, "P51 done")
+	# finds and names. The optics look out of the CM's +Z side, at the
+	# Moon: the crew rolls heads down to find stars.
+	var found := p51(func() -> void:
+		var g := agc.icdu()
+		for i in 3:
+			assert_lt(absf(wrapf(g[i], -180.0, 180.0)), 1.0, "gimbal %d at zero, to the coarse align's accuracy" % i)
+		assert_false(dsky_lamp("no_att"), "NO ATT out")
+	)
+	gut.p("P51 on %s and %s: N05 %.3f deg" % [Stars.name_of(found["stars"][0]), Stars.name_of(found["stars"][1]), found["sad"]])
+	assert_lt(float(found["sad"]), 0.02, "N05")
 	assert_true(agc.imu.aligned, "the orientation found")
 	assert_lt(misalignment_deg(), RESIDUAL_LIMIT_DEG, "REFSMMAT describes the platform")
 	# And P52 option 4 back to the landing site REFSMMAT.

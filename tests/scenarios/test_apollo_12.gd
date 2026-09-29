@@ -575,4 +575,7 @@ func test_apollo_12_flies_its_data_and_lands_beside_surveyor_iii() -> void:
 	assert_string_contains(str(Bus.get_value("mission.capcom")), "Welcome home, Apollo 12.")
 	assert_almost_eq(rt.dynamics.max_g, 6.1, 0.8, "the peak load")
 	assert_lt(miss, 3.0, "near the target")
-	assert_almost_eq(land, _get_s("244:36:25"), 180.0, "splashdown's time")
+	# The splashdown comes with entry interface, which the tracking error
+	# moves minutes (above); the entry from it took 14 min 6 s.
+	assert_almost_eq(land - ei.t, _get_s("244:36:25") - _get_s("244:22:19.1"), 90.0, "the entry's time")
+	assert_almost_eq(land, _get_s("244:36:25"), 300.0, "splashdown's time, as entry interface's")
