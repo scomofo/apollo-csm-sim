@@ -43,7 +43,6 @@
       {"id": "entry_pad", "get": "191:43:57", "when": "earth_return", "pad": "entry"}
     ]
   },
-  "failures": {"o2_tank_2_get_s": -1.0},
   "start_phases": ["launch", "parking_orbit", "translunar_coast", "lunar_orbit", "lunar_descent", "lunar_surface", "lunar_ascent", "tei", "transearth_coast", "entry"],
   "start_notes": {"_comment": "The flight menu's line on each start phase (src/presentation/flight_choice.gd), the simulator's own", "launch": "On the pad at LC-39A, 20 s before liftoff", "parking_orbit": "In the parking orbit, TLI ahead", "translunar_coast": "After TLI, docked to Eagle", "lunar_orbit": "After LOI-2, 54 × 66 nmi, Eagle docked", "lunar_descent": "Eagle after DOI, 20 min before PDI", "lunar_surface": "Eagle at Tranquility Base, 10 min after the landing", "lunar_ascent": "Eagle 20 min before liftoff, the ascent PAD in", "tei": "Columbia alone, a minute before the TEI PAD", "transearth_coast": "After TEI, on the way home", "entry": "About 20 min before entry interface, the target in"}
 }

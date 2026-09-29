@@ -42,6 +42,7 @@ time.get_s,float,s,simclock,Ground elapsed time
 eps.bus_a_v,float,V,eps,Main bus A voltage
 eps.bus_b_v,float,V,eps,Main bus B voltage
 sys.master_alarm,bool,,cw,Master alarm: the MASTER ALARM lights and the tone. On as a status light comes on; off at a MASTER ALARM press
+cw.*,bool,,cw,A caution and warning status light (CautionWarning.LIGHTS): lit while its condition holds and the main buses are powered
 sps.thrust_n,float,N,sps,SPS thrust now (newtons)
 lv.eng_light_1,bool,,lv,LV ENGINE light 1: engine 1 of the stage burning or next is below thrust
 lv.eng_light_2,bool,,lv,LV ENGINE light 2: engine 2 of the stage burning or next is below thrust

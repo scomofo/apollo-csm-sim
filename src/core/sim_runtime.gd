@@ -30,7 +30,10 @@ extends RefCounted
 ## 17: whether noun 69 moved the LGC's landing site (slice 7c).
 ## 18: the LM as a lifeboat (slice 7d): its batteries, its AGS, the LGC's
 ##    IMU and coarse align, the CSM's O2 tank 1 leak.
-const SCHEMA_VERSION := 18
+## 19: the failure catalog (slice 9a): the armed and the failed, and the
+##    parts each system has failed; the O2 tank's failure moved off the
+##    mission.
+const SCHEMA_VERSION := 19
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],
@@ -81,6 +84,8 @@ const CONTROL_DEFAULTS := {
 var mission: Mission
 var dynamics: Dynamics
 var sequencer: MissionSequencer
+## The failure catalog at work (slice 9a).
+var failures: Failures
 var systems: Dictionary = {}
 var nodes: Array[Node] = []
 
@@ -109,6 +114,13 @@ static func build(parent: Node, mission_path: String = "") -> SimRuntime:
 	rt.sequencer.systems = rt.systems
 	parent.add_child(rt.sequencer)
 	rt.nodes.append(rt.sequencer)
+	rt.failures = Failures.new()
+	rt.failures.name = "Failures"
+	rt.failures.mission = rt.mission
+	rt.failures.systems = rt.systems
+	rt.sequencer.failures = rt.failures
+	parent.add_child(rt.failures)
+	rt.nodes.append(rt.failures)
 	return rt
 
 
@@ -151,6 +163,7 @@ func snapshot() -> Dictionary:
 		"mission_id": mission.id(),
 		"clock": SimClock.snapshot(),
 		"mission": sequencer.snapshot(),
+		"failures": failures.snapshot(),
 		"vehicles": vehicles,
 		"controls": ctl,
 	}
@@ -197,6 +210,7 @@ func restore(d: Dictionary) -> String:
 	# the stack's.
 	dynamics.publish_state()
 	sequencer.restore(d["mission"])
+	failures.restore(d.get("failures", {}))
 	return ""
 
 

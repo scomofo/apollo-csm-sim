@@ -85,6 +85,9 @@ const REST_RATE := 1e-7
 const LOCK_MANEUVER_DEG := 60.0
 
 var dsky: Dsky
+## The computer failed (the failure catalog's, slice 9a): dark for good,
+## as without power.
+var failed: bool = false
 var program: int = 0
 var step_name: String = ""
 ## Channel prefix of this computer's vehicle: "" for the CSM, "lm." for
@@ -252,6 +255,18 @@ func is_powered() -> bool:
 ## The computer has just powered up.
 func powered_up() -> void:
 	pass
+
+
+## The failure catalog's [param part] fails (slice 9a): "imu", the
+## platform, for good; any other, the computer itself, which goes dark as
+## without power at its next step, and lights its caution (guid.fail).
+func fail(part: String) -> void:
+	if part == "imu":
+		imu.fail(Basis(_true_att()))
+		_publish_imu()
+		return
+	failed = true
+	Bus.set_value(_ch("guid.fail"), true)
 
 
 ## The computer has just lost its power.
@@ -802,7 +817,7 @@ func _alarm(code: int) -> void:
 
 func tick(dt: float) -> void:
 	var was_powered := _powered
-	_powered = is_powered()
+	_powered = is_powered() and not failed
 	if _powered != was_powered:
 		_publish_dsky()
 		if _powered:
@@ -1085,6 +1100,7 @@ func _publish_indicator() -> void:
 ## the platform's orientation, its mode, and whether REFSMMAT is the
 ## preferred orientation for the stored maneuver.
 func _publish_imu() -> void:
+	Bus.set_value(_ch("imu.fail"), imu.failed)
 	Bus.set_value(_ch("imu.icdu_deg"), icdu())
 	Bus.set_value(_ch("imu.aligned"), imu.aligned)
 	Bus.set_value(_ch("imu.mode"), imu.mode)
@@ -1126,12 +1142,15 @@ func snapshot() -> Dictionary:
 		"imu": imu.snapshot(),
 		"preferred": Imu.rows_of(preferred_refsmmat) if preferred_valid else [],
 		"coarse_load": [_coarse_load.x, _coarse_load.y, _coarse_load.z], "v41": _v41, "powered": _powered,
+		"failed": failed,
 	}
 
 
 func restore(d: Dictionary) -> void:
 	# Powered or dark as it was, with no power-up or power-down to come.
 	_powered = bool(d.get("powered", _powered))
+	failed = bool(d.get("failed", false))
+	Bus.set_value(_ch("guid.fail"), failed)
 	tig_load = float(d["tig_load"])
 	var l: Array = d["dv_lvlh_load"]
 	dv_lvlh_load = Vector3(l[0], l[1], l[2])

@@ -157,11 +157,15 @@ on the camera, and read the rates and attitude of the vehicle flown.
   - FLIGHT turns to its flight page, the flight menu: the mission and the
     start phase chosen with < MISSION, MISSION >, < PHASE and PHASE >,
     a line on each above the buttons, START to fly it in place of the
-    flight flown, SAVES and BACK. At launch the menu opens on this page,
-    held open until the Menu button closes it.
+    flight flown, SAVES, FAILURES and BACK. At launch the menu opens on
+    this page, held open until the Menu button closes it.
   - SAVES turns to the saved flights, < SAVED and SAVED > stepping
     through them: SAVE keeps the flight flown now, RESUME flies the one
     shown in place of it, and DELETE, pressed twice, deletes it.
+  - FAILURES turns to the instructor's page: the failure catalog, stepped
+    through with < FAILURE and FAILURE >, and FAIL, which fails the one
+    shown at once. Its caution light comes on, on MDC-2, and its
+    malfunction procedure opens on the checklist card.
 
   The settings (the eye height, the comfort aids, the highlight, the
   sound's level) are kept between sessions as they change.

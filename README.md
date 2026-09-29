@@ -139,6 +139,15 @@ sounds the master alarm. No listening pass has been recorded yet
 ([docs/LISTENING_PASS.md](docs/LISTENING_PASS.md) is its checklist, with a
 tool that renders each voice to a file).
 
+Failures are data (`data/failures.json`): an O2 tank, a fuel cell, an SM
+RCS quad, the CMC or the IMU fails as the catalog says, lights its caution
+and warning light (CRYO PRESS, FC 1 to 3, SM RCS A to D, CMC or ISS, on
+MDC-2 and the HUD's C&W line) and sounds the master alarm, and its
+malfunction procedure opens on the checklist card. A mission arms its own
+at their times, as Apollo 13's tank. FAILURES on the flight menu is the
+instructor's page: `< FAILURE` and `FAILURE >` step through the catalog,
+and FAIL fails the one shown at once.
+
 | Input | Action |
 |---|---|
 | W/S, A/D, Q/E | Rotational hand controller: pitch, yaw, roll (hold Shift for 10 %); in Eagle, its ACA |
@@ -1285,6 +1294,14 @@ The unit tests cover:
   fails; LM JETT from the CM pushing it back; a misaligned platform, the
   DAP's hold after a burn's program, the PC+2 throttle schedule, and a
   checkpoint that keeps it all
+- The failure catalog (`tests/unit/test_failures.gd`), slice 9a: each
+  failure in `data/failures.json`, set in a headless flight, lights its
+  caution and warning light, sounds the master alarm and changes its
+  system as the catalog says (the O2 tank vented, the fuel cell's output
+  gone, the quad dead, the CMC's DSKY dark, the IMU caged for good); a
+  checkpoint keeps the armed and the failed, and the clock comes to an
+  armed one on its second; a mission arms its own; the instructor's page
+  fails the one it shows; and a failure opens its malfunction procedure
 - The terrain: Tranquility Base 1,927 m below the reference sphere, West
   crater 30 m deep east of the LM, and the maps blending without steps;
   Surveyor III 1,432 m below it on its crater's slope, and Intrepid's
@@ -1749,12 +1766,15 @@ lands beside Surveyor III, its landing site moved in powered descent by
 the ground's noun 69, and its commander redesignating onto the crater.
 And Apollo 13 (slice 7d) comes home after its oxygen tank failed, from
 five minutes before the failure to its splashdown, Aquarius its lifeboat.
-That finishes the other missions. A way in (milestone 8) has begun:
-the flight menu picks any mission and start phase, on the desktop and on
-the wrist, and starts it in place of the flight flown (slice 8a), and
-saves flights and resumes them, the settings kept between sessions
-(slice 8b), and CI builds the PC VR presets and flies the Linux build
-before it keeps them (slice 8c), and builds a Quest 3 APK, whose pass on
-the headset is still to be run (slice 8d). Failures, backups and aborts
-come next, then every mission from the pad, the LM's navigation, and
-Apollo 14 to 17.
+That finishes the other missions. A way in (milestone 8): the flight
+menu picks any mission and start phase, on the desktop and on the wrist,
+and starts it in place of the flight flown (slice 8a), and saves flights
+and resumes them, the settings kept between sessions (slice 8b); CI
+builds the PC VR presets and flies the Linux build before it keeps them
+(slice 8c), and builds a Quest 3 APK, whose pass on the headset is still
+to be run (slice 8d). Of failures, backups and aborts (milestone 9), the
+failures are a catalog, armed by a mission or failed by an instructor,
+each lighting its caution and opening its malfunction procedure (slice
+9a). Apollo 11's program alarms, the backups and the aborts come next,
+then every mission from the pad, the LM's navigation, and Apollo 14 to
+17.

@@ -66,6 +66,10 @@
 ## own main scene (the root's child) keeps them in user:// (SETTINGS_PATH,
 ## SavedFlights.DIR); a test's keeps none unless the test gives it a file
 ## and a directory.
+##
+## Failures (slice 9a): the flight menu's FAILURES page is the instructor's
+## page on the runtime's Failures, and a failure, armed or failed by hand,
+## opens its malfunction procedure in its vehicle's checklist book.
 extends Node3D
 
 ## A new flight has taken this one's place (start_flight()).
@@ -169,8 +173,7 @@ func _ready() -> void:
 		rt.sequencer.start(start_phase)
 	_start_get_s = SimClock.get_seconds
 	if o2_failure_in >= 0.0:
-		rt.mission.data["failures"] = rt.mission.section("failures").merged(
-			{"o2_tank_2_get_s": SimClock.get_seconds + o2_failure_in}, true)
+		rt.failures.arm("o2_tank_2", SimClock.get_seconds + o2_failure_in)
 	view = SpaceView.new()
 	view.name = "SpaceView"
 	add_child(view)
@@ -209,6 +212,8 @@ func _ready() -> void:
 	menu.choice = FlightChoice.new(mission_id, start_phase)
 	menu.setup(rig, cam, rig.get_node("LeftHand") if xr else null, book)
 	menu.saves = saves
+	menu.failures = rt.failures
+	rt.failures.failed.connect(_on_failure)
 	menu.flight_requested.connect(start_flight)
 	menu.save_requested.connect(save_flight)
 	menu.resume_requested.connect(resume_flight)
@@ -450,6 +455,14 @@ func _on_vehicle(v: String) -> void:
 ## the one for the flight phase opens, where it stands.
 func _on_boarded(_v: String) -> void:
 	hud.select_checklist_for(_checklist_phase())
+
+
+## A failure came (the failure catalog's, slice 9a): its malfunction
+## procedure opens in its vehicle's book.
+func _on_failure(id: String) -> void:
+	var e := Failures.entry(id)
+	var b := lm_book if str(e.get("vehicle", "csm")) == "lm" else book
+	b.select_title(str(e.get("procedure", "")))
 
 
 ## The phase whose checklists open: the flight phase, or, until the flight

@@ -649,6 +649,12 @@ CMC  P%02d %s  VG %.1f ft/s  %s""" % [
 		"MNVR LOADED TIG " + Units.hms(float(Bus.get_value("guid.maneuver_tig", 0.0))) if bool(Bus.get_value("guid.maneuver_valid", false)) else ""]
 	if o2 <= 0.0:
 		_systems.text += "\nO2 DEPLETED"
+	var lit := PackedStringArray()
+	for light: String in CautionWarning.LIGHTS:
+		if bool(Bus.get_value("cw." + light, false)):
+			lit.append(CautionWarning.LEGENDS[light])
+	if not lit.is_empty():
+		_systems.text += "\nC&W  " + "  ".join(lit)
 
 
 ## The checklist and the switches, in step with the Bus (checkpoint loads,

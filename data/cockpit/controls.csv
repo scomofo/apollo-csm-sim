@@ -38,6 +38,18 @@ P2_RCS_QUAD_A,MDC2,toggle,RCS QUAD A,-240,190,0,ctl.rcs.quad_a,,AOH SCS 2.3,D,im
 P2_RCS_QUAD_B,MDC2,toggle,RCS QUAD B,-180,190,0,ctl.rcs.quad_b,,AOH SCS 2.3,D,implemented,proxy
 P2_RCS_QUAD_C,MDC2,toggle,RCS QUAD C,180,190,0,ctl.rcs.quad_c,,AOH SCS 2.3,D,implemented,proxy
 P2_RCS_QUAD_D,MDC2,toggle,RCS QUAD D,240,190,0,ctl.rcs.quad_d,,AOH SCS 2.3,D,implemented,proxy
+P2_CW_FC1,MDC2,lamp,FC 1,-280,120,0,cw.fc1,,AOH C&W 2.10-5 to 2.10-8,D,implemented,historical
+P2_CW_FC2,MDC2,lamp,FC 2,-240,120,0,cw.fc2,,AOH C&W 2.10-5 to 2.10-8,D,implemented,historical
+P2_CW_FC3,MDC2,lamp,FC 3,-200,120,0,cw.fc3,,AOH C&W 2.10-5 to 2.10-8,D,implemented,historical
+P2_CW_CRYO_PRESS,MDC2,lamp,CRYO PRESS,-160,120,0,cw.cryo_press,,AOH C&W 2.10-5 to 2.10-8,D,implemented,historical
+P2_CW_BUS_A_UV,MDC2,lamp,BUS A UNDERVOLT,-280,95,0,cw.mn_bus_a_undervolt,,AOH C&W 2.10-5 to 2.10-8,D,implemented,historical
+P2_CW_BUS_B_UV,MDC2,lamp,BUS B UNDERVOLT,-240,95,0,cw.mn_bus_b_undervolt,,AOH C&W 2.10-5 to 2.10-8,D,implemented,historical
+P2_CW_CMC,MDC2,lamp,CMC,-200,95,0,cw.cmc,,AOH C&W 2.10-5 to 2.10-8,D,implemented,historical
+P2_CW_ISS,MDC2,lamp,ISS,-160,95,0,cw.iss,,AOH C&W 2.10-5 to 2.10-8,D,implemented,historical
+P2_CW_SM_RCS_A,MDC2,lamp,SM RCS A,-280,70,0,cw.sm_rcs_a,,AOH C&W 2.10-5 to 2.10-8,D,implemented,historical
+P2_CW_SM_RCS_B,MDC2,lamp,SM RCS B,-240,70,0,cw.sm_rcs_b,,AOH C&W 2.10-5 to 2.10-8,D,implemented,historical
+P2_CW_SM_RCS_C,MDC2,lamp,SM RCS C,-200,70,0,cw.sm_rcs_c,,AOH C&W 2.10-5 to 2.10-8,D,implemented,historical
+P2_CW_SM_RCS_D,MDC2,lamp,SM RCS D,-160,70,0,cw.sm_rcs_d,,AOH C&W 2.10-5 to 2.10-8,D,implemented,historical
 P2_DSKY,MDC2,dsky,DSKY,0,-50,0,dsky,,AOH G&N,D,implemented,historical
 P2_UP_TLM_CM,MDC2,toggle,UP TLM CM,180,40,0,ctl.cmc.up_tlm,labels=BLOCK|ACCEPT,estimated,D,implemented,historical
 P2_UNDOCK,MDC2,pushbutton,UNDOCK,-200,-180,0,ctl.seq.undock,,AOH §3,D,implemented,proxy

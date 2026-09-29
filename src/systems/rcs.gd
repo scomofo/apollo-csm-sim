@@ -15,8 +15,15 @@
 ##   2 DIRECT RHC straight to the jets (direct coils)
 ## Translation always comes from the THC (ctl.thc) plus guid.rcs_trans_cmd.
 ##
+## The failure catalog (data/failures.json, slice 9a) fails a quad through
+## fail("quad_<x>"): its helium fails, its secondary fuel pressure falls
+## below the caution and warning limit (SM RCS <X>) and its jets stop
+## [simplified: at once]. Its switch still reads as the crew left it.
+##
 ## Writes: rcs.force_body, rcs.torque_body, rcs.quad_<x>_kg, rcs.sm_prop_kg,
-##         rcs.cm_prop_kg, rcs.active_jets
+##         rcs.cm_prop_kg, rcs.active_jets, rcs.quad_<x>_psia (the
+##         secondary fuel pressure), rcs.quad_<x>_live (the quad feeds its
+##         jets: switched on, with propellant and pressure)
 extends Node
 
 const QUADS := ["a", "b", "c", "d"]
@@ -24,9 +31,14 @@ const QUADS := ["a", "b", "c", "d"]
 const SCS_MAX_RATE := 0.034906585  # 2 deg/s
 const SCS_GAIN := 25.0
 const DEADBAND := 0.05
+## A quad's secondary fuel pressure in flight, psia [estimated: within the
+## caution and warning limits, 145 to 215 psia, AOH p. 2.10-5].
+const FUEL_PSIA := 180.0
 
 var quad_kg: Array[float] = []
 var ring_kg: Array[float] = []
+## Each quad failed (its helium).
+var failed: Array[bool] = [false, false, false, false]
 
 
 func _ready() -> void:
@@ -114,7 +126,7 @@ func tick(dt: float) -> void:
 		var f := float(sm["jet_thrust_n"])
 		var on := {}
 		for i in QUADS.size():
-			on[QUADS[i]] = 1.0 if bool(Bus.get_value("ctl.rcs.quad_" + QUADS[i], true)) and quad_kg[i] > 0.0 else 0.0
+			on[QUADS[i]] = 1.0 if live(i) else 0.0
 		var duty := {"a": 0.0, "b": 0.0, "c": 0.0, "d": 0.0}
 		# Roll: all quads, one jet each.
 		for q in QUADS:
@@ -142,6 +154,20 @@ func tick(dt: float) -> void:
 	_publish(force, torque, int(round(jets)))
 
 
+## Quad [param i] feeds its jets: switched on, with propellant, and not
+## failed.
+func live(i: int) -> bool:
+	return bool(Bus.get_value("ctl.rcs.quad_" + QUADS[i], true)) and quad_kg[i] > 0.0 and not failed[i]
+
+
+## The failure catalog's [param part] fails: "quad_a" to "quad_d".
+func fail(part: String) -> void:
+	var i := QUADS.find(part.trim_prefix("quad_"))
+	if i >= 0:
+		failed[i] = true
+		_publish(Vector3.ZERO, Vector3.ZERO, 0)
+
+
 func _publish(force: Vector3, torque: Vector3, jets: int) -> void:
 	Bus.set_value("rcs.force_body", force)
 	Bus.set_value("rcs.torque_body", torque)
@@ -149,13 +175,15 @@ func _publish(force: Vector3, torque: Vector3, jets: int) -> void:
 	var total := 0.0
 	for i in QUADS.size():
 		Bus.set_value("rcs.quad_%s_kg" % QUADS[i], quad_kg[i])
+		Bus.set_value("rcs.quad_%s_psia" % QUADS[i], 0.0 if failed[i] else FUEL_PSIA)
+		Bus.set_value("rcs.quad_%s_live" % QUADS[i], live(i))
 		total += quad_kg[i]
 	Bus.set_value("rcs.sm_prop_kg", total)
 	Bus.set_value("rcs.cm_prop_kg", ring_kg[0] + ring_kg[1])
 
 
 func snapshot() -> Dictionary:
-	return {"quads": quad_kg.duplicate(), "rings": ring_kg.duplicate()}
+	return {"quads": quad_kg.duplicate(), "rings": ring_kg.duplicate(), "failed": failed.duplicate()}
 
 
 func restore(d: Dictionary) -> void:
@@ -163,4 +191,7 @@ func restore(d: Dictionary) -> void:
 		quad_kg[i] = float(d["quads"][i])
 	for i in 2:
 		ring_kg[i] = float(d["rings"][i])
+	var f: Array = d.get("failed", [false, false, false, false])
+	for i in 4:
+		failed[i] = bool(f[i])
 	_publish(Vector3.ZERO, Vector3.ZERO, 0)

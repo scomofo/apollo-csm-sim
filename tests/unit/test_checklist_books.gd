@@ -39,10 +39,13 @@ func test_every_lm_step_checks_itself_off() -> void:
 			assert_true(s.has("check"), "%s: \"%s\" has a check" % [c.title, s["text"]])
 
 
+## The HUD's checklist choice's titles, the malfunction procedures left out
+## (test_failures.gd).
 func _titles(hud: Hud) -> Array:
 	var out := []
 	for i in hud._check_title.item_count:
-		out.append(hud._check_title.get_item_text(i))
+		if not hud._check_title.get_item_text(i).begins_with("Malfunction: "):
+			out.append(hud._check_title.get_item_text(i))
 	return out
 
 

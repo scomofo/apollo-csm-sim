@@ -3,19 +3,26 @@
 ## the wrist menu: a step acknowledged on one of them shows on all.
 ## The CSM's checklists are one book (load_default()) and the LM's another
 ## (load_lm()), each with its own open checklist, and each mission has its
-## own (data/missions/<id>/): Apollo 8's has no LM book.
+## own (data/missions/<id>/): Apollo 8's has no LM book. The CSM's book
+## ends with the malfunction procedures (data/malfunctions.json, slice 9a),
+## which no flight phase opens: a failure opens its own (select_title()).
 ## Presentation state, like the HUD's before it: checkpoints don't save it.
 class_name ChecklistBook
 extends RefCounted
+
+const MALFUNCTIONS := "res://data/malfunctions.json"
 
 var lists: Array[Checklist] = []
 ## Index of the open checklist.
 var current: int = 0
 
 
-## The CSM's checklists for mission [param mission_id].
+## The CSM's checklists for mission [param mission_id], and the
+## malfunction procedures.
 static func load_default(mission_id: String = Mission.DEFAULT_ID) -> ChecklistBook:
-	return load_file(Mission.DIR + mission_id + "/checklists.json")
+	var b := load_file(Mission.DIR + mission_id + "/checklists.json")
+	b.lists.append_array(Checklist.load_all(MALFUNCTIONS))
+	return b
 
 
 ## The LM's checklists for mission [param mission_id]: none without an LM.
@@ -51,6 +58,17 @@ func select_for_phase(phase: String) -> void:
 		if lists[i].phases.has(phase):
 			current = i
 			return
+
+
+## Open the checklist titled [param title] at its first step. Returns
+## whether the book has it.
+func select_title(title: String) -> bool:
+	for i in lists.size():
+		if lists[i].title == title:
+			current = i
+			lists[i].index = 0
+			return true
+	return false
 
 
 ## The next checklist, where it stands.

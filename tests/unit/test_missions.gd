@@ -180,7 +180,7 @@ func test_every_timeline_entry_is_one_mission_control_can_make() -> void:
 
 func test_apollo_8_has_its_own_checklists_and_no_lms() -> void:
 	var csm := ChecklistBook.load_default("apollo_8")
-	var titles := csm.lists.map(func(c: Checklist) -> String: return c.title)
+	var titles := _flight_titles(csm)
 	assert_eq(titles, ["Parking orbit and TLI", "SPS burn (P30 / P40)", "RCS burn (P30 / P41)", "Lunar orbit and TEI",
 		"Entry", "IMU realign (P52)"])
 	for phase in ["parking_orbit", "translunar_coast", "lunar_orbit", "transearth_coast", "entry"]:
@@ -195,7 +195,7 @@ func test_apollo_8_has_its_own_checklists_and_no_lms() -> void:
 
 func test_apollo_10_has_its_own_checklists_for_a_flight_without_a_landing() -> void:
 	var csm := ChecklistBook.load_default("apollo_10")
-	var titles := csm.lists.map(func(c: Checklist) -> String: return c.title)
+	var titles := _flight_titles(csm)
 	assert_eq(titles, ["Parking orbit and TLI", "SPS burn (P30 / P40)", "RCS burn (P30 / P41)", "Lunar orbit, Snoopy's flight and TEI",
 		"Entry", "IMU realign (P52)"])
 	for phase in ["parking_orbit", "translunar_coast", "lunar_orbit", "lunar_descent", "lunar_ascent", "transearth_coast", "entry"]:
@@ -222,7 +222,7 @@ func test_apollo_10_has_its_own_checklists_for_a_flight_without_a_landing() -> v
 
 func test_apollo_12_has_its_own_checklists_with_the_landing_site_update() -> void:
 	var csm := ChecklistBook.load_default("apollo_12")
-	var titles := csm.lists.map(func(c: Checklist) -> String: return c.title)
+	var titles := _flight_titles(csm)
 	assert_eq(titles, ["Parking orbit and TLI", "SPS burn (P30 / P40)", "RCS burn (P30 / P41)",
 		"Lunar orbit, Intrepid's landing and TEI", "Entry", "IMU realign (P52)"])
 	for phase in ["parking_orbit", "translunar_coast", "lunar_orbit", "lunar_descent", "lunar_surface", "lunar_ascent",
@@ -257,7 +257,7 @@ func test_apollo_12_has_its_own_checklists_with_the_landing_site_update() -> voi
 ## Aquarius's checks itself off.
 func test_apollo_13_has_its_own_checklists_for_the_lifeboat() -> void:
 	var csm := ChecklistBook.load_default("apollo_13")
-	var titles := csm.lists.map(func(c: Checklist) -> String: return c.title)
+	var titles := _flight_titles(csm)
 	assert_eq(titles, ["Parking orbit and TLI", "SPS burn (P30 / P40)", "RCS burn (P30 / P41)",
 		"The oxygen tank failure and the lifeboat", "The CM's power-up and entry", "IMU realign (P52)"])
 	var csm_for := {"parking_orbit": "Parking orbit and TLI", "translunar_coast": "SPS burn (P30 / P40)",
@@ -400,3 +400,10 @@ func test_an_apollo_8_checkpoint_keeps_its_mission() -> void:
 	assert_eq(rt.sequencer.phase, "lunar_orbit")
 	build("")
 	assert_eq(rt.restore(JSON.parse_string(text)), "checkpoint is for mission 'apollo_8'", "not Apollo 11's")
+
+
+## The titles of [param book]'s flight checklists: the malfunction
+## procedures after them are every mission's (test_failures.gd).
+func _flight_titles(book: ChecklistBook) -> Array:
+	return book.lists.map(func(c: Checklist) -> String: return c.title).filter(
+		func(t: String) -> bool: return not t.begins_with("Malfunction: "))

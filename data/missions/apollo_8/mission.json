@@ -47,7 +47,6 @@
       {"id": "go_pyro_arm", "get": "146:26:57", "when": "earth_return", "say": "{mission}, {mission}, Houston. You're GO for Pyro Arm."}
     ]
   },
-  "failures": {"o2_tank_2_get_s": -1.0},
   "start_phases": ["parking_orbit", "translunar_coast", "lunar_orbit", "tei", "transearth_coast", "entry"],
   "start_notes": {"_comment": "The flight menu's line on each start phase (src/presentation/flight_choice.gd), the simulator's own", "parking_orbit": "In the parking orbit, TLI ahead", "translunar_coast": "After TLI and CSM/LV SEP", "lunar_orbit": "After LOI-2, 60 × 61 nmi", "tei": "A minute before the TEI PAD", "transearth_coast": "After TEI, on the way home", "entry": "About 20 min before entry interface, the target in"}
 }

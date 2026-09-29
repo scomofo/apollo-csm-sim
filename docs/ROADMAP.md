@@ -1817,20 +1817,29 @@ version there.
 
 ## 9. Failures, backups and aborts
 
-**Status: not started.** The simulators the crews trained on were there
-for the failures: the simulation supervisor's team failed the spacecraft,
-and the crew worked the malfunction procedures until the answers came
-without thinking. Here one failure is modelled, Apollo 13's oxygen tank
-(`failures` in its `mission.json`), and nothing aborts: the launch escape
+**Status: slice 9a done.** The simulators the crews trained on were
+there for the failures: the simulation supervisor's team failed the
+spacecraft, and the crew worked the malfunction procedures until the
+answers came without thinking. Slice 9a gives the CSM a catalog of ten:
+an oxygen tank (Apollo 13's, moved onto it), the fuel cells, the SM RCS
+quads, the CMC and the IMU. Each lights its caution and warning light,
+from a matrix on MDC-2. They're armed by a mission or failed by hand on
+the flight menu's instructor's page. Nothing aborts yet: the launch escape
 tower is jettisoned unused, and Eagle has no ABORT or ABORT STAGE.
 
 - **The catalog.** A failure is data (`data/failures.json`): the system
   and the part, what fails and how, and the caution and warning light it
-  brings, armed at a GET or on an event by a mission's data, or set by
-  hand from an instructor's panel beside the flight menu (8a). Apollo
-  13's tank moves onto it. The caution and warning system gets the
-  lights the catalog needs beyond the EPS's, and the checklists the
-  malfunction procedures for them.
+  brings, armed at a GET by a mission's data, or set by hand from an
+  instructor's panel beside the flight menu (8a). Apollo 13's tank moves
+  onto it. The caution and warning system gets the lights the catalog
+  needs beyond the EPS's, and the checklists the malfunction procedures
+  for them. Done in 9a for the CSM: `src/systems/failures.gd` arms and
+  applies them, each system's `fail(part)` changes it, CRYO PRESS, SM
+  RCS A to D, CMC and ISS light with the handbook's triggers, and a
+  failure opens its procedure (`data/malfunctions.json`). The LM's
+  failures, with its own caution and warning lights, come with its
+  aborts (9e); a failure armed on an event, rather than a GET, with the
+  launch's (9d).
 - **Apollo 11's program alarms**, the first of the flights' own troubles.
   With the rendezvous radar's mode switch at AUTO or SLEW rather than
   LGC, as Apollo 11's crew had it, the radar's resolvers ran on an 800 Hz

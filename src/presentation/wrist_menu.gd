@@ -28,7 +28,10 @@
 ## twice with nothing between, deletes it. SOUND - and SOUND + set the
 ## sound's level. A setting's button (the eye height, the comfort aids,
 ## the highlight, the sound) says so (setting_changed), for the main scene
-## to keep the settings.
+## to keep the settings. FAILURES on the flight page turns to the
+## instructor's page (slice 9a): the failure catalog, stepped through with
+## < FAILURE and FAILURE >, each failure's light and whether it has failed
+## or is armed, and FAIL, which fails it now (Failures.fail()).
 ##
 ## Reads:  perf.frame_ms_max
 ## Writes: ctl.ground.pad_request, present.menu.visible,
@@ -61,15 +64,19 @@ const BUTTONS := [
 ## The flight page's buttons, in layout order, under the choice's lines.
 const FLIGHT_BUTTONS := [
 	["mission_prev", "< MISSION"], ["mission_next", "MISSION >"], ["phase_prev", "< PHASE"], ["phase_next", "PHASE >"],
-	["start", "START"], ["saves", "SAVES"], ["back", "BACK"],
+	["start", "START"], ["saves", "SAVES"], ["instructor", "FAILURES"], ["back", "BACK"],
 ]
 ## The saves page's buttons, in layout order, under the save's lines.
 const SAVES_BUTTONS := [
 	["saved_prev", "< SAVED"], ["saved_next", "SAVED >"], ["resume", "RESUME"], ["delete", "DELETE"],
 	["save", "SAVE"], ["saves_back", "BACK"],
 ]
+## The instructor's page's buttons, under the failure's lines.
+const FAILURES_BUTTONS := [
+	["failure_prev", "< FAILURE"], ["failure_next", "FAILURE >"], ["fail", "FAIL"], ["failures_back", "BACK"],
+]
 ## The pages under the main one: their buttons.
-const PAGES := {"flight": FLIGHT_BUTTONS, "saves": SAVES_BUTTONS}
+const PAGES := {"flight": FLIGHT_BUTTONS, "saves": SAVES_BUTTONS, "failures": FAILURES_BUTTONS}
 ## The buttons that change a setting.
 const SETTING_BUTTONS := ["eye_up", "eye_down", "highlight", "vignette", "horizon", "authentic",
 	"sound_down", "sound_up"]
@@ -116,7 +123,12 @@ var vehicle: String = "csm"
 var choice: FlightChoice
 ## The saved flights the saves page lists: the main scene's, or none.
 var saves := SavedFlights.new()
-## The page showing: "main", "flight" or "saves".
+## The flight's failures, which the instructor's page fails (the
+## runtime's), or null.
+var failures: Failures
+## The catalog's failure the instructor's page shows.
+var failure_index: int = 0
+## The page showing: "main", "flight", "saves" or "failures".
 var page: String = "main"
 var status_label: Label3D
 ## The flight page's lines: the mission, the start phase and its note.
@@ -317,7 +329,7 @@ func _show_buttons() -> void:
 		choice_label.visible = page != "main"
 
 
-## Turn to [param p_page]: "main", "flight" or "saves".
+## Turn to [param p_page]: "main", "flight", "saves" or "failures".
 func show_page(p_page: String) -> void:
 	page = p_page
 	_delete_armed = ""
@@ -328,7 +340,21 @@ func show_page(p_page: String) -> void:
 	elif page == "saves":
 		saves.refresh()
 		_show_save()
+	elif page == "failures":
+		_show_failure()
 	_show_buttons()
+
+
+## The instructor's page's lines, for the failure shown.
+func _show_failure() -> void:
+	var list := Failures.catalog()
+	if list.is_empty():
+		choice_label.text = "NO FAILURES IN THE CATALOG"
+		return
+	failure_index = posmod(failure_index, list.size())
+	var e: Dictionary = list[failure_index]
+	choice_label.text = "INSTRUCTOR: FAILURE %d OF %d\n%s: %s light\n%s" % [failure_index + 1, list.size(),
+		e["title"], e["light"], failures.state_line(str(e["id"])) if failures != null else "no flight to fail"]
 
 
 ## The saves page's lines, for the save chosen.
@@ -456,6 +482,18 @@ func _on_button(id: String) -> void:
 				flight_requested.emit(choice.mission_id(), choice.phase())
 		"saves":
 			show_page("saves")
+		"instructor":
+			show_page("failures")
+		"failures_back":
+			show_page("flight")
+		"failure_prev", "failure_next":
+			failure_index += -1 if id == "failure_prev" else 1
+			_show_failure()
+		"fail":
+			var list := Failures.catalog()
+			if failures != null and not list.is_empty():
+				failures.fail(str(list[posmod(failure_index, list.size())]["id"]))
+			_show_failure()
 		"saves_back":
 			show_page("flight")
 		"saved_prev", "saved_next":

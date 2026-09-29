@@ -102,7 +102,7 @@ func _ready() -> void:
 		_t0_ms = int(carried["t0_ms"])
 		_typed = str(carried["typed"])
 		_base = str(carried["base"])
-	for b in WristMenu.BUTTONS + WristMenu.FLIGHT_BUTTONS + WristMenu.SAVES_BUTTONS:
+	for b in WristMenu.BUTTONS + WristMenu.FLIGHT_BUTTONS + WristMenu.SAVES_BUTTONS + WristMenu.FAILURES_BUTTONS:
 		_menu_labels[b[1]] = true
 	for pad in WristMenu.PADS["lm"]:
 		_menu_labels[pad[1]] = true

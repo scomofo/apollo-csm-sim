@@ -1,6 +1,6 @@
 ## Runs the mission: builds the start state for a phase, tracks the flight
 ## phase from truth, performs the Saturn/IU automation (TLI), carries out
-## crew separation commands, injects scripted failures, and plays Mission
+## crew separation commands, and plays Mission
 ## Control: PAD requests are solved by the RTCC and uplinked to the CMC, or
 ## to the LGC for the LM's burns, its descent and its ascent. It calls the
 ## LM's landing, liftoff and insertion. It follows the mission's timeline
@@ -85,6 +85,12 @@ const SPS_MIN_MPS := 10.0 * Units.FT
 var mission: Mission
 var dynamics: Dynamics
 var systems: Dictionary = {}
+## The failure catalog at work (slice 9a): a failure's event and the crew's
+## call are the flight's.
+var failures: Failures:
+	set(f):
+		failures = f
+		f.failed.connect(_on_failure)
 
 var phase: String = ""
 var events: Array = []
@@ -108,7 +114,6 @@ var timeline_done: Dictionary = {}
 ## The seed the flight's dispersions are drawn from.
 var dispersion_seed: int = 0
 var _edges: Dictionary = {}
-var _o2_failed: bool = false
 ## MSFN's tracking errors, drawn from the seed request by request.
 var _rng := RandomNumberGenerator.new()
 
@@ -482,13 +487,6 @@ func _automation() -> void:
 		# if the crew has not already separated.
 		if tli_cutoff_get >= 0.0 and now - tli_cutoff_get > float(mission.data.get("tde_delay_s", 3600.0)):
 			_separate()
-	var f := mission.section("failures")
-	var o2 := float(f.get("o2_tank_2_get_s", -1.0))
-	if o2 > 0.0 and now >= o2 and not _o2_failed and systems.has("eps"):
-		_o2_failed = true
-		systems["eps"].fail_o2_tank(2)
-		_fire("o2_tank_2_failure")
-		_say("Houston, we've had a problem. Main B bus undervolt; O2 tank 2 pressure reading zero.")
 	if dynamics.landed and not _has("landing"):
 		_fire("landing")
 	_check_insertion()
@@ -1343,12 +1341,7 @@ func _timeline() -> void:
 				earliest = _get_s(e["tig"])
 			request_pad(str(e["pad"]), earliest, e)
 		_fire("timeline_" + id)
-	# The scripted failure too, that the clock comes to it on its second.
-	var next := _timeline_next(now)
-	var o2 := float(mission.section("failures").get("o2_tank_2_get_s", -1.0))
-	if not _o2_failed and o2 > now + 1e-6 and (next < 0.0 or o2 < next):
-		next = o2
-	Bus.set_value("mission.next_event_get_s", next)
+	Bus.set_value("mission.next_event_get_s", _timeline_next(now))
 
 
 ## The GET of the timeline's next entry after [param now] that would
@@ -1695,6 +1688,16 @@ func _has(id: String) -> bool:
 	return false
 
 
+## Failure [param id] came: the event the catalog names, and the crew's
+## words to Houston.
+func _on_failure(id: String) -> void:
+	var e := Failures.entry(id)
+	if e.has("event"):
+		_fire(str(e["event"]))
+	if e.has("call"):
+		_say(str(e["call"]))
+
+
 func _fire(id: String) -> void:
 	events.append({"id": id, "get_s": SimClock.get_seconds})
 	Bus.set_value("mission.event." + id, SimClock.get_seconds)
@@ -1711,7 +1714,7 @@ func _say(text: String, more: Dictionary = {}) -> void:
 
 func snapshot() -> Dictionary:
 	return {"phase": phase, "events": events.duplicate(true), "visited_lunar_orbit": visited_lunar_orbit,
-		"tli_cutoff_get": tli_cutoff_get, "o2_failed": _o2_failed, "plan": plan.duplicate(),
+		"tli_cutoff_get": tli_cutoff_get, "plan": plan.duplicate(),
 		"timeline_done": timeline_done.duplicate(), "seed": dispersion_seed, "rng_state": str(_rng.state)}
 
 
@@ -1720,7 +1723,6 @@ func restore(d: Dictionary) -> void:
 	events = d["events"].duplicate(true)
 	visited_lunar_orbit = bool(d["visited_lunar_orbit"])
 	tli_cutoff_get = float(d["tli_cutoff_get"])
-	_o2_failed = bool(d.get("o2_failed", false))
 	plan = d.get("plan", {}).duplicate()
 	timeline_done = d.get("timeline_done", {}).duplicate()
 	dispersion_seed = int(d.get("seed", 0))

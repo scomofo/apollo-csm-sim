@@ -68,6 +68,8 @@ var coarse_target: Basis = Basis.IDENTITY
 ## Time left in the coarse align, s.
 var coarse_left: float = 0.0
 var ideal: bool = false
+## The IMU failed (the failure catalog's, slice 9a): caged for good.
+var failed: bool = false
 var _rng := RandomNumberGenerator.new()
 ## The platform's orientation when it was last set, and the time it has
 ## drifted since (s): a step's drift is far below a float's resolution
@@ -221,7 +223,7 @@ func operating() -> bool:
 ## Drive the gimbals to body-to-stable-member [param target], with the
 ## vehicle at [param body].
 func coarse_align(target: Basis, body: Basis) -> void:
-	if ideal:
+	if ideal or failed:
 		return
 	var now := gimbal_angles(gimbals(body))
 	var want := gimbal_angles(target)
@@ -244,10 +246,19 @@ func cage(body: Basis) -> void:
 	aligned = false
 
 
+## Fail the IMU, with the vehicle at [param body]: caged where its gimbals
+## are, its orientation lost, and no coarse align or torquing brings it
+## back.
+func fail(body: Basis) -> void:
+	ideal = false
+	cage(body)
+	failed = true
+
+
 ## Torque the gyros through [param angles] (rad about the stable member's
 ## axes): a fine align.
 func torque(angles: Vector3) -> void:
-	if ideal:
+	if ideal or failed:
 		return
 	_set_platform(rotation(angles) * platform)
 
@@ -304,7 +315,7 @@ func snapshot() -> Dictionary:
 		"refsmmat": rows_of(refsmmat), "platform": rows_of(_platform0), "drift_t": _drift_t, "aligned": aligned,
 		"drift": [drift.x, drift.y, drift.z], "coarse_sigma_deg": coarse_sigma_deg, "mode": mode,
 		"coarse_target": rows_of(coarse_target), "coarse_left": coarse_left, "rng_state": str(_rng.state),
-		"ideal": ideal,
+		"ideal": ideal, "failed": failed,
 	}
 
 
@@ -312,6 +323,7 @@ func restore(d: Dictionary) -> void:
 	if d.is_empty():
 		return
 	ideal = bool(d.get("ideal", ideal))
+	failed = bool(d.get("failed", false))
 	refsmmat = from_rows(d["refsmmat"])
 	var a: Array = d["drift"]
 	drift = Vector3(a[0], a[1], a[2])
