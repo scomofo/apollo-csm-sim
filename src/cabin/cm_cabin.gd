@@ -50,7 +50,7 @@ const PANELS := {
 	"MDC1": {"centre": Vector3(1.35, -0.66, -0.30), "size": Vector2(0.60, 0.50)},
 	"MDC2": {"centre": Vector3(1.37, 0.0, -0.30), "size": Vector2(0.62, 0.56)},
 	"MDC3": {"centre": Vector3(1.35, 0.66, -0.30), "size": Vector2(0.60, 0.50)},
-	"LEB122": {"centre": Vector3(1.42, -0.10, 0.38), "size": Vector2(0.55, 0.45)},
+	"LEB122": {"centre": Vector3(1.42, 0.0, 0.72), "size": Vector2(0.55, 0.45)},
 }
 ## Pressure vessel: inner radius VESSEL_R0 - VESSEL_SLOPE * x between the
 ## aft bulkhead and the forward bulkhead, then the tunnel to the forward
