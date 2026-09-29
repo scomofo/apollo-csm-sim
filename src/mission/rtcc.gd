@@ -178,13 +178,15 @@ static func lunar_approach(traj: Trajectory, t_max: float) -> Dictionary:
 	var n := Bodies.moon_normal()
 	var stop := func(tr: Trajectory) -> bool:
 		var m := tr.moon_state_rel()
-		var d := Vector3(m[0], m[1], m[2]).length()
+		# In doubles: two steps either side of the closest approach can come
+		# out alike in single precision, and the pass go unseen.
+		var d := sqrt(m[0] * m[0] + m[1] * m[1] + m[2] * m[2])
 		if tr.primary == "earth" and tr.radius() < Bodies.R_EARTH:
 			return true
 		if d < Bodies.R_MOON:
 			return true
 		var passed: bool = d > box["prev"] and box["closing"] and d < 2.0 * Bodies.MOON_SOI
-		box["closing"] = d < box["prev"]
+		box["closing"] = d < box["prev"] or d == box["prev"] and box["closing"]
 		box["prev"] = d
 		return passed
 	var reached := traj.coast_until(stop, t_max, MAX_DT, FRAC)

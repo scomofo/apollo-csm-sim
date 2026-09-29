@@ -259,9 +259,9 @@ func test_apollo_12_has_its_own_checklists_with_the_landing_site_update() -> voi
 func test_apollo_13_has_its_own_checklists_for_the_lifeboat() -> void:
 	var csm := ChecklistBook.load_default("apollo_13")
 	var titles := _flight_titles(csm)
-	assert_eq(titles, ["Parking orbit and TLI", "SPS burn (P30 / P40)", "RCS burn (P30 / P41)",
+	assert_eq(titles, ["Launch", "Parking orbit and TLI", "SPS burn (P30 / P40)", "RCS burn (P30 / P41)",
 		"The oxygen tank failure and the lifeboat", "The CM's power-up and entry", "IMU realign (P52)"])
-	var csm_for := {"parking_orbit": "Parking orbit and TLI", "translunar_coast": "SPS burn (P30 / P40)",
+	var csm_for := {"launch": "Launch", "parking_orbit": "Parking orbit and TLI", "translunar_coast": "SPS burn (P30 / P40)",
 		"tank_failure": "The oxygen tank failure and the lifeboat", "transearth_coast": "The CM's power-up and entry",
 		"entry": "The CM's power-up and entry"}
 	for phase in csm_for:

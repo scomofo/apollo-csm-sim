@@ -13,7 +13,9 @@
 ## procedures in the LM's book; the abort DES REG sets off is
 ## tests/scenarios/test_lm_aborts.gd's. Apollo 12's lightning (slice 10c):
 ## the SCE's, which no light shows, only changes its system; the launch
-## they come in is tests/scenarios/test_apollo_12_launch.gd's.
+## they come in is tests/scenarios/test_apollo_12_launch.gd's. Apollo 13's
+## S-II centre engine (slice 10d) is a launch vehicle failure; its launch
+## is tests/scenarios/test_apollo_13_launch.gd's.
 extends SimTest
 
 const MAIN_SCENE := "res://scenes/main.tscn"
@@ -57,7 +59,7 @@ func test_the_catalog_names_what_the_flight_has() -> void:
 		assert_true(str(f.get("launch", "")) in ["", "abort", "return"], "%s: what the ground does in the launch" % f["id"])
 		for k in ["title", "part", "effect", "expect", "light"]:
 			assert_true(f.has(k), "%s: %s" % [f["id"], k])
-	assert_eq(ids.size(), 23)
+	assert_eq(ids.size(), 24)
 
 
 func test_each_failure_lights_its_caution_sounds_the_master_alarm_and_changes_its_system() -> void:
@@ -132,7 +134,8 @@ func test_each_launch_vehicle_failure_lights_its_lamp_and_changes_the_vehicle() 
 	for at in [20.0, 200.0, 600.0]:
 		run(at - SimClock.get_seconds, false)
 		snaps[at] = rt.snapshot()
-	var when := {"sic_engine_1": 20.0, "sic_engine_2": 20.0, "lv_guidance": 200.0, "s2_engines": 200.0, "s4_engine": 600.0}
+	var when := {"sic_engine_1": 20.0, "sic_engine_2": 20.0, "lv_guidance": 200.0, "s2_engine_5": 200.0, "s2_engines": 200.0,
+		"s4_engine": 600.0}
 	var n := 0
 	for f: Dictionary in Failures.catalog():
 		if f["vehicle"] != "lv":
@@ -148,7 +151,7 @@ func test_each_launch_vehicle_failure_lights_its_lamp_and_changes_the_vehicle() 
 		assert_true(bool(Bus.get_value(f["lamp"])), "%s lights %s" % [id, f["light"]])
 		assert_true(Checklist.holds(f["expect"]), "%s: %s" % [id, f["effect"]])
 		assert_false(bool(Bus.get_value("eds.abort")), "%s: no abort by itself" % id)
-	assert_eq(n, 5)
+	assert_eq(n, 6)
 
 
 ## Slice 9d: a failure armed on a mission event comes that long after it,
@@ -182,6 +185,13 @@ func test_a_mission_arms_its_own() -> void:
 	assert_string_contains(rt.failures.state_line("imu_tumble"), "ARMED 52 s after liftoff")
 	build("parking_orbit", "apollo_12")
 	assert_eq(rt.failures.armed_on, {}, "not past it")
+	# Slice 10d: Apollo 13's S-II centre engine, armed on the liftoff too.
+	build("launch", "apollo_13")
+	assert_eq(rt.failures.armed_on.keys(), ["s2_engine_5"], "the pogo, on the liftoff")
+	assert_string_contains(rt.failures.state_line("s2_engine_5"), "ARMED 330 s after liftoff")
+	assert_eq(rt.failures.armed, {"o2_tank_2": 201293.0}, "and the tank, at its GET")
+	build("parking_orbit", "apollo_13")
+	assert_eq(rt.failures.armed_on, {}, "not past it")
 
 
 func test_the_tank_fires_its_event_and_the_crews_call() -> void:
@@ -202,7 +212,7 @@ func test_the_instructors_page_fails_the_failure_it_shows() -> void:
 	menu.activate("instructor")
 	assert_eq(menu.page, "failures")
 	assert_true(menu.button("fail").is_visible_in_tree())
-	assert_string_contains(menu.choice_label.text, "INSTRUCTOR: FAILURE 1 OF 23")
+	assert_string_contains(menu.choice_label.text, "INSTRUCTOR: FAILURE 1 OF 24")
 	assert_string_contains(menu.choice_label.text, "Cryogenic oxygen tank 2: CRYO PRESS light")
 	assert_string_contains(menu.choice_label.text, "READY")
 	menu.activate("failure_next")
@@ -214,7 +224,7 @@ func test_the_instructors_page_fails_the_failure_it_shows() -> void:
 	menu.activate("failure_prev")
 	menu.activate("failure_prev")
 	menu.activate("failure_prev")
-	assert_string_contains(menu.choice_label.text, "FAILURE 23 OF 23", "round to the last")
+	assert_string_contains(menu.choice_label.text, "FAILURE 24 OF 24", "round to the last")
 	menu.activate("failures_back")
 	assert_eq(menu.page, "flight")
 

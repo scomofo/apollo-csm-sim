@@ -23,7 +23,10 @@
 ##   mode (Sivb.igm_burns()) onto the parking orbit, the S-II's centre
 ##   engine's cutoff (from AS-504; AS-503's S-II burned on all five, its
 ##   launch block without the event) and the shift to the low mixture ratio
-##   on the clock, and the S-II burning until its propellant is gone.
+##   on the clock, or where the launch block gives emr_dv_mps (AS-508's),
+##   on the IU's velocity criterion: its command once the S-II's velocity
+##   gain the IU senses since its start reaches that, the engines shifting
+##   emr_delay_s later; and the S-II burning until its propellant is gone.
 ## - T4, from that cutoff: staging and the S-IVB's first burn, until the
 ##   IU's velocity cutoff on the parking orbit's circular speed (T5), and
 ##   insertion after it, when the sequencer takes the stack on into the
@@ -33,8 +36,10 @@
 ## transients but ramps at the S-II's and the S-IVB's starts].
 ##
 ## Its failures (slice 9d, data/failures.json through fail()): an engine
-## that fails stops, and its stage burns on the others, longer, or with
-## all its engines out coasts short of orbit until the crew aborts; with
+## that fails stops, and its stage burns on the others, longer, the IU's
+## guidance steering on what they give (Apollo 13's S-II centre engine,
+## slice 10d), or with all its engines out coasts short of orbit until the
+## crew aborts; with
 ## its guidance platform failed the IU turns the vehicle away, faster and
 ## faster over GUIDANCE_RAMP_S to guidance_failure_dps (spacecraft.json
 ## "saturn_v") [estimated]. An
@@ -101,9 +106,14 @@ var engines: int = 0
 ## The highest dynamic pressure yet, Pa, and when (GET).
 var max_q: float = 0.0
 var max_q_at: float = -1.0
-## The parts failed (fail()): "sic_engine_<n>", "guidance", "s2_engines",
-## "s4_engine".
+## The parts failed (fail()): "sic_engine_<n>", "guidance", "s2_engine_<n>",
+## "s2_engines", "s4_engine".
 var failed: Dictionary = {}
+## The S-II's velocity gain the IU's accelerometers have sensed since its
+## start command, m/s, and when the IU commanded its shift to the low
+## mixture ratio on it (GET), -1 before.
+var s2_dv: float = 0.0
+var emr_cmd_at: float = -1.0
 ## An abort has cut the engines off (cutoff()).
 var cut_off: bool = false
 ## When the guidance platform failed (GET).
@@ -146,6 +156,8 @@ func arm(p_launch: Dictionary, p_target: Dictionary) -> void:
 	max_q_at = -1.0
 	failed = {}
 	cut_off = false
+	s2_dv = 0.0
+	emr_cmd_at = -1.0
 	rates = Vector3.ZERO
 	pad_fixed = Bodies.geographic_to_fixed(float(launch["pad_lat_deg"]), float(launch["pad_lon_deg"]),
 		Bodies.R_EARTH + PAD_HEIGHT_M)
@@ -162,8 +174,9 @@ func arm(p_launch: Dictionary, p_target: Dictionary) -> void:
 
 
 ## Fail [param part] (Failures): "sic_engine_<n>" stops the S-IC's engine
-## n; "s2_engines" all five of the S-II's; "s4_engine" the S-IVB's; and
-## "guidance" the IU's platform. A stage burns on the engines it has left.
+## n; "s2_engine_<n>" the S-II's, and "s2_engines" all five of them;
+## "s4_engine" the S-IVB's; and "guidance" the IU's platform. A stage
+## burns on the engines it has left.
 func fail(part: String) -> void:
 	failed[part] = true
 	if part == "guidance":
@@ -189,13 +202,32 @@ func sic_failed() -> int:
 	return n
 
 
+## The S-II's engines failed, of five.
+func s2_failed() -> int:
+	if failed.has("s2_engines"):
+		return 5
+	var n := 0
+	for i in range(1, 6):
+		if failed.has("s2_engine_%d" % i):
+			n += 1
+	return n
+
+
+## The S-II's engines out, of five: those failed, and the centre engine
+## (5) once the IU has cut it off.
+func s2_out() -> int:
+	if failed.has("s2_engines"):
+		return 5
+	return s2_failed() + (1 if events.has("s2_ceco") and not failed.has("s2_engine_5") else 0)
+
+
 ## The engines failed on the stage burning, or next to burn.
 func engines_failed() -> int:
 	match stage:
 		"S-IC":
 			return sic_failed()
 		"S-II":
-			return 5 if failed.has("s2_engines") else 0
+			return s2_failed()
 		"S-IVB":
 			return 1 if failed.has("s4_engine") else 0
 	return 0
@@ -241,7 +273,11 @@ func tick(dt: float) -> void:
 	_sequence(now, r)
 	_air(now, r, v)
 	_steer(now, dt)
+	var s2 := stage == "S-II"
 	var f := _propulsion(now, r, dt)
+	if s2:
+		# What the IU's accelerometers sense of it, above the air.
+		s2_dv += f.x / maxf(mass, 1.0) * dt
 	# The IU's velocity cutoff: the part of this step that brings the speed
 	# to the target's, as Sivb cuts off on the energy.
 	if stage == "S-IVB" and f.x > 0.0:
@@ -299,7 +335,11 @@ func _sequence(now: float, r: Vector3) -> void:
 			_fire("igm", now)
 		if t3_s.has("s2_ceco") and not events.has("s2_ceco") and now >= t3 + float(t3_s["s2_ceco"]) - 1e-6:
 			_fire("s2_ceco", now)
-		if not events.has("emr_shift") and now >= t3 + float(t3_s["emr_shift"]) - 1e-6:
+		if launch.has("emr_dv_mps") and emr_cmd_at < 0.0 and events.has("s2_ignition") \
+				and s2_dv >= float(launch["emr_dv_mps"]):
+			emr_cmd_at = now
+			_fire("emr_command", now)
+		if not events.has("emr_shift") and now >= _emr_shift_at() - 1e-6:
 			_fire("emr_shift", now)
 	if bases.has("T4"):
 		var t4 := float(bases["T4"])
@@ -339,25 +379,13 @@ func _propulsion(now: float, r: Vector3, dt: float) -> Vector2:
 			sic_prop -= md * dt
 			return Vector2(f, md)
 		"S-II":
-			var c: Dictionary = d["s_ii"]
 			var t3 := float(bases["T3"])
 			var t3_s: Dictionary = launch["t3_s"]
 			var k := clampf((now - t3 - float(t3_s["s2_start"])) / (float(t3_s["s2_mainstage"]) - float(t3_s["s2_start"])), 0.0, 1.0)
-			var f := float(c["thrust_n"])
-			var md := float(c["flow_kg_s"])
-			engines = 5
-			if events.has("s2_ceco"):
-				engines = 4
-				f *= 0.8
-				md *= 0.8
-			if events.has("emr_shift"):
-				f = float(c["low_mr_thrust_n"])
-				md = float(c["low_mr_flow_kg_s"])
-			if failed.has("s2_engines") or cut_off:
-				engines = 0
-				k = 0.0
-			f *= k
-			md *= k
+			engines = 0 if cut_off else 5 - s2_out()
+			var fm := _s2_rates(engines, events.has("emr_shift"))
+			var f := fm[0] * k
+			var md := fm[1] * k
 			if md * dt >= s2_prop:
 				var frac := s2_prop / (md * dt)
 				s2_prop = 0.0
@@ -476,36 +504,50 @@ func _tilt(t: float) -> float:
 
 
 ## The burns still to come, for the IGM: the S-II's at the high mixture
-## ratio on five engines, then four after its centre engine's cutoff where
-## the vehicle has one (not AS-503), then at the low ratio until its
-## propellant is gone, the coast to the S-IVB's ignition, and the S-IVB's
+## ratio on the engines it has, one fewer after its centre engine's cutoff
+## on the IU's clock where the vehicle has one (not AS-503), until the
+## shift, which on the IU's velocity criterion comes where the rocket
+## equation gains what it waits for; then at the low ratio until its
+## propellant is gone; the coast to the S-IVB's ignition, and the S-IVB's
 ## burn, whose time the IGM iterates.
 func _burns(now: float) -> Array:
 	var d := SpacecraftData.section("saturn_v")
-	var s2: Dictionary = d["s_ii"]
 	var s4: Dictionary = d["s_ivb"]
 	var out: Array = []
 	var t0 := 0.0
 	var m := mass
 	if stage == "S-II":
-		var t3 := float(bases["T3"])
 		var t3_s: Dictionary = launch["t3_s"]
 		var left := s2_prop
-		var phases := [[t3 + float(t3_s["emr_shift"]), float(s2["thrust_n"]), float(s2["flow_kg_s"])]]
-		if t3_s.has("s2_ceco"):
-			phases = [[t3 + float(t3_s["s2_ceco"]), float(s2["thrust_n"]), float(s2["flow_kg_s"])],
-				[t3 + float(t3_s["emr_shift"]), float(s2["thrust_n"]) * 0.8, float(s2["flow_kg_s"]) * 0.8]]
-		for ph: Array in phases:
-			var end := float(ph[0])
-			if now < end and left > 0.0:
-				var t := minf(end - now - t0, left / float(ph[2]))
-				out.append({"t0": t0, "T": t, "F": float(ph[1]), "mdot": float(ph[2]), "m0": m})
-				m -= float(ph[2]) * t
-				left -= float(ph[2]) * t
-				t0 += t
-		if left > 0.0:
-			var t := left / float(s2["low_mr_flow_kg_s"])
-			out.append({"t0": t0, "T": t, "F": float(s2["low_mr_thrust_n"]), "mdot": float(s2["low_mr_flow_kg_s"]), "m0": m})
+		var n := 5 - s2_out()
+		var ceco := INF
+		if t3_s.has("s2_ceco") and not events.has("s2_ceco") and not failed.has("s2_engine_5"):
+			ceco = float(bases["T3"]) + float(t3_s["s2_ceco"])
+		var shift := _emr_shift_at()
+		var dv_left := float(launch["emr_dv_mps"]) - s2_dv if is_inf(shift) else INF
+		while left > 0.0 and n > 0 and now + t0 < shift - 1e-9:
+			var fm := _s2_rates(n, false)
+			var end := minf(ceco, shift)
+			var t := minf(end - now - t0, left / fm[1])
+			if not is_inf(dv_left):
+				var tc := _time_for_dv(fm[0], fm[1], m, dv_left)
+				if tc <= t:
+					shift = now + t0 + tc + float(launch["emr_delay_s"])
+					dv_left = INF
+					t = minf(minf(ceco, shift) - now - t0, left / fm[1])
+				else:
+					dv_left -= fm[0] / fm[1] * log(m / (m - fm[1] * t))
+			out.append({"t0": t0, "T": t, "F": fm[0], "mdot": fm[1], "m0": m})
+			m -= fm[1] * t
+			left -= fm[1] * t
+			t0 += t
+			if now + t0 >= ceco - 1e-9:
+				n -= 1
+				ceco = INF
+		if left > 0.0 and n > 0:
+			var fm := _s2_rates(n, true)
+			var t := left / fm[1]
+			out.append({"t0": t0, "T": t, "F": fm[0], "mdot": fm[1], "m0": m})
 			t0 += t
 		t0 += float((launch["t4_s"] as Dictionary)["s4_ignition"])
 		out.append({"t0": t0, "T": t_go, "F": float(s4["thrust_n"]), "mdot": float(s4["flow_kg_s"]), "m0": float(s4["start_kg"])})
@@ -517,6 +559,44 @@ func _burns(now: float) -> Array:
 		out.append({"t0": maxf(ign - now, 0.0), "T": t_go, "F": float(s4["thrust_n"]), "mdot": float(s4["flow_kg_s"]),
 			"m0": float(s4["start_kg"])})
 	return out
+
+
+## The S-II's thrust (N) and flow (kg/s) on [param n] engines, at the low
+## mixture ratio if [param low]: a fifth of the five's each at the high,
+## and at the low a share of the launch block's figures, which are for the
+## engines the IU leaves burning, four after the centre engine's cutoff
+## (five on AS-503's S-II, without one) [simplified: the engines alike].
+func _s2_rates(n: int, low: bool) -> PackedFloat64Array:
+	var c: Dictionary = SpacecraftData.section("saturn_v")["s_ii"]
+	if low:
+		var of := 4.0 if (launch["t3_s"] as Dictionary).has("s2_ceco") else 5.0
+		return PackedFloat64Array([float(c["low_mr_thrust_n"]) * (n / of), float(c["low_mr_flow_kg_s"]) * (n / of)])
+	return PackedFloat64Array([float(c["thrust_n"]) * (n / 5.0), float(c["flow_kg_s"]) * (n / 5.0)])
+
+
+## When the S-II shifts to the low mixture ratio (GET): when it did; on the
+## IU's clock (launch "t3_s" emr_shift); or emr_delay_s after the IU's
+## command on its velocity criterion (launch "emr_dv_mps"), INF until
+## then.
+func _emr_shift_at() -> float:
+	if events.has("emr_shift"):
+		return float(events["emr_shift"])
+	if not launch.has("emr_dv_mps"):
+		return float(bases.get("T3", INF)) + float((launch["t3_s"] as Dictionary)["emr_shift"])
+	if emr_cmd_at >= 0.0:
+		return emr_cmd_at + float(launch["emr_delay_s"])
+	return INF
+
+
+## The time a burn of thrust [param f] (N) on flow [param md] (kg/s) from
+## mass [param m] takes to gain [param dv] (m/s), on the rocket equation,
+## or INF if it can't.
+static func _time_for_dv(f: float, md: float, m: float, dv: float) -> float:
+	if dv <= 0.0:
+		return 0.0
+	if f <= 0.0 or md <= 0.0:
+		return INF
+	return m / md * (1.0 - exp(-dv * md / f))
 
 
 func _fire(id: String, now: float) -> void:
@@ -616,6 +696,9 @@ func _lights() -> Array:
 			"S-II":
 				all = now < float(bases["T3"]) + float(t3_s["s2_mainstage"]) - 1e-6 or failed.has("s2_engines") or cut_off
 				eng[4] = events.has("s2_ceco")
+				for i in range(1, 6):
+					if failed.has("s2_engine_%d" % i):
+						eng[i - 1] = true
 			"S-IVB":
 				eng[0] = now < float(bases["T4"]) + float(t4_s["s4_mainstage"]) - 1e-6 or failed.has("s4_engine") or cut_off
 			_:
@@ -639,7 +722,7 @@ func snapshot() -> Dictionary:
 		"dir": [dir.x, dir.y, dir.z], "cmd": [cmd.x, cmd.y, cmd.z], "roll_az": roll_az, "tilt_at": tilt_at,
 		"grr_axes": Array(grr_axes), "pad_fixed": Array(pad_fixed), "t_go": t_go, "guided_at": guided_at,
 		"thrust": thrust, "engines": engines, "max_q": max_q, "max_q_at": max_q_at, "failed": failed.duplicate(),
-		"cut_off": cut_off, "guidance_failed_get": guidance_failed_get,
+		"cut_off": cut_off, "guidance_failed_get": guidance_failed_get, "s2_dv": s2_dv, "emr_cmd_at": emr_cmd_at,
 		"q_prev": [_q_prev.x, _q_prev.y, _q_prev.z, _q_prev.w]}
 
 
@@ -670,6 +753,8 @@ func restore(d: Dictionary) -> void:
 	failed = (d.get("failed", {}) as Dictionary).duplicate()
 	cut_off = bool(d.get("cut_off", false))
 	guidance_failed_get = float(d.get("guidance_failed_get", 0.0))
+	s2_dv = float(d.get("s2_dv", 0.0))
+	emr_cmd_at = float(d.get("emr_cmd_at", -1.0))
 	var qp: Array = d.get("q_prev", [0.0, 0.0, 0.0, 1.0])
 	_q_prev = Quaternion(qp[0], qp[1], qp[2], qp[3])
 	rates = Vector3.ZERO

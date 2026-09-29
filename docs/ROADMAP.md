@@ -1949,10 +1949,10 @@ estimated and tagged.
 
 ## 10. Every mission from the pad
 
-**Status: slices 10a to 10c done.** Apollo 11 flies from the pad (5d),
-Apollo 8 on AS-503 (10a), Apollo 10 on AS-505 from LC-39B (10b) and
-Apollo 12 on AS-507 through its lightning (10c); Apollo 13 starts in its
-parking orbit. Each mission's `launch` section
+**Status: done.** Apollo 11 flies from the pad (5d), Apollo 8 on AS-503
+(10a), Apollo 10 on AS-505 from LC-39B (10b), Apollo 12 on AS-507
+through its lightning (10c) and Apollo 13 on AS-508, its S-II's centre
+engine shut down by pogo (10d). Each mission's `launch` section
 gives its pad, its liftoff, its azimuth and its vehicle from its flight
 evaluation report, as Apollo 11's does, and its launch's troubles come
 from 9a's catalog. Two of them were their flights' first:
@@ -1974,7 +1974,7 @@ from 9a's catalog. Two of them were their flights' first:
 | 10a (done) Apollo 8's launch | Its launch data: 12:51 UTC on 21 December 1968 from LC-39A, the first crewed Saturn V (AS-503) | Test: insertion into Apollo 8's parking orbit within set limits of MPR-SAT-FE-69-1, each stage's burn near its flown times, and the flight on to TLI as its parking-orbit start flies it |
 | 10b (done) Apollo 10's launch | From LC-39B, the only Saturn V launched from it | Test: as 10a, for Apollo 10 |
 | 10c (done) Apollo 12's launch and the lightning | The strikes as failures: the fuel cells off their buses, the SCE and the telemetry it conditions, SCE to AUX, the platform tumbled; the crew's reset of the fuel cells, and P51 in the parking orbit | Test: the strikes take the fuel cells, the telemetry and the platform as flown, SCE to AUX brings the telemetry back, the Saturn reaches its parking orbit, and P51 aligns the CMC before TLI |
-| 10d Apollo 13's launch and the centre engine | The S-II's centre engine out at its flown time | Test: the outboard engines and the S-IVB burn longer as they did, within set limits, and insertion within set limits of MPR-SAT-FE-70-2 |
+| 10d (done) Apollo 13's launch and the centre engine | The S-II's centre engine out at its flown time | Test: the outboard engines and the S-IVB burn longer as they did, within set limits, and insertion within set limits of MPR-SAT-FE-70-2 |
 
 **Done when** every mission's start phases begin on the pad too, and
 Apollo 12's and 13's launches fly their troubles as they came.
@@ -2028,6 +2028,32 @@ Apollo 12's and 13's launches fly their troubles as they came.
   mis-transcribed (51.131° W for 53.131° W); its argument of latitude is
   87.42°, not 89.1° (`tests/scenarios/test_apollo_12_launch.gd`,
   `tests/unit/test_lightning.gd`).
+- **Apollo 13's launch and the centre engine.** Done in 10d. The S-II's
+  centre engine is a failure in 9a's catalog (`s2_engine_5`), armed on
+  the liftoff for 330.65 s, when pogo tripped its thrust OK switches: LV
+  ENG 5 lights until the S-II's separation, and the stage burns on four.
+  A launch vehicle's engine can now fail alone in the S-II, and the IU's
+  guidance plans the burns ahead on the engines the stage has, as
+  AS-508's re-planned independent of any engine-out discrete; it pitches
+  the stack up 7.6°, where Figure 9-4 shows about 7°. AS-508's shift to
+  the low mixture ratio comes on the IU's velocity criterion, as the
+  flight's did: its command when the velocity gain the IU senses from
+  the S-II's start reaches `emr_dv_mps`, the engines shifting 2.8 s
+  later, so the early cutoff delays it as it delayed the flight's.
+  AS-508's F-1s give 8,000 kN each in vacuum, the report's Figure 5-3,
+  since its peak acceleration at OECO, the other missions' measure, gives
+  2 % less; with the S-IC's vacuum Isp and the S-II's flow at the high
+  ratio tuned, each cutoff and the shift's command come within 0.06 s of
+  the flown, the S-II's burn to 427.6 s (427.64) and the S-IVB's to 151.9
+  s (152.9). Flown again without the pogo, the same vehicle's shift,
+  S-II and S-IVB cutoffs come within 1.6 s of the report's predictions,
+  and beside it the pogo's toll is the report's against them: the shift
+  33.0 s later (32.2), the S-II's burn 33.0 s longer (34.93), the S-IVB's
+  10.8 s (9.3), insertion 43.8 s later (44.07). The RTCC's lunar approach
+  measured the distance to the Moon in single precision, so two steps
+  either side of the closest approach could come out alike and the pass
+  go unseen, which left AS-508's insertion without a TLI plan; it measures
+  in doubles now (`tests/scenarios/test_apollo_13_launch.gd`).
 
 ## 11. The LM's navigation
 

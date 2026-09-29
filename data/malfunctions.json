@@ -52,6 +52,7 @@
     {"title": "Malfunction: LV ENG, LV RATE or LV GUID", "phases": [], "steps": [
       {"text": "LV ENG, LV RATE or LV GUID: a launch vehicle engine out, the vehicle's rates past the EDS's limits, or the IU's guidance lost"},
       {"text": "With the tower on and EDS AUTO: two S-IC engines out, or the rates, abort on their own, and the tower pulls the CM away (mode I)"},
+      {"text": "One engine out and the rest burning, as Apollo 13's S-II centre engine at 5:30: no abort; the IU burns the others longer and steers on to orbit"},
       {"text": "ABORT light or Houston's 'Abort': the translation controller's handle - counterclockwise", "control": "P1_ABORT_HANDLE", "check": {"channel": "eds.abort", "op": "eq", "value": true}},
       {"text": "Mode I: the canards at 11 s, then the tower's jettison and the chutes as the ELS brings them"},
       {"text": "Modes II to IV: the CSM leaves the launch vehicle 3 s after the handle; the handle back at neutral ends the SM's +X jets"},

@@ -49,7 +49,9 @@ extends RefCounted
 ## 24: Apollo 12's lightning (slice 10c): the fuel cells tripped off their
 ##    buses and their switches, the SCE's NORM supply, the platform
 ##    tumbled, and the ground's calls about them.
-const SCHEMA_VERSION := 24
+## 25: Apollo 13's centre engine (slice 10d): the S-II's velocity gain the
+##    IU has sensed and its command to shift the mixture ratio on it.
+const SCHEMA_VERSION := 25
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],
