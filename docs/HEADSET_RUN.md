@@ -27,6 +27,10 @@ headset runtime. From the repository root:
 godot --path . --xr-mode on -- --phase=lunar_orbit
 ```
 
+Without `-- --phase=`, the simulator opens on the flight menu, on your
+left wrist: press MISSION > and PHASE > with a fingertip until it reads
+Apollo 11 and LUNAR ORBIT, then START.
+
 From the editor, put `--xr-mode on` in *Project Settings → Editor → Run →
 Main Run Args* (with *Advanced Settings* on), then press Play.
 
@@ -37,10 +41,13 @@ active (see above) and the simulator has started on the desktop rig.
 
 ### From an export
 
-The *PC VR* presets in `export_presets.cfg` (Windows and Linux) need the
-same argument: `ApolloVR.exe --xr-mode on -- --phase=lunar_orbit`. A full
-export needs Godot 4.4.1's export templates (*Editor → Manage Export
-Templates*):
+CI exports the *PC VR* presets in `export_presets.cfg` (Windows and
+Linux) on every merge to `main`: the run's `ApolloVR-pc-vr` artifact on
+the repository's *Actions* page holds a zip for each, and a tag's release
+has them attached. Unzip one and run it with the same argument as above:
+`ApolloVR.exe --xr-mode on -- --phase=lunar_orbit`, or without
+`-- --phase=` for the flight menu. To export them yourself you need Godot
+4.4.1's export templates (*Editor → Manage Export Templates*):
 
 ```
 mkdir -p build/windows
@@ -58,6 +65,11 @@ godot --main-pack build/ApolloVR.pck --xr-mode on -- --phase=lunar_orbit
 
 The presets leave out `tests/`, `tools/` and the GUT addon, and bring
 `data/`'s CSV and JSON files.
+
+### On a Quest 3 by itself
+
+`docs/QUEST_STANDALONE.md` installs CI's APK on a Quest 3 and runs rows
+Q1 to Q4, with no PC.
 
 The `lunar_orbit` start puts you in a 60-mile orbit with Eagle docked, the
 lunar surface below and the Earth in view. The checklist card by your left
@@ -81,8 +93,10 @@ rests off centre doesn't turn the spacecraft.
 The wrist menu has the PAD requests (MCC, LOI-1, LOI-2, TEI; in Eagle,
 DOI, PDI, ASCENT and CSI), time rate,
 pause, recentre, eye height ±1 cm, SEAT, CHECKLIST, NEXT STEP, HILITE,
-VIGNETTE, HORIZON and AUTHENTIC. Its top line shows GET, the time rate, the
-worst recent frame time and your seat.
+VIGNETTE, HORIZON, AUTHENTIC, SOUND - and SOUND +, and FLIGHT, the
+flight menu, with its saved flights. Its top line shows GET, the time
+rate, the worst recent frame time and your seat. The eye height you set
+is kept for the next session.
 
 There's no far-field pointer in the headset yet. You can only work what
 you can reach. SEAT moves you between the commander's couch (left), the
@@ -164,8 +178,8 @@ buttons are Eagle's: DOI, PDI, ASCENT and CSI.
 1. **E1.** Recentre and look around. Nothing should clip the headset.
    - The window is at your face, and the docking window is overhead.
    - Panel 1 is to your right, with the FDAI, ENG ARM and ABORT STAGE.
-   - Panels 3 and 4 (LGC MODE and the DSKY) are below it, between the
-     stations.
+   - Panels 3 and 4 (LGC MODE, RNDZ RADAR and the DSKY) are below it,
+     between the stations.
    - Panel 5 is by your left hand, with ENGINE STOP, ENGINE START and
      DES RATE.
 2. **E2.** From the commander's station, reach each of those controls.

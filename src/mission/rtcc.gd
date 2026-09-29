@@ -1401,6 +1401,127 @@ static func plan_entry(traj: Trajectory, lat_deg: float, lng_deg: float) -> Dict
 		"v400k": p["vpred"], "gamma400k": p["gammaei"], "rtgo": p["rtgo"], "vio": p["vio"]}
 
 
+# --- launch aborts (slice 9d) -----------------------------------------------------
+
+## Mode IV (slice 9d): the SPS's burn from [param traj] at GET [param tig]
+## into orbit, Apollo 11's contingency orbit insertion: the LVLH ΔV that
+## P40 flies (simulate_sps_burn()) to leave the CSM of [param mass] level
+## at burnout, at the circular speed there [simplified: the RTCC's own
+## targeting isn't at hand]. Returns the PAD, {"name": "MODE IV", "tig",
+## "dv_lvlh", "dv", "burn_s", "rp", "ra"}, or {} when it wouldn't
+## converge.
+static func plan_mode_iv(traj: Trajectory, mass: float, tig: float) -> Dictionary:
+	var at := traj.clone()
+	at.coast_to(tig, 10.0)
+	var miss := func(dv: Vector3) -> Vector2:
+		var t := at.clone()
+		simulate_sps_burn(t, mass, dv)
+		var r := t.pos()
+		var v := t.vel()
+		var rr := r.normalized().dot(v)
+		var vh := sqrt(maxf(v.length_squared() - rr * rr, 0.0))
+		return Vector2(rr, vh - sqrt(Bodies.MU_EARTH / r.length()))
+	var r0 := at.pos()
+	var v0 := at.vel()
+	var rr0 := r0.normalized().dot(v0)
+	# LVLH: x ahead, z down: the speed short of circular, and the fall.
+	var dv := Vector3(sqrt(Bodies.MU_EARTH / r0.length()) - sqrt(maxf(v0.length_squared() - rr0 * rr0, 0.0)), 0.0, rr0)
+	for _i in 12:
+		var f: Vector2 = miss.call(dv)
+		if absf(f.x) < 0.05 and absf(f.y) < 0.05:
+			break
+		var h := 1.0
+		var fx: Vector2 = (miss.call(dv + Vector3(h, 0.0, 0.0)) - f) / h
+		var fz: Vector2 = (miss.call(dv + Vector3(0.0, 0.0, h)) - f) / h
+		var det := fx.x * fz.y - fz.x * fx.y
+		if absf(det) < 1e-12:
+			return {}
+		# Solve [fx fz] [dx dz]^T = -f.
+		var dx := (-f.x * fz.y + fz.x * f.y) / det
+		var dz := (-fx.x * f.y + fx.y * f.x) / det
+		dv += Vector3(dx, 0.0, dz)
+	var end := at.clone()
+	simulate_sps_burn(end, mass, dv)
+	var f2: Vector2 = miss.call(dv)
+	if absf(f2.x) > 1.0 or absf(f2.y) > 1.0:
+		return {}
+	var c := end.conic()
+	return {"name": "MODE IV", "tig": tig, "dv_lvlh": dv, "dv": dv.length(), "burn_s": burn_time(mass, dv.length()),
+		"rp": float(c["rp"]), "ra": float(c["ra"])}
+
+
+## Mode III (slice 9d): the SPS's retrograde burn from [param traj] at GET
+## [param tig] that brings the CM's half-lift landing (predict_cm_landing()
+## at [param bank_deg]) to [param target_nmi] from the launch pad
+## [param pad] (latitude and east longitude, deg), or none when it lands
+## short of it already. Returns the PAD {"name": "MODE III", "tig",
+## "dv_lvlh", "dv", "burn_s", "range_nmi" (the landing's, predicted)}, or
+## {} with no landing.
+static func plan_mode_iii(traj: Trajectory, mass: float, tig: float, pad: Vector2, target_nmi: float,
+		bank_deg: float) -> Dictionary:
+	var at := traj.clone()
+	at.coast_to(tig, 10.0)
+	var cm_mass := SpacecraftData.total_mass("cm", 0.0, 0.0, 2.0 * float(SpacecraftData.section("cm_rcs")["ring_propellant_kg"]), 0.0)
+	var range_after := func(dv: float) -> float:
+		var t := at.clone()
+		if dv > 0.0:
+			simulate_sps_burn(t, mass, Vector3(-dv, 0.0, 0.0))
+		var l := predict_cm_landing(t, cm_mass, bank_deg)
+		if l.is_empty():
+			return INF
+		return Bodies.surface_angle(pad, l["geo"]) * Bodies.R_EARTH / Units.NMI
+	var d0: float = range_after.call(0.0)
+	var dv := 0.0
+	if d0 > target_nmi:
+		var g := func(x: float) -> float: return float(range_after.call(x)) - target_nmi
+		dv = solve_scan(g, 0.0, 1500.0, 15, 1.0)
+		if is_nan(dv):
+			return {}
+	return {"name": "MODE III", "tig": tig, "dv_lvlh": Vector3(-dv, 0.0, 0.0), "dv": dv, "burn_s": burn_time(mass, dv),
+		"range_nmi": range_after.call(dv)}
+
+
+## Where the CM of [param mass] comes down from [param traj] (not
+## modified), flying its trim's lift banked [param bank_deg] (positive,
+## the lift to the right of its track) from the air's top: {"t" (the GET),
+## "geo" (latitude and east longitude, deg), "gmax"} at 24,000 ft, where
+## the drogues open, or {} when it stays up [simplified: the chutes' drift
+## below that left out].
+static func predict_cm_landing(traj: Trajectory, mass: float, bank_deg: float) -> Dictionary:
+	var t := traj.clone()
+	if t.altitude() > Bodies.ENTRY_INTERFACE_ALT:
+		var down := func(x: Trajectory) -> bool: return x.altitude() < Bodies.ENTRY_INTERFACE_ALT
+		if not t.coast_until(down, t.t + 6.0 * 3600.0, 10.0, 0.002):
+			return {}
+	var ad := SpacecraftData.section("cm_aero")
+	var cds := float(ad["cd"]) * float(ad["reference_area_m2"])
+	var ld := float(ad["lift_to_drag"])
+	var bank := deg_to_rad(bank_deg)
+	var drogue_alt := float(SpacecraftData.section("els")["drogue_alt_m"])
+	var gmax := 0.0
+	var steps := 0
+	while t.altitude() > drogue_alt and steps < 20000:
+		steps += 1
+		var r := t.pos()
+		var air := Atmosphere.air_velocity(r, t.vel())
+		var sp := air.length()
+		var a := Vector3.ZERO
+		if sp > 1e-3:
+			var q := 0.5 * Atmosphere.density(t.altitude()) * sp * sp
+			var vhat := air / sp
+			a = (-vhat * q * cds + Dynamics.lift_direction(r, vhat, bank) * q * cds * ld) / mass
+		gmax = maxf(gmax, a.length() / Units.G0)
+		if t.altitude() > Bodies.ENTRY_INTERFACE_ALT and t.radial_rate() > 0.0:
+			# Skipped out: coast back down.
+			var down2 := func(x: Trajectory) -> bool: return x.altitude() < Bodies.ENTRY_INTERFACE_ALT
+			if not t.coast_until(down2, t.t + 6.0 * 3600.0, 10.0, 0.002):
+				return {}
+			continue
+		t.step(0.5, PackedFloat64Array([a.x, a.y, a.z]))
+	var p := Bodies.eci_to_earth_fixed([t.s[0], t.s[1], t.s[2]], t.t)
+	return {"t": t.t, "geo": Bodies.fixed_to_geographic(Vector3(p[0], p[1], p[2])), "gmax": gmax}
+
+
 ## PAD text as CAPCOM would read it up.
 static func pad_text(pad: Dictionary) -> String:
 	if pad.is_empty():
@@ -1410,6 +1531,10 @@ static func pad_text(pad: Dictionary) -> String:
 			float(pad["lat"]), float(pad["lng"]), float(pad["gmax"]), float(pad["v400k"]) / Units.FT,
 			float(pad["gamma400k"]), float(pad["rtgo"]), float(pad["vio"]) / Units.FT, Units.hms(float(pad["tig"]))]
 	var dv: Vector3 = pad.get("dv_lvlh", Vector3.ZERO)
-	return "%s PAD: TIG %s  N81 DVX %+.1f DVY %+.1f DVZ %+.1f ft/s  DVT %.1f ft/s  BURN %.0f s" % [
+	var text := "%s PAD: TIG %s  N81 DVX %+.1f DVY %+.1f DVZ %+.1f ft/s  DVT %.1f ft/s  BURN %.0f s" % [
 		pad["name"], Units.hms(float(pad["tig"])), dv.x / Units.FT, dv.y / Units.FT, dv.z / Units.FT,
 		float(pad.get("dv", dv.length())) / Units.FT, float(pad.get("burn_s", 0.0))]
+	if pad.has("att_deg"):
+		var a: Vector3 = pad["att_deg"]
+		text += "  R %03.0f P %03.0f Y %03.0f  DVC %.1f ft/s" % [a.x, a.y, a.z, float(pad["dvc"]) / Units.FT]
+	return text

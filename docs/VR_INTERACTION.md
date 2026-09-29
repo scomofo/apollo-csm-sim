@@ -69,18 +69,20 @@ the control's own axes decides what happens.
 
 | Control | In the cabin | Fingertip | Desktop pointer |
 |---|---|---|---|
-| Toggle switch, two or three positions | CMC MODE, UP TLM CM, ELS LOGIC, ELS AUTO, RCS QUAD A to D, FC 1 to 3, BATT TO BUS, OPTICS ZERO and OPTICS MODE at the lower equipment bay; in Eagle, LGC MODE, RCS SYS A and B, and DES RATE, which springs back to the middle | One position per crossing: up through the lever moves it up, down moves it down | A click cycles the positions; the scroll wheel moves it up or down |
+| Toggle switch, two to five positions | CMC MODE, UP TLM CM, the SCS's RATE, ATT DEADBAND and SCS TVC, the EMS's ΔV/EMS SET rocker (five positions, springing back to the middle), ELS LOGIC, ELS AUTO, the EDS's EDS AUTO, 2 ENG OUT and LV RATES, RCS QUAD A to D, FC 1 to 3, BATT TO BUS, OPTICS ZERO and OPTICS MODE at the lower equipment bay; in Eagle, LGC MODE, RNDZ RADAR, RCS SYS A and B, and DES RATE, which springs back to the middle | One position per crossing: up through the lever moves it up, down moves it down | A click cycles the positions; the scroll wheel moves it up or down |
 | Lever-locked toggle switch | ENG ARM, in Eagle | The first crossing pulls the lever out for 1.5 s, and a crossing within that time moves it | A click or a scroll pulls it out, and the next within 1.5 s moves it |
 | Guarded toggle switch | DELTA-V THRUST A and B | The first upward crossing lifts the guard and the next flips the lever. A downward crossing at OFF closes the guard | A click lifts the guard, then cycles the lever; scrolling down at OFF closes the guard |
-| Rotary switch | ATT SOURCE, OPTICS SPEED | One detent per crossing: left to right steps clockwise, right to left anticlockwise | A click steps clockwise and wraps round; the scroll wheel steps either way |
-| Pushbutton | UNDOCK, CSM/LV SEP, LM JETT, CM/SM SEP, DROGUE DEPLOY, MAIN DEPLOY, and MARK and MARK REJECT at the lower equipment bay; in Eagle, ABORT STAGE, ENGINE STOP and ENGINE START | Pressed by a fingertip pushed into its face; pulling back out doesn't press it | A click |
+| Rotary switch | ATT SOURCE, EMS FUNCTION, OPTICS SPEED | One detent per crossing: left to right steps clockwise, right to left anticlockwise | A click steps clockwise and wraps round; the scroll wheel steps either way |
+| Pushbutton | UNDOCK, GDC ALIGN, CSM/LV SEP, LM JETT, CM/SM SEP, DROGUE DEPLOY, MAIN DEPLOY, TWR JETT, ABORT (the translation controller's abort handle, turned counterclockwise while it is held), and MARK and MARK REJECT at the lower equipment bay; in Eagle, ABORT, ABORT STAGE, its two MASTER ALARMs, ENGINE STOP and ENGINE START | Pressed by a fingertip pushed into its face; pulling back out doesn't press it | A click |
 | DSKY key | The 19 keys of each DSKY: Columbia's two, on the main display console and at the lower equipment bay, and Eagle's | Like a pushbutton. The touch volumes are shallow, so a finger coming in at an angle presses the key it is on, not the next one | A click |
 | Wrist-menu button | §5 | Like a pushbutton | A click |
 
 The FDAI, the mission timer, the main bus voltmeters, the master alarm,
-the SPS THRUST ON lamp, the DSKY's display and the optics' eyepieces show
+the SPS THRUST ON lamp, the launch's lamps (the LV ENG lights, LIFTOFF,
+S-II SEP, and the EDS's ABORT, LV RATE and LV GUID), the DSKY's display and the optics' eyepieces show
 their Bus channels and take no input, and so do Eagle's range, range
-rate and thrust readouts and LUNAR CONTACT lamps. The eyepieces are one
+rate and thrust readouts, LUNAR CONTACT lamps and caution and warning
+lights (LGC, ISS, DES QTY, DES REG, RCS A and B REG). The eyepieces are one
 screen on the lower equipment bay, the telescope's view beside the
 sextant's [simplified: the crew looked into two eyepieces].
 
@@ -152,7 +154,23 @@ on the camera, and read the rates and attitude of the vehicle flown.
   - CHECKLIST turns to the next checklist where it was left (a finished
     one starts again), NEXT STEP goes past a step without its check, and
     HILITE switches the highlight.
-  - VIGNETTE, HORIZON and AUTHENTIC switch the comfort aids (§4).
+  - VIGNETTE, HORIZON and AUTHENTIC switch the comfort aids (§4), and
+    SOUND - and SOUND + set the sound's level, 3 dB a press.
+  - FLIGHT turns to its flight page, the flight menu: the mission and the
+    start phase chosen with < MISSION, MISSION >, < PHASE and PHASE >,
+    a line on each above the buttons, START to fly it in place of the
+    flight flown, SAVES, FAILURES and BACK. At launch the menu opens on
+    this page, held open until the Menu button closes it.
+  - SAVES turns to the saved flights, < SAVED and SAVED > stepping
+    through them: SAVE keeps the flight flown now, RESUME flies the one
+    shown in place of it, and DELETE, pressed twice, deletes it.
+  - FAILURES turns to the instructor's page: the failure catalog, stepped
+    through with < FAILURE and FAILURE >, and FAIL, which fails the one
+    shown at once. Its caution light comes on, on MDC-2, and its
+    malfunction procedure opens on the checklist card.
+
+  The settings (the eye height, the comfort aids, the highlight, the
+  sound's level) are kept between sessions as they change.
 
   Its top line shows GET, the time rate, the worst recent frame time and
   the seat.

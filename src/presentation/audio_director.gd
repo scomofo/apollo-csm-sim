@@ -18,7 +18,8 @@
 ##                          Eagle's touchdown, the splashdown
 ##   mortar                 a parachute's mortar (els.drogue, els.mains)
 ## Continuous voices, sounding while their channels hold them on (gains()):
-##   saturn                 the S-IC and the S-II (lv.stage, lv.engines)
+##   saturn                 the S-IC and the S-II (lv.stage, lv.engines), and
+##                          a launch abort's escape motor (les.thrust_n)
 ##   sivb                   the S-IVB's J-2 (lv.stage, sivb.thrust_n)
 ##   sps, dps, aps          the engines (sps.chamber_pct, lm.dps.throttle_pct,
 ##                          lm.aps.chamber_pct)
@@ -26,10 +27,13 @@
 ##   rumble                 the air, by its dynamic pressure (dyn.q_pa)
 ##   fan                    the cabin's fans while it is powered
 ##   breath                 the crew's breathing above BREATH_G
-##   alarm                  the master alarm's tone (sys.master_alarm)
+##   alarm                  the master alarm's tone (sys.master_alarm; in
+##                          Eagle, lm.cw.master_alarm)
 ## Each voice is heard in its vehicle's cabin (player.vehicle), and in either
 ## while the two are docked [simplified: through the tunnel, at full level].
-## The continuous voices hush while the clock is paused.
+## The continuous voices hush while the clock is paused. The cabin's bus
+## plays at the player's sound level (player.sound_db, dB from as designed,
+## the wrist menu's SOUND - and SOUND +).
 ##
 ## Headless (the tests), nothing plays: the director counts the one-shots
 ## (audio.events, audio.last) and publishes the continuous voices' gains
@@ -40,10 +44,11 @@
 ##
 ## Reads:  ctl.*, dsky.key_presses, lm.dsky.key_presses, rcs.active_jets,
 ##         lm.rcs.active_jets, mission.event.*, els.drogue, els.mains,
-##         lv.thrust_n, lv.stage, lv.engines, sivb.thrust_n, sps.chamber_pct,
+##         lv.thrust_n, lv.stage, lv.engines, les.thrust_n, sivb.thrust_n,
+##         sps.chamber_pct,
 ##         lm.dps.thrust_n, lm.dps.throttle_pct, lm.aps.chamber_pct,
-##         dyn.q_pa, dyn.g_load, sys.powered, sys.master_alarm, dock.state,
-##         player.vehicle
+##         dyn.q_pa, dyn.g_load, sys.powered, sys.master_alarm,
+##         lm.cw.master_alarm, dock.state, player.vehicle, player.sound_db
 ## Writes: audio.events, audio.last, audio.<voice>_gain
 class_name AudioDirector
 extends Node
@@ -123,12 +128,15 @@ const EVENTS := {
 	"o2_tank_2_failure": ["shock", "csm"],       # Apollo 13's bang
 	"cm_sm_sep": ["pyro", "csm"],
 	"landing": ["splash", "csm"],
+	"launch_abort": ["shock", "csm"],            # a launch abort's escape motor, or the booster's cutoff
+	"tower_jettison": ["pyro", "csm"],           # the tower leaving the CM in a mode I abort
 }
 ## Events with no sound of their own: an engine's start or stop is its
 ## continuous voice's.
 const SILENT_EVENTS := ["ignition", "thrust_ok", "tilt", "mach_1", "max_q", "sic_ceco", "sic_oeco", "s2_ignition",
 	"igm", "s2_ceco", "emr_shift", "s2_oeco", "s4_ignition", "s4_cutoff", "insertion", "tli_ignition", "tli_cutoff",
-	"lm_liftoff", "lm_insertion"]
+	"lm_liftoff", "lm_insertion", "lm_abort", "abort_request", "lv_cutoff", "sic_engine_1_failure", "sic_engine_2_failure",
+	"lv_guidance_failure", "s2_engines_failure", "s4_engine_failure"]
 const SILENT_PREFIXES := ["start_", "phase_", "pad_", "timeline_"]
 ## Channels that move continuously (the hand controllers) or aren't the
 ## cabin's (the ground's): no click.
@@ -185,6 +193,7 @@ func _ready() -> void:
 		AudioServer.set_bus_name(bus, BUS)
 		AudioServer.set_bus_send(bus, "Master")
 		AudioServer.add_bus_effect(bus, AudioEffectHardLimiter.new())
+	_apply_level()
 	for voice in ONE_SHOTS.keys() + LAYERS.keys():
 		var p := AudioStreamPlayer.new()
 		p.name = voice.capitalize().replace(" ", "")
@@ -203,6 +212,13 @@ func _exit_tree() -> void:
 		_render_task = -1
 
 
+## The cabin's bus at the player's sound level.
+func _apply_level() -> void:
+	var bus := AudioServer.get_bus_index(BUS)
+	if enabled and bus >= 0:
+		AudioServer.set_bus_volume_db(bus, float(Bus.get_value("player.sound_db", 0.0)))
+
+
 ## Run [param f] (a checkpoint's load) without a sound: what it puts back on
 ## the Bus happened before. Returns what [param f] returns.
 func hush(f: Callable) -> Variant:
@@ -213,7 +229,9 @@ func hush(f: Callable) -> Variant:
 
 
 func _on_bus(channel: String, value: Variant) -> void:
-	if channel.begins_with("ctl."):
+	if channel == "player.sound_db":
+		_apply_level()
+	elif channel.begins_with("ctl."):
 		_on_control(channel, value)
 	elif channel.begins_with("mission.event."):
 		var id := channel.trim_prefix("mission.event.")
@@ -309,6 +327,8 @@ func gains() -> Dictionary:
 			g["saturn"] = 0.9 * engines
 		elif boost and stage == "S-II":
 			g["saturn"] = 0.45 * engines
+		if float(Bus.get_value("les.thrust_n", 0.0)) > 0.0:
+			g["saturn"] = 0.9
 		if (boost and stage == "S-IVB") or float(Bus.get_value("sivb.thrust_n", 0.0)) > 0.0:
 			g["sivb"] = 0.35
 		g["sps"] = 0.6 * clampf(float(Bus.get_value("sps.chamber_pct", 0.0)) / 100.0, 0.0, 1.0)
@@ -321,11 +341,12 @@ func gains() -> Dictionary:
 		+ (int(Bus.get_value("lm.rcs.active_jets", 0)) if _heard("lm") else 0)
 	if jets > 0:
 		g["jets"] = minf(0.1 + 0.04 * jets, 0.4)
-	# The listener's own cabin: its fans, the crew's breathing, the CM's
-	# master alarm in the headsets [simplified: no ECS, so the fans run
-	# while the CM's buses are powered, and in Eagle while it flies].
+	# The listener's own cabin: its fans, the crew's breathing, its master
+	# alarm in the headsets [simplified: no ECS, so the fans run while the
+	# CM's buses are powered, and in Eagle while it flies].
 	if aboard == "lm":
 		g["fan"] = 0.25 if str(Bus.get_value("dock.state", "")) == "free" else 0.0
+		g["alarm"] = 0.3 if bool(Bus.get_value("lm.cw.master_alarm", false)) else 0.0
 	else:
 		g["fan"] = 0.25 if bool(Bus.get_value("sys.powered", false)) else 0.0
 		g["breath"] = clampf((float(Bus.get_value("dyn.g_load", 0.0)) - BREATH_G) / 3.0, 0.0, 1.0)

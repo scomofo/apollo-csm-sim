@@ -15,7 +15,13 @@
 ## LM, take the recentres made there, a verb and noun typed on the LGC's
 ## DSKY and the touches on its switches. R5's, at the lower equipment bay,
 ## take the seat, how far the right stick turned the optics and the
-## touches on MARK. The seated reference space is 0 (Local) here.
+## touches on MARK. The seated reference space is 0 (Local) here. A new
+## flight from the flight menu (slice 8a) builds a new recorder, which
+## carries on this one's record (carry_state(), carried): one record of
+## the whole headset session. The frames are timed by where they were
+## drawn too, the vehicle flown and the flight phase ("csm:lunar_orbit"):
+## the standalone headset's rows (slice 8d, docs/QUEST_STANDALONE.md) take
+## Columbia's cabin in lunar orbit and Eagle's descent.
 ## Presentation only: it writes nothing to the Bus.
 ##
 ## Reads:  player.*, ctl.rhc, dyn.omega, dsky.verb, dsky.noun,
@@ -28,6 +34,9 @@ extends Node
 const OUT_DIR := "user://vr_acceptance"
 ## Frames slower than this multiple of the headset frame budget count as dropped.
 const DROP_FACTOR := 1.5
+## A stretch of flight is within its budget with no more of its frames
+## dropped than this, %.
+const WITHIN_BUDGET_PCT := 1.0
 ## Godot 4.4.1's seated reference space, Local.
 const LOCAL_SPACE := 0
 ## How the record spells DSKY keys; digits stand for themselves.
@@ -40,6 +49,9 @@ var xr_interface: XRInterface
 var out_dir: String = OUT_DIR
 ## Write the record when the window closes: main turns it on in a headset.
 var write_on_exit: bool = false
+## Set before the recorder enters the tree: the record of the flight this
+## one's replaced, which it carries on (carry_state()).
+var carried: Dictionary = {}
 
 var record := {
 	"format_version": 1,
@@ -63,6 +75,7 @@ var record := {
 	"optics": {"manual_travel_deg": 0.0},
 	"comfort": {"horizon_at_start": null, "max_vignette": 0.0},
 	"frames": {"count": 0, "dropped": 0, "worst_ms": 0.0, "budget_ms": 0.0},
+	"frames_by": {},
 	"clean_stop": false,
 	"session_stops": 0,
 	"close_requested": false,
@@ -84,7 +97,12 @@ func _ready() -> void:
 	_t0_ms = Time.get_ticks_msec()
 	record["started_utc"] = Time.get_datetime_string_from_system(true)
 	record["reference_space"] = int(ProjectSettings.get_setting("xr/openxr/reference_space", -1))
-	for b in WristMenu.BUTTONS:
+	if not carried.is_empty():
+		record = (carried["record"] as Dictionary).duplicate(true)
+		_t0_ms = int(carried["t0_ms"])
+		_typed = str(carried["typed"])
+		_base = str(carried["base"])
+	for b in WristMenu.BUTTONS + WristMenu.FLIGHT_BUTTONS + WristMenu.SAVES_BUTTONS + WristMenu.FAILURES_BUTTONS:
 		_menu_labels[b[1]] = true
 	for pad in WristMenu.PADS["lm"]:
 		_menu_labels[pad[1]] = true
@@ -108,6 +126,12 @@ func _ready() -> void:
 		# so this relies on Godot 4's automatic signal disconnect when the
 		# node is freed at exit; no _exit_tree disconnect needed.
 		xr_interface.session_stopping.connect(_on_session_stopping)
+
+
+## The record so far and what it counts from, for the recorder of the
+## flight that replaces this one.
+func carry_state() -> Dictionary:
+	return {"record": record.duplicate(true), "t0_ms": _t0_ms, "typed": _typed, "base": _base}
 
 
 func _elapsed_s() -> float:
@@ -211,8 +235,18 @@ func _process(delta: float) -> void:
 	fr["count"] = int(fr["count"]) + 1
 	var ms := delta * 1000.0
 	fr["worst_ms"] = maxf(fr["worst_ms"], ms)
-	if ms > budget_ms * DROP_FACTOR:
+	var dropped := ms > budget_ms * DROP_FACTOR
+	if dropped:
 		fr["dropped"] = int(fr["dropped"]) + 1
+	# And by where they were drawn.
+	var where := "%s:%s" % [Bus.get_value("player.vehicle", "csm"), Bus.get_value("mission.phase", "")]
+	var by: Dictionary = record["frames_by"]
+	if not by.has(where):
+		by[where] = {"count": 0, "dropped": 0, "worst_ms": 0.0}
+	by[where]["count"] = int(by[where]["count"]) + 1
+	by[where]["worst_ms"] = maxf(float(by[where]["worst_ms"]), ms)
+	if dropped:
+		by[where]["dropped"] = int(by[where]["dropped"]) + 1
 
 
 ## Whether the DSKY publishing on [param prefix] shows the verb and noun
@@ -355,4 +389,26 @@ func markdown() -> String:
 		("`%s` by touch at %.1f s, %s on the LGC's DSKY" % [lk["typed"], lk["at_s"], "shown" if lk["shown"] else "NOT shown"]) if float(lk["at_s"]) >= 0.0 else "no VxxNxxE typed by touch aboard Eagle"])
 	lines.append("| E4 | ENG ARM: the first crossing pulls the lever out, the second moves it | | tester; `ctl.lm.engine_arm` touched %d times |" % int(ch.get("ctl.lm.engine_arm", 0)))
 	lines.append("| E5 | The LPD's marks sit on the commander's window | | tester |")
+	lines.append("")
+	lines.append("## Standalone headset (Quest 3)")
+	lines.append("| # | Check | Pass? | Notes |")
+	lines.append("|---|---|---|---|")
+	lines.append("| Q1 | CI's APK installs; OpenXR starts without a PC and the flight menu is on the wrist | | tester; rig `%s`, menu %s |" % [
+		r["rig"], "opened" if r["menu_opened"] else "never opened"])
+	lines.append("| Q2 | Columbia's cabin in lunar orbit, five minutes at 1x, within the frame budget | | %s |" % _budget_note("csm:lunar_orbit"))
+	lines.append("| Q3 | Eagle's descent orbit and powered descent, five minutes, within the frame budget | | %s |" % _budget_note("lm:lunar_descent"))
+	lines.append("| Q4 | The Earth, the Moon, the sky and the terrain look as on a PC | | tester |")
 	return "\n".join(lines) + "\n"
+
+
+## Q2, Q3: the frames drawn at [param where] ("csm:lunar_orbit") against
+## the budget.
+func _budget_note(where: String) -> String:
+	var by: Dictionary = record.get("frames_by", {})
+	if not by.has(where):
+		return "no: no frames drawn at `%s`" % where
+	var f: Dictionary = by[where]
+	var pct := 100.0 * float(f["dropped"]) / maxf(1.0, float(f["count"]))
+	return "%s: at `%s`, %d of %d frames over %.1fx the %.1f ms budget (%.1f %%), worst %.1f ms" % [
+		_yn(float(f["count"]) > 0.0 and pct <= WITHIN_BUDGET_PCT), where, f["dropped"], f["count"], DROP_FACTOR,
+		record["frames"]["budget_ms"], pct, f["worst_ms"]]

@@ -6,19 +6,48 @@
 ## on the desktop it rides on the camera and M shows it. A status line
 ## gives GET, the time rate, the worst recent frame time and the seat.
 ## Adapted from gemini-capsule's src/presentation/wrist_menu.gd at 40e449c
-## (README.md lists the port): its guide and new-flight buttons stay
-## behind, SEAT is new, it doesn't save settings yet, and the PAD buttons
+## (README.md lists the port): its guide button stays behind, its
+## new-flight button is the FLIGHT page below, SEAT is new, the main scene
+## keeps the settings it changes (slice 8b), and the PAD buttons
 ## write ctl.ground.pad_request, the channel the HUD's Mission Control
 ## buttons write. They ask for the PADs of the vehicle flown (set_vehicle):
 ## Columbia's MCC, LOI-1, LOI-2 and TEI, or Eagle's DOI, PDI, ASCENT and
 ## CSI. The buttons are presentation controls, so they work while time
 ## acceleration locks the panels.
 ##
+## FLIGHT turns it to its flight page (docs/ROADMAP.md, slice 8a): every
+## mission under data/missions/ and its start phases, stepped through with
+## < MISSION, MISSION >, < PHASE and PHASE > (FlightChoice), a line from
+## the mission's data on each, START for that flight (flight_requested,
+## which the main scene starts in place of this one), SAVES and BACK.
+## show_flights() opens it there, as the main scene does at launch and on
+## F1. SAVES turns to the saved flights (slice 8b, SavedFlights), stepped
+## through with < SAVED and SAVED >: SAVE keeps the flight flown now
+## (save_requested), RESUME starts the one chosen in its place
+## (resume_requested) unless it can't be restored, and DELETE, pressed
+## twice with nothing between, deletes it. SOUND - and SOUND + set the
+## sound's level. A setting's button (the eye height, the comfort aids,
+## the highlight, the sound) says so (setting_changed), for the main scene
+## to keep the settings. FAILURES on the flight page turns to the
+## instructor's page (slice 9a): the failure catalog, stepped through with
+## < FAILURE and FAILURE >, each failure's light and whether it has failed
+## or is armed, and FAIL, which fails it now (Failures.fail()).
+##
 ## Reads:  perf.frame_ms_max
 ## Writes: ctl.ground.pad_request, present.menu.visible,
-##         present.checklist.highlight_enabled, player.eye_height_offset_m
+##         present.checklist.highlight_enabled, player.eye_height_offset_m,
+##         player.sound_db
 class_name WristMenu
 extends Node3D
+
+## START on the flight page: the flight chosen.
+signal flight_requested(mission_id: String, phase: String)
+## SAVE on the saves page.
+signal save_requested
+## RESUME on the saves page: the save chosen, one that can be restored.
+signal resume_requested(path: String)
+## A setting's button changed a setting.
+signal setting_changed
 
 const PUSHBUTTON := preload("res://scenes/controls/pushbutton.tscn")
 const HEIGHT_STEP := 0.01
@@ -29,8 +58,31 @@ const BUTTONS := [
 	["slower", "RATE -"], ["faster", "RATE +"], ["pause", "PAUSE"], ["recenter", "RECENTRE"],
 	["eye_up", "EYE +1cm"], ["eye_down", "EYE -1cm"], ["seat", "SEAT"], ["hide", "HIDE"],
 	["checklist", "CHECKLIST"], ["next", "NEXT STEP"], ["highlight", "HILITE"], ["vignette", "VIGNETTE"],
-	["horizon", "HORIZON"], ["authentic", "AUTHENTIC"],
+	["horizon", "HORIZON"], ["authentic", "AUTHENTIC"], ["sound_down", "SOUND -"], ["sound_up", "SOUND +"],
+	["flight", "FLIGHT"],
 ]
+## The flight page's buttons, in layout order, under the choice's lines.
+const FLIGHT_BUTTONS := [
+	["mission_prev", "< MISSION"], ["mission_next", "MISSION >"], ["phase_prev", "< PHASE"], ["phase_next", "PHASE >"],
+	["start", "START"], ["saves", "SAVES"], ["instructor", "FAILURES"], ["back", "BACK"],
+]
+## The saves page's buttons, in layout order, under the save's lines.
+const SAVES_BUTTONS := [
+	["saved_prev", "< SAVED"], ["saved_next", "SAVED >"], ["resume", "RESUME"], ["delete", "DELETE"],
+	["save", "SAVE"], ["saves_back", "BACK"],
+]
+## The instructor's page's buttons, under the failure's lines.
+const FAILURES_BUTTONS := [
+	["failure_prev", "< FAILURE"], ["failure_next", "FAILURE >"], ["fail", "FAIL"], ["failures_back", "BACK"],
+]
+## The pages under the main one: their buttons.
+const PAGES := {"flight": FLIGHT_BUTTONS, "saves": SAVES_BUTTONS, "failures": FAILURES_BUTTONS}
+## The buttons that change a setting.
+const SETTING_BUTTONS := ["eye_up", "eye_down", "highlight", "vignette", "horizon", "authentic",
+	"sound_down", "sound_up"]
+## The sound's level: its step, and the quietest, dB from as designed.
+const SOUND_STEP_DB := 3.0
+const SOUND_MIN_DB := -30.0
 ## The PAD request each Mission Control button makes (MissionSequencer.request_pad),
 ## in Columbia: the first four buttons' ids.
 const PAD_REQUESTS := ["mcc", "loi", "circ", "tei"]
@@ -42,6 +94,8 @@ const PADS := {
 }
 const COLS := 4
 const PITCH := Vector2(0.042, 0.034)
+## The flight and saves pages' lines take the rows above their buttons.
+const FLIGHT_TEXT_WIDTH_PX := 780
 ## Controller action that shows or hides the menu.
 const TOGGLE_ACTION := "menu_button"
 ## Where the desktop menu rides, from the camera (m): low on the right,
@@ -64,8 +118,28 @@ var comfort: Comfort
 var cabin: Cabin
 ## The vehicle flown, whose PADs the PAD buttons ask for: "csm" or "lm".
 var vehicle: String = "csm"
+## The flight page's missions and start phases, and the one chosen: the
+## flight flown, until the page steps away from it.
+var choice: FlightChoice
+## The saved flights the saves page lists: the main scene's, or none.
+var saves := SavedFlights.new()
+## The flight's failures, which the instructor's page fails (the
+## runtime's), or null.
+var failures: Failures
+## The catalog's failure the instructor's page shows.
+var failure_index: int = 0
+## The page showing: "main", "flight", "saves" or "failures".
+var page: String = "main"
 var status_label: Label3D
+## The flight page's lines: the mission, the start phase and its note.
+var choice_label: Label3D
 var _buttons: Dictionary = {}
+## Button id -> its page.
+var _page_of: Dictionary = {}
+## Each page's rows of buttons, at the bottom of the grid.
+var _page_rows: Dictionary = {}
+## The save DELETE was pressed on once, "" when it wasn't the last button.
+var _delete_armed: String = ""
 var _touch_layers: Dictionary = {}
 ## The four PAD buttons, in order.
 var _pad_buttons: Array[Node3D] = []
@@ -96,44 +170,71 @@ func _ready() -> void:
 	status_label.position = Vector3(0, PITCH.y * rows * 0.5 + 0.008, 0.001)
 	add_child(status_label)
 	for i in BUTTONS.size():
-		var id: String = BUTTONS[i][0]
-		var b: Node3D = PUSHBUTTON.instantiate()
-		b.name = id
-		b.set("label", BUTTONS[i][1])
-		b.set("presentation_only", true)
-		var touch := Area3D.new()
-		touch.name = "Touch"
-		var shape := CollisionShape3D.new()
-		var box := BoxShape3D.new()
-		box.size = Vector3(0.036, 0.026, 0.02)
-		shape.shape = box
-		touch.add_child(shape)
-		touch.position.z = 0.01
-		b.add_child(touch)
 		@warning_ignore("integer_division")
-		var row := i / COLS
-		var col := i % COLS
-		b.position = Vector3((col - (COLS - 1) / 2.0) * PITCH.x, ((rows - 1) / 2.0 - row) * PITCH.y - 0.004, 0.0)
-		var l := Label3D.new()
-		l.name = "Legend"
-		l.text = BUTTONS[i][1]
-		l.font_size = 32
-		l.pixel_size = 0.0002
-		l.outline_size = 0
-		l.modulate = CabinMaterials.lettering_colour()
-		l.position = Vector3(0, 0.0145, 0.001)
-		b.add_child(l)
+		var b := _make_button(BUTTONS[i][0], BUTTONS[i][1], "main", i / COLS, i % COLS, rows)
 		# A PAD button asks for whatever its vehicle's PAD is at the press.
 		if i < PAD_REQUESTS.size():
 			b.connect("activated", _on_pad.bind(i))
 			_pad_buttons.append(b)
 		else:
-			b.connect("activated", _on_button.bind(id))
-		add_child(b)
-		_buttons[id] = b
-		_touch_layers[id] = touch.collision_layer
+			b.connect("activated", _on_button.bind(BUTTONS[i][0]))
+	# The flight and saves pages: their buttons in the bottom rows, their
+	# lines above.
+	for p: String in PAGES:
+		var list: Array = PAGES[p]
+		@warning_ignore("integer_division")
+		var page_rows := (list.size() + COLS - 1) / COLS
+		_page_rows[p] = page_rows
+		for i in list.size():
+			@warning_ignore("integer_division")
+			var b := _make_button(list[i][0], list[i][1], p, rows - page_rows + i / COLS, i % COLS, rows)
+			b.connect("activated", _on_button.bind(list[i][0]))
+	choice_label = Label3D.new()
+	choice_label.name = "Choice"
+	choice_label.font_size = 32
+	choice_label.pixel_size = 0.00018
+	choice_label.outline_size = 0
+	choice_label.modulate = CabinMaterials.lettering_colour()
+	choice_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	choice_label.width = FLIGHT_TEXT_WIDTH_PX
+	choice_label.position = Vector3(0, ((rows - 1) / 2.0 - (rows - int(_page_rows["flight"]) - 1) / 2.0) * PITCH.y,
+		0.001)
+	add_child(choice_label)
 	_set_shown(false)
 	set_vehicle(vehicle)
+
+
+## Button [param id] lettered [param legend] on [param p_page], at
+## [param row] and [param col] of the grid of [param rows].
+func _make_button(id: String, legend: String, p_page: String, row: int, col: int, rows: int) -> Node3D:
+	var b: Node3D = PUSHBUTTON.instantiate()
+	b.name = id
+	b.set("label", legend)
+	b.set("presentation_only", true)
+	var touch := Area3D.new()
+	touch.name = "Touch"
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(0.036, 0.026, 0.02)
+	shape.shape = box
+	touch.add_child(shape)
+	touch.position.z = 0.01
+	b.add_child(touch)
+	b.position = Vector3((col - (COLS - 1) / 2.0) * PITCH.x, ((rows - 1) / 2.0 - row) * PITCH.y - 0.004, 0.0)
+	var l := Label3D.new()
+	l.name = "Legend"
+	l.text = legend
+	l.font_size = 32
+	l.pixel_size = 0.0002
+	l.outline_size = 0
+	l.modulate = CabinMaterials.lettering_colour()
+	l.position = Vector3(0, 0.0145, 0.001)
+	b.add_child(l)
+	add_child(b)
+	_buttons[id] = b
+	_touch_layers[id] = touch.collision_layer
+	_page_of[id] = p_page
+	return b
 
 
 ## Wire the menu to what it drives. [param hand_node] null means the
@@ -184,6 +285,11 @@ func _on_hand_button(action: String) -> void:
 			_set_shown(true)
 
 
+## Close the menu, as HIDE does.
+func close() -> void:
+	_dismiss()
+
+
 func _dismiss() -> void:
 	_palm_dismissed = true
 	_pinned = false
@@ -200,18 +306,70 @@ func _unhandled_input(event: InputEvent) -> void:
 func _set_shown(on: bool) -> void:
 	_shown = on
 	visible = on
+	_show_buttons()
+	Bus.set_value("present.menu.visible", on)
+
+
+## Only the page showing takes the finger and the pointer.
+func _show_buttons() -> void:
 	for id in _buttons:
 		var b: Node3D = _buttons[id]
+		var on: bool = _shown and _page_of[id] == page
 		if not on:
 			# A hidden button may never see the finger leave.
 			b.set("_touching", null)
 			b.call("release")
+		b.visible = _page_of[id] == page
 		var t: Area3D = b.get_node("Touch")
 		t.monitoring = on
 		t.monitorable = on
 		# Hidden buttons must not stop the pointer on its way to the panels.
 		t.collision_layer = int(_touch_layers[id]) if on else 0
-	Bus.set_value("present.menu.visible", on)
+	if choice_label:
+		choice_label.visible = page != "main"
+
+
+## Turn to [param p_page]: "main", "flight", "saves" or "failures".
+func show_page(p_page: String) -> void:
+	page = p_page
+	_delete_armed = ""
+	if page == "flight":
+		if choice == null:
+			choice = FlightChoice.new()
+		choice_label.text = choice.text()
+	elif page == "saves":
+		saves.refresh()
+		_show_save()
+	elif page == "failures":
+		_show_failure()
+	_show_buttons()
+
+
+## The instructor's page's lines, for the failure shown.
+func _show_failure() -> void:
+	var list := Failures.catalog()
+	if list.is_empty():
+		choice_label.text = "NO FAILURES IN THE CATALOG"
+		return
+	failure_index = posmod(failure_index, list.size())
+	var e: Dictionary = list[failure_index]
+	choice_label.text = "INSTRUCTOR: FAILURE %d OF %d\n%s: %s light\n%s" % [failure_index + 1, list.size(),
+		e["title"], e["light"], failures.state_line(str(e["id"])) if failures != null else "no flight to fail"]
+
+
+## The saves page's lines, for the save chosen.
+func _show_save() -> void:
+	choice_label.text = saves.text()
+	if _delete_armed != "":
+		choice_label.text += "\nDELETE again to delete it"
+
+
+## Open the menu on its flight page, pinned open as the controller's
+## button pins it.
+func show_flights() -> void:
+	_pinned = true
+	show_page("flight")
+	_set_shown(true)
 
 
 func is_shown() -> bool:
@@ -234,11 +392,13 @@ func set_vehicle(v: String) -> void:
 		var layer: int = _touch_layers[old]
 		_buttons.erase(old)
 		_touch_layers.erase(old)
+		_page_of.erase(old)
 		b.name = id
 		b.set("label", pads[i][1])
 		(b.get_node("Legend") as Label3D).text = pads[i][1]
 		_buttons[id] = b
 		_touch_layers[id] = layer
+		_page_of[id] = "main"
 
 
 ## The PAD requests the PAD buttons make now.
@@ -259,6 +419,8 @@ func _on_button(id: String) -> void:
 	if id in pad_requests():
 		Bus.set_value("ctl.ground.pad_request", id)
 		return
+	var armed := _delete_armed
+	_delete_armed = ""
 	match id:
 		"slower":
 			SimClock.slower()
@@ -290,6 +452,10 @@ func _on_button(id: String) -> void:
 					"horizon": comfort.horizon_aid = not comfort.horizon_aid
 					"authentic": comfort.authentic = not comfort.authentic
 				comfort.update_from_bus()
+		"sound_down", "sound_up":
+			var db := float(Bus.get_value("player.sound_db", 0.0))
+			db += SOUND_STEP_DB if id == "sound_up" else -SOUND_STEP_DB
+			Bus.set_value("player.sound_db", clampf(db, SOUND_MIN_DB, 0.0))
 		"checklist":
 			if book:
 				book.cycle()
@@ -298,3 +464,52 @@ func _on_button(id: String) -> void:
 				book.next()
 		"hide":
 			_dismiss()
+		"flight":
+			show_page("flight")
+		"back":
+			show_page("main")
+		"mission_prev", "mission_next", "phase_prev", "phase_next":
+			if choice == null:
+				choice = FlightChoice.new()
+			var step := -1 if id.ends_with("prev") else 1
+			if id.begins_with("mission"):
+				choice.step_mission(step)
+			else:
+				choice.step_phase(step)
+			choice_label.text = choice.text()
+		"start":
+			if choice != null:
+				flight_requested.emit(choice.mission_id(), choice.phase())
+		"saves":
+			show_page("saves")
+		"instructor":
+			show_page("failures")
+		"failures_back":
+			show_page("flight")
+		"failure_prev", "failure_next":
+			failure_index += -1 if id == "failure_prev" else 1
+			_show_failure()
+		"fail":
+			var list := Failures.catalog()
+			if failures != null and not list.is_empty():
+				failures.fail(str(list[posmod(failure_index, list.size())]["id"]))
+			_show_failure()
+		"saves_back":
+			show_page("flight")
+		"saved_prev", "saved_next":
+			saves.step(-1 if id == "saved_prev" else 1)
+			_show_save()
+		"save":
+			save_requested.emit()
+		"resume":
+			if bool(saves.selected().get("usable", false)):
+				resume_requested.emit(saves.selected_path())
+		"delete":
+			var path := saves.selected_path()
+			if path != "" and armed == path:
+				saves.delete(path)
+			else:
+				_delete_armed = path
+			_show_save()
+	if id in SETTING_BUTTONS:
+		setting_changed.emit()

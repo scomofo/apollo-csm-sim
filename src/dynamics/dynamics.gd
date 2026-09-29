@@ -30,14 +30,22 @@
 ## for the commanded forces [simplified: the vent is steady, the LM and the
 ## S-IVB have none].
 ##
+## In a launch abort (slice 9d) the escape tower pulls the CM away from the
+## pad or the Saturn V as the launch escape vehicle (cm_les): the escape
+## motor's thrust along the tower (les.thrust_n, les.dir), its drag, tower
+## or heat shield first (les.blunt), and the attitude the escape system
+## gives it (les.q), until the tower's jettison leaves the CM.
+##
 ## Apollo 13 jettisoned its SM with the LM docked (cm_lm), and the LM from
 ## the CM with the docking tunnel's pressure, which pushed the CM back
 ## (spacecraft.json "docking": tunnel_impulse_ns) [simplified: the other
 ## missions' LM jettisons, from the CSM, leave it as it was].
 ##
-## Reads:  sps.thrust_n, rcs.force_body, rcs.torque_body, sivb.thrust_n,
+## Reads:  sps.thrust_n, sps.gimbal_rad, scs.busy, rcs.force_body,
+##         rcs.torque_body, sivb.thrust_n,
 ##         sivb.dir, sps.prop_kg, rcs.sm_prop_kg, rcs.cm_prop_kg,
 ##         sivb.prop_kg, els.drogue, els.mains, guid.bank_cmd_deg,
+##         les.thrust_n, les.dir, les.q, les.mass_kg, les.blunt,
 ##         guid.bank_auto, ctl.rhc, guid.dap_busy; the LM's lm.dps.thrust_n,
 ##         lm.aps.thrust_n, lm.rcs.force_body, lm.rcs.torque_body,
 ##         lm.dps.prop_kg, lm.aps.prop_kg, lm.rcs.prop_kg, lm.guid.dap_busy,
@@ -173,6 +181,12 @@ func set_configuration(cfg: String) -> void:
 
 
 func update_mass() -> void:
+	if config == "cm_les":
+		mass = SpacecraftData.total_mass("cm", 0.0, 0.0,
+			float(Bus.get_value("rcs.cm_prop_kg", 2.0 * SpacecraftData.section("cm_rcs")["ring_propellant_kg"])), 0.0) \
+			+ float(Bus.get_value("les.mass_kg", 0.0))
+		attitude.inertia = SpacecraftData.inertia(config, mass)
+		return
 	if config == "saturn_v":
 		mass = float(Bus.get_value("lv.mass_kg", SpacecraftData.section("saturn_v")["liftoff_kg"]))
 		attitude.inertia = SpacecraftData.inertia(config, mass)
@@ -237,10 +251,16 @@ func tick(dt: float) -> void:
 	if config == "saturn_v":
 		var d: Array = Bus.get_value("lv.dir", [1.0, 0.0, 0.0])
 		force_eci += Vector3(d[0], d[1], d[2]).normalized() * float(Bus.get_value("lv.thrust_n", 0.0))
+	elif config == "cm_les":
+		var d: Array = Bus.get_value("les.dir", [1.0, 0.0, 0.0])
+		force_eci += Vector3(d[0], d[1], d[2]).normalized() * float(Bus.get_value("les.thrust_n", 0.0))
 	elif config != "stack":
-		force_body.x += float(Bus.get_value("sps.thrust_n", 0.0)) if SpacecraftData.sm_attached(config) else 0.0
 		force_body += Bus.get_value("rcs.force_body", Vector3.ZERO)
 		torque = Bus.get_value("rcs.torque_body", Vector3.ZERO)
+		if SpacecraftData.sm_attached(config):
+			var sps := _sps_thrust()
+			force_body += sps[0]
+			torque += sps[1]
 		if lm_flies_stack():
 			# The docked LM's engine and jets, turned from its axes into the
 			# CSM's.
@@ -259,6 +279,8 @@ func tick(dt: float) -> void:
 		aero_eci = _aero_force()
 	elif config == "saturn_v" and traj.primary == "earth" and traj.altitude() < LV_AERO_TOP_M:
 		aero_eci = _lv_drag()
+	elif config == "cm_les" and in_atmosphere():
+		aero_eci = _lev_drag()
 	force_eci += ecl * force_body + aero_eci
 	last_force_body = force_body
 	last_torque = torque
@@ -277,6 +299,8 @@ func tick(dt: float) -> void:
 	# Attitude.
 	if config == "saturn_v":
 		_align_lv()
+	elif config == "cm_les":
+		_align_les()
 	elif config == "stack":
 		_align_iu()
 	elif aero:
@@ -290,13 +314,29 @@ func tick(dt: float) -> void:
 		attitude.omega = Vector3.ZERO
 	# A coast step may only be long when nothing acts on the vehicle AND no
 	# autopilot is trying to (a controller cannot run at minute steps).
-	var coasting := not commanded and torque == Vector3.ZERO and not aero and not landed \
-		and not bool(Bus.get_value("guid.dap_busy", false)) \
+	var coasting := not commanded and torque == Vector3.ZERO and not aero and not landed and config != "cm_les" \
+		and not bool(Bus.get_value("guid.dap_busy", false)) and not bool(Bus.get_value("scs.busy", false)) \
 		and not (lm_flies_stack() and _lm_dap_busy())
 	Bus.set_value("dyn.dv_step", [ext[0] * dt, ext[1] * dt, ext[2] * dt] if ext.size() == 3 else [0.0, 0.0, 0.0])
 	_step_lm(dt)
 	publish_state()
 	_publish_coast(coasting and (lm == null or (lm.coasting and not _lm_dap_busy())))
+
+
+## The SPS's force and torque in body axes, [force, torque]: its thrust
+## along +X turned by the gimbal (sps.gimbal_rad, pitch and yaw), about its
+## arm to the centre of mass (configurations' sps_gimbal_arm_m
+## [estimated: the gimbal ring about 2.8 m behind the CSM's centre of mass,
+## 6.5 m with the LM docked]). At its trim the thrust passes through the
+## centre of mass.
+func _sps_thrust() -> Array:
+	var t := float(Bus.get_value("sps.thrust_n", 0.0))
+	var g: Vector2 = Bus.get_value("sps.gimbal_rad", Vector2.ZERO)
+	if t == 0.0 or g == Vector2.ZERO:
+		return [Vector3(t, 0.0, 0.0), Vector3.ZERO]
+	var arm := float(SpacecraftData.config(config).get("sps_gimbal_arm_m", 0.0))
+	var f := Vector3(t * cos(g.x) * cos(g.y), -t * sin(g.y), t * sin(g.x))
+	return [f, Vector3(0.0, arm * f.z, -arm * f.y)]
 
 
 ## The LM's autopilots are trying to turn it: its LGC's, or its AGS's.
@@ -630,6 +670,29 @@ func _lv_drag() -> Vector3:
 			cd = lerpf(float(table[i - 1][1]), float(table[i][1]), (mach - m0) / (float(table[i][0]) - m0))
 			break
 	return -va / sp * 0.5 * Atmosphere.density(h) * sp * sp * cd * float(d["reference_area_m2"])
+
+
+## The launch escape vehicle's drag, inertial N: along the air's velocity,
+## on the CM's heat shield's area, tower first (les "cd_tower_forward")
+## until the canards turn it blunt end forward (the CM's own) [estimated].
+func _lev_drag() -> Vector3:
+	var v := Atmosphere.air_velocity(traj.pos(), traj.vel())
+	var sp := v.length()
+	if sp < 1e-3:
+		return Vector3.ZERO
+	var ad := SpacecraftData.section("cm_aero")
+	var cd := float(ad["cd"]) if bool(Bus.get_value("les.blunt", false)) \
+		else float(SpacecraftData.section("les")["cd_tower_forward"])
+	return -v / sp * 0.5 * Atmosphere.density(traj.altitude()) * sp * sp * cd * float(ad["reference_area_m2"])
+
+
+## The escape system flies the launch escape vehicle: the attitude is the
+## one it publishes.
+func _align_les() -> void:
+	var q: Array = Bus.get_value("les.q", [])
+	if q.size() == 4:
+		attitude.q = Quaternion(q[0], q[1], q[2], q[3]).normalized()
+	attitude.omega = Vector3.ZERO
 
 
 ## The Instrument Unit flies the Saturn V: the attitude is the one it

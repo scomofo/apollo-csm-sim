@@ -6,6 +6,8 @@ on:
 
 env:
   GODOT_VERSION: 4.4.1
+  # The OpenXR Vendors plugin's v4 line supports Godot 4.4 (v5 needs 4.6).
+  OPENXR_VENDORS_VERSION: 4.3.1-stable
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -14,17 +16,17 @@ concurrency:
 jobs:
   suite:
     # The GUT suite in parts that run side by side: the unit tests, and
-    # the scenario tests, which fly whole mission segments, dealt out
-    # over the scenario parts by their time on the runners. A new
-    # scenario file joins a part by itself.
+    # the scenario tests, which fly whole mission segments, each dealt
+    # out over their parts by their time on the runners. A new test file
+    # joins a part by itself.
     name: test (${{ matrix.part }})
     timeout-minutes: 20
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        part: [unit, scenarios 1 of 7, scenarios 2 of 7, scenarios 3 of 7, scenarios 4 of 7, scenarios 5 of 7,
-          scenarios 6 of 7, scenarios 7 of 7]
+        part: [unit 1 of 2, unit 2 of 2, scenarios 1 of 9, scenarios 2 of 9, scenarios 3 of 9, scenarios 4 of 9,
+          scenarios 5 of 9, scenarios 6 of 9, scenarios 7 of 9, scenarios 8 of 9, scenarios 9 of 9]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -53,43 +55,47 @@ jobs:
         env:
           PART: ${{ matrix.part }}
         run: |
-          if [ "$PART" = unit ]; then
-            args=(-gdir=res://tests/unit/)
-          else
-            # "scenarios K of N": the scenario files dealt out over the N
-            # parts by their seconds in .github/scenario_seconds.txt (60
-            # for a file not listed), the longest first, each to the part
-            # with the fewest so far; every part deals alike and runs the
-            # Kth share. -gdir= drops .gutconfig.json's directories, so
-            # only the files listed run.
-            read -r _ k _ n <<< "$PART"
-            declare -A secs
-            while read -r name s; do
-              secs[$name]=$s
-            done < <(grep -E '^test_' .github/scenario_seconds.txt)
-            mapfile -t files < <(
-              find tests/scenarios -name 'test_*.gd' | while read -r f; do
-                echo "${secs[$(basename "$f")]:-60} $f"
-              done | LC_ALL=C sort -k1,1nr -k2,2)
-            load=()
-            for (( p = 0; p < n; p++ )); do load[p]=0; done
-            list=()
-            for line in "${files[@]}"; do
-              read -r s f <<< "$line"
-              best=0
-              for (( p = 1; p < n; p++ )); do
-                if (( load[p] < load[best] )); then best=$p; fi
-              done
-              load[best]=$(( load[best] + s ))
-              if (( best == k - 1 )); then list+=("res://$f"); fi
-            done
-            echo "$PART: ${list[*]} (${load[k - 1]} s recorded)"
-            if (( ${#list[@]} == 0 )); then
-              echo "No scenario files for $PART"
-              exit 1
-            fi
-            args=(-gdir= "-gtest=$(IFS=,; echo "${list[*]}")")
+          # "unit K of N" or "scenarios K of N": the test files in
+          # tests/unit or tests/scenarios dealt out over the N parts by
+          # their seconds in .github/unit_seconds.txt or
+          # .github/scenario_seconds.txt (10 or 60 for a file not
+          # listed), the longest first, each to the part with the fewest
+          # so far; every part deals alike and runs the Kth share. -gdir=
+          # drops .gutconfig.json's directories, so only the files listed
+          # run.
+          read -r kind k _ n <<< "$PART"
+          table=.github/scenario_seconds.txt
+          unlisted=60
+          if [ "$kind" = unit ]; then
+            table=.github/unit_seconds.txt
+            unlisted=10
           fi
+          declare -A secs
+          while read -r name s; do
+            secs[$name]=$s
+          done < <(grep -E '^test_' "$table")
+          mapfile -t files < <(
+            find "tests/$kind" -name 'test_*.gd' | while read -r f; do
+              echo "${secs[$(basename "$f")]:-$unlisted} $f"
+            done | LC_ALL=C sort -k1,1nr -k2,2)
+          load=()
+          for (( p = 0; p < n; p++ )); do load[p]=0; done
+          list=()
+          for line in "${files[@]}"; do
+            read -r s f <<< "$line"
+            best=0
+            for (( p = 1; p < n; p++ )); do
+              if (( load[p] < load[best] )); then best=$p; fi
+            done
+            load[best]=$(( load[best] + s ))
+            if (( best == k - 1 )); then list+=("res://$f"); fi
+          done
+          echo "$PART: ${list[*]} (${load[k - 1]} s recorded)"
+          if (( ${#list[@]} == 0 )); then
+            echo "No test files for $PART"
+            exit 1
+          fi
+          args=(-gdir= "-gtest=$(IFS=,; echo "${list[*]}")")
           ~/godot/godot --headless --path . -s addons/gut/gut_cmdln.gd "${args[@]}" -gexit
 
   test:
@@ -102,6 +108,259 @@ jobs:
     steps:
       - name: Every part of the suite passed
         run: test "${{ needs.suite.result }}" = success
+
+  build:
+    # The PC VR presets (export_presets.cfg) exported with Godot's own
+    # templates, and the Linux build flown headless for a minute of the
+    # launch. A merge to main keeps the builds as the run's artifacts, and
+    # a tag attaches them to its release as well.
+    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Cache Godot
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot
+          key: godot-${{ env.GODOT_VERSION }}-linux
+
+      - name: Download Godot
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot
+          curl -sSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip -d ~/godot
+          mv ~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 ~/godot/godot
+          chmod +x ~/godot/godot
+
+      # Only the PC VR presets' templates, out of the 1.2 GB archive.
+      - name: Cache the export templates
+        id: cache-templates
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.stable
+          key: godot-templates-${{ env.GODOT_VERSION }}-pc
+
+      - name: Download the export templates
+        if: steps.cache-templates.outputs.cache-hit != 'true'
+        run: |
+          curl -sSL -o templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          dir="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$dir"
+          unzip -j -q templates.tpz templates/version.txt templates/linux_release.x86_64 \
+            templates/windows_release_x86_64.exe templates/windows_release_x86_64_console.exe -d "$dir"
+          rm templates.tpz
+
+      - name: Import project
+        run: timeout 300 ~/godot/godot --headless --path . --import
+
+      - name: Export the PC VR presets
+        run: |
+          mkdir -p build/linux build/windows
+          timeout 300 ~/godot/godot --headless --path . --export-release "PC VR (Linux)" build/linux/ApolloVR.x86_64
+          timeout 300 ~/godot/godot --headless --path . --export-release "PC VR (Windows)" build/windows/ApolloVR.exe
+          ls -l build/linux build/windows
+          test -s build/linux/ApolloVR.x86_64 && test -s build/linux/ApolloVR.pck
+          test -s build/windows/ApolloVR.exe && test -s build/windows/ApolloVR.pck
+
+      # The exported build, not the editor: a minute of the launch, from
+      # 20 s before liftoff, at 1x, with no error on the way.
+      - name: Fly a minute of the launch on the Linux build
+        run: |
+          timeout 300 build/linux/ApolloVR.x86_64 --headless -- --phase=launch --quit-after=60 2>&1 | tee smoke.log
+          grep -Eq "Main: flew [0-9]+ s of apollo_11 from launch" smoke.log
+          if grep -E "SCRIPT ERROR|^ERROR" smoke.log; then exit 1; fi
+
+      - name: Zip the builds
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
+        run: |
+          cd build
+          zip -qr ../ApolloVR-linux-x86_64.zip linux
+          zip -qr ../ApolloVR-windows-x86_64.zip windows
+
+      - name: Keep the builds
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
+        uses: actions/upload-artifact@v4
+        with:
+          name: ApolloVR-pc-vr
+          path: ApolloVR-*.zip
+          retention-days: 30
+
+      - name: Attach the builds to the tag's release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The build and quest jobs both attach: whichever comes first makes the release.
+          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes 2> /dev/null || true
+          gh release upload "$GITHUB_REF_NAME" ApolloVR-linux-x86_64.zip ApolloVR-windows-x86_64.zip --clobber
+
+  quest:
+    # The Quest 3 Standalone preset (docs/QUEST_STANDALONE.md), after
+    # gemini-capsule's quest-export job: the scene drawn with the
+    # Compatibility renderer the headset uses, on software GL, then a
+    # debug APK built with Gradle, the Android SDK and the OpenXR Vendors
+    # plugin. A compile, link and package gate only: the headset's own
+    # pass is a person's, with a Quest 3.
+    timeout-minutes: 45
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Install Godot 4.4's Android SDK packages
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager \
+            "platform-tools" \
+            "build-tools;34.0.0" \
+            "platforms;android-34" \
+            "cmdline-tools;latest" \
+            "cmake;3.10.2.4988404" \
+            "ndk;23.2.8568313"
+
+      - name: Cache Godot
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot
+          key: godot-${{ env.GODOT_VERSION }}-linux
+
+      - name: Download Godot
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot
+          curl -sSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip -d ~/godot
+          mv ~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 ~/godot/godot
+          chmod +x ~/godot/godot
+
+      # A Gradle build needs only the Android build template's source.
+      - name: Cache the Android export template
+        id: cache-templates
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.stable
+          key: godot-templates-${{ env.GODOT_VERSION }}-android
+
+      - name: Download the Android export template
+        if: steps.cache-templates.outputs.cache-hit != 'true'
+        run: |
+          curl -sSL -o templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          dir="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$dir"
+          unzip -j -q templates.tpz templates/version.txt templates/android_source.zip -d "$dir"
+          rm templates.tpz
+
+      - name: Ensure an Android debug keystore
+        run: |
+          mkdir -p "$HOME/.android"
+          if [ ! -f "$HOME/.android/debug.keystore" ]; then
+            keytool -genkeypair -v \
+              -keystore "$HOME/.android/debug.keystore" \
+              -storepass android -alias androiddebugkey -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+      # The Gradle build runs near the edge of the runner's disk.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/boost /usr/local/share/powershell || true
+          df -h /
+
+      - name: Install a virtual display and software GL
+        run: sudo apt-get update -q && sudo apt-get install -y -q xvfb libgl1-mesa-dri
+
+      - name: Import project
+        run: timeout 300 ~/godot/godot --headless --path . --import
+
+      # Every shader the scene uses, compiled and drawn by the headset's
+      # renderer: Columbia's cabin, the chase view in lunar orbit, and the
+      # Moon's surface from Eagle's descent orbit.
+      - name: Draw the scene with the Compatibility renderer
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          mkdir -p compat
+          shot() {
+            timeout 300 xvfb-run -a -s "-screen 0 1600x900x24" ~/godot/godot --path . \
+              --rendering-driver opengl3 --rendering-method gl_compatibility --audio-driver Dummy \
+              tools/screenshot.tscn -- "$@" 2>&1 | tee -a compat/log.txt
+          }
+          shot --phase=lunar_orbit --view=2 --yaw=-0.3 --pitch=-0.12 --hud=0 --out="$PWD/compat/cabin.png"
+          shot --phase=lunar_orbit --view=1 --out="$PWD/compat/chase.png"
+          shot --phase=lunar_descent --view=0 --out="$PWD/compat/descent.png"
+          test -s compat/cabin.png && test -s compat/chase.png && test -s compat/descent.png
+          if grep -E "SHADER ERROR|SCRIPT ERROR|^ERROR" compat/log.txt; then exit 1; fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: compatibility-renders
+          path: compat/*.png
+          retention-days: 14
+
+      # After the drawing, which needs no Android plugin.
+      - name: Install the pinned OpenXR Vendors plugin
+        run: |
+          curl -sSL -o vendors.zip \
+            "https://github.com/GodotVR/godot_openxr_vendors/releases/download/${OPENXR_VENDORS_VERSION}/godotopenxrvendorsaddon.zip"
+          rm -rf /tmp/vendors
+          unzip -q vendors.zip -d /tmp/vendors
+          test -d /tmp/vendors/asset/addons/godotopenxrvendors
+          mkdir -p addons
+          mv /tmp/vendors/asset/addons/godotopenxrvendors addons/godotopenxrvendors
+
+      - name: Import the plugin
+        run: timeout 300 ~/godot/godot --headless --path . --import
+
+      - name: Export the Quest 3 debug APK
+        run: |
+          mkdir -p build/android-quest
+          timeout 1800 ~/godot/godot --headless --path . \
+            --install-android-build-template \
+            --export-debug "Quest 3 Standalone" build/android-quest/ApolloVR.apk
+          test -f android/build/build.gradle
+          test -s build/android-quest/ApolloVR.apk
+          unzip -tq build/android-quest/ApolloVR.apk > /dev/null
+          cp build/android-quest/ApolloVR.apk ApolloVR-quest3-debug.apk
+
+      - name: Keep the APK
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
+        uses: actions/upload-artifact@v4
+        with:
+          name: ApolloVR-quest3
+          path: ApolloVR-quest3-debug.apk
+          retention-days: 30
+
+      - name: Attach the APK to the tag's release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The build and quest jobs both attach: whichever comes first makes the release.
+          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes 2> /dev/null || true
+          gh release upload "$GITHUB_REF_NAME" ApolloVR-quest3-debug.apk --clobber
 
   lint:
     # Static checks that need no Godot binary. gdlint is advisory

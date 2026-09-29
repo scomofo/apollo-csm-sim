@@ -1,0 +1,22 @@
+{
+  "_comment": "The LM's malfunction procedures for the failure catalog's LM failures (data/failures.json, slice 9e), in every LM checklist book after its flight's lists (ChecklistBook.load_lm()). A failure opens its procedure as it comes. The simulator's own [adapted]: each light's meaning is the LM caution and warning table's (LM Apollo Operations Handbook, LMA790-3-LM, section 2.9.4) [published]; the actions are those the simulated systems have. The aborts: ABORT fires P70 on the descent engine, ABORT STAGE stages and fires P71 on the ascent engine, each whatever ENG ARM says (ibid., section 2.1) [published].",
+  "checklists": [
+    {"title": "Malfunction: DES REG", "phases": [], "steps": [
+      {"text": "DES REG: the descent tanks' helium out of limits (the HUD's LM C&W line); the descent engine's thrust dies away"},
+      {"text": "MASTER ALARM - press", "control": "P1_MASTER_ALARM", "check": {"channel": "lm.cw.master_alarm", "op": "eq", "value": false}},
+      {"text": "In the powered descent: ABORT STAGE - press: staged, P71 on the ascent engine", "control": "P1_ABORT_STAGE", "check": {"channel": "lm.guid.program", "op": "eq", "value": 71}},
+      {"text": "LGC MODE - AUTO: the LGC steers to insertion; at cutoff V16N85, PRO", "control": "P3_LGC_MODE", "check": {"channel": "ctl.lm.mode", "op": "eq", "value": 2}}
+    ]},
+    {"title": "Malfunction: RCS A or B REG", "phases": [], "steps": [
+      {"text": "RCS A REG or RCS B REG: a system's helium regulator out of limits; its jets are lost"},
+      {"text": "MASTER ALARM - press", "control": "P1_MASTER_ALARM", "check": {"channel": "lm.cw.master_alarm", "op": "eq", "value": false}},
+      {"text": "RCS SYS A (or B) - CLOSE, the failed system's main shutoff valves: its light goes out, and the LM flies on the other", "control": "P2_RCS_SYS_A"}
+    ]},
+    {"title": "Malfunction: LGC or ISS", "phases": [], "steps": [
+      {"text": "LGC or ISS: the PGNS's computer or its platform has failed"},
+      {"text": "MASTER ALARM - press", "control": "P1_MASTER_ALARM", "check": {"channel": "lm.cw.master_alarm", "op": "eq", "value": false}},
+      {"text": "GUID CONT - AGS: the AGS holds the attitude, and the light goes out", "control": "P1_GUID_CONT", "check": {"channel": "ctl.lm.guid_cont", "op": "eq", "value": 1}},
+      {"text": "In the powered descent: an abort on the AGS [the AGS's own insertion guidance isn't modelled]"}
+    ]}
+  ]
+}

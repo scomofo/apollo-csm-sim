@@ -30,14 +30,34 @@ extends RefCounted
 ## 17: whether noun 69 moved the LGC's landing site (slice 7c).
 ## 18: the LM as a lifeboat (slice 7d): its batteries, its AGS, the LGC's
 ##    IMU and coarse align, the CSM's O2 tank 1 leak.
-const SCHEMA_VERSION := 18
+## 19: the failure catalog (slice 9a): the armed and the failed, and the
+##    parts each system has failed; the O2 tank's failure moved off the
+##    mission.
+## 20: Apollo 11's program alarms (slice 9b): the LGC's Executive (its jobs
+##    and their schedule), its restarts and alarm registers, and the
+##    ground's answers to them.
+## 21: the backups (slice 9c): the SCS's GDC, hold and SPS latch, the SPS's
+##    gimbal, and the EMS's counters and scroll.
+## 22: the launch's aborts (slice 9d): the EDS's and the escape tower's
+##    state, the launch vehicle's failures and cutoff, the ELS's
+##    controller, the failures armed on an event, and the abort's mode and
+##    the ground's calls.
+## 23: the LM's aborts (slice 9e): the LGC's abort programs and their TPI
+##    times, the engines' abort arming, the descent helium, the LM RCS's
+##    failed regulators, the LM's caution and warning, and the ground's
+##    abort TPI.
+const SCHEMA_VERSION := 23
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],
 	["agc", "res://src/systems/agc.gd"],
+	["ems", "res://src/systems/ems.gd"],
+	["scs", "res://src/systems/scs.gd"],
 	["rcs", "res://src/systems/rcs.gd"],
 	["sps", "res://src/systems/sps.gd"],
 	["lv", "res://src/systems/launch_vehicle.gd"],
+	["eds", "res://src/systems/eds.gd"],
+	["les", "res://src/systems/les.gd"],
 	["sivb", "res://src/systems/sivb.gd"],
 	["els", "res://src/systems/els.gd"],
 	["optics", "res://src/systems/optics.gd"],
@@ -54,15 +74,22 @@ const LM_SYSTEMS := [
 	["aps", "res://src/systems/aps.gd"],
 	["lr", "res://src/systems/landing_radar.gd"],
 	["rr", "res://src/systems/rendezvous_radar.gd"],
+	["lm_cw", "res://src/systems/lm_caution_warning.gd"],
 ]
 ## Crew control defaults: CMC attitude source, HOLD, SPS disarmed, UP TLM
-## CM in ACCEPT, the optics in CMC mode at MED speed, the CM's loads all on
+## CM in ACCEPT, the SCS at RATE LOW, ATT DEADBAND MIN and TVC AUTO, the
+## EMS OFF, the optics in CMC mode at MED speed, the CM's loads all on
 ## its own buses; the LM's DAP in HOLD, its engines disarmed and both RCS
 ## systems open, the PGNS's breakers in and its guidance in control, the
-## AGS off, the TTCA's throttle at its minimum, and docked, the LM powered
-## down.
+## AGS off, the TTCA's throttle at its minimum, the rendezvous radar's mode
+## switch at AUTO TRACK (0 LGC, 1 AUTO TRACK, 2 SLEW), where Apollo 11's
+## radar ranging test after DOI left it, and docked, the LM powered down;
+## EDS AUTO, 2 ENG OUT and LV RATES on, as the launch has them, the abort
+## handle at neutral; the LM's ABORT out.
 const CONTROL_DEFAULTS := {
 	"ctl.scs.att_source": 0, "ctl.cmc.mode": 1, "ctl.cmc.up_tlm": true,
+	"ctl.scs.rate": 0, "ctl.scs.att_db": 0, "ctl.scs.gdc_align": false, "ctl.scs.tvc": 0,
+	"ctl.ems.function": 0, "ctl.ems.set": 0,
 	"ctl.optics.zero": false, "ctl.optics.mode": 1, "ctl.optics.speed": 1, "ctl.optics.hc": Vector3.ZERO,
 	"ctl.optics.mark": false, "ctl.optics.mark_reject": false,
 	"ctl.sps.arm_a": false, "ctl.sps.arm_b": false, "ctl.sps.thrust_on": false,
@@ -70,17 +97,20 @@ const CONTROL_DEFAULTS := {
 	"ctl.els.logic": false, "ctl.els.auto": false, "ctl.cw.master_alarm": false,
 	"ctl.eps.fc1": true, "ctl.eps.fc2": true, "ctl.eps.fc3": true, "ctl.eps.cm_power": 2, "ctl.eps.lm_power": false,
 	"ctl.seq.csm_sep": false, "ctl.seq.undock": false, "ctl.seq.lm_jett": false, "ctl.seq.cm_sm_sep": false,
+	"ctl.eds.auto": true, "ctl.eds.two_eng": true, "ctl.eds.rates": true, "ctl.abort": false, "ctl.les.tower_jett": false,
 	"ctl.ground.pad_request": "",
 	"ctl.lm.mode": 1, "ctl.lm.rhc": Vector3.ZERO, "ctl.lm.thc": Vector3.ZERO,
 	"ctl.lm.engine_arm": 0, "ctl.lm.stage": false, "ctl.lm.rcs.sys_a": true, "ctl.lm.rcs.sys_b": true,
 	"ctl.lm.eng_start": false, "ctl.lm.eng_stop": false, "ctl.lm.rod": 0,
 	"ctl.lm.power": false, "ctl.lm.pgns": true, "ctl.lm.ags": false, "ctl.lm.ags_align": false, "ctl.lm.guid_cont": 0,
-	"ctl.lm.throttle": 0.1,
+	"ctl.lm.throttle": 0.1, "ctl.lm.rr_mode": 1, "ctl.lm.abort": false, "ctl.lm.cw.master_alarm": false,
 }
 
 var mission: Mission
 var dynamics: Dynamics
 var sequencer: MissionSequencer
+## The failure catalog at work (slice 9a).
+var failures: Failures
 var systems: Dictionary = {}
 var nodes: Array[Node] = []
 
@@ -102,6 +132,8 @@ static func build(parent: Node, mission_path: String = "") -> SimRuntime:
 		parent.add_child(n)
 		rt.systems[pair[0]] = n
 		rt.nodes.append(n)
+	# Luminary 1A, Apollo 11's, counted the rendezvous radar's CDU pulses.
+	rt.lgc().rr_cdu_zeroed = bool(rt.mission.section("lgc").get("rr_cdu_zeroed", true))
 	rt.sequencer = MissionSequencer.new()
 	rt.sequencer.name = "MissionSequencer"
 	rt.sequencer.mission = rt.mission
@@ -109,6 +141,13 @@ static func build(parent: Node, mission_path: String = "") -> SimRuntime:
 	rt.sequencer.systems = rt.systems
 	parent.add_child(rt.sequencer)
 	rt.nodes.append(rt.sequencer)
+	rt.failures = Failures.new()
+	rt.failures.name = "Failures"
+	rt.failures.mission = rt.mission
+	rt.failures.systems = rt.systems
+	rt.sequencer.failures = rt.failures
+	parent.add_child(rt.failures)
+	rt.nodes.append(rt.failures)
 	return rt
 
 
@@ -151,6 +190,7 @@ func snapshot() -> Dictionary:
 		"mission_id": mission.id(),
 		"clock": SimClock.snapshot(),
 		"mission": sequencer.snapshot(),
+		"failures": failures.snapshot(),
 		"vehicles": vehicles,
 		"controls": ctl,
 	}
@@ -197,6 +237,7 @@ func restore(d: Dictionary) -> String:
 	# the stack's.
 	dynamics.publish_state()
 	sequencer.restore(d["mission"])
+	failures.restore(d.get("failures", {}))
 	return ""
 
 

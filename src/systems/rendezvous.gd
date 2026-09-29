@@ -130,8 +130,10 @@ static func _csi_trial(lm: Trajectory, csm: Trajectory, dv: float, t_tpi: float)
 ## CSI (P32): the horizontal ΔV at GET [param t_csi] (m/s, posigrade
 ## positive) that, with CDH half a revolution on, has the CSM stand
 ## [param e_tpi] (radians) above the LM at GET [param t_tpi]. Secant from
-## the ΔV that would circularize the orbit at CSI. Returns {"dv",
-## "cdh_get", "cdh_dv" (inertial, predicted), "dh", "ok"}.
+## the ΔV that would circularize the orbit at CSI; from above the CSM (an
+## abort's high apolune, slice 9e), from the one that puts perilune the
+## coelliptic height below it. Returns {"dv", "cdh_get", "cdh_dv"
+## (inertial, predicted), "dh", "ok"}.
 static func plan_csi(lm: Trajectory, csm: Trajectory, t_csi: float, t_tpi: float, e_tpi: float) -> Dictionary:
 	var l := lm.clone()
 	l.coast_to(t_csi)
@@ -139,7 +141,11 @@ static func plan_csi(lm: Trajectory, csm: Trajectory, t_csi: float, t_tpi: float
 	c.coast_to(t_csi)
 	var rdot := l.radial_rate()
 	var vh := sqrt(maxf(l.speed() * l.speed() - rdot * rdot, 0.0))
-	var x0 := sqrt(Bodies.mu_of(l.primary) / l.radius()) - vh
+	var mu := Bodies.mu_of(l.primary)
+	var x0 := sqrt(mu / l.radius()) - vh
+	if l.radius() > c.radius():
+		var rp := c.radius() - float(SpacecraftData.section("rendezvous_guidance")["coelliptic_dh_m"])
+		x0 = sqrt(2.0 * mu * rp / (l.radius() * (l.radius() + rp))) - vh
 	var x1 := x0 + 0.5
 	var f0 := float(_csi_trial(l, c, x0, t_tpi)["e"]) - e_tpi
 	var res := _csi_trial(l, c, x1, t_tpi)

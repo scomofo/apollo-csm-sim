@@ -172,11 +172,14 @@ func test_the_record_is_written_as_json_and_tables() -> void:
 	assert_eq(d["rig"], "desktop")
 	assert_gt(int(d["frames"]["count"]), 0)
 	var md := FileAccess.get_file_as_string(base + ".md")
-	for heading in ["## Session", "## Reach and cabin", "## Actuation", "## Comfort and pacing", "## Eagle's cabin"]:
+	for heading in ["## Session", "## Reach and cabin", "## Actuation", "## Comfort and pacing", "## Eagle's cabin",
+			"## Standalone headset (Quest 3)"]:
 		assert_string_contains(md, heading)
 	for row in ["S1", "S2", "S3", "S4", "S5", "S6", "R1", "R2", "R3", "R4", "R5", "A1", "A2", "A3", "A4", "A5", "A6", "A7",
-			"C1", "C2", "C3", "C4", "C5", "E1", "E2", "E3", "E4", "E5"]:
+			"C1", "C2", "C3", "C4", "C5", "E1", "E2", "E3", "E4", "E5", "Q1", "Q2", "Q3", "Q4"]:
 		assert_string_contains(md, "| %s |" % row)
+	assert_gt(int(d["frames_by"]["csm:lunar_orbit"]["count"]), 0, "the frames timed by where they were drawn too")
+	assert_string_contains(md, "at `csm:lunar_orbit`", "Q2's evidence")
 	Bus.set_value("player.seat", "CMP")
 	assert_eq(_rec.write(), base, "a later write rewrites the same record")
 	assert_eq(DirAccess.get_files_at(OUT).size(), 2)

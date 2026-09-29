@@ -8,6 +8,8 @@
 ##   cm_lm   Command Module docked to the LM, the SM jettisoned (Apollo 13's
 ##           last hours, the LM flying them)
 ##   cm      Command Module alone (after CM/SM separation)
+##   cm_les  the Command Module under its escape tower, after a launch
+##           abort in mode I (slice 9d), until the tower's jettison
 ## and the LM's, while it flies free of the CSM:
 ##   lm         the whole LM
 ##   lm_ascent  its ascent stage, after staging
@@ -21,7 +23,7 @@ class_name SpacecraftData
 extends RefCounted
 
 const PATH := "res://data/spacecraft.json"
-const CONFIGS := ["saturn_v", "stack", "csm_lm", "csm", "cm_lm", "cm"]
+const CONFIGS := ["saturn_v", "stack", "csm_lm", "csm", "cm_lm", "cm", "cm_les"]
 const LM_CONFIGS := ["lm", "lm_ascent"]
 
 static var _data: Dictionary = {}
@@ -81,7 +83,7 @@ static func total_mass(cfg: String, sps_kg: float, sm_rcs_kg: float, cm_rcs_kg: 
 
 ## The Service Module is still attached in configuration [param cfg].
 static func sm_attached(cfg: String) -> bool:
-	return not cfg in ["cm", "cm_lm"]
+	return not cfg in ["cm", "cm_lm", "cm_les"]
 
 
 ## The LM is docked in configuration [param cfg].

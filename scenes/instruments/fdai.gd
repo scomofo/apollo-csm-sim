@@ -3,9 +3,11 @@
 ## the view from inside the ball: nose up puts sky at the centre, a right
 ## roll turns the horizon counter-clockwise, and a right yaw moves the
 ## markings left.
-## Reads guid.indicator.attitude (Quaternion), which the CMC publishes: the
-## CSM's attitude relative to the IMU's stable member, the ICDU angles, so
-## the ball shows total attitude against REFSMMAT. Or, with [member vehicle]
+## Reads [member channel] (Quaternion): for the CSM's cabin
+## scs.fdai.attitude, the CMC's guid.indicator.attitude (the CSM's
+## attitude relative to the IMU's stable member, the ICDU angles, so the
+## ball shows total attitude against REFSMMAT) or with ATT SOURCE at SCS
+## the GDC's (slice 9c). Or, with [member vehicle]
 ## "lm", the LGC's lm.guid.indicator.attitude, relative to LVLH (orbit-rate
 ## mode): the LM flies level with its windows forward along the track and
 ## its +X up (Frames.LM_LEVEL), so that attitude reads level on its ball.

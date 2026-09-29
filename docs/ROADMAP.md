@@ -41,12 +41,13 @@ picture).
 - **Start phases stay consistent.** A new `--phase` is built the way the
   existing ones are, from the RTCC's own solutions, so it continues the
   mission it claims to.
-- **CI stays fast.** The suite runs in eight jobs side by side: the unit
-  tests, and the scenario tests in seven parts, dealt out by each file's
-  time on the runners (`.github/scenario_seconds.txt`). Keep each job
-  under ten minutes: start a long scenario from a phase or checkpoint
-  instead of flying the whole mission, record a new scenario file's
-  time, and give the scenarios another part when theirs grow past that.
+- **CI stays fast.** The suite runs in eleven jobs side by side: the
+  unit tests in two parts and the scenario tests in nine, each dealt out
+  by each file's time on the runners (`.github/unit_seconds.txt`,
+  `.github/scenario_seconds.txt`). Keep each job under ten minutes:
+  start a long scenario from a phase or checkpoint instead of flying the
+  whole mission, record a new test file's time, and give the tests
+  another part when theirs grow past that.
 
 ## 1. CI green
 
@@ -1747,38 +1748,56 @@ in Earth orbit, Apollo 7 and 9, are left for later.
 
 ## 8. A way in
 
-**Status: not started.** A flight is chosen by flags on the command line
-(`--mission=`, `--phase=`: `docs/HEADSET_RUN.md`), which nobody in a
-headset can type, and one checkpoint is saved and loaded with F5 and F9
-at the desktop's keyboard. The wrist menu came from gemini-capsule
-without its new-flight and guide buttons, and it saves no settings: the
-eye height is set again each session. CI tests every push but builds
-nothing; the PC VR presets in `export_presets.cfg` are exported by hand.
-This milestone lets a person pick a flight, fly it and come back to it,
+**Status: slices 8a to 8c done; 8d prepared, its pass waiting on a
+Quest 3.** The flight menu opens at launch, and on F1 or the wrist
+menu's FLIGHT during a flight; the flags on the command line
+(`--mission=`, `--phase=`: `docs/HEADSET_RUN.md`) still start a flight
+without it. Its SAVES page saves, resumes and deletes flights, F5 and F9
+keep a quick save among them, and the settings are kept between
+sessions. CI exports the PC VR presets in `export_presets.cfg` on every
+push, flies a minute of the launch on the Linux build, and keeps the
+builds from `main` and tags. It builds the Quest 3 preset's APK too,
+after drawing the scene with the headset's renderer
+(`docs/QUEST_STANDALONE.md`). This milestone lets a person pick a flight, fly it and come back to it,
 on the desktop or in a headset, from a build CI made, and so lets someone
 who doesn't build the project run the headset pass (2e) and the
 listening pass (6a).
 
 - **The flight menu** lists what `data/missions/` holds: each mission,
-  its start phases (`start_phases`) with a line on each from its data,
-  and the saved flights. Choosing one starts it in place: the runtime is
-  built again (`SimRuntime.free_nodes()`, `build()`), and the rig, the
-  view, the cabin and the checklists follow it, as gemini-capsule's guide
-  asks its mission owner for a new flight. On the desktop a key opens it;
-  in a headset it rides on the wrist, and it is the first thing in view.
+  in the order they flew, its start phases (`start_phases`) with a line
+  on each from its data (`start_notes`), and (8b) the saved flights.
+  Choosing one starts it in place, as gemini-capsule's guide asks its
+  mission owner for a new flight: a new main scene, its runtime, rig,
+  view, cabins and checklists built for it, every node of the old flight
+  freed and the Bus and the clock started again, with the headset
+  session's channels, the settings and the headset recorder's record
+  carried over. It is the wrist menu's FLIGHT page: on the desktop F1
+  opens it in the cabin view, in a headset it rides on the wrist, and at
+  launch it is the first thing in view.
 - **Saved flights** are checkpoints with names, listed with their
-  mission, GET and phase; one from an older schema is listed as unusable
-  rather than offered. **Settings** (the eye height, the comfort aids,
-  the highlight, the sound's level) are kept in `user://` between
+  mission, GET and phase (`src/presentation/saved_flights.gd`, in
+  `user://saves/`); one from an older schema is listed as unusable rather
+  than offered. A resume is a new flight in place, as START's, its
+  runtime restored from the save rather than started. **Settings** (the
+  eye height, the comfort aids, the highlight, the sound's level, new
+  on the wrist menu) are kept in `user://settings.json` between
   sessions.
-- **Builds** come from CI: the PC VR presets exported with Godot 4.4.1's
-  templates on each merge to `main`, kept as the run's artifacts and
-  attached to a release on a tag, the exported Linux build first flying a
-  minute of a start phase headless.
+- **Builds** come from CI (`build` in `.github/workflows/ci.yml`): the
+  PC VR presets exported with Godot 4.4.1's templates (only the Linux and
+  Windows release templates, cached), kept as the run's artifacts from
+  `main` and attached to a release on a tag, the exported Linux build
+  first flying a minute of the launch headless (`--quit-after=60`) with
+  no error on the way. The Windows export warns that it can't set the
+  executable's icon and version information without rcedit, which the
+  runner doesn't have.
 - **A standalone headset** last: gemini-capsule's Quest 3 preset (the
   `gl_compatibility` renderer, ARM64), the procedural Earth, Moon and sky
   and the lunar terrain measured on the headset and cut to its frame
-  budget where they miss it.
+  budget where they miss it. The preset, CI's APK and its drawing of the
+  scene with the Compatibility renderer are in, and the headset recorder
+  times the frames by vehicle and flight phase for the pass (rows Q1 to
+  Q4 of `docs/VR_ACCEPTANCE.md`); the measuring, and any cut, wait on a
+  Quest 3.
 
 | Slice | Work | Check |
 |---|---|---|
@@ -1799,20 +1818,37 @@ version there.
 
 ## 9. Failures, backups and aborts
 
-**Status: not started.** The simulators the crews trained on were there
-for the failures: the simulation supervisor's team failed the spacecraft,
-and the crew worked the malfunction procedures until the answers came
-without thinking. Here one failure is modelled, Apollo 13's oxygen tank
-(`failures` in its `mission.json`), and nothing aborts: the launch escape
-tower is jettisoned unused, and Eagle has no ABORT or ABORT STAGE.
+**Status: done.** The simulators the crews trained on were
+there for the failures: the simulation supervisor's team failed the
+spacecraft, and the crew worked the malfunction procedures until the
+answers came without thinking. Slice 9a gives the CSM a catalog of ten:
+an oxygen tank (Apollo 13's, moved onto it), the fuel cells, the SM RCS
+quads, the CMC and the IMU. Each lights its caution and warning light,
+from a matrix on MDC-2. They're armed by a mission or failed by hand on
+the flight menu's instructor's page. Slice 9b brings Apollo 11's own
+trouble: its landing's 1202 and 1201 alarms. Slice 9c gives the crew the
+backups a failed CMC leaves them: the SCS and the EMS. Slice 9d gives
+the launch its aborts: the escape tower's, the SPS's modes II to IV, the
+EDS and the handle. Slice 9e gives Eagle its ABORT and ABORT STAGE in the
+powered descent, and its own failures and caution and warning lights.
 
 - **The catalog.** A failure is data (`data/failures.json`): the system
   and the part, what fails and how, and the caution and warning light it
-  brings, armed at a GET or on an event by a mission's data, or set by
-  hand from an instructor's panel beside the flight menu (8a). Apollo
-  13's tank moves onto it. The caution and warning system gets the
-  lights the catalog needs beyond the EPS's, and the checklists the
-  malfunction procedures for them.
+  brings, armed at a GET by a mission's data, or set by hand from an
+  instructor's panel beside the flight menu (8a). Apollo 13's tank moves
+  onto it. The caution and warning system gets the lights the catalog
+  needs beyond the EPS's, and the checklists the malfunction procedures
+  for them. Done in 9a for the CSM: `src/systems/failures.gd` arms and
+  applies them, each system's `fail(part)` changes it, CRYO PRESS, SM
+  RCS A to D, CMC and ISS light with the handbook's triggers, and a
+  failure opens its procedure (`data/malfunctions.json`). The LM's
+  failures came with its aborts (9e): the descent engine's helium
+  regulator, each RCS system's, the LGC and its IMU, with the LM's own
+  lights (DES REG, RCS A and B REG, LGC and ISS, and DES QTY at the
+  descent tanks' 5.6 %) and master alarm, and their procedures in the
+  LM's book. A failure armed on an event, rather than a GET, came with
+  the launch's aborts (9d): the launch vehicle's engines and its guidance
+  platform join the catalog, with the console's launch vehicle lights.
 - **Apollo 11's program alarms**, the first of the flights' own troubles.
   With the rendezvous radar's mode switch at AUTO or SLEW rather than
   LGC, as Apollo 11's crew had it, the radar's resolvers ran on an 800 Hz
@@ -1821,23 +1857,83 @@ tower is jettisoned unused, and Eagle has no ABORT or ABORT STAGE.
   descent's programs and displays took the rest, and when the Executive
   found no room for a job it restarted, with the 1202 or 1201 alarm, the
   guidance carrying on from its restart points (the mission report,
-  section 16.2).
+  section 16.2). Done in 9b: `src/systems/lgc_executive.gd` runs the
+  descent's jobs by priority on the time the interrupts leave, each
+  holding one of eight core sets and one of five VAC areas if it
+  interprets (Luminary 099's Executive). The jobs' shares are estimated
+  to the mission report's 90 % at the descent's peak; the radar's CDUs
+  take about 13 % more on Apollo 11's Luminary 1A with RNDZ RADAR (panel
+  3) away from LGC (Eyles, 2004). P63 shows N63 from ignition, and the
+  crew's V16N68 (ΔH, as Luminary 099 had it) on top of the radar's data
+  brings 1202s, and P64's landing point designator in AUTO 1201s. A
+  restart lights PROG, fills N09 (V05N09; RSET clears it), drops the
+  crew's display and holds the guidance's commands until the Servicer's
+  next cycle; Houston calls GO. Checkpoint schema 20.
 - **The backups** a failure leaves the crew: the SCS, with its
   body-mounted gyros and attitude set, holding the attitude and turning
   the SPS by hand (MTVC) on the RHC, and the EMS, whose ΔV counter ends a
-  burn the CMC isn't flying and whose scroll monitors the entry.
+  burn the CMC isn't flying and whose scroll monitors the entry. Done in
+  9c (the CSM Apollo Operations Handbook's section 2.3):
+  `src/systems/scs.gd` holds the attitude on its BMAGs and GDC within
+  its deadbands (RATE LOW and HIGH, ATT DEADBAND MIN and MAX), commands
+  rates on the RHC, and while the SPS fires holds the attitude on the
+  gimbal or turns it by hand (MTVC); `src/systems/ems.gd` counts the ΔV
+  and gives the thrust-off, and in the entry lights 0.05 G and the
+  corridor lights and traces its scroll. The maneuver PADs give the burn
+  attitude (R, P, Y) and ΔVC. Checkpoint schema 21.
 - **The aborts**: the launch's four modes, the escape tower's (mode I)
   and the service propulsion system's (modes II to IV), with the EDS's
   automatic aborts, the abort lights and the crew's handle; and the
-  LM's ABORT and ABORT STAGE in the powered descent.
+  LM's ABORT and ABORT STAGE in the powered descent. Done in 9d for the
+  launch (the CSM Apollo Operations Handbook's section 2.9; the Apollo 11
+  Mission Operation Report): `src/systems/eds.gd` aborts on its own for
+  two S-IC engines out or the launch vehicle's rates past their limits,
+  from the liftoff until the IU switches it off at the S-IC's centre
+  engine's cutoff or the tower goes, and on the crew's handle; it lights
+  ABORT for the ground, LV RATE and LV GUID. `src/systems/les.gd` pulls
+  the CM away on the escape motor, tilted out to sea by the pitch
+  control motor in mode IA, turned blunt end forward by the canards, and
+  jettisons the tower when the ELS's controller comes on. After the
+  tower the handle cuts the booster off, fires the SM's +X jets and
+  separates the CSM 3 s later; mode II falls to a full-lift entry, mode
+  III burns retrograde on the ground's PAD to land short of Africa on
+  half lift, and mode IV burns into orbit. The modes are called as
+  Apollo 11's were (Armstrong's One Bravo, then Houston's), and Houston
+  lights ABORT for a failure that ends the launch.
+  Checkpoint schema 22. CI gets an eighth scenario part for the aborts'
+  flights, each file's time measured again on 9c's runs.
+  Done in 9e for the LM (Luminary 099's P70 and P71; Bennett, NASA TM
+  X-58040; the LM Apollo Operations Handbook, LMA790-3-LM; the Apollo 11
+  Flight Journal): from the descent's ignition to the touchdown the LGC
+  reads the pushbuttons, each of which arms its engine whatever ENG ARM
+  says. ABORT brings P70: the descent engine at full thrust on P12's
+  guidance. ABORT STAGE stages the LM and brings P71 on the ascent
+  engine, from P63 to P66 or from P70. Both fly to P12's insertion, 60,000
+  ft up, the vertical rise ended above 25,000 ft too, but not into P12's
+  orbit: Luminary's targets "vary as a function of phase relationship
+  between the LM and CSM" (Bennett). Early in the descent Eagle is ahead
+  of Columbia and must climb above it to fall behind, as Apollo 11's
+  no-PDI abort's 11 by 152 nmi did; later Columbia is ahead. Luminary's
+  cubic for the insertion velocity (ABTCOF) is erasable and not at hand,
+  so `AscentGuidance.abort_targets()` solves for the apolune it was
+  fitted to give: the one whose coelliptic sequence brings TPI at the
+  PDI PAD's time for the abort, 105:12:30 in the first ten minutes,
+  107:11:30 after (the PAD as read to Eagle). The ground uplinks
+  Columbia's state vector with Eagle's before PDI for it, and after
+  insertion the CSI PAD plans the rendezvous for that TPI. An ABORT three
+  minutes into P63 flies the descent engine into a 9 by 130 nmi orbit;
+  a DES REG in P66, the descent engine's thrust dying away, brings ABORT
+  STAGE at 500 ft and a 9 by 63 nmi orbit on the ascent engine; each
+  rendezvous docks. Checkpoint schema 23. CI gets a ninth scenario part
+  for the aborts' rendezvous.
 
 | Slice | Work | Check |
 |---|---|---|
-| 9a The failure catalog | Failures as data, armed by a mission or set by hand on an instructor's panel; Apollo 13's tank moved onto it; the caution and warning lights it needs, and the malfunction procedures in the checklists | Tests: each failure in the catalog, set in a headless flight, lights its caution, sounds the master alarm and changes its system as the catalog says; a checkpoint keeps the armed and the active ones; Apollo 13's flight passes as it did |
-| 9b Apollo 11's program alarms | The LGC's Executive and its load, its restarts, the rendezvous radar's counter interrupts with its switch as Apollo 11's crew had it, the alarms on the DSKY and the ground's GO | Test: Apollo 11's landing with the switch as flown brings 1202 and 1201 alarms 5 to 10 minutes after PDI, as it did, and still lands within the Fidelity table's limits; with the switch at LGC none come |
-| 9c The backups | The SCS's attitude hold and rate command on its own gyros, MTVC, and the EMS's ΔV counter and entry scroll | Test: with the CMC failed (9a), a transearth SPS burn flown on the SCS to the EMS's count comes within a set limit of its PAD, and the EMS's scroll follows the CMC's entry within its tolerance |
-| 9d The launch's aborts | The launch escape system (mode I) and the SPS's modes II to IV; the EDS, the abort lights, the crew's handle and the ground's calls of the mode | Test: from a point in each mode's window of Apollo 11's launch, set off by a failure from 9a, the CM comes down within a set limit of the flight plan's landing area for it, or mode IV reaches a safe orbit |
-| 9e The LM's aborts | ABORT (P70, on the descent engine) and ABORT STAGE (P71, on the ascent engine after staging) in the powered descent, into an orbit the rendezvous takes from | Test: aborts from P63 and from P66 at 500 ft each reach an orbit, and from it the rendezvous docks |
+| 9a (done) The failure catalog | Failures as data, armed by a mission or set by hand on an instructor's panel; Apollo 13's tank moved onto it; the caution and warning lights it needs, and the malfunction procedures in the checklists | Tests: each failure in the catalog, set in a headless flight, lights its caution, sounds the master alarm and changes its system as the catalog says; a checkpoint keeps the armed and the active ones; Apollo 13's flight passes as it did |
+| 9b (done) Apollo 11's program alarms | The LGC's Executive and its load, its restarts, the rendezvous radar's counter interrupts with its switch as Apollo 11's crew had it, the alarms on the DSKY and the ground's GO | Test: Apollo 11's landing with the switch as flown brings 1202 and 1201 alarms 5 to 10 minutes after PDI, as it did, and still lands within the Fidelity table's limits; with the switch at LGC none come |
+| 9c (done) The backups | The SCS's attitude hold and rate command on its own gyros, MTVC, and the EMS's ΔV counter and entry scroll | Test: with the CMC failed (9a), a transearth SPS burn flown on the SCS to the EMS's count comes within a set limit of its PAD, and the EMS's scroll follows the CMC's entry within its tolerance |
+| 9d (done) The launch's aborts | The launch escape system (mode I) and the SPS's modes II to IV; the EDS, the abort lights, the crew's handle and the ground's calls of the mode | Test: from a point in each mode's window of Apollo 11's launch, set off by a failure from 9a, the CM comes down within a set limit of the flight plan's landing area for it, or mode IV reaches a safe orbit |
+| 9e (done) The LM's aborts | ABORT (P70, on the descent engine) and ABORT STAGE (P71, on the ascent engine after staging) in the powered descent, into an orbit the rendezvous takes from | Test: aborts from P63 and from P66 at 500 ft each reach an orbit, and from it the rendezvous docks |
 
 **Done when** an instructor can fail any part in the catalog at any time
 of any flight, the crew has the backups and the aborts the flight had,
@@ -1853,8 +1949,9 @@ estimated and tagged.
 
 ## 10. Every mission from the pad
 
-**Status: not started.** Apollo 11 flies from the pad (5d); Apollo 8, 10,
-12 and 13 start in their parking orbits. Each mission's `launch` section
+**Status: slice 10a done.** Apollo 11 flies from the pad (5d), and
+Apollo 8 on AS-503 (10a); Apollo 10, 12 and 13 start in their parking
+orbits. Each mission's `launch` section
 gives its pad, its liftoff, its azimuth and its vehicle from its flight
 evaluation report, as Apollo 11's does, and its launch's troubles come
 from 9a's catalog. Two of them were their flights' first:
@@ -1873,13 +1970,29 @@ from 9a's catalog. Two of them were their flights' first:
 
 | Slice | Work | Check |
 |---|---|---|
-| 10a Apollo 8's launch | Its launch data: 12:51 UTC on 21 December 1968 from LC-39A, the first crewed Saturn V (AS-503) | Test: insertion into Apollo 8's parking orbit within set limits of MPR-SAT-FE-69-1, each stage's burn near its flown times, and the flight on to TLI as its parking-orbit start flies it |
+| 10a (done) Apollo 8's launch | Its launch data: 12:51 UTC on 21 December 1968 from LC-39A, the first crewed Saturn V (AS-503) | Test: insertion into Apollo 8's parking orbit within set limits of MPR-SAT-FE-69-1, each stage's burn near its flown times, and the flight on to TLI as its parking-orbit start flies it |
 | 10b Apollo 10's launch | From LC-39B, the only Saturn V launched from it | Test: as 10a, for Apollo 10 |
 | 10c Apollo 12's launch and the lightning | The strikes as failures: the fuel cells off their buses, the SCE and the telemetry it conditions, SCE to AUX, the platform tumbled; the crew's reset of the fuel cells, and P51 in the parking orbit | Test: the strikes take the fuel cells, the telemetry and the platform as flown, SCE to AUX brings the telemetry back, the Saturn reaches its parking orbit, and P51 aligns the CMC before TLI |
 | 10d Apollo 13's launch and the centre engine | The S-II's centre engine out at its flown time | Test: the outboard engines and the S-IVB burn longer as they did, within set limits, and insertion within set limits of MPR-SAT-FE-70-2 |
 
 **Done when** every mission's start phases begin on the pad too, and
 Apollo 12's and 13's launches fly their troubles as they came.
+
+- **Apollo 8's launch.** Done in 10a. AS-503 is Apollo 8's `vehicles`
+  `saturn_v` over Apollo 11's AS-506: its masses from the flight
+  evaluation report's mass history, the S-IC's thrust from its peak
+  acceleration and its reconstructed sea level thrust, the S-II's and
+  S-IVB's at their standard time slices. Its S-II had no centre engine
+  cutoff (it came in from AS-504), so the launch block leaves the event
+  out and the S-II burns on five to its cutoff. Two figures are tuned: the
+  S-IC's vacuum Isp (304.5 s) and the S-II's flow at the low mixture
+  ratio (908 kg/s), for the flown cutoffs. AS-503's pitch program isn't
+  at hand. SA-504's flies it sped up by 7 % (`tilt_time_scale`) for the
+  lighter vehicle, which puts the flight path angle at the centre
+  engine's cutoff on the flown one, and it starts at the flown 12.11 s.
+  Each stage's cutoff comes within 0.06 s of the flown. The S-IC and S-II
+  leave the S-IVB 40 m/s more to give, so its first burn runs 7 s long
+  (`tests/scenarios/test_apollo_8_launch.gd`, README's Fidelity table).
 
 ## 11. The LM's navigation
 

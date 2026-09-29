@@ -6,10 +6,17 @@
 # descriptions (retrieved 2026-09-25 from
 # https://apollo11guide.com/Apollo11ManualFree/LunarLander/Lunar_Module_Control_Panel_1.htm):
 # panel 1 the commander's flight displays (mission timer, range and range
-# rate, thrust, FDAI), a LUNAR CONTACT light, ENG ARM, ABORT STAGE and the
-# guidance control switch; panel 2 the LM pilot's, with the RCS main
-# shutoff valves and the batteries' charge; panel 3 the guidance mode
-# control, and for Apollo 13's lifeboat the LM's power, PGNS and AGS
+# rate, thrust, FDAI), a LUNAR CONTACT light, ENG ARM, ABORT, ABORT STAGE
+# and the guidance control switch; panel 2 the LM pilot's, with the RCS
+# main shutoff valves and the batteries' charge; on both a MASTER ALARM,
+# and the caution and warning lights the modelled systems light (slice
+# 9e; LM Apollo Operations Handbook, LMA790-3-LM, sections 2.3 and 2.9.4:
+# DES REG on panel 1, the MASTER ALARMs on panels 1 and 2; the other
+# lights' panels estimated: LGC, ISS and DES QTY on 1, RCS A and B REG on 2); panel 3 the guidance mode
+# control, the rendezvous radar's mode select (RNDZ RADAR: AUTO TRACK,
+# SLEW, LGC; slice 9b; retrieved 2026-09-29 from
+# https://apollo11guide.com/Apollo11ManualFree/LunarLander/LunarModuleControlPanel3.htm),
+# and for Apollo 13's lifeboat the LM's power, PGNS and AGS
 # switches, the AGS's align and the DEDA's address 470; panel 4 the LGC's
 # DSKY; panel 5 ENGINE START and
 # STOP and the rate of descent switch (DES RATE). Every placement
@@ -30,12 +37,22 @@ P1_THRUST,P1,numeric,THRUST PCT,105,20,0,lm.dps.throttle_pct,format=%3.0f;blank_
 P1_ENG_ARM,P1,toggle,ENG ARM,-85,-120,0,ctl.lm.engine_arm,positions=3;labels=DES|OFF|ASC;values=2|0|1;lever_lock=true,estimated,D,implemented,historical
 P1_ABORT_STAGE,P1,pushbutton,ABORT STAGE,55,-115,0,ctl.lm.stage,,estimated,D,implemented,proxy
 P1_GUID_CONT,P1,toggle,GUID CONT,-10,-120,0,ctl.lm.guid_cont,labels=PGNS|AGS,estimated,D,implemented,historical
+P1_ABORT,P1,pushbutton,ABORT,110,-115,0,ctl.lm.abort,,LM AOH 2.1,D,implemented,proxy
+P1_MASTER_ALARM,P1,pushbutton,MASTER ALARM,-120,55,0,ctl.lm.cw.master_alarm,lamp_channel=lm.cw.master_alarm;lamp_colour=ff2a1a,LM AOH C&W 2.9.4,D,implemented,historical
+P1_LGC,P1,lamp,LGC,115,75,0,lm.cw.lgc,colour=ff2a1a,LM AOH C&W 2.9.4,D,implemented,historical
+P1_ISS,P1,lamp,ISS,115,50,0,lm.cw.iss,colour=ff2a1a,LM AOH C&W 2.9.4,D,implemented,historical
+P1_DES_QTY,P1,lamp,DES QTY,115,-40,0,lm.cw.des_qty,colour=ff2a1a,LM AOH C&W 2.9.4,D,implemented,historical
+P1_DES_REG,P1,lamp,DES REG,115,-65,0,lm.cw.des_reg,colour=ff2a1a,LM AOH C&W 2.9.4,D,implemented,historical
 P2_LUNAR_CONTACT,P2,lamp,LUNAR CONTACT,110,115,0,lm.contact_light,colour=4da6ff,estimated,D,implemented,historical
 P2_FDAI,P2,fdai,FDAI,20,20,0,lm.guid.indicator.attitude,scale=1.4;vehicle=lm,estimated,D,implemented,historical
 P2_RCS_SYS_A,P2,toggle,RCS SYS A,-50,-120,0,ctl.lm.rcs.sys_a,labels=CLOSE|OPEN,estimated,D,implemented,proxy
 P2_RCS_SYS_B,P2,toggle,RCS SYS B,40,-120,0,ctl.lm.rcs.sys_b,labels=CLOSE|OPEN,estimated,D,implemented,proxy
+P2_MASTER_ALARM,P2,pushbutton,MASTER ALARM,122,55,0,ctl.lm.cw.master_alarm,lamp_channel=lm.cw.master_alarm;lamp_colour=ff2a1a,LM AOH C&W 2.9.4,D,implemented,historical
+P2_RCS_A_REG,P2,lamp,RCS A REG,-115,-40,0,lm.cw.rcs_a_reg,colour=ff2a1a,LM AOH C&W 2.9.4,D,implemented,historical
+P2_RCS_B_REG,P2,lamp,RCS B REG,-115,-65,0,lm.cw.rcs_b_reg,colour=ff2a1a,LM AOH C&W 2.9.4,D,implemented,historical
 P2_BATTERY,P2,numeric,BAT A-H,100,160,0,lm.eps.batt_ah,format=%5.0f;blank_text=-----,estimated,D,implemented,proxy
 P3_LGC_MODE,P3,toggle,LGC MODE,-150,-15,0,ctl.lm.mode,positions=3;labels=FREE|HOLD|AUTO,estimated,D,implemented,proxy
+P3_RR_MODE,P3,toggle,RNDZ RADAR,-230,-15,0,ctl.lm.rr_mode,positions=3;labels=AUTO TRACK|SLEW|LGC;values=1|2|0,estimated,D,implemented,historical
 P3_AGS_ALIGN,P3,pushbutton,AGS ALIGN,-60,-15,0,ctl.lm.ags_align,,estimated,D,implemented,proxy
 P3_DEDA,P3,numeric,DEDA 470 FT/S,60,0,0,lm.ags.dv_x_mps,converter=mps_to_fps;format=%+6.1f;valid_channel=lm.ags.on;blank_text=------,estimated,D,implemented,proxy
 P3_LM_POWER,P3,toggle,LM PWR,150,-15,0,ctl.lm.power,labels=OFF|ON,estimated,D,implemented,proxy

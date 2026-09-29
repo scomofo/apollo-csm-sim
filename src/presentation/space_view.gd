@@ -509,7 +509,8 @@ func _process(_delta: float) -> void:
 	var attached: Array = Bus.get_value("lv.attached", [false, false, false])
 	_parts["s_ic"].visible = launch and bool(attached[0])
 	_parts["s_ii"].visible = launch and bool(attached[1])
-	_parts["les"].visible = launch and bool(attached[2])
+	# The tower on the CM after a mode I abort too, until it goes.
+	_parts["les"].visible = (launch and bool(attached[2])) or cfg == "cm_les"
 	var lv_stage := str(Bus.get_value("lv.stage", "")) if launch and float(Bus.get_value("lv.thrust_n", 0.0)) > 0.0 else ""
 	for st in ["S-IC", "S-II", "S-IVB"]:
 		_parts["plume_" + st].visible = lv_stage == st

@@ -1,0 +1,45 @@
+{
+  "_comment": "The malfunction procedures for the failure catalog's caution lights (data/failures.json, slice 9a), in every mission's CSM checklist book after its flight's lists (ChecklistBook.load_default()). A failure opens its procedure as it comes. The launch vehicle's lights (slice 9d) get the launch aborts' procedure, from the CSM Apollo Operations Handbook's section 2.9 [adapted]. The simulator's own [adapted]: each light's meaning is the C&W table's (CSM Apollo Operations Handbook, SM2A-03-BLOCK II-(1), pp. 2.10-5 to 2.10-8) [published]; the actions are those the simulated systems have.",
+  "checklists": [
+    {"title": "Malfunction: CRYO PRESS", "phases": [], "steps": [
+      {"text": "CRYO PRESS: an O2 or H2 tank's pressure out of limits (the HUD's CRYO line)"},
+      {"text": "MASTER ALARM - press", "control": "P1_MASTER_ALARM", "check": {"channel": "sys.master_alarm", "op": "eq", "value": false}},
+      {"text": "An O2 tank at zero: the fuel cells on its valve module fail next. CM POWER - EMER, the emergency power-down", "control": "P3_CM_POWER", "check": {"channel": "ctl.eps.cm_power", "op": "eq", "value": 1}},
+      {"text": "Each fuel cell whose FC light comes on - off its buses (FC 1, FC 2, FC 3)"}
+    ]},
+    {"title": "Malfunction: FC 1, 2 or 3", "phases": [], "steps": [
+      {"text": "FC 1, 2 or 3: a fuel cell's flow, temperature or pH out of limits"},
+      {"text": "MASTER ALARM - press", "control": "P1_MASTER_ALARM", "check": {"channel": "sys.master_alarm", "op": "eq", "value": false}},
+      {"text": "The failed cell - off its buses (its FC switch, MDC-3): the other two carry the load"},
+      {"text": "MN BUS A and B above 26.25 V (no UNDERVOLT light); if not, CM POWER - EMER"}
+    ]},
+    {"title": "Malfunction: SM RCS A, B, C or D", "phases": [], "steps": [
+      {"text": "SM RCS A, B, C or D: a quad's secondary fuel pressure out of limits"},
+      {"text": "MASTER ALARM - press", "control": "P1_MASTER_ALARM", "check": {"channel": "sys.master_alarm", "op": "eq", "value": false}},
+      {"text": "The quad's RCS QUAD switch - off (MDC-2): isolate it"},
+      {"text": "Its axes on the quad opposite: pitch on A and C, yaw on B and D. The autopilot turns slower about them"}
+    ]},
+    {"title": "Malfunction: CMC", "phases": [], "steps": [
+      {"text": "CMC: the computer has failed. Its DSKY is dark and its autopilot stopped"},
+      {"text": "MASTER ALARM - press", "control": "P1_MASTER_ALARM", "check": {"channel": "sys.master_alarm", "op": "eq", "value": false}},
+      {"text": "ATT SOURCE - SCS: the SCS holds the attitude", "control": "P1_ATT_SOURCE", "check": {"channel": "ctl.scs.att_source", "op": "eq", "value": 1}},
+      {"text": "Houston's PADs from here: each burn on the SCS, turned to the PAD's R, P and Y on the FDAI's GDC angles, to the EMS's count of its DVC (EMS FUNCTION DV, THRUST ON)"}
+    ]},
+    {"title": "Malfunction: ISS", "phases": [], "steps": [
+      {"text": "ISS: the IMU has failed. NO ATT on the DSKY: the CMC has no attitude"},
+      {"text": "MASTER ALARM - press", "control": "P1_MASTER_ALARM", "check": {"channel": "sys.master_alarm", "op": "eq", "value": false}},
+      {"text": "ATT SOURCE - SCS: the SCS holds the attitude", "control": "P1_ATT_SOURCE", "check": {"channel": "ctl.scs.att_source", "op": "eq", "value": 1}},
+      {"text": "No coarse align, P51 or P52 brings the platform back: the burns on the SCS, to the EMS's count"}
+    ]},
+    {"title": "Malfunction: LV ENG, LV RATE or LV GUID", "phases": [], "steps": [
+      {"text": "LV ENG, LV RATE or LV GUID: a launch vehicle engine out, the vehicle's rates past the EDS's limits, or the IU's guidance lost"},
+      {"text": "With the tower on and EDS AUTO: two S-IC engines out, or the rates, abort on their own, and the tower pulls the CM away (mode I)"},
+      {"text": "ABORT light or Houston's 'Abort': the translation controller's handle - counterclockwise", "control": "P1_ABORT_HANDLE", "check": {"channel": "eds.abort", "op": "eq", "value": true}},
+      {"text": "Mode I: the canards at 11 s, then the tower's jettison and the chutes as the ELS brings them"},
+      {"text": "Modes II to IV: the CSM leaves the launch vehicle 3 s after the handle; the handle back at neutral ends the SM's +X jets"},
+      {"text": "Mode II: CM/SM SEP, lift up; ELS LOGIC and ELS AUTO on", "control": "P1_CM_SM_SEP"},
+      {"text": "Mode III: Houston's PAD, the SPS's retrograde burn (P40); CM/SM SEP; half lift, rolled 60 degrees to the south; ELS LOGIC and ELS AUTO on"},
+      {"text": "Mode IV: Houston's PAD, the SPS's burn into orbit (P40)"}
+    ]}
+  ]
+}

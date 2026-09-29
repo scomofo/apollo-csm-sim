@@ -10,15 +10,26 @@
 # CM hardware (one switch for several, or a pushbutton for a guarded switch:
 # CM POWER for the breakers and switches of Apollo 13's emergency power-down
 # and of its power-up for the entry, LM PWR for the switches that took the
-# LM's power through the umbilical).
+# LM's power through the umbilical; ABORT for the translation controller's
+# handle turned counterclockwise).
 id,panel,type,label,x_mm,y_mm,rot_deg,channel,params,source,confidence,status,role
-P1_FDAI,MDC1,fdai,FDAI,-150,70,0,guid.indicator.attitude,scale=1.8,AOH SCS 2.3,D,implemented,historical
+P1_FDAI,MDC1,fdai,FDAI,-150,70,0,scs.fdai.attitude,scale=1.8,AOH SCS 2.3,D,implemented,historical
 P1_DV_THRUST_A,MDC1,toggle,DELTA-V THRUST A,40,170,0,ctl.sps.arm_a,guarded=true;labels=OFF|NORMAL,AOH SPS 2.4-37,D,implemented,historical
 P1_DV_THRUST_B,MDC1,toggle,DELTA-V THRUST B,110,170,0,ctl.sps.arm_b,guarded=true;labels=OFF|NORMAL,AOH SPS 2.4-37,D,implemented,historical
 P1_THRUST_ON,MDC1,lamp,SPS THRUST ON,200,170,0,sps.thrust_n,,AOH SPS 2.4-40,D,implemented,historical
 P1_MASTER_ALARM,MDC1,pushbutton,MASTER ALARM,265,170,0,ctl.cw.master_alarm,lamp_channel=sys.master_alarm;lamp_colour=ff2a1a,AOH C&W 2.10,D,implemented,historical
 P1_ATT_SOURCE,MDC1,rotary,ATT SOURCE,60,50,0,ctl.scs.att_source,positions=3;labels=CMC|SCS|DIRECT;start_angle_deg=-45;detent_deg=45,AOH SCS 2.3,D,implemented,proxy
 P1_CMC_MODE,MDC1,toggle,CMC MODE,160,50,0,ctl.cmc.mode,positions=3;labels=FREE|HOLD|AUTO,AOH §3,D,implemented,historical
+P1_EMS_FUNCTION,MDC1,rotary,EMS FUNCTION,-260,210,0,ctl.ems.function,positions=6;labels=OFF|DV SET|DV|RNG SET|VO SET|ENTRY;start_angle_deg=-75;detent_deg=30,AOH SCS 2.3-57,D,implemented,proxy
+P1_EMS_SET,MDC1,toggle,DV/EMS SET,-200,210,0,ctl.ems.set,positions=5;labels=DECR|decr||incr|INCR;values=-2|-1|0|1|2;rest_position=2;momentary_positions=0|1|3|4,AOH SCS 2.3-58,D,implemented,historical
+P1_EMS_DISPLAY,MDC1,numeric,DV/RANGE,-130,210,0,ems.display,format=%+8.1f,AOH SCS 2.3-56,D,implemented,proxy
+P1_EMS_05G,MDC1,lamp,.05 G,-70,225,0,ems.lamp_05g,,AOH SCS 2.3-53,D,implemented,historical
+P1_EMS_CORR_UP,MDC1,lamp,LIFT UP,-30,225,0,ems.corridor_up,,AOH SCS 2.3-55,D,implemented,proxy
+P1_EMS_CORR_DN,MDC1,lamp,LIFT DOWN,-30,195,0,ems.corridor_down,,AOH SCS 2.3-55,D,implemented,proxy
+P1_SCS_RATE,MDC1,toggle,RATE,40,-10,0,ctl.scs.rate,labels=LOW|HIGH,AOH SCS 2.3-35,D,implemented,historical
+P1_ATT_DEADBAND,MDC1,toggle,ATT DEADBAND,100,-10,0,ctl.scs.att_db,labels=MIN|MAX,AOH SCS 2.3-35,D,implemented,historical
+P1_SCS_TVC,MDC1,toggle,SCS TVC,160,-10,0,ctl.scs.tvc,labels=AUTO|RATE CMD,AOH SCS 2.3-44,D,implemented,proxy
+P1_GDC_ALIGN,MDC1,pushbutton,GDC ALIGN,220,-10,0,ctl.scs.gdc_align,,AOH SCS 2.3-20,D,implemented,proxy
 P1_CSM_LV_SEP,MDC1,pushbutton,CSM/LV SEP,40,-70,0,ctl.seq.csm_sep,,AOH §3,D,implemented,proxy
 P1_LM_JETT,MDC1,pushbutton,LM JETT,130,-70,0,ctl.seq.lm_jett,,AOH §3,D,implemented,proxy
 P1_CM_SM_SEP,MDC1,pushbutton,CM/SM SEP,220,-70,0,ctl.seq.cm_sm_sep,,AOH §3,D,implemented,proxy
@@ -33,11 +44,31 @@ P1_LV_ENG_4,MDC1,lamp,LV ENG 4,120,-200,0,lv.eng_light_4,,AOH §3,D,implemented,
 P1_LV_ENG_5,MDC1,lamp,LV ENG 5,150,-175,0,lv.eng_light_5,,AOH §3,D,implemented,historical
 P1_LIFTOFF,MDC1,lamp,LIFTOFF,245,-150,0,lv.liftoff_light,,AOH §3,D,implemented,historical
 P1_S2_SEP,MDC1,lamp,S-II SEP,245,-200,0,lv.s2_sep_light,,AOH §3,D,implemented,historical
+P1_EDS_AUTO,MDC1,toggle,EDS AUTO,-260,-85,0,ctl.eds.auto,labels=OFF|AUTO,AOH SEQ 2.9.4.7.2,D,implemented,historical
+P1_EDS_2ENG,MDC1,toggle,2 ENG OUT,-200,-85,0,ctl.eds.two_eng,labels=OFF|AUTO,AOH SEQ 2.9.4.6,D,implemented,historical
+P1_EDS_RATES,MDC1,toggle,LV RATES,-140,-85,0,ctl.eds.rates,labels=OFF|AUTO,AOH SEQ 2.9.4.6,D,implemented,historical
+P1_TWR_JETT,MDC1,pushbutton,TWR JETT,-80,-85,0,ctl.les.tower_jett,,AOH SEQ 2.9.4.14.8,D,implemented,proxy
+P1_ABORT_HANDLE,MDC1,pushbutton,ABORT (THC CCW),-20,-85,0,ctl.abort,,AOH SEQ 2.9.4.14,D,implemented,proxy
+P1_ABORT_LIGHT,MDC1,lamp,ABORT,260,100,0,eds.abort_light,,AOH SEQ 2.9.4.5.3,D,implemented,historical
+P1_LV_RATE,MDC1,lamp,LV RATE,260,70,0,eds.lv_rate_light,,AOH SEQ 2.9.4.5.2,D,implemented,historical
+P1_LV_GUID,MDC1,lamp,LV GUID,260,40,0,eds.lv_guid_light,,AOH SEQ 2.9.4.5.2,D,implemented,historical
 P2_MISSION_TIMER,MDC2,clock,MISSION TIMER,0,200,0,time.get_s,power_channel=eps.bus_a_v,AOH §3,D,implemented,historical
 P2_RCS_QUAD_A,MDC2,toggle,RCS QUAD A,-240,190,0,ctl.rcs.quad_a,,AOH SCS 2.3,D,implemented,proxy
 P2_RCS_QUAD_B,MDC2,toggle,RCS QUAD B,-180,190,0,ctl.rcs.quad_b,,AOH SCS 2.3,D,implemented,proxy
 P2_RCS_QUAD_C,MDC2,toggle,RCS QUAD C,180,190,0,ctl.rcs.quad_c,,AOH SCS 2.3,D,implemented,proxy
 P2_RCS_QUAD_D,MDC2,toggle,RCS QUAD D,240,190,0,ctl.rcs.quad_d,,AOH SCS 2.3,D,implemented,proxy
+P2_CW_FC1,MDC2,lamp,FC 1,-280,120,0,cw.fc1,,AOH C&W 2.10-5 to 2.10-8,D,implemented,historical
+P2_CW_FC2,MDC2,lamp,FC 2,-240,120,0,cw.fc2,,AOH C&W 2.10-5 to 2.10-8,D,implemented,historical
+P2_CW_FC3,MDC2,lamp,FC 3,-200,120,0,cw.fc3,,AOH C&W 2.10-5 to 2.10-8,D,implemented,historical
+P2_CW_CRYO_PRESS,MDC2,lamp,CRYO PRESS,-160,120,0,cw.cryo_press,,AOH C&W 2.10-5 to 2.10-8,D,implemented,historical
+P2_CW_BUS_A_UV,MDC2,lamp,BUS A UNDERVOLT,-280,95,0,cw.mn_bus_a_undervolt,,AOH C&W 2.10-5 to 2.10-8,D,implemented,historical
+P2_CW_BUS_B_UV,MDC2,lamp,BUS B UNDERVOLT,-240,95,0,cw.mn_bus_b_undervolt,,AOH C&W 2.10-5 to 2.10-8,D,implemented,historical
+P2_CW_CMC,MDC2,lamp,CMC,-200,95,0,cw.cmc,,AOH C&W 2.10-5 to 2.10-8,D,implemented,historical
+P2_CW_ISS,MDC2,lamp,ISS,-160,95,0,cw.iss,,AOH C&W 2.10-5 to 2.10-8,D,implemented,historical
+P2_CW_SM_RCS_A,MDC2,lamp,SM RCS A,-280,70,0,cw.sm_rcs_a,,AOH C&W 2.10-5 to 2.10-8,D,implemented,historical
+P2_CW_SM_RCS_B,MDC2,lamp,SM RCS B,-240,70,0,cw.sm_rcs_b,,AOH C&W 2.10-5 to 2.10-8,D,implemented,historical
+P2_CW_SM_RCS_C,MDC2,lamp,SM RCS C,-200,70,0,cw.sm_rcs_c,,AOH C&W 2.10-5 to 2.10-8,D,implemented,historical
+P2_CW_SM_RCS_D,MDC2,lamp,SM RCS D,-160,70,0,cw.sm_rcs_d,,AOH C&W 2.10-5 to 2.10-8,D,implemented,historical
 P2_DSKY,MDC2,dsky,DSKY,0,-50,0,dsky,,AOH G&N,D,implemented,historical
 P2_UP_TLM_CM,MDC2,toggle,UP TLM CM,180,40,0,ctl.cmc.up_tlm,labels=BLOCK|ACCEPT,estimated,D,implemented,historical
 P2_UNDOCK,MDC2,pushbutton,UNDOCK,-200,-180,0,ctl.seq.undock,,AOH §3,D,implemented,proxy
@@ -50,7 +81,7 @@ P3_LM_POWER,MDC3,toggle,LM PWR,-120,-150,0,ctl.eps.lm_power,labels=OFF|ON,estima
 P3_MASTER_ALARM,MDC3,pushbutton,MASTER ALARM,200,180,0,ctl.cw.master_alarm,lamp_channel=sys.master_alarm;lamp_colour=ff2a1a,AOH C&W 2.10,D,implemented,historical
 P3_BUS_A_VOLTS,MDC3,numeric,MAIN BUS A V,-120,-40,0,eps.bus_a_v,format=%4.1f;blank_text=----,estimated,D,implemented,historical
 P3_BUS_B_VOLTS,MDC3,numeric,MAIN BUS B V,40,-40,0,eps.bus_b_v,format=%4.1f;blank_text=----,estimated,D,implemented,historical
-P3_FDAI,MDC3,fdai,FDAI 2,190,-60,0,guid.indicator.attitude,scale=1.8,AOH SCS 2.3,D,implemented,historical
+P3_FDAI,MDC3,fdai,FDAI 2,190,-60,0,scs.fdai.attitude,scale=1.8,AOH SCS 2.3,D,implemented,historical
 LEB_OPTICS,LEB,optics,OPTICS,-180,115,0,optics,,estimated,D,implemented,proxy
 LEB_OPTICS_ZERO,LEB,toggle,OPTICS ZERO,-340,-150,0,ctl.optics.zero,labels=OFF|ZERO,estimated,D,implemented,historical
 LEB_OPTICS_MODE,LEB,toggle,OPTICS MODE,-270,-150,0,ctl.optics.mode,labels=MAN|CMC,estimated,D,implemented,historical

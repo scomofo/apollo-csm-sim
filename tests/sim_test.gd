@@ -28,11 +28,15 @@ var _held_keys: Array[Key] = []
 var burn_log: Dictionary = {}
 
 
-## A test that stopped with a key down leaves Input clean for the next.
+## A test that stopped with a key down leaves Input clean for the next,
+## and one that ran the clock fast (run()) leaves it at real time: above
+## the interactive rates SimClock locks the cabin's controls, for the tests
+## in the files after it too.
 func after_each() -> void:
 	for k in _held_keys:
 		_key_event(k, false)
 	_held_keys.clear()
+	SimClock.rate = 1.0
 
 
 ## Build the runtime for mission [param mission] (an id under
@@ -222,11 +226,13 @@ func p37() -> Vector3:
 ## The entry from here, as its checklist flies it: V37E61E and PRO through
 ## P61's N61, N60 and N63; P62's V50N25 00041 answered with CM/SM SEP and
 ## PRO, its N61 with PRO in CMC MODE AUTO; ELS LOGIC and AUTO; PRO at P65's
-## N69 and P67's N67; on to the splashdown, or [param max_s]. Returns
+## N69 and P67's N67; on to the splashdown, or [param max_s], [param chunk]
+## seconds at a time in the atmosphere (30 s outside it), calling
+## [param each] after each. Returns
 ## {"programs": the programs flown, in turn; "peaks": the load's peaks
 ## over 1 g (g), each pass's; "n67": N67's range to go, latitude and
 ## longitude}.
-func fly_entry(max_s: float = 3.0 * 3600.0) -> Dictionary:
+func fly_entry(max_s: float = 3.0 * 3600.0, each: Callable = Callable(), chunk: float = EntryGuidance.PASS_S) -> Dictionary:
 	var agc := rt.agc()
 	keys("V37E61E")
 	keys("PPP")
@@ -244,7 +250,9 @@ func fly_entry(max_s: float = 3.0 * 3600.0) -> Dictionary:
 	var n67 := []
 	var end := SimClock.get_seconds + max_s
 	while not rt.dynamics.landed and SimClock.get_seconds < end:
-		run(EntryGuidance.PASS_S if rt.dynamics.in_atmosphere() else 30.0)
+		run(chunk if rt.dynamics.in_atmosphere() else 30.0)
+		if each.is_valid():
+			each.call()
 		if agc.program != programs[-1]:
 			programs.append(agc.program)
 		g.append(rt.dynamics.g_load)
@@ -685,6 +693,61 @@ func dock_contact() -> Dictionary:
 	return Bus.get_value("dock.contact", {})
 
 
+## The LM crew's rendezvous from the CSI PAD [param pad] to docking, as
+## tests/scenarios/test_rendezvous.gd flies it step by step: P20's marks;
+## P32 25 min before CSI and P33 20 min before CDH, each flown on P41; P34
+## half an hour before TPI and again 12 min before it, and P41; P35 before
+## each midcourse correction; braking by the gates; and Collins docking.
+## With the descent stage still on (an abort on the descent engine), CSI,
+## CDH and TPI burn on it (P40) when they need more than a few m/s.
+## Returns the burns' sensed ΔV ("csi", "cdh", "tpi", "tpm" their sum, m/s),
+## CDH's ΔH ("dh", m), TPI's TIG ("tpi_tig"), whether the LM stopped
+## ("braked") and the probe met the drogue ("probe"), and the contact.
+func fly_rendezvous(pad: Dictionary) -> Dictionary:
+	var lgc := rt.lgc()
+	var burn := func() -> float:
+		if rt.dynamics.lm.config == "lm" and _vg_stored(lgc) > 3.0:
+			return fly_lm_pad(40, 2, Callable(), false)
+		return fly_lm_pad(41, 0, Callable(), false)
+	keys("V37E20E", lgc)
+	run(float(pad["tig"]) - 1500.0 - SimClock.get_seconds)
+	keys("V37E32E", lgc)
+	keys("PPP", lgc)
+	keys("PP", lgc)
+	var out := {"csi": burn.call()}
+	run(lgc.rdv_cdh_tig - 1200.0 - SimClock.get_seconds)
+	keys("V37E33EP", lgc)
+	out["dh"] = lgc.rdv_dh
+	keys("PP", lgc)
+	out["cdh"] = burn.call()
+	run(float(pad["tpi_get"]) - 1800.0 - SimClock.get_seconds)
+	for lead in [0.0, 720.0]:
+		if lead > 0.0:
+			run(lgc.rdv_tpi_tig - lead - SimClock.get_seconds)
+		keys("V37E34EP", lgc)
+		keys("P", lgc)
+		keys("PP", lgc)
+	out["tpi_tig"] = lgc.rdv_tpi_tig
+	out["tpi"] = burn.call()
+	out["tpm"] = 0.0
+	for after in rt.mission.section("rendezvous")["tpm_after_tpi_s"]:
+		run(float(out["tpi_tig"]) + float(after) - 300.0 - SimClock.get_seconds)
+		keys("V37E35EP", lgc)
+		out["tpm"] += fly_lm_pad(41, 0, Callable(), false)
+	out["braked"] = lm_brake(1800.0)
+	face_x(true, func() -> Vector3: return Rendezvous.rel_pos(rt.dynamics.lm.traj, rt.dynamics.traj).normalized())
+	face_x(false, func() -> Vector3: return Rendezvous.rel_pos(rt.dynamics.traj, rt.dynamics.lm.traj).normalized())
+	csm_move_to(Vector3(10.0, 0.0, 0.0), 60.0)
+	out["probe"] = csm_approach(0.1)
+	out["contact"] = dock_contact()
+	return out
+
+
+## The size of the maneuver the LGC has stored, m/s.
+func _vg_stored(lgc: Lgc) -> float:
+	return lgc.dv_lvlh_load.length()
+
+
 ## Give the LM the ΔV [param dv] (m/s, inertial) on the TTCA, a fixed step
 ## at a time: each axis at the duty its share needs, or not at all below
 ## the detent.
@@ -761,3 +824,23 @@ func face_x(lm: bool, target: Callable) -> void:
 		run(SimClock.FIXED_DT, false)
 	Bus.set_value(rhc_ch, Vector3.ZERO)
 	run(2.0, false)
+
+
+## The main display console's launch lights now: LV ENGINE 1 to 5, then
+## LIFTOFF and S-II SEP, as "10000 10".
+func launch_lights() -> String:
+	var s := ""
+	for ch in ["lv.eng_light_1", "lv.eng_light_2", "lv.eng_light_3", "lv.eng_light_4", "lv.eng_light_5", " ",
+			"lv.liftoff_light", "lv.s2_sep_light"]:
+		s += " " if ch == " " else ("1" if bool(Bus.get_value(ch, false)) else "0")
+	return s
+
+
+## The launch's state now: altitude over the pad's radius (km), space-fixed
+## speed (m/s) and flight path angle (deg).
+func ascent_state() -> Array:
+	var tr := rt.dynamics.traj
+	var r := tr.pos()
+	var v := tr.vel()
+	return [(r.length() - Bodies.R_EARTH - LaunchVehicle.PAD_HEIGHT_M) / 1000.0, v.length(),
+		rad_to_deg(asin(r.normalized().dot(v.normalized())))]
