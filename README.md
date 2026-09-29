@@ -922,9 +922,11 @@ ones:
   flight, with no drift that follows the acceleration, and its
   accelerometers have no bias or scale error. A coarse align lands within
   0.2° of its angles; the marks and the gimbals read to a CDU count
-  (0.011°). The LGC's IMU is ideal, its REFSMMAT the ECI frame and its
-  attitude true: its P52 with the AOT, and P57 on the surface, are left
-  for later.
+  (0.011°). The LGC's IMU is ideal while the LM flies free, its REFSMMAT
+  the ECI frame and its attitude true: its P52 with the AOT, and P57 on
+  the surface, are left for later (milestone 11). Powered up docked, as
+  Apollo 13's lifeboat, it is a real one, caged until the crew coarse
+  aligns it through the docking.
 - **The optics.** The telescope shares the sextant's star line, without a
   trunnion of its own. Their view shows the 37 navigation stars and the
   Earth, the Moon and the Sun, without the fainter stars, aberration or
@@ -1003,7 +1005,8 @@ ones:
   that thins out away from the LM, so relief far from it is smoothed. It
   is lit as a plain matte surface, without the Moon's own photometry.
 - **The LM.** Its systems power up as it undocks. Docked, it is dark,
-  and the CSM flies the stack. The crew's throttle-up in DOI is the
+  and the CSM flies the stack, until its crew powers it up (LM PWR), as
+  Apollo 13's did. The crew's throttle-up in DOI is the
   LGC's. The descent engine has no gimbal trim, and staging leaves the
   descent stage behind, no longer simulated. The ascent engine fires only
   after staging (no fire-in-the-hole abort).
@@ -1014,7 +1017,8 @@ ones:
   measured one.
 - **Eagle's cockpit.** On the HUD it is a desktop overlay, not Eagle's
   panels: the LGC's DSKY and the switches the LM's burns and landing
-  need, with no abort guidance section. The window view from Eagle is
+  need, with the abort guidance section's attitude hold and ΔV counter
+  (Apollo 13's) but none of its guidance. The window view from Eagle is
   from its centre of mass, and its chase view gives way to the window
   view below 40 km, where a camera beside it would see the scaled Moon
   from the wrong place.
@@ -1716,5 +1720,6 @@ lands beside Surveyor III, its landing site moved in powered descent by
 the ground's noun 69, and its commander redesignating onto the crater.
 And Apollo 13 (slice 7d) comes home after its oxygen tank failed, from
 five minutes before the failure to its splashdown, Aquarius its lifeboat.
-Apollo 14 flies as 12 did; the J missions, with the rover and the SIM
-bay, are left for later.
+That finishes the other missions. Next come a way in (a flight menu,
+saved flights and builds from CI), failures, backups and aborts, every
+mission from the pad, the LM's navigation, and Apollo 14 to 17.
