@@ -23,8 +23,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        part: [unit, scenarios 1 of 8, scenarios 2 of 8, scenarios 3 of 8, scenarios 4 of 8, scenarios 5 of 8,
-          scenarios 6 of 8, scenarios 7 of 8, scenarios 8 of 8]
+        part: [unit, scenarios 1 of 7, scenarios 2 of 7, scenarios 3 of 7, scenarios 4 of 7, scenarios 5 of 7,
+          scenarios 6 of 7, scenarios 7 of 7]
     steps:
       - uses: actions/checkout@v4
         with:

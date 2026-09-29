@@ -36,8 +36,8 @@ picture).
 - **Start phases stay consistent.** A new `--phase` is built the way the
   existing ones are, from the RTCC's own solutions, so it continues the
   mission it claims to.
-- **CI stays fast.** The suite runs in nine jobs side by side: the unit
-  tests, and the scenario tests in eight parts, dealt out by each file's
+- **CI stays fast.** The suite runs in eight jobs side by side: the unit
+  tests, and the scenario tests in seven parts, dealt out by each file's
   time on the runners (`.github/scenario_seconds.txt`). Keep each job
   under ten minutes: start a long scenario from a phase or checkpoint
   instead of flying the whole mission, record a new scenario file's
@@ -1727,8 +1727,8 @@ Slice 7d brought, for the missions after Apollo 13:
   PAD's throttle schedule with any number of steps, and a transearth
   MCC's own tolerance. The docked alignment's misalignment, the flight's,
   comes up with the LGC's REFSMMAT (schema 18).
-- **CI's eighth scenario part**, for the lifeboat's two and a half
-  minutes.
+- **CI's seven scenario parts** take the lifeboat's flight, 139 s on the
+  runners, without an eighth.
 
 | Slice | Work | Check |
 |---|---|---|
