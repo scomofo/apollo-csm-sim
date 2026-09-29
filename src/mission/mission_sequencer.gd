@@ -30,9 +30,17 @@
 ## land (Apollo 10) stages in orbit: lunar_ascent from staging, and its
 ## ascent engine's burn there is its insertion.
 ##
+## The ground answers the LGC's software restarts (slice 9b): GO on the
+## first Executive overflow alarm half a minute after it, as Apollo 11's
+## came while Houston's guidance officer and his back room looked it up,
+## and on each after it within seconds, "same type" [published: the Apollo
+## 11 air-to-ground transcript, 102:38:53 and 102:42:25 GET, and Eyles,
+## 2004].
+##
 ## Reads:  ctl.seq.csm_sep, ctl.seq.undock, ctl.seq.lm_jett,
 ##         ctl.seq.cm_sm_sep, ctl.lm.stage (crew pushbuttons,
-##         edge-triggered), ctl.ground.pad_request (String)
+##         edge-triggered), ctl.ground.pad_request (String),
+##         lm.guid.restarts, lm.guid.restart_get, lm.guid.restart_alarm
 ## Writes: mission.phase, mission.capcom, mission.pad_text, mission.event.<id>,
 ##         mission.result, mission.tli_tig, mission.next_event_get_s (the
 ##         timeline's next entry or the scripted failure, which SimClock
@@ -62,6 +70,10 @@ const FLYBY_PAST_M := 2.0 * Bodies.R_MOON
 ## A timeline entry this late (past its time by a coast step, or a PAD
 ## that came late) still happens; later than this, it is passed by.
 const TIMELINE_GRACE_S := 600.0
+## How long after the LGC's restart the ground calls GO: the flight's
+## first, and the later ones (Apollo 11's: 31 s and 7 s).
+const ALARM_GO_FIRST_S := 30.0
+const ALARM_GO_AGAIN_S := 7.0
 ## The planned time that marks each PAD as still to be flown: the timeline
 ## doesn't uplink one while the last is.
 const PAD_PENDING := {"doi": "doi_tig", "pdi": "pdi_pad_tig", "ascent": "liftoff_tig", "csi": "csi_tig",
@@ -111,6 +123,8 @@ var plan: Dictionary = {}
 ## The timeline's entries done: id to the GET each happened at, or -1 for
 ## one passed by (its condition didn't hold then, or the start came after).
 var timeline_done: Dictionary = {}
+## The LGC's software restarts the ground has answered.
+var alarms_answered: int = 0
 ## The seed the flight's dispersions are drawn from.
 var dispersion_seed: int = 0
 var _edges: Dictionary = {}
@@ -375,7 +389,24 @@ func tick(_dt: float) -> void:
 	_crew_commands()
 	_automation()
 	_timeline()
+	_alarm_calls()
 	_update_phase()
+
+
+## GO on the LGC's restarts not yet answered: ALARM_GO_FIRST_S after the
+## flight's first, ALARM_GO_AGAIN_S after any later one.
+func _alarm_calls() -> void:
+	var n := int(Bus.get_value("lm.guid.restarts", 0))
+	if n <= alarms_answered:
+		return
+	var wait := ALARM_GO_FIRST_S if alarms_answered == 0 else ALARM_GO_AGAIN_S
+	if SimClock.get_seconds < float(Bus.get_value("lm.guid.restart_get", 0.0)) + wait - 1e-6:
+		return
+	if alarms_answered == 0:
+		_say("Roger. We got you. {lm}, we're GO on that alarm.")
+	else:
+		_say("Roger. %d alarm. We're GO. Same type." % int(Bus.get_value("lm.guid.restart_alarm", 0)))
+	alarms_answered = n
 
 
 func _crew_commands() -> void:
@@ -1715,7 +1746,8 @@ func _say(text: String, more: Dictionary = {}) -> void:
 func snapshot() -> Dictionary:
 	return {"phase": phase, "events": events.duplicate(true), "visited_lunar_orbit": visited_lunar_orbit,
 		"tli_cutoff_get": tli_cutoff_get, "plan": plan.duplicate(),
-		"timeline_done": timeline_done.duplicate(), "seed": dispersion_seed, "rng_state": str(_rng.state)}
+		"timeline_done": timeline_done.duplicate(), "seed": dispersion_seed, "rng_state": str(_rng.state),
+		"alarms_answered": alarms_answered}
 
 
 func restore(d: Dictionary) -> void:
@@ -1725,6 +1757,7 @@ func restore(d: Dictionary) -> void:
 	tli_cutoff_get = float(d["tli_cutoff_get"])
 	plan = d.get("plan", {}).duplicate()
 	timeline_done = d.get("timeline_done", {}).duplicate()
+	alarms_answered = int(d.get("alarms_answered", 0))
 	dispersion_seed = int(d.get("seed", 0))
 	_rng.seed = dispersion_seed + 1
 	_rng.state = str(d.get("rng_state", str(_rng.state))).to_int()

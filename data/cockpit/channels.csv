@@ -74,6 +74,7 @@ ctl.lm.pgns,bool,,crew,PGNS: the LGC's and its IMU's breakers in
 ctl.lm.ags,bool,,crew,AGS: the abort guidance system powered
 ctl.lm.ags_align,bool,,crew,AGS ALIGN: the AGS's body-axis align (the DEDA's 400+5 then 400+0; momentary)
 ctl.lm.guid_cont,int,,crew,GUID CONT: 0 PGNS or 1 AGS flies the LM
+ctl.lm.rr_mode,int,,crew,RNDZ RADAR mode select: 0 LGC 1 AUTO TRACK 2 SLEW; away from LGC Apollo 11's LGC counted the radar's CDU pulses (slice 9b)
 lm.guid.indicator.attitude,quat,,lgc,Eagle's FDAI attitude: body relative to LVLH
 lm.contact_light,bool,,dynamics,LUNAR CONTACT: a landing probe touches the surface
 lm.dps.throttle_pct,float,%,dps,Descent engine thrust

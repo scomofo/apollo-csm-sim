@@ -461,9 +461,12 @@ not on truth. Half a revolution after DOI, P63 ignites powered descent
 back into its range.
 
 The landing radar under the descent stage finds the ground, the real
-ground of NASA's elevation maps. As its data come good, the ALT and VEL
-lamps on the LGC's DSKY go out, and N63 shows ΔH, the radar's altitude
-less the LGC's: about −3,100 ft here. The crew keys V57, and the radar
+ground of NASA's elevation maps. From ignition P63 shows N63, the speed,
+altitude rate and altitude, as Luminary 099 did. As the radar's data
+come good, the ALT and VEL lamps on the LGC's DSKY go out, and V16N68
+shows ΔH, the radar's altitude less the LGC's: about −3,100 ft here,
+with the range to the site and the time to go in braking. The crew keys
+V57, and the radar
 pulls the LGC's altitude and velocity in. Without V57 the LGC flies
 Eagle into the ground a kilometre short of where it thinks it is. P64
 flies the approach from high gate, about 2 km up and 8 km out. The LPD
@@ -473,6 +476,30 @@ fore or aft, 2° left or right. P65 lands automatically. At the first
 click of the ROD switch, P66 hands the attitude to the crew while the
 throttle holds the descent rate, 1 ft/s per click. CONTACT LIGHT comes
 on when a probe touches, and at touchdown P68 shuts the engine down.
+
+**Apollo 11's program alarms.** The LGC's Executive runs the descent's
+jobs on the time its interrupts leave (`src/systems/lgc_executive.gd`).
+A job holds one of eight core sets while it waits or runs, and one of
+five VAC areas if it uses the interpreter. At the descent's peak the
+jobs take about 90 % of the computer, as the mission report has it.
+Eagle's crew left the rendezvous radar's mode switch (RNDZ RADAR, on
+panel 3 and the HUD) at AUTO TRACK and then SLEW, not LGC. That ran the
+radar's resolvers on an 800 Hz supply out of phase with the LGC's, and
+their CDUs slewed, sending the LGC counter pulses that took about 13 %
+of its time. On top of that, the crew's V16N68 in P63, once the radar's
+data come good, or P64's landing point designator in AUTO, is more than
+the LGC has. Jobs pile up. When no core set is left for one, the
+Executive alarms 1202; when no VAC area is left, 1201. Either way it
+restarts:
+- PROG lights, V05N09 shows the codes (the first, the second and the
+  last), and RSET clears them;
+- whatever the crew had keyed is gone, and the program's display is
+  back;
+- the guidance carries on at the Servicer's next cycle.
+
+Houston calls GO half a minute after the first alarm and within seconds
+after the rest. With the switch at LGC no alarm comes. Apollo 12's
+Luminary 1B and later zeroed the CDUs, so their switch doesn't matter.
 
 **The ascent.** On the surface, Mission Control's ascent PAD gives the
 liftoff time. The RTCC flies the LGC's own ascent from where Eagle sits,
@@ -542,7 +569,8 @@ back to Columbia when the two dock or Eagle is jettisoned. While Eagle
 flies free, **L** changes vehicles. The HUD becomes Eagle's:
 - The LGC's DSKY, which the keys type into.
 - Eagle's switches: LGC MODE, ENG ARM (ASC or DES), ABORT STAGE, ENG
-  START and STOP, RCS SYS A and B, and ROD UP and DOWN for P66.
+  START and STOP, RCS SYS A and B, ROD UP and DOWN for P66, and the
+  rendezvous radar's mode, RNDZ RADAR (LGC, AUTO TRACK or SLEW).
 - Its flight data: its height over the ground below it, its vertical
   speed and its speed over the turning surface, its orbit, its mass and
   rates, the landing radar's ΔH, the rendezvous radar's range and range
@@ -565,7 +593,8 @@ switch of Eagle's HUD and its displays (`data/cockpit/lm_controls.csv`):
   the lever out, the second moves it.
 - Panel 2, the LM pilot's: its own FDAI and LUNAR CONTACT, and RCS SYS A
   and B.
-- Panel 3, between you: LGC MODE.
+- Panel 3, between you: LGC MODE and RNDZ RADAR, the rendezvous radar's
+  mode.
 - Panel 4, below it: the LGC's DSKY, with its ALT and VEL lamps.
 - Panel 5, by your left hand: ENGINE STOP and START and DES RATE, the
   rate of descent switch. Scroll it up for +1 FPS and down for −1 FPS.
@@ -1302,6 +1331,18 @@ The unit tests cover:
   checkpoint keeps the armed and the failed, and the clock comes to an
   armed one on its second; a mission arms its own; the instructor's page
   fails the one it shows; and a failure opens its malfunction procedure
+- Apollo 11's program alarms (`tests/scenarios/test_program_alarms.gd`),
+  slice 9b: the landing flown as its crew flew it, the rendezvous radar's
+  switch turned to SLEW, Aldrin's V16N68 for ΔH, and Armstrong's ATT HOLD
+  at 102:43:08 and P66 at 430 ft. It brings 1202s 358 and 412 s after
+  PDI in P63, and 1201s at 562 and 592 s in P64, each on V05N09, with
+  Houston's GO; the flight had them 5 min 17 s to 9 min 53 s after PDI.
+  Eagle lands 168 m from the site, 0.5 m/s down, 12 min 17 s after PDI.
+  With the switch at LGC no alarm comes, and the LGC's load peaks at 92 %.
+  `tests/unit/test_lgc_executive.gd`: the eight core sets and five VAC
+  areas and their alarms, the jobs by priority, a load within the LGC
+  never alarming, the radar's CDUs counting only on Apollo 11's LGC away
+  from LGC, the crew's monitor, and a checkpoint of the jobs and restarts
 - The terrain: Tranquility Base 1,927 m below the reference sphere, West
   crater 30 m deep east of the LM, and the maps blending without steps;
   Surveyor III 1,432 m below it on its crater's slope, and Intrepid's
@@ -1775,6 +1816,7 @@ builds the PC VR presets and flies the Linux build before it keeps them
 to be run (slice 8d). Of failures, backups and aborts (milestone 9), the
 failures are a catalog, armed by a mission or failed by an instructor,
 each lighting its caution and opening its malfunction procedure (slice
-9a). Apollo 11's program alarms, the backups and the aborts come next,
-then every mission from the pad, the LM's navigation, and Apollo 14 to
-17.
+9a), and Apollo 11's landing brings its 1202 and 1201 alarms, from the
+LGC's Executive and the rendezvous radar's switch as its crew had it
+(slice 9b). The backups and the aborts come next, then every mission
+from the pad, the LM's navigation, and Apollo 14 to 17.

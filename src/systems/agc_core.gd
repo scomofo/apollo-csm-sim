@@ -24,7 +24,9 @@
 ##        External ΔV steered as Colossus's]. An RCS program (P41) burns +X
 ##        translation instead of an engine
 ##   P47  Thrust monitor (manual burns): V16N83 body ΔV
-##   V06/V16 display/monitor, V21-V25 load, V34 terminate, V35 lamp test,
+##   V05N09 the program alarms' codes (the first, the second and the last
+##   since RSET, which clears them), V06/V16 display/monitor, V21-V25
+##   load, V34 terminate, V35 lamp test,
 ##   V37 change program, V82 orbit parameters (V16N44), V41N20 coarse
 ##   align: V25N22 flashes for the gimbal angles, and the IMU is driven to
 ##   them; REFSMMAT no longer holds
@@ -88,6 +90,10 @@ var dsky: Dsky
 ## The computer failed (the failure catalog's, slice 9a): dark for good,
 ## as without power.
 var failed: bool = false
+## The alarm registers N09 shows (FAILREG): the first alarm, the second,
+## and the last since RSET, which clears them [published: Luminary 099's
+## ALARM and PINBALL's ERROR].
+var failreg: Array = [0, 0, 0]
 var program: int = 0
 var step_name: String = ""
 ## Channel prefix of this computer's vehicle: "" for the CSM, "lm." for
@@ -145,6 +151,7 @@ var nav_uplink_get: float = -1.0
 var _coarse_load: Vector3 = Vector3.ZERO
 var _v41: bool = false
 
+## The last program alarm's code.
 var alarm_code: int = 0
 var _display_timer: float = 0.0
 var _uplink_timer: float = 0.0
@@ -507,7 +514,7 @@ func noun_values(n: int) -> Variant:
 	var tr := current_traj()
 	match n:
 		9:
-			return [alarm_code, 0, 0]
+			return failreg.duplicate()
 		17, 20:
 			var g := icdu()
 			return [g.x, g.y, g.z]
@@ -810,7 +817,14 @@ func _vg_mag() -> float:
 
 func _alarm(code: int) -> void:
 	alarm_code = code
+	var i := failreg.find(0)
+	failreg[i if i >= 0 and i < 2 else 2] = code
 	dsky.set_lamp("prog", true)
+
+
+## RSET: the alarm registers cleared, as the lamps are.
+func error_reset() -> void:
+	failreg = [0, 0, 0]
 
 
 # --- per-step --------------------------------------------------------------
@@ -1142,7 +1156,7 @@ func snapshot() -> Dictionary:
 		"imu": imu.snapshot(),
 		"preferred": Imu.rows_of(preferred_refsmmat) if preferred_valid else [],
 		"coarse_load": [_coarse_load.x, _coarse_load.y, _coarse_load.z], "v41": _v41, "powered": _powered,
-		"failed": failed,
+		"failed": failed, "failreg": failreg.duplicate(),
 	}
 
 
@@ -1151,6 +1165,7 @@ func restore(d: Dictionary) -> void:
 	_powered = bool(d.get("powered", _powered))
 	failed = bool(d.get("failed", false))
 	Bus.set_value(_ch("guid.fail"), failed)
+	failreg = (d.get("failreg", [0, 0, 0]) as Array).map(func(c: Variant) -> int: return int(c))
 	tig_load = float(d["tig_load"])
 	var l: Array = d["dv_lvlh_load"]
 	dv_lvlh_load = Vector3(l[0], l[1], l[2])

@@ -343,7 +343,8 @@ func _momentary(parent: Node, text: String, ch: String, on: Variant = true,
 
 ## Eagle's switches: the LGC's mode, the engines, staging, the RCS and the
 ## ROD switch; the LM's power, its PGNS and AGS, the AGS's body-axis align
-## and the guidance control switch (Apollo 13's lifeboat).
+## and the guidance control switch (Apollo 13's lifeboat); the rendezvous
+## radar's mode select (Apollo 11's program alarms).
 func _lm_switch_panel() -> PanelContainer:
 	var p := PanelContainer.new()
 	_style(p)
@@ -367,6 +368,7 @@ func _lm_switch_panel() -> PanelContainer:
 	_toggle(g, "AGS", "ctl.lm.ags")
 	_option(g, "GUID CONT", "ctl.lm.guid_cont", ["PGNS", "AGS"])
 	_momentary(g, "AGS ALIGN", "ctl.lm.ags_align")
+	_option(g, "RNDZ RADAR", "ctl.lm.rr_mode", ["LGC", "AUTO TRACK", "SLEW"])
 	return p
 
 

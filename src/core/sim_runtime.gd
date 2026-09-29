@@ -33,7 +33,10 @@ extends RefCounted
 ## 19: the failure catalog (slice 9a): the armed and the failed, and the
 ##    parts each system has failed; the O2 tank's failure moved off the
 ##    mission.
-const SCHEMA_VERSION := 19
+## 20: Apollo 11's program alarms (slice 9b): the LGC's Executive (its jobs
+##    and their schedule), its restarts and alarm registers, and the
+##    ground's answers to them.
+const SCHEMA_VERSION := 20
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],
@@ -62,8 +65,9 @@ const LM_SYSTEMS := [
 ## CM in ACCEPT, the optics in CMC mode at MED speed, the CM's loads all on
 ## its own buses; the LM's DAP in HOLD, its engines disarmed and both RCS
 ## systems open, the PGNS's breakers in and its guidance in control, the
-## AGS off, the TTCA's throttle at its minimum, and docked, the LM powered
-## down.
+## AGS off, the TTCA's throttle at its minimum, the rendezvous radar's mode
+## switch at AUTO TRACK (0 LGC, 1 AUTO TRACK, 2 SLEW), where Apollo 11's
+## radar ranging test after DOI left it, and docked, the LM powered down.
 const CONTROL_DEFAULTS := {
 	"ctl.scs.att_source": 0, "ctl.cmc.mode": 1, "ctl.cmc.up_tlm": true,
 	"ctl.optics.zero": false, "ctl.optics.mode": 1, "ctl.optics.speed": 1, "ctl.optics.hc": Vector3.ZERO,
@@ -78,7 +82,7 @@ const CONTROL_DEFAULTS := {
 	"ctl.lm.engine_arm": 0, "ctl.lm.stage": false, "ctl.lm.rcs.sys_a": true, "ctl.lm.rcs.sys_b": true,
 	"ctl.lm.eng_start": false, "ctl.lm.eng_stop": false, "ctl.lm.rod": 0,
 	"ctl.lm.power": false, "ctl.lm.pgns": true, "ctl.lm.ags": false, "ctl.lm.ags_align": false, "ctl.lm.guid_cont": 0,
-	"ctl.lm.throttle": 0.1,
+	"ctl.lm.throttle": 0.1, "ctl.lm.rr_mode": 1,
 }
 
 var mission: Mission
@@ -107,6 +111,8 @@ static func build(parent: Node, mission_path: String = "") -> SimRuntime:
 		parent.add_child(n)
 		rt.systems[pair[0]] = n
 		rt.nodes.append(n)
+	# Luminary 1A, Apollo 11's, counted the rendezvous radar's CDU pulses.
+	rt.lgc().rr_cdu_zeroed = bool(rt.mission.section("lgc").get("rr_cdu_zeroed", true))
 	rt.sequencer = MissionSequencer.new()
 	rt.sequencer.name = "MissionSequencer"
 	rt.sequencer.mission = rt.mission

@@ -128,6 +128,21 @@
     "_source": "The LM's rendezvous radar, tracking the CSM's transponder out to 400 nmi [published]",
     "range_max_m": 740800.0
   },
+  "lgc_executive": {
+    "_source": "The LGC's load in the powered descent (src/systems/lgc_executive.gd, slice 9b). The computer ran at about 90 percent of its capacity at the descent's peak (Apollo 11 Mission Report, MSC-00171, section 16.2) [published]; the shares below are [estimated] to add up to it: 0.12 for the interrupts, and the Servicer's share falling from P63 to P66, with the landing radar's reading, P64's landing point designator job and a noun monitored by the crew with V16 on top (Luminary 1A's N68, the range, time to go and delta-H, dearer than the others, as Apollo 11's crew found). Their priorities are [estimated] in the order the model needs: the crew's monitor lowest. With the rendezvous radar's mode switch at AUTO TRACK or SLEW, its two coupling data units sent the LGC counter pulses of 11.7 microseconds each, 6,400 a second each at most (ibid.) [published]; they took about 13 percent of Apollo 11's LGC (Eyles, 2004) [published], 11,100 a second [derived]",
+    "interrupt_duty": 0.12,
+    "counter_pulse_s": 1.17e-05,
+    "rr_cdu_pps": 11100.0,
+    "rr_cdu_pps_max": 12800.0,
+    "jobs": {
+      "servicer": {"period_s": 2.0, "phase_s": 0.0, "priority": 20, "vac": true,
+        "duty_by_program": {"63": 0.70, "64": 0.66, "65": 0.62, "66": 0.58}},
+      "landing_radar": {"period_s": 2.0, "phase_s": 1.0, "priority": 30, "vac": false, "duty": 0.04},
+      "lpd": {"period_s": 2.0, "phase_s": 0.5, "priority": 12, "vac": true, "duty": 0.065},
+      "monitor": {"period_s": 1.0, "phase_s": 0.25, "priority": 4, "vac": false, "duty": 0.005,
+        "duty_by_noun": {"68": 0.04}}
+    }
+  },
   "rendezvous_guidance": {
     "_source": "The LGC's rendezvous programs. TPI when the CSM stands 26.6 deg above the LM's horizontal, and a transfer that meets it after it has flown 130 deg [published]. P20's radar marks come every 60 s. The first after the CSM's state vector arrives takes the radar's relative position outright; later marks weight it by 0.5, move the velocity by 0.15 of the position's residual per mark interval, and weight the range rate along the line of sight by 0.5. P35 aims its correction 5 min ahead [estimated]",
     "tpi_elevation_deg": 26.6,

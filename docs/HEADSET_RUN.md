@@ -178,8 +178,8 @@ buttons are Eagle's: DOI, PDI, ASCENT and CSI.
 1. **E1.** Recentre and look around. Nothing should clip the headset.
    - The window is at your face, and the docking window is overhead.
    - Panel 1 is to your right, with the FDAI, ENG ARM and ABORT STAGE.
-   - Panels 3 and 4 (LGC MODE and the DSKY) are below it, between the
-     stations.
+   - Panels 3 and 4 (LGC MODE, RNDZ RADAR and the DSKY) are below it,
+     between the stations.
    - Panel 5 is by your left hand, with ENGINE STOP, ENGINE START and
      DES RATE.
 2. **E2.** From the commander's station, reach each of those controls.

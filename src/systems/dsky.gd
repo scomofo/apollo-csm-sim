@@ -12,7 +12,9 @@
 ## Display: PROG, VERB, NOUN (two digits each), R1-R3 (sign + five digits),
 ## the verb/noun flash that means "the computer is asking", and the caution
 ## and status lamps. Registers are formatted per noun (see NOUNS); V01 shows
-## the noun's first component alone, in R1.
+## the noun's first component alone, in R1, and V05 a noun whose registers
+## are octal (N09, the alarm codes). RSET clears the computer's alarm
+## registers with the lamps (agc.error_reset(), where it has one).
 class_name Dsky
 extends RefCounted
 
@@ -27,7 +29,7 @@ signal changed
 const FT := 0.3048
 const NMI := 1852.0
 const NOUNS := {
-	9: {"name": "ALARM CODES", "c": [["ALM1", "i", 1.0], ["ALM2", "i", 1.0], ["ALM3", "i", 1.0]]},
+	9: {"name": "ALARM CODES", "c": [["ALM1", "o", 1.0], ["ALM2", "o", 1.0], ["ALM3", "o", 1.0]]},
 	17: {"name": "ATT DISPLAY", "c": [["R", "d2", 1.0], ["P", "d2", 1.0], ["Y", "d2", 1.0]]},
 	18: {"name": "DESIRED ATT", "c": [["R", "d2", 1.0], ["P", "d2", 1.0], ["Y", "d2", 1.0]]},
 	20: {"name": "ICDU ANGLES", "c": [["OG", "d2", 1.0], ["IG", "d2", 1.0], ["MG", "d2", 1.0]]},
@@ -203,6 +205,30 @@ func set_lamp(name: String, on: bool) -> void:
 		changed.emit()
 
 
+## The noun the crew monitors with V16 in place of the program's display,
+## or 0.
+func crew_monitor() -> int:
+	if monitor_verb != 16 or monitor_noun <= 0:
+		return 0
+	var d := _program_display
+	if not d.is_empty() and int(d["v"]) == 16 and int(d["n"]) == monitor_noun:
+		return 0
+	return monitor_noun
+
+
+## A software restart: whatever the crew had keyed or was keying ends, and
+## the program's display comes back.
+func restart_display() -> void:
+	mode = ""
+	_buffer = ""
+	lamps["key_rel"] = false
+	if _program_display.is_empty():
+		blank()
+	else:
+		restore_program_display()
+	changed.emit()
+
+
 func has_program_display() -> bool:
 	return not _program_display.is_empty()
 
@@ -262,6 +288,8 @@ func press(key: String) -> void:
 			lamps["opr_err"] = false
 			lamps["prog"] = false
 			lamps["restart"] = false
+			if agc != null and agc.has_method("error_reset"):
+				agc.error_reset()
 		"+", "-":
 			if mode == "data" and _buffer == "" and _load_format() != "o":
 				_buffer = key
@@ -380,6 +408,12 @@ static func _load_indices(v: int) -> Array[int]:
 
 func _execute(v: int, n: int) -> void:
 	match v:
+		5:
+			# Octal display: the nouns whose registers are octal (N09).
+			if n < 0 or not nouns.has(n) or not _octal(n) or agc.noun_values(n) == null:
+				_opr_err()
+				return
+			show(v, n, false, false)
 		6, 16:
 			if n < 0 or not nouns.has(n) or agc.noun_values(n) == null:
 				_opr_err()
@@ -411,6 +445,14 @@ func _execute(v: int, n: int) -> void:
 		_:
 			if not agc.verb_noun(v, n):
 				_opr_err()
+
+
+## Noun [param n]'s registers are all octal.
+func _octal(n: int) -> bool:
+	for c: Array in nouns[n]["c"]:
+		if c[1] != "o":
+			return false
+	return true
 
 
 func _opr_err() -> void:
