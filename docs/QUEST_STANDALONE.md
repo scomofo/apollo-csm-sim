@@ -20,6 +20,9 @@ verified.
   keeps OpenXR off for desktop runs;
 - the Compatibility renderer (`gl_compatibility`), which
   `project.godot` sets for mobile, where a PC uses Forward+;
+- textures imported for mobile GPUs too (ETC2/ASTC,
+  `textures/vram_compression/import_etc2_astc` in `project.godot`),
+  without which Godot refuses an Android export;
 - the Meta plugin's starting color space at REC709
   (`xr/openxr/extensions/meta/color_space/starting_color_space` in
   `project.godot`), which its export requires. Without the plugin, a
@@ -53,6 +56,8 @@ ndk;23.2.8568313
 
 Then:
 
+- Point Godot's editor settings at them (*Editor Settings → Export →
+  Android*: the Java SDK path and the Android SDK path).
 - Install Godot 4.4.1's export templates (*Editor → Manage Export
   Templates*).
 - Install **Godot OpenXR Vendors 4.3.1-stable** under
