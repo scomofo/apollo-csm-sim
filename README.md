@@ -101,8 +101,9 @@ the liftoff, Yankee Clipper's first plane change flown), `tei`,
 `transearth_coast` and `entry`. `-- --mission=apollo_13` flies Apollo
 13: the SM's oxygen tank fails at 55:54:53, and Aquarius, the LM, is the
 lifeboat that brings the crew home around the Moon. Its start phases are
-`parking_orbit` (the default), `translunar_coast` and `tank_failure`
-(five minutes before the failure). Each mission is data under
+`launch` (on LC-39A, AS-508 its Saturn V, whose S-II's centre engine pogo
+shuts down), `parking_orbit` (the default), `translunar_coast` and
+`tank_failure` (five minutes before the failure). Each mission is data under
 `data/missions/<id>/`: its dates and the JPL ephemeris for them, its
 vehicles, its orbits, Mission Control's timeline, the call signs, the
 checklists, and its start phases with the flight menu's line on each.
@@ -149,8 +150,10 @@ malfunction procedure opens on the checklist card. Apollo 12's lightning
 is three of them: the fuel cells tripped off their buses (FC BUS
 DISCONNECT), the SCE's NORM supply, which no light shows (the ground's
 telemetry goes, and Houston calls for SCE to AUX), and the platform
-tumbled (ISS, until a coarse align). A mission arms its own at their
-times, as Apollo 13's tank. FAILURES on the flight menu is the
+tumbled (ISS, until a coarse align). Apollo 13's S-II centre engine is
+another: pogo shuts it down, LV ENG 5 lights, and the IU burns the other
+four and the S-IVB longer. A mission arms its own at their times, as
+Apollo 13's tank. FAILURES on the flight menu is the
 instructor's page: `< FAILURE` and `FAILURE >` step through the catalog,
 and FAIL fails the one shown at once.
 
@@ -426,8 +429,15 @@ its flight, with noun 69 in the powered descent's; Yankee Clipper's has
 the plane changes.
 
 **Apollo 13.** With `-- --mission=apollo_13` the flight is Apollo 13's,
-from its parking orbit, or with `-- --phase=tank_failure` from five
-minutes before the failure. TLI puts the stack on the free return, and
+from the pad, its parking orbit, or with `-- --phase=tank_failure` from
+five minutes before the failure. From the pad it's the launch above on
+AS-508 at 19:13:00 UTC on 11 April 1970. At 5:30.6 pogo shuts the S-II's
+centre engine down, 132 s before the IU would have, and LV ENG 5 lights:
+Lovell's "Inboard." The IU's guidance steers on the four outboard
+engines, pitching the stack up 7.6° as it re-plans, and its shift to
+the low mixture ratio waits on the velocity it senses, 33 s later than
+without the pogo. The four burn 33 s longer, the S-IVB 11 s longer, and
+insertion comes at 12:39, 44 s late. TLI puts the stack on the free return, and
 MCC-2 (30:41, on the SPS) takes it onto the hybrid, 60 nmi over the Moon.
 At 55:54:53 the SM's oxygen tank 2 fails: the master alarm, MAIN B
 UNDERVOLT, fuel cells 1 and 3 lost, and tank 1 leaks its oxygen away
@@ -1057,14 +1067,28 @@ The table takes these from the flight's figures:
   ft) northwest of the Surveyor where LROC has it; the mission report's
   535 ft is the 1969 survey's.
 
-Apollo 13 flown from its data alone, from five minutes before the oxygen
-tank failed to the splashdown (`tests/scenarios/test_apollo_13.gd`,
-which holds each row within set limits of the flight's figures), against
-the Apollo 13 Mission Report (MSC-02680) and its guidance supplement, the
-Mission Operations Report and the Apollo Flight Journal:
+Apollo 13 flown from its data alone, from the pad on four S-II engines
+into its parking orbit and on through TLI
+(`tests/scenarios/test_apollo_13_launch.gd`) and from five minutes before
+the oxygen tank failed to the splashdown
+(`tests/scenarios/test_apollo_13.gd`), each holding its rows within set
+limits of the flight's figures, against the Apollo 13 Mission Report
+(MSC-02680) and its guidance supplement, the AS-508 flight evaluation
+report (MPR-SAT-FE-70-2), the Mission Operations Report and the Apollo
+Flight Journal. The launch's pogo rows set the flight beside the same
+launch flown without the pogo, as the report sets it beside its
+prediction:
 
 | Quantity | Simulator | Apollo 13 |
 |---|---|---|
+| Launch: Mach 1, maximum dynamic pressure | 1:07.2; 32.7 kPa at 1:18.7 | 1:08.4; 31.2 kPa at 1:21.3 |
+| Launch: the S-IC's centre and outboard engines' cutoffs | 2:15.20 at 1,952 m/s and 23.16° up, 2:43.62 at 2,757 m/s and 19.24° | 2:15.18 at 1,929 m/s and 23.61°, 2:43.60 at 2,744 m/s and 19.48° |
+| Launch: pogo shuts the S-II's centre engine down | 5:30.66 at 3,913 m/s and 4.84° up, LV ENG 5 on; the IU's guidance pitches up 7.6° | 5:30.65 at 3,920 m/s and 4.16°; about 7° |
+| Launch: the IU's command to shift the mixture ratio, and the shift | 8:54.76 and 8:57.56; 33.0 s later than without the pogo | 8:54.7 and 8:57.5; 32.2 s later than predicted |
+| Launch: the S-II's cutoff, and its burn | 9:52.64 at 6,913 m/s; 427.6 s, 33.0 s longer than without the pogo | 9:52.64 at 6,892 m/s; 427.64 s, 34.93 s longer than predicted |
+| Launch: the S-IVB's cutoff and burn, and insertion | 12:28.80 after 151.9 s, 10.8 s longer than without the pogo; 12:38.80 at 7,792.9 m/s, 43.8 s later | 12:29.83 after 152.9 s, 9.3 s longer than predicted; 12:39.83 at 7,792.5 m/s, 44.07 s later |
+| Parking orbit, and the S-IVB's propellant for TLI | 100.1 × 100.1 nmi, 32.525°; 73,331 kg | 100.3 × 99.3 nmi, 32.525°; 73,447 kg at its second ignition |
+| TLI from the pad, and the pericynthion after it | GET 2:35:45 for 353.8 s, C3 −1,366,030 m²/s²; 250.8 nmi at 77:46:47 | 2:35:46.4 for 350.8 s, C3 −1,376,274 m²/s²; the parking-orbit start's aim, 250.2 nmi at 77:46:46 |
 | The hybrid at the incident | pericynthion 60.0 nmi at 77:28:39 | 63 nmi at 77:28:39 (the PAD's 60) |
 | The oxygen tank | tank 2 fails at 55:54:53; fuel cell 2 carries the CSM until 58:14:25 | 55:54:53; 58:15:11 |
 | The docked coarse align | the CM's N20 355.58, 167.77, 351.88; the LM's V41N20 184.42, 347.77, 8.12 | 355.57, 167.78, 351.87; 302.43, 347.78, 8.13 |
@@ -1083,6 +1107,15 @@ Mission Operations Report and the Apollo Flight Journal:
 | Splashdown | 142:56:43, 21.67° S 165.36° W, 0.9 nmi from the target; 38 A-h left in the entry batteries | 142:54:41, 21.64° S 165.36° W, about a mile from it; 29 A-h |
 
 The table takes these from the flight's figures:
+- The launch: AS-508's F-1s give 8,000 kN each in vacuum, the stage's
+  40.0 MN on five before the centre engine's cutoff in the report's
+  Figure 5-3 [a plot reading]; its peak acceleration at the outboard
+  cutoff, the other missions' measure, gives 7,836 kN, which left the
+  S-IC 40 m/s short and the S-IVB burning 12 s long. The S-IC's vacuum
+  Isp (306.6 s) and the S-II's flow at the high ratio (1,230.0 kg/s, 1 %
+  under the report's with the pressurization's) are tuned for the flown
+  cutoffs, and the IU's velocity criterion for the flown command
+  [estimated]. The pitch-up is a plot reading of the report's Figure 9-4.
 - The docked coarse align's outer gimbal: Aquarius's crew added their
   docking ring's roll calibration (the Apollo Flight Journal, 058:03);
   the simulator's LM docks at its nominal index, 118° round from
@@ -1617,7 +1650,9 @@ The unit tests cover:
   name for one, and none for a CM powered down; a tumbled platform's ISS
   out at a coarse align; and a checkpoint of them all. The catalog's
   test runs the three as the others, the SCE's without a light, and
-  Apollo 12's launch start alone arms them on its liftoff
+  Apollo 12's launch start alone arms them on its liftoff; as it does
+  Apollo 13's S-II centre engine (slice 10d), which it runs with the
+  launch vehicle's others
 - The terrain: Tranquility Base 1,927 m below the reference sphere, West
   crater 30 m deep east of the LM, and the maps blending without steps;
   Surveyor III 1,432 m below it on its crater's slope, and Intrepid's
@@ -2020,6 +2055,28 @@ The scenario tests fly real segments through the crew interface:
   - P51 in the parking orbit on two stars, N05 0.001°, the ISS light out;
   - TLI at 2:47:50 for 339.4 s, onto the free return past the Moon 279.5
     nmi up at 83:44:04 (280.2 nmi at 83:44:04 flown)
+- Apollo 13's launch and its centre engine
+  (`tests/scenarios/test_apollo_13_launch.gd`), slice 10d's check. From
+  LC-39A, AS-508 flies Apollo 13 into its parking orbit on four S-II
+  engines after pogo shuts the fifth down, and the flight goes on through
+  TLI as the parking-orbit start flies it:
+  - the centre engine out at 330.66 s, LV ENG 5 lit until the S-II's
+    separation, Lovell's "Inboard." and Houston's word at 5:36; the IU's
+    guidance pitching up 7.6° on the four (about 7° flown);
+  - each stage's cutoff, the IU's command to shift the mixture ratio on
+    its velocity criterion and the shift within 0.06 s of the flight
+    evaluation report's; the S-II's burn 427.6 s (427.64 flown), the
+    S-IVB's 151.9 s (152.9) and insertion 1.0 s early; the velocities
+    within 40 m/s and the flight path angles within 1°;
+  - the orbit at 32.525°, 0.003° from the flown plane, and the S-IVB's
+    propellant, 73,331 kg, within 2 t of the parking-orbit start's;
+  - TLI at 2:35:45 for 353.8 s, onto the free return past the Moon 250.8
+    nmi up at 77:46:47, as the parking-orbit start aims;
+  - flown again without the pogo, the shift's command, the S-II's cutoff
+    and the S-IVB's within 1.6 s of their predictions, and the pogo's toll
+    beside it as the report has it against the prediction: the shift 33.0
+    s later (32.2), the S-II's burn 33.0 s longer (34.93), the S-IVB's
+    10.8 s (9.3), insertion 43.8 s later (44.07)
 - Apollo 8's launch (`tests/scenarios/test_apollo_8_launch.gd`), slice
   10a's check. From the pad, AS-503 flies Apollo 8 into its parking
   orbit, and the flight goes on through TLI as the parking-orbit start
@@ -2152,5 +2209,7 @@ Saturn V, into its parking orbit and on through TLI (slice 10a),
 Apollo 10 from LC-39B on AS-505 (slice 10b), and Apollo 12 on AS-507
 through its lightning: the fuel cells off their buses, SCE to AUX, the
 platform tumbled and aligned again with P51 in the parking orbit (slice
-10c). Apollo 13's launch comes next, then the LM's navigation, and
-Apollo 14 to 17.
+10c), and Apollo 13 on AS-508 on four S-II engines after pogo shut the
+fifth down, the IU's guidance burning them and the S-IVB longer into its
+parking orbit (slice 10d). That finishes every mission from the pad. The
+LM's navigation comes next, then Apollo 14 to 17.

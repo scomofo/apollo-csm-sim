@@ -42,7 +42,7 @@ func test_it_steps_through_missions_and_their_start_phases() -> void:
 	assert_eq(c.phase(), "lunar_orbit", "the same phase, where the mission has it")
 	c.step_mission(1)
 	assert_eq(c.mission_id(), "apollo_13")
-	assert_eq(c.phase(), "parking_orbit", "Apollo 13 has no lunar orbit: its first")
+	assert_eq(c.phase(), "launch", "Apollo 13 has no lunar orbit: its first, the launch")
 	c.step_mission(1)
 	assert_eq(c.mission_id(), "apollo_8", "round to the first")
 	c.step_mission(-1)
@@ -71,6 +71,8 @@ func test_the_wrist_menu_turns_to_its_flight_page_and_asks_for_the_flight() -> v
 	# A pushbutton takes one press until it lets go; activate() is a press.
 	menu.activate("mission_next")
 	menu.activate("mission_next")
+	# From its parking orbit back past its launch, round to its last.
+	menu.activate("phase_prev")
 	menu.activate("phase_prev")
 	assert_string_contains(menu.choice_label.text, "Apollo 13")
 	assert_string_contains(menu.choice_label.text, "TANK FAILURE")
