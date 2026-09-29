@@ -3,9 +3,8 @@
 # runs in slice 10c's CI (27165eb's, on its push and its pull request),
 # measured again when the parts had drifted apart, the longest taking
 # 9 min 37 s; the runners took up to seven tenths longer than each other
-# on a file. test_apollo_13_launch.gd's, slice 10d's, is estimated until
-# CI has run it: its 95 s on a local run, where test_apollo_12_launch.gd
-# took 1.3 times its CI time.
+# on a file. test_apollo_13_launch.gd's, slice 10d's, is the longer of
+# its two runs in 9eeb020's CI.
 # A file not listed counts 60 s.
 # Add a new file's time once CI has run it, and measure again when the
 # parts drift apart.
@@ -14,7 +13,7 @@ test_apollo_10_launch.gd 40
 test_apollo_12.gd 505
 test_apollo_12_launch.gd 43
 test_apollo_13.gd 180
-test_apollo_13_launch.gd 75
+test_apollo_13_launch.gd 72
 test_apollo_8.gd 160
 test_apollo_8_launch.gd 39
 test_ascent.gd 55
