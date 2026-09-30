@@ -1665,9 +1665,9 @@ godot --headless --path . -s addons/gut/gut_cmdln.gd -gexit
 That runs the whole suite, which takes over an hour and a half, nearly
 all of it in the scenario tests. Add `-gdir=res://tests/unit/` to run
 only the unit tests, in about ten minutes, or `-gselect=<name>` to run only the
-scripts whose file names contain `<name>`. CI runs the suite in twelve
+scripts whose file names contain `<name>`. CI runs the suite in thirteen
 parts side by side (`.github/workflows/ci.yml`): the unit tests dealt
-out over two jobs and the scenario tests over ten, by each file's time
+out over two jobs and the scenario tests over eleven, by each file's time
 on the runners (`.github/unit_seconds.txt`,
 `.github/scenario_seconds.txt`). Beside them, its build job
 exports the PC VR presets with Godot 4.4.1's templates and flies a

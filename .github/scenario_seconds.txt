@@ -1,49 +1,51 @@
 # Each scenario file's seconds on CI's runners, by which ci.yml deals the
-# scenario files out over its parts evenly: the longer of each file's two
-# runs in slice 11e's CI (00593ec's, on its push and its pull request).
-# They were measured again there when the parts had drifted apart: a part
-# dealt at 514 s took 9 min 53 s on the slower runner, where the runners
-# took up to 1.6 times as long as each other on a file, and the parts went
-# from ten to eleven. test_apollo_12.gd, alone in its part, sets that
-# part's time.
+# scenario files out over its parts evenly: the longest of each file's four
+# runs in slice 11e's CI (00593ec's and 4e94deb's, each on its push and its
+# pull request), the same tests each time. A file's time can differ by more
+# than the runners' overall speed: test_apollo_10.gd took 218 and 269 s on
+# 00593ec's runners and 369 and 368 s on 4e94deb's, the flight printing
+# alike each time, while the files beside it took the same time on both.
+# The parts went from ten to eleven in 4e94deb, when a part dealt at 514 s
+# took 9 min 53 s on the slower runner. test_apollo_12.gd, alone in its
+# part, sets that part's time.
 # A file not listed counts 60 s.
 # Add a new file's time once CI has run it, and measure again when the
 # parts drift apart.
 test_ags.gd 74
-test_apollo_10.gd 269
+test_apollo_10.gd 370
 test_apollo_10_launch.gd 42
 test_apollo_12.gd 543
-test_apollo_12_launch.gd 33
-test_apollo_13.gd 164
-test_apollo_13_launch.gd 75
+test_apollo_12_launch.gd 45
+test_apollo_13.gd 165
+test_apollo_13_launch.gd 76
 test_apollo_8.gd 190
 test_apollo_8_launch.gd 41
 test_ascent.gd 78
-test_backups.gd 82
-test_cabin_checklists.gd 235
+test_backups.gd 122
+test_cabin_checklists.gd 238
 test_cabin_mcc.gd 7
 test_cabin_wrist_menu.gd 5
-test_docking.gd 18
+test_docking.gd 25
 test_doi.gd 68
 test_entry.gd 150
 test_flight_menu.gd 10
-test_imu_alignment.gd 93
+test_imu_alignment.gd 100
 test_landing.gd 233
 test_launch.gd 66
 test_launch_aborts.gd 142
 test_lm_aborts.gd 396
-test_lm_alignment.gd 63
+test_lm_alignment.gd 82
 test_lm_burns.gd 35
 test_lm_cabin_checklists.gd 254
-test_lm_cabin_checklists_rendezvous.gd 178
+test_lm_cabin_checklists_rendezvous.gd 237
 test_lm_checklists.gd 239
-test_lm_checklists_rendezvous.gd 211
+test_lm_checklists_rendezvous.gd 214
 test_lm_steering.gd 141
 test_lm_surface_alignment.gd 76
 test_lunar_mission.gd 127
 test_lunar_timeline.gd 114
-test_mascons.gd 6
-test_onboard_navigation.gd 104
+test_mascons.gd 9
+test_onboard_navigation.gd 143
 test_onboard_state.gd 6
 test_p40_steering.gd 63
 test_program_alarms.gd 105

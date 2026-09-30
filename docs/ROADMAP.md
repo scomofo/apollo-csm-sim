@@ -41,8 +41,8 @@ picture).
 - **Start phases stay consistent.** A new `--phase` is built the way the
   existing ones are, from the RTCC's own solutions, so it continues the
   mission it claims to.
-- **CI stays fast.** The suite runs in twelve jobs side by side: the
-  unit tests in two parts and the scenario tests in ten, each dealt out
+- **CI stays fast.** The suite runs in thirteen jobs side by side: the
+  unit tests in two parts and the scenario tests in eleven, each dealt out
   by each file's time on the runners (`.github/unit_seconds.txt`,
   `.github/scenario_seconds.txt`). Keep each job under ten minutes:
   start a long scenario from a phase or checkpoint instead of flying the
