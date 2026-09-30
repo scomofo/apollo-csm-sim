@@ -10,13 +10,18 @@
 # out of each), and test_ascent.gd and test_apollo_12.gd, which 11b
 # lengthened, are the longer of their two runs in cbaff83's CI: alone in
 # its part, test_apollo_12.gd sets that part's time. Slice 11c's new file
-# is the longer of its two runs in 978203b's CI.
+# is the longer of its two runs in 978203b's CI. Slice 11d lengthened the
+# LM's rendezvous: test_apollo_10.gd and test_lm_aborts.gd carry
+# estimates, their local times in a whole run of the suite times 0.75
+# (CI took 0.59 to 0.77 of the local time on the files 11d left alone),
+# and test_apollo_12.gd its own 0.726 from 978203b's CI, until CI
+# measures them.
 # A file not listed counts 60 s.
 # Add a new file's time once CI has run it, and measure again when the
 # parts drift apart.
-test_apollo_10.gd 395
+test_apollo_10.gd 399
 test_apollo_10_launch.gd 40
-test_apollo_12.gd 553
+test_apollo_12.gd 570
 test_apollo_12_launch.gd 43
 test_apollo_13.gd 180
 test_apollo_13_launch.gd 72
@@ -35,7 +40,7 @@ test_imu_alignment.gd 89
 test_landing.gd 222
 test_launch.gd 62
 test_launch_aborts.gd 136
-test_lm_aborts.gd 359
+test_lm_aborts.gd 425
 test_lm_alignment.gd 88
 test_lm_burns.gd 57
 test_lm_cabin_checklists.gd 239

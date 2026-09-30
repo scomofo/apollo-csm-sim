@@ -1300,7 +1300,8 @@ func tracked_state(tr: Trajectory) -> Trajectory:
 
 
 ## Seed the flight's dispersions (mission.json "dispersions"): the CSM's
-## unmodelled forces, and MSFN's tracking errors to come.
+## unmodelled forces, MSFN's tracking errors to come, the IMUs' drift and
+## the rendezvous radar's errors.
 func _disperse() -> void:
 	dispersion_seed = int(mission.section("dispersions").get("seed", 0))
 	dynamics.disperse(dispersion_seed)
@@ -1317,6 +1318,9 @@ func _disperse() -> void:
 		var d: Array = mission.section("lgc").get("drift_meru", [])
 		if not d.is_empty():
 			lgc.imu.drift = Vector3(d[0], d[1], d[2]) * MERU_RAD_S
+	if systems.has("rr"):
+		# The rendezvous radar's biases and noise (slice 11d).
+		systems["rr"].disperse(dispersion_seed + 4)
 
 
 ## The REFSMMAT a start phase's IMU is aligned to: the launch pad's until

@@ -13,9 +13,12 @@
 ##        over, and flies ascent guidance (AscentGuidance) to insertion
 ##        into a 9 x 45 nmi orbit in the CSM's plane; V16N94, then V16N85
 ##        at cutoff
-##   P20  Rendezvous navigation: the rendezvous radar's marks update the
-##        CSM's state vector (below); V16N54 range, range rate and the
-##        CSM's elevation. It goes on behind P32 to P35 until V56
+##   P20  Rendezvous navigation (slice 11d, LgcRendezvousNav): the
+##        rendezvous radar acquired and locked on, the LM kept with its +Z
+##        on the CSM, and the radar's marks weighted into the LM's state
+##        vector (V80) or the CSM's (V81) by Luminary's filter; V16N54
+##        range, range rate and the CSM's elevation from the state vectors.
+##        It goes on behind P32 to P35 until V56
 ##   P30  External ΔV (the DOI PAD's TIG and ΔV)
 ##   P32  CSI: V06N11 its TIG, V06N55 the TPI elevation, V06N37 the TPI
 ##        time, then the horizontal ΔV that, with CDH half a revolution
@@ -27,6 +30,8 @@
 ##        and the transfer that meets it after it has flown 130°; V06N58
 ##        (perilune, ΔV TPI and braking), V06N81
 ##   P35  Midcourse correction, 5 min ahead, to the same meeting: V06N81
+##        Each of P32 to P35 then shows V16N45 (marks, time to ignition,
+##        middle gimbal): V32 computes again, PRO is the final computation
 ##   P40  DPS thrusting, on the burn's throttle schedule, which the ground
 ##        uplinks with its PAD (Dps.p40_schedule()): Apollo 11's DOI started
 ##        at 10 % and burned at 40 % after 15 s, Apollo 10's phasing burn
@@ -109,11 +114,8 @@
 ## lamps light while the radar has no good data. On the surface it holds
 ## the spot it landed at, turning with the Moon. The ground uplinks the
 ## CSM's state vector too (csm_nav): P12 flies into its plane, and the
-## LGC coasts it for the rendezvous. In P20 a mark every minute, while the
-## rendezvous radar has the CSM, moves it toward what the radar measures
-## (V81): the first after an uplink takes the radar's relative position
-## outright, later ones weight it and the range rate in. V06N49 shows the
-## last update.
+## LGC coasts it for the rendezvous. P20's marks move one or the other
+## toward what the rendezvous radar measures (LgcRendezvousNav).
 ##
 ## The IMU (slice 11a): a real one, as the CMC's, its gyros drifting at
 ## rates drawn from the mission's seed (spacecraft.json "lm_imu"). The LGC
@@ -167,7 +169,9 @@
 ##         lm.guid.dps_on, lm.guid.dps_throttle, lm.guid.aps_on (P12, P42),
 ##         lm.guid.lr_antenna (1 in P63, 2 from P64), lm.guid.delta_h_m,
 ##         lm.guid.lr_update (V57 given), lm.guid.ls_corrected (N69 loaded
-##         since the site's uplink), lm.guid.rr_nav (P20 running),
+##         since the site's uplink), lm.guid.rr_nav (P20 running), P20's
+##         lm.guid.rr_designating, lm.guid.rr_designate (the radar's shaft
+##         and trunnion) and lm.guid.rr_track_enable,
 ##         lm.guid.exec_load (the Executive's load, a share of the LGC's
 ##         time), lm.guid.rr_counting (the radar's CDUs counting),
 ##         lm.guid.restarts (software restarts this flight),
@@ -218,7 +222,12 @@ const LGC_NOUNS := {
 	11: {"name": "TIG CSI", "c": [["HRS", "hms_h", 1.0], ["MIN", "hms_m", 1.0], ["SEC", "hms_s", 1.0]]},
 	13: {"name": "TIG CDH", "c": [["HRS", "hms_h", 1.0], ["MIN", "hms_m", 1.0], ["SEC", "hms_s", 1.0]]},
 	37: {"name": "TIG TPI", "c": [["HRS", "hms_h", 1.0], ["MIN", "hms_m", 1.0], ["SEC", "hms_s", 1.0]]},
-	49: {"name": "DR/DV/MARKS", "c": [["DR", "i", 1.0 / Dsky.FT], ["DV", "d1", 1.0 / Dsky.FT], ["MARKS", "i", 1.0]]},
+	# P20's (LgcRendezvousNav) [published: Luminary 099's noun tables].
+	45: {"name": "MARKS/TFI/MGA", "c": [["MARKS", "i", 1.0], ["TFI", "mmss", 1.0], ["MGA", "d2", 1.0]]},
+	49: {"name": "DR/DV/SOURCE", "c": [["DR", "d1", 1.0 / Dsky.NMI], ["DV", "d1", 1.0 / Dsky.FT], ["SOURCE", "i", 1.0]]},
+	72: {"name": "RR 360-TRUN/SHAFT", "c": [["TRUN", "d2", 1.0], ["SHAFT", "d2", 1.0], ["", "blank", 1.0]]},
+	78: {"name": "RR RANGE/RATE", "c": [["R", "d2", 1.0 / Dsky.NMI], ["RDOT", "i", 1.0 / Dsky.FT], ["", "blank", 1.0]]},
+	99: {"name": "RMS POS/VEL/BIAS", "c": [["POS", "i", 1.0 / Dsky.FT], ["VEL", "d1", 1.0 / Dsky.FT], ["BIAS", "d3", 1.0]]},
 	54: {"name": "R/RDOT/E", "c": [["R", "d2", 1.0 / Dsky.NMI], ["RDOT", "d1", 1.0 / Dsky.FT], ["E", "d2", 1.0]]},
 	55: {"name": "N/E/WT", "c": [["N", "i", 1.0], ["E", "d2", 1.0], ["WT", "d2", 1.0]]},
 	58: {"name": "HP/DVTPI/DVTPF", "c": [["HP", "d1", 1.0 / Dsky.NMI], ["DVTPI", "d1", 1.0 / Dsky.FT], ["DVTPF", "d1", 1.0 / Dsky.FT]]},
@@ -284,13 +293,9 @@ var abort_tpi_early: float = -1.0
 var abort_tpi_late: float = -1.0
 var abort_split_get: float = -1.0
 var abort_tpi: float = -1.0
-## P20 running: the rendezvous radar's marks update the CSM's state vector.
+## P20 running (slice 11d: p20).
 var rr_nav: bool = false
-## Marks taken, and the last one's change to the CSM's position (m) and
-## velocity (m/s).
-var rr_marks: int = 0
-var rr_last_dr: float = 0.0
-var rr_last_dv: float = 0.0
+var p20: LgcRendezvousNav
 ## The rendezvous: CSI, CDH and TPI's TIGs (GET s, N11, N13, N37), the TPI
 ## elevation and the transfer angle (radians, N55), the meeting TPI aims at
 ## (GET), and what P32 to P35 last worked out: ΔH (m), the ΔV of TPI and
@@ -324,10 +329,6 @@ var restarts: int = 0
 var restart_get: float = -1.0
 var restart_alarm: int = 0
 var _lr_timer: float = 0.0
-## The last mark's GET, and whether the next takes the radar's position
-## outright (the first after the CSM's state vector arrives).
-var _mark_get: float = -1.0
-var _mark_first: bool = true
 ## The ACA's last detent state about Y and Z (-1, 0, +1), for LPD clicks.
 var _aca_was: Vector2i = Vector2i.ZERO
 var _rod_was: int = 0
@@ -356,6 +357,7 @@ func _init() -> void:
 	prefix = "lm."
 	align = LgcAlign.new(self)
 	surface = LgcSurfaceAlign.new(self)
+	p20 = LgcRendezvousNav.new(self)
 	dsky.nouns = Dsky.NOUNS.merged(LGC_NOUNS, true)
 	var r := SpacecraftData.section("rendezvous_guidance")
 	rdv_elev = deg_to_rad(float(r["tpi_elevation_deg"]))
@@ -560,6 +562,7 @@ func powered_up() -> void:
 	_last_source = -1
 	nav = null
 	rr_nav = false
+	p20.stop()
 	if not _free():
 		imu.cage(Basis(_true_att()))
 
@@ -612,6 +615,7 @@ func uplink_state(tr: Trajectory) -> bool:
 	if not super.uplink_state(tr):
 		return false
 	nav_landed_mf = Vector3.ZERO
+	p20.invalidate()
 	return true
 
 
@@ -621,11 +625,11 @@ func nav_model() -> Trajectory.Model:
 
 
 ## Replace the CSM's state vector with the ground's [param tr] (P27). The
-## LGC coasts it on from its time, and P20's next mark takes the radar's
-## relative position outright.
+## LGC coasts it on from its time, and P20's filter starts again at its
+## next mark.
 func uplink_csm_state(tr: Trajectory) -> void:
 	csm_nav = tr.clone().as_onboard(Trajectory.Model.LGC)
-	_mark_first = true
+	p20.invalidate()
 	_uplink_timer = 2.0
 	dsky.set_lamp("uplink_acty", true)
 
@@ -804,13 +808,31 @@ func verb_noun(v: int, n: int) -> bool:
 		# Permit landing radar updates.
 		lr_update = true
 		return true
-	if v == 56:
-		# Terminate tracking: P20 ends.
-		rr_nav = false
-		if program == 20:
-			change_program(0)
+	if _p20_verb(v):
+		return true
+	if v == 32 and program in RENDEZVOUS and step_name == "n45":
+		_recycle_rendezvous()
 		return true
 	return super.verb_noun(v, n)
+
+
+## P20's verbs: V67, V80, V81, V93 and V95 (LgcRendezvousNav.verb()); at
+## its priority display V32 recycle, V34 terminate and ENTER at a V50; V56
+## terminates tracking. Ended, P20 leaves P00. Returns whether [param v]
+## was one of them.
+func _p20_verb(v: int) -> bool:
+	if v in [67, 80, 81, 93, 95] and p20.verb(v):
+		return true
+	if p20.priority != "" and v in [32, 34, 50]:
+		p20.answer({32: "v32", 34: "v34", 50: "enter"}[v])
+	elif v == 56:
+		p20.stop()
+		rr_nav = false
+	else:
+		return false
+	if not p20.running() and program == 20:
+		change_program(0)
+	return true
 
 
 func _free() -> bool:
@@ -835,6 +857,10 @@ func change_program(p: int) -> bool:
 	if not _restoring and _refused(p):
 		_alarm(1520)
 		return false
+	if program in thrusting_programs() and p != program and not _restoring:
+		# A new program after an Average-G one: P20's marks count again
+		# [published: GSOP R-567 section 4, P20's assumption 6].
+		p20.marks = 0
 	return super.change_program(p)
 
 
@@ -867,7 +893,10 @@ func start_program(p: int) -> void:
 	if p == 20:
 		rr_nav = true
 		dsky.show(16, 54)
+		if not _restoring:
+			p20.start()
 	if p in RENDEZVOUS and not _restoring:
+		p20.targeting_started()
 		_start_rendezvous(p)
 
 
@@ -903,15 +932,19 @@ static func pdi_time(tr: Trajectory, site_mf: Vector3, pdi_range: float) -> floa
 
 
 func proceed() -> void:
+	if p20.priority != "" or program in RENDEZVOUS:
+		# PRO answers P20's priority display first.
+		if p20.priority != "":
+			p20.answer("pro")
+		else:
+			_proceed_rendezvous()
+		return
 	if program in [52, 57]:
 		if program == 52:
 			align.proceed()
 		else:
 			surface.proceed()
 		_publish_imu()
-		return
-	if program in RENDEZVOUS:
-		_proceed_rendezvous()
 		return
 	if program in ABORTS:
 		if step_name == "post":
@@ -984,7 +1017,8 @@ func extra_step() -> void:
 	_landing_radar(step_dt if program in DESCENT else 0.0)
 	align.step()
 	surface.step()
-	_rendezvous_nav(now)
+	p20.step()
+	rr_nav = p20.running()
 	_executive(step_dt, now)
 	_abort_discretes()
 	if program == ASCENT or program in ABORTS:
@@ -1259,6 +1293,8 @@ func _csm_now() -> Trajectory:
 ## none, the ground below the LM), and the CSM's plane; then V06N33, the
 ## liftoff time.
 func _start_p12() -> void:
+	# The powered ascent gives P20's W up [published: Luminary 099's ATMAG].
+	p20.invalidate()
 	var tr := current_traj()
 	ascent_base = landing_site.length() if landing_site != Vector3.ZERO \
 		else tr.radius() - Dynamics.lm_cm_height(str(Bus.get_value("lm.dyn.config", "lm")))
@@ -1426,38 +1462,6 @@ func _n74() -> Array:
 
 # --- rendezvous ---------------------------------------------------------------------
 
-## P20: a mark every mark_interval_s while the rendezvous radar has the
-## CSM, and no burn is on. The radar's relative position (its range along
-## its line of sight, turned into inertial axes by the LM's attitude) and
-## range rate, against the LGC's two state vectors at the instant it
-## measured; the CSM's is moved toward them (V81). The first mark after the
-## CSM's state vector arrives takes the relative position outright.
-func _rendezvous_nav(now: float) -> void:
-	if not rr_nav or nav == null or _csm_now() == null or rcs_burn or engine_on:
-		return
-	var d := SpacecraftData.section("rendezvous_guidance")
-	var interval := float(d["mark_interval_s"])
-	if (_mark_get >= 0.0 and now - _mark_get < interval - 1e-6) or not bool(Bus.get_value("lm.rr.data_good", false)):
-		return
-	var dt := now - _mark_get if _mark_get >= 0.0 else interval
-	_mark_get = now
-	var los := Basis(_att()) * (Bus.get_value("lm.rr.los_body", Vector3.ZERO) as Vector3)
-	var res := los * float(Bus.get_value("lm.rr.range_m", 0.0)) - Rendezvous.rel_pos(nav, csm_nav)
-	var rate_res := float(Bus.get_value("lm.rr.range_rate_mps", 0.0)) - Rendezvous.rel_vel(nav, csm_nav).dot(los)
-	var dr := res
-	var dv := los * rate_res * float(d["mark_range_rate_weight"])
-	if not _mark_first:
-		dr = res * float(d["mark_position_weight"])
-		dv += res * (float(d["mark_velocity_weight"]) / maxf(dt, 1.0))
-	for i in 3:
-		csm_nav.s[i] += dr[i]
-		csm_nav.s[3 + i] += dv[i]
-	_mark_first = false
-	rr_marks += 1
-	rr_last_dr = dr.length()
-	rr_last_dv = dv.length()
-
-
 ## The LGC's two state vectors coasted to GET [param t] (copies): [LM, CSM].
 func _rdv_states(t: float) -> Array:
 	var l := nav.clone()
@@ -1489,8 +1493,12 @@ func _start_rendezvous(p: int) -> void:
 				dsky.show(6, 81, true)
 
 
-## PRO through P32 to P35's displays. The last stores the maneuver, for P41
-## to fly.
+## PRO through P32 to P35's displays. N81's stores the maneuver, for P41
+## to fly, and V16N45 follows (marks, time from ignition, middle gimbal):
+## V32 there computes it again on the marks since, PRO is the final
+## computation, after which P20's marks wait for the next program's start
+## [published: Luminary 099, P32-P35 and P20FLGON; the G mission's
+## rendezvous procedures, CF-R-69-23]. V37 may leave it at N45 for P41.
 func _proceed_rendezvous() -> void:
 	match step_name:
 		"n11":
@@ -1517,7 +1525,34 @@ func _proceed_rendezvous() -> void:
 			dsky.show(6, 81, true)
 		"n81":
 			_store_maneuver()
+			step_name = "n45"
+			dsky.show(16, 45, true)
+		"n45":
+			p20.final_computation()
 			change_program(0)
+
+
+## V32 at V16N45: the solution again on the state vectors the marks have
+## moved since.
+func _recycle_rendezvous() -> void:
+	match program:
+		32:
+			if _target_csi():
+				step_name = "n75"
+				dsky.show(6, 75, true)
+		33:
+			if _target_cdh():
+				step_name = "n75"
+				dsky.show(6, 75, true)
+		34:
+			# The TPI time found again for the elevation.
+			if _find_tpi_tig():
+				step_name = "n37"
+				dsky.show(6, 37, true)
+		35:
+			if _target_tpm():
+				step_name = "n81"
+				dsky.show(6, 81, true)
 
 
 ## P32: CSI's horizontal ΔV, for its TIG and TPI's (Rendezvous.plan_csi()).
@@ -1607,6 +1642,8 @@ func noun_values(n: int) -> Variant:
 	var v: Variant = null
 	if program == 57 and n in [4, 5, 6, 22, 25, 34, 70, 71, 79, 89, 93]:
 		return surface.noun_values(n)
+	if n == 25 and p20.priority in ["n25", "manual"]:
+		return p20.noun_values(n)
 	if n in [5, 6, 25, 34, 70, 71, 89, 93] or (n == 22 and not _v41):
 		return align.noun_values(n)
 	match n:
@@ -1641,8 +1678,8 @@ func noun_values(n: int) -> Variant:
 		11, 13, 37:
 			var t: float = {11: rdv_csi_tig, 13: rdv_cdh_tig, 37: rdv_tpi_tig}[n]
 			v = [t, t, t]
-		49:
-			v = [rr_last_dr, rr_last_dv, rr_marks]
+		45, 49, 72, 78, 99:
+			v = p20.noun_values(n)
 		54:
 			if nav != null and _csm_now() != null:
 				var los := Rendezvous.rel_pos(nav, csm_nav)
@@ -1660,8 +1697,10 @@ func noun_values(n: int) -> Variant:
 ## V24N76: the crew load P12's horizontal velocity and climb targets.
 ## V21N69 (or V22 to V25) in P63 or P64: the landing site correction, m.
 func noun_load(n: int, idx: int, value: float) -> bool:
-	if (program == 52 and n in [6, 34, 70, 71]) or (program == 57 and n in [6, 34, 70, 71, 79]):
-		return align.noun_load(n, idx, value) if program == 52 else surface.noun_load(n, idx, value)
+	if n == 99 or (program == 52 and n in [6, 34, 70, 71]) or (program == 57 and n in [6, 34, 70, 71, 79]):
+		# V67's W (P20), or P52's and P57's.
+		var by: Object = p20 if n == 99 else (align if program == 52 else surface)
+		return by.noun_load(n, idx, value)
 	if n == 69:
 		var ok := program in [63, 64] and landing_site != Vector3.ZERO
 		if ok:
@@ -1725,8 +1764,7 @@ func snapshot() -> Dictionary:
 	if csm_nav != null:
 		d["csm_nav"] = {"primary": csm_nav.primary, "t": csm_nav.t, "s": Array(csm_nav.s), "field": csm_nav.field_snapshot()}
 	d["rendezvous"] = {
-		"rr_nav": rr_nav, "marks": rr_marks, "last_dr": rr_last_dr, "last_dv": rr_last_dv,
-		"mark_get": _mark_get, "mark_first": _mark_first,
+		"rr_nav": rr_nav, "p20": p20.snapshot(),
 		"csi_tig": rdv_csi_tig, "cdh_tig": rdv_cdh_tig, "tpi_tig": rdv_tpi_tig, "elev": rdv_elev, "wt": rdv_wt,
 		"intercept_get": rdv_intercept_get, "dh": rdv_dh, "tpi_dv": rdv_tpi_dv, "tpf_dv": rdv_tpf_dv, "hp": rdv_hp,
 	}
@@ -1794,11 +1832,7 @@ func restore(d: Dictionary) -> void:
 	var rd: Dictionary = d.get("rendezvous", {})
 	var r := SpacecraftData.section("rendezvous_guidance")
 	rr_nav = bool(rd.get("rr_nav", false))
-	rr_marks = int(rd.get("marks", 0))
-	rr_last_dr = float(rd.get("last_dr", 0.0))
-	rr_last_dv = float(rd.get("last_dv", 0.0))
-	_mark_get = float(rd.get("mark_get", -1.0))
-	_mark_first = bool(rd.get("mark_first", true))
+	p20.restore(rd.get("p20", {}))
 	rdv_csi_tig = float(rd.get("csi_tig", 0.0))
 	rdv_cdh_tig = float(rd.get("cdh_tig", 0.0))
 	rdv_tpi_tig = float(rd.get("tpi_tig", 0.0))
@@ -1813,6 +1847,7 @@ func restore(d: Dictionary) -> void:
 		dsky.show(16, 54)
 	elif program in RENDEZVOUS and step_name != "":
 		dsky.show(6, int(step_name.substr(1)), true)
+	p20.show_priority()
 	if not dd.is_empty():
 		lr_update = bool(dd.get("lr_update", false))
 		ls_corrected = bool(dd.get("ls_corrected", false))

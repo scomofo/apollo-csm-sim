@@ -58,7 +58,9 @@ extends RefCounted
 ##    the AOT's reticle.
 ## 28: Luminary's steering (slice 11c): KALCMANU's turn in progress, and
 ##    the LGC's burns on its External ΔV steering.
-const SCHEMA_VERSION := 28
+## 29: the rendezvous radar and Luminary's P20 (slice 11d): the antenna,
+##    its lock and its errors, and P20's filter, flags and marks.
+const SCHEMA_VERSION := 29
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],
@@ -119,7 +121,8 @@ const CONTROL_DEFAULTS := {
 	"ctl.lm.engine_arm": 0, "ctl.lm.stage": false, "ctl.lm.rcs.sys_a": true, "ctl.lm.rcs.sys_b": true,
 	"ctl.lm.eng_start": false, "ctl.lm.eng_stop": false, "ctl.lm.rod": 0,
 	"ctl.lm.power": false, "ctl.lm.pgns": true, "ctl.lm.ags": false, "ctl.lm.ags_align": false, "ctl.lm.guid_cont": 0,
-	"ctl.lm.throttle": 0.1, "ctl.lm.rr_mode": 1, "ctl.lm.abort": false, "ctl.lm.cw.master_alarm": false,
+	"ctl.lm.throttle": 0.1, "ctl.lm.rr_mode": 1, "ctl.lm.rr_slew_shaft": 0, "ctl.lm.rr_slew_trunnion": 0,
+	"ctl.lm.rr_slew_rate": 1, "ctl.lm.abort": false, "ctl.lm.cw.master_alarm": false,
 	"ctl.lm.aot.detent": 2, "ctl.lm.aot.mark_x": false, "ctl.lm.aot.mark_y": false, "ctl.lm.aot.reject": false,
 	"ctl.lm.aot.reticle": 0,
 }

@@ -105,6 +105,9 @@ ctl.lm.ags,bool,,crew,AGS: the abort guidance system powered
 ctl.lm.ags_align,bool,,crew,AGS ALIGN: the AGS's body-axis align (the DEDA's 400+5 then 400+0; momentary)
 ctl.lm.guid_cont,int,,crew,GUID CONT: 0 PGNS or 1 AGS flies the LM
 ctl.lm.rr_mode,int,,crew,RNDZ RADAR mode select: 0 LGC 1 AUTO TRACK 2 SLEW; away from LGC Apollo 11's LGC counted the radar's CDU pulses (slice 9b)
+ctl.lm.rr_slew_shaft,int,,crew,The rendezvous radar's SLEW switch UP (+1) and DOWN (-1): its shaft (slice 11d)
+ctl.lm.rr_slew_trunnion,int,,crew,The rendezvous radar's SLEW switch LEFT (+1) and RIGHT (-1): its trunnion (slice 11d)
+ctl.lm.rr_slew_rate,int,,crew,The rendezvous radar's SLEW RATE: 1 HI 7 deg/s 0 LO 1.33 deg/s (slice 11d)
 ctl.lm.aot.detent,int,,crew,The AOT's detent selector: 1 left front 2 front 3 right front 4 right rear 5 rear (CL: stowed) 6 left rear (slice 11a)
 ctl.lm.aot.mark_x,bool,,crew,MARK X: the LGC takes the ICDU angles with the star on the AOT's X-line (P52; momentary)
 ctl.lm.aot.mark_y,bool,,crew,MARK Y: the LGC takes the ICDU angles with the star on the AOT's Y-line (P52; momentary)
@@ -123,6 +126,8 @@ lm.eps.batt_ah,float,A-h,lm_eps,The LM's batteries' charge
 lm.rr.range_m,float,m,rr,Rendezvous radar range to Columbia
 lm.rr.range_rate_mps,float,m/s,rr,Rendezvous radar range rate (positive opening)
 lm.rr.data_good,bool,,rr,Rendezvous radar has Columbia
+lm.rr.no_track,bool,,rr,The rendezvous radar's NO TRACK light: powered without good data (slice 11d)
+lm.rr.signal,float,,rr,The rendezvous radar's SIGNAL STRENGTH: 0 to 1 (slice 11d)
 lm.dsky,group,,lgc,The LGC's DSKY display channels below
 lm.dsky.prog,string,,lgc,LGC DSKY PROG digits
 lm.dsky.verb,string,,lgc,LGC DSKY VERB digits

@@ -2058,21 +2058,20 @@ Apollo 12's and 13's launches fly their troubles as they came.
 
 ## 11. The LM's navigation
 
-**Status: 11a, 11b and 11c done.** Milestone 4 gave the CSM its crew's
+**Status: 11a to 11d done.** Milestone 4 gave the CSM its crew's
 navigation; the LM's is still simpler. Its IMU is real since 11a, its
-crews align it with P52 in flight and P57 on the surface since 11b, and
-it steers its burns and turns as Luminary did since 11c; but the
-rendezvous radar is noise-free and finds the CSM wherever it is; P20
-weights each mark by fixed gains; and the AGS holds an attitude and
-counts ΔV, with none of its guidance. This milestone gives the LM what
-the CSM has.
+crews align it with P52 in flight and P57 on the surface since 11b, it
+steers its burns and turns as Luminary did since 11c, and since 11d its
+rendezvous radar has the flight's errors and P20 is Luminary's; but the
+AGS holds an attitude and counts ΔV, with none of its guidance. This
+milestone gives the LM what the CSM has.
 
 | Slice | Work | Check |
 |---|---|---|
 | 11a (done) The LGC's platform and P52 | The LGC's IMU real whenever it runs: drift, coarse align, gimbal lock; the alignment optical telescope (AOT) with its detents, reticle and view; P52 on its marks in orbit; REFSMMAT uplinks to the LGC | Test: from Apollo 11's undocking, P52 on the AOT's stars aligns the LGC within set limits, and the landing and the ascent fly on it |
 | 11b (done) P57 on the surface | The lunar surface alignment, from the gravity the accelerometers sense and the AOT's stars, as Apollo 11 did before its liftoff; Eagle's checklists gain their P52s after undocking and after insertion, and their P57s | Test: P57's alignment within set limits, and the ascent reaches its insertion on it |
 | 11c (done) Luminary's steering | P40 to P42 steered as Luminary's did, in place of the LVLH hold, as 5e gave the CMC; and KALCMANU's auto maneuvers, about a single axis, re-planned only where the turn would take the middle gimbal past 60°, where 11a routes every turn thrust axis first | Test: DOI comes nearer its PAD than on the LVLH hold, a burn of an insertion's size on the ascent engine comes out as it did, and a turn clear of the lock zone is flown about a single axis |
-| 11d The rendezvous radar | Its noise and biases, its gimbal limits and coverage, its lock-on by hand, P20's tracking attitude (R61) keeping the LM's +Z axis on the CSM, and Luminary's P20 filter, updating the LM's state vector or the CSM's | Test: Apollo 11's rendezvous on the noisy radar docks, the LGC's estimate of Columbia at CSI within set limits, and CDH's ΔH, TPI and the midcourse corrections on 11a's drifting platform back within the limits they held on an ideal one |
+| 11d (done) The rendezvous radar | Its noise and biases, its gimbal limits and coverage, its lock-on by hand, P20's tracking attitude (R61) keeping the LM's +Z axis on the CSM, and Luminary's P20 filter, updating the LM's state vector or the CSM's | Test: Apollo 11's rendezvous on the noisy radar docks, the LGC's estimate of Columbia at CSI within set limits, and CDH's ΔH, TPI and the midcourse corrections on 11a's drifting platform back within the limits they held on an ideal one |
 | 11e The AGS's guidance | Its own navigation from the PGNS's state vectors, its abort insertion, and CSI, CDH and TPI targeting as the rendezvous's backup through the DEDA | Test: the AGS's solutions for Apollo 11's CSI, CDH and TPI within set limits of the LGC's, and an insertion flown on the AGS reaches orbit |
 
 **Done when** the README's simplifications of the LM's IMU, steering,
@@ -2199,6 +2198,72 @@ radar and AGS are gone, or measured against the flights.
   turning with the orbit, 17° off. P20's tracking attitude (R61), which
   kept Eagle's +Z axis and the radar on Columbia, is 11d's. Checkpoints
   are schema 28: KALCMANU's turn in progress.
+- **The rendezvous radar and P20.** Done in 11d, from Luminary 099's
+  listing, its GSOP (R-567), the LM Operations Handbook (LMA790-3-LM) and
+  the G mission's rendezvous procedures (MSC CF-R-69-23). The radar
+  (`src/systems/rendezvous_radar.gd`) turns its antenna on its shaft and
+  trunnion within mode 1's coverage (shaft −70 to +59°, trunnion within
+  55°), held in inertial space by its gyros. RNDZ RADAR gives it to the
+  LGC, which designates it at up to 7°/s, to AUTO TRACK, or to SLEW,
+  where the crew slew it on panel 3's SLEW switch (HI 7°/s, LO 1.33°/s)
+  and peak SIGNAL STRENGTH. It locks on within 2° of the line of sight,
+  its beam 4° wide, and its data come good, and NO TRACK goes out, after
+  the 15 s range search. Its errors are the flight's: the noise Apollo
+  11's radar showed (37 ft in range, 0.010° in angle, 1σ; TRW
+  70-FMT-819), the Handbook's limits as 3σ for each flight's biases
+  (range 500 ft or 0.05 % beyond 50.6 nmi and 120 ft within, range rate
+  1 ft/s, the boresight 8 mrad), and its counts. P20
+  (`src/systems/lgc_p20.gd`) is Luminary's: R61's turn putting +Z on the
+  line of sight (V50N18), R21's designate and track enable, V50N72 at the
+  lock-on, R22's marks about once a minute, R65 keeping +Z on the CSM in
+  AUTO, R23's lock-on by hand (V50N25 00205), and alarms 00503 and 00525.
+  Its filter (`src/systems/rendezvous_filter.gd`) keeps Luminary's W as
+  its covariance: the LM's (V80) or CSM's (V81) position and velocity and
+  the radar's shaft and trunnion biases, from the pad loads (WRENDPOS
+  10,000 ft, WRENDVEL 10 ft/s, WSHAFT and WTRUN 15 mrad) and carried by
+  gravity alone. Each mark's range, range rate, shaft and trunnion are
+  weighed in turn on Luminary's variances, and a change past RMAX or VMAX
+  (2,000 ft, 2 ft/s) waits on V06N49 for the crew's PRO. V67 shows its
+  root sum squares (N99) and loads it anew, V93 starts it again, V95
+  stops the updates, and P32 to P35 let marks in from their start to
+  their final computation (UPDATFLG). V56 ends P20. The crews fly the G
+  mission's procedures, in the tests (`tests/rendezvous_crew.gd`) and in
+  the three LMs' checklists: P20 after the P52 with V67's loads, P32 25
+  min before CSI with V32 at 10 marks and the final computation 12 min
+  before, W anew at 4 marks after CSI, V93 at 4 marks before TPI, P35
+  from right after TPI and after the first correction, each burn where
+  the LM is with its +Z on the CSM, and V56 inside 18,000 ft. From
+  Apollo 11's insertion (`tests/scenarios/test_rendezvous.gd`) the radar
+  locks on 41 s after the P52, 246 nmi out, and in 12 min takes the
+  relative error from 1,112 m to 233 m. By CSI its 28 marks leave 266 m
+  and 0.36 m/s, within the filter's own 504 m, and the LGC's CSI is 50.1
+  ft/s against the PAD's 50.0 (Apollo 11's four solutions agreed within
+  0.2). CDH is 8.6 ft/s, TPI 28.6 ft/s 54 s before the plan's time
+  (PAD 26.8), and the midcourse corrections 3.9 and 2.4 ft/s (Apollo 11's
+  LGC: 0.98 and 1.30). The check this slice set, the corrections back
+  within the 1.5 m/s the ideal platform held, is met on other draws of
+  the radar's errors but not on the one Apollo 11's dispersions seed.
+  Two things set them: 11a's platform drifts 0.1°/h, as Eagle's did,
+  and by the corrections turns the line of sight 0.25° across the range,
+  which the filter's constant bias states take in only in part; and the
+  radar's own errors. On an ideal radar the corrections come to 0.6 and
+  0.2 ft/s, and three other draws of its errors gave 1.1, 3.1 and 1.1
+  ft/s together; the tests hold TPI within 1 m/s of the PAD's and the two
+  within 2.5 m/s, where 11a to 11c allowed 2 and 4. Eagle's ΔV comes to 9
+  % over the plan, where 11c's was 18 %: R61 and R65 keep +Z on Columbia,
+  and the braking takes 37 ft/s where it took 42.3. Three things turned
+  up. P35's corrections are only as good as the marks weighed in since
+  the last final computation: selected five minutes before each, as the
+  checklists had it, P35 had none since TPI's, and the checklists' second
+  correction came to 12 ft/s; selected right after the burn, as Apollo
+  11's crew did (nine marks each), it has them. The crew's LGC MODE FREE
+  between burns left R61's turns undone, so P20 marks on in AUTO and
+  gives its attitude up at V56. And moving a vehicle 8 km in one step
+  crossed the docking port's plane, which the swept contact check took
+  for a contact, so a test that places the LM re-arms it. The HUD and
+  cabin gain the radar's SLEW RATE, SLEW switch, NO TRACK and SIGNAL
+  STRENGTH. Checkpoints are schema 29: the radar's lock and biases,
+  P20's state and its filter.
 
 ### Order
 

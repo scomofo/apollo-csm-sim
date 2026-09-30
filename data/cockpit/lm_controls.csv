@@ -15,7 +15,11 @@
 # lights' panels estimated: LGC, ISS and DES QTY on 1, RCS A and B REG on 2); panel 3 the guidance mode
 # control, the rendezvous radar's mode select (RNDZ RADAR: AUTO TRACK,
 # SLEW, LGC; slice 9b; retrieved 2026-09-29 from
-# https://apollo11guide.com/Apollo11ManualFree/LunarLander/LunarModuleControlPanel3.htm),
+# https://apollo11guide.com/Apollo11ManualFree/LunarLander/LunarModuleControlPanel3.htm)
+# and, for its lock-on by hand (slice 11d; LM AOH section 2.2.3.1.1 and its
+# panel 3 table), its SLEW RATE (HI 7, LO 1.33 deg/s), its SLEW switch as
+# two spring-loaded toggles (UP and DOWN the shaft, LEFT and RIGHT the
+# trunnion), the NO TRACK light and, as a number, the SIGNAL STRENGTH meter,
 # and for Apollo 13's lifeboat the LM's power, PGNS and AGS
 # switches, the AGS's align and the DEDA's address 470; panel 4 the LGC's
 # DSKY; panel 5 ENGINE START and
@@ -59,6 +63,11 @@ P2_RCS_B_REG,P2,lamp,RCS B REG,-115,-65,0,lm.cw.rcs_b_reg,colour=ff2a1a,LM AOH C
 P2_BATTERY,P2,numeric,BAT A-H,100,160,0,lm.eps.batt_ah,format=%5.0f;blank_text=-----,estimated,D,implemented,proxy
 P3_LGC_MODE,P3,toggle,LGC MODE,-150,-15,0,ctl.lm.mode,positions=3;labels=FREE|HOLD|AUTO,estimated,D,implemented,proxy
 P3_RR_MODE,P3,toggle,RNDZ RADAR,-230,-15,0,ctl.lm.rr_mode,positions=3;labels=AUTO TRACK|SLEW|LGC;values=1|2|0,estimated,D,implemented,historical
+P3_RR_SLEW_RATE,P3,toggle,SLEW RATE,-260,45,0,ctl.lm.rr_slew_rate,labels=LO|HI;values=0|1,LM AOH 3 (panel 3),D,implemented,historical
+P3_RR_SLEW_UD,P3,toggle,SLEW UP DN,-220,45,0,ctl.lm.rr_slew_shaft,positions=3;labels=DOWN||UP;values=-1|0|1;rest_position=1;momentary_positions=0|2,LM AOH 3 (panel 3),D,implemented,historical
+P3_RR_SLEW_LR,P3,toggle,SLEW L R,-180,45,0,ctl.lm.rr_slew_trunnion,positions=3;labels=RIGHT||LEFT;values=-1|0|1;rest_position=1;momentary_positions=0|2,LM AOH 3 (panel 3),D,implemented,historical
+P3_RR_NO_TRACK,P3,lamp,NO TRACK,-135,50,0,lm.rr.no_track,colour=ffb000,LM AOH 2.2.3.1.1,D,implemented,historical
+P3_RR_SIGNAL,P3,numeric,SIGNAL,-75,50,0,lm.rr.signal,format=%4.2f;blank_text=----,LM AOH 3 (panel 3),D,implemented,proxy
 P3_AGS_ALIGN,P3,pushbutton,AGS ALIGN,-60,-15,0,ctl.lm.ags_align,,estimated,D,implemented,proxy
 P3_DEDA,P3,numeric,DEDA 470 FT/S,60,0,0,lm.ags.dv_x_mps,converter=mps_to_fps;format=%+6.1f;valid_channel=lm.ags.on;blank_text=------,estimated,D,implemented,proxy
 P3_LM_POWER,P3,toggle,LM PWR,150,-15,0,ctl.lm.power,labels=OFF|ON,estimated,D,implemented,proxy

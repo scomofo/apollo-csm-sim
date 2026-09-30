@@ -15,9 +15,12 @@
 ## The LGC's platform is a real one (slice 11a): aligned for the crew 33
 ## min before liftoff, as Apollo 11's last P57 was, it drifts through the
 ## ascent, and after insertion the crew realign it with P52 on Rigel and
-## Acrux, as Armstrong and Aldrin did before P20's marks. The radar's line
-## of sight reaches the LGC through the platform, so its drift since leaves
-## Columbia off across the line of sight by as much.
+## Acrux, as Armstrong and Aldrin did before P20's marks. Slice 11d's check:
+## the radar is the flight's, noisy and biased, locked on after R61's turn
+## and kept on Columbia by the LM's +Z; P20 is Luminary's, its filter
+## moving Eagle's state vector (V80) and learning the radar's boresight
+## biases, which take in the platform's drift since the P52; the crew fly
+## the G mission's procedures (lm_coelliptic()), each burn where Eagle is.
 extends SimTest
 
 var _inserted := ""
@@ -69,25 +72,9 @@ func _p52() -> Dictionary:
 	return p52
 
 
-## The largest error P20's marks leave in the LGC's relative state, m:
-## the platform's misalignment turns the radar's line of sight, and the
-## estimate with it, across the range.
-func _p20_floor(lgc: Lgc) -> float:
-	return 5.0 + Rendezvous.rel_pos(rt.dynamics.lm.traj, rt.dynamics.traj).length() * lgc.imu.misalignment().length()
-
-
-## How far the LGC's CSM state vector is from the CSM, m.
-func _csm_error(lgc: Lgc) -> float:
-	return Rendezvous.rel_pos(rt.dynamics.traj, lgc.csm_nav).length()
-
-
-## How far off the LGC has the CSM relative to the LM, m: its two state
-## vectors' difference against the truth's. P20's marks take this out;
-## what is left of [method _csm_error] is the LM's own navigation error,
-## which the rendezvous doesn't feel.
-func _rel_error(lgc: Lgc) -> float:
-	var truth := Rendezvous.rel_pos(rt.dynamics.lm.traj, rt.dynamics.traj)
-	return (Rendezvous.rel_pos(lgc.nav, lgc.csm_nav) - truth).length()
+## P20's filter's own RSS of the position error it holds, m (V06N99's R1).
+func _rss(lgc: Lgc) -> float:
+	return lgc.p20.filter.rss().x
 
 
 func test_the_ground_plans_csi_and_p20_takes_out_the_tracking_error() -> void:
@@ -111,22 +98,29 @@ func test_the_ground_plans_csi_and_p20_takes_out_the_tracking_error() -> void:
 	var lgc := rt.lgc()
 	assert_eq(lgc.rdv_csi_tig, float(pad["tig"]), "N11 uplinked")
 	assert_eq(lgc.rdv_tpi_tig, float(pad["tpi_get"]), "N37 uplinked")
-	var err0 := _csm_error(lgc)
-	assert_almost_eq(err0, Vector3(900.0, 60.0, -150.0).length(), 5.0, "Columbia's state vector off by MSFN's error")
-	_p52()
-	keys("V37E20E", lgc)
-	assert_true(lgc.rr_nav, "P20")
-	run(1.0, false)
-	assert_true(Bus.get_value("lm.rr.data_good"), "the radar has Columbia")
-	run(12.0 * 60.0 - 1.0)
-	gut.p("After %d marks, the LGC has Columbia %.1f m from where it is relative to Eagle (%.0f m at the uplink), %.1f m absolutely; last update %.1f m, %.3f m/s; the platform %.4f° off" % [
-		lgc.rr_marks, _rel_error(lgc), err0, _csm_error(lgc), lgc.rr_last_dr, lgc.rr_last_dv,
-		rad_to_deg(lgc.imu.misalignment().length())])
-	assert_between(lgc.rr_marks, 11, 13, "a mark a minute")
-	assert_lt(_rel_error(lgc), _p20_floor(lgc), "P20 took the error out, but for what the platform's drift makes")
+	var err0 := lgc_rel_error()
+	var p52 := _p52()
+	var t0 := SimClock.get_seconds
+	var lock := start_p20()
+	var rng := Rendezvous.rel_pos(rt.dynamics.lm.traj, rt.dynamics.traj).length()
+	var start := SimClock.get_seconds
+	run(12.0 * 60.0)
+	var rss := _rss(lgc)
+	gut.p("P20 locked on %.0f s after the P52 (%s), %.0f nmi from Columbia; after %d marks in 12 min the LGC has Columbia %.1f m and %.3f m/s from where it is relative to Eagle (%.0f m at the uplink); N99 %.0f ft, %.2f ft/s, %.4f rad; the radar's biases estimated %.4f°, %.4f° (truly %.4f°, %.4f°); the platform %.4f° off" % [
+		lock - t0, Units.hms(float(p52["get"])), rng / Units.NMI, lgc.p20.marks, lgc_rel_error(), lgc_rel_v_error(), err0,
+		rss / Units.FT, lgc.p20.filter.rss().y / Units.FT, lgc.p20.filter.rss().z,
+		rad_to_deg(lgc.p20.bias.x), rad_to_deg(lgc.p20.bias.y), rad_to_deg(rt.systems["rr"].bias_shaft),
+		rad_to_deg(rt.systems["rr"].bias_trunnion), rad_to_deg(lgc.imu.misalignment().length())])
+	assert_lt(lock - t0, 300.0, "locked on within minutes of the P20 (Apollo 11: 1.6 min after the auto maneuver)")
+	assert_between(lgc.p20.marks, 9, 12, "a mark about every 64 s")
+	assert_lt(lgc_rel_error(), 3.0 * rss, "within the filter's own 3 sigma")
+	assert_lt(lgc_rel_error(), 300.0, "P20 took the tracking error out")
 	var n54: Array = lgc.noun_values(54)
 	var rel := Rendezvous.rel_pos(rt.dynamics.lm.traj, rt.dynamics.traj)
-	assert_almost_eq(float(n54[0]), rel.length(), 10.0, "N54: the range")
+	assert_almost_eq(float(n54[0]), rel.length(), 300.0, "N54: the range, from the state vectors")
+	var n78: Array = lgc.noun_values(78)
+	assert_almost_eq(float(n78[0]), rel.length(), 50.0, "N78: the radar's range")
+	assert_true(start > 0.0)
 
 
 func test_from_insertion_to_docking() -> void:
@@ -134,58 +128,25 @@ func test_from_insertion_to_docking() -> void:
 	var lgc := rt.lgc()
 	var lm0 := rt.dynamics.lm.dv_total
 	_p52()
-	keys("V37E20E", lgc)
-	# P32: CSI's TIG, the TPI elevation and time, then the solution.
-	run(float(pad["tig"]) - 1500.0 - SimClock.get_seconds)
-	var err_csi := _rel_error(lgc)
-	var floor_csi := _p20_floor(lgc)
-	keys("V37E32E", lgc)
-	assert_eq(lgc.program, 32, "P32")
-	assert_eq([Bus.get_value("lm.dsky.verb"), Bus.get_value("lm.dsky.noun")], ["06", "11"], "V06N11: CSI's TIG")
-	keys("PPP", lgc)
-	assert_eq(lgc.step_name, "n75", "V06N75")
-	var csi_lgc := lgc.dv_lvlh_load.x
-	keys("PP", lgc)
-	assert_eq(lgc.program, 0, "the maneuver stored")
-	var burns := {"CSI": fly_lm_pad(41, 0, Callable(), false)}
-	# P33 a quarter of an hour before CDH.
-	run(lgc.rdv_cdh_tig - 1200.0 - SimClock.get_seconds)
-	keys("V37E33EP", lgc)
-	assert_eq(lgc.step_name, "n75", "P33: V06N75")
-	var dh := lgc.rdv_dh
-	keys("PP", lgc)
-	burns["CDH"] = fly_lm_pad(41, 0, Callable(), false)
-	# P34: the time the CSM comes up to 26.6°, and the transfer, half an
-	# hour out; and the final computation 12 minutes before TIG, as Apollo
-	# 11's crew recycled it [MSC-00171, section 5].
-	run(float(pad["tpi_get"]) - 1800.0 - SimClock.get_seconds)
-	for lead in [0.0, 720.0]:
-		if lead > 0.0:
-			run(lgc.rdv_tpi_tig - lead - SimClock.get_seconds)
-		keys("V37E34EP", lgc)
-		assert_eq(lgc.step_name, "n37", "P34: V06N37, TPI's time")
-		keys("P", lgc)
-		assert_eq(lgc.step_name, "n58", "V06N58")
-		keys("PP", lgc)
-	var tpi_tig := lgc.rdv_tpi_tig
-	burns["TPI"] = fly_lm_pad(41, 0, Callable(), false)
-	# P35 five minutes before each midcourse correction, burned where Eagle
-	# is, the residuals nulled in body axes, as Apollo 11's crew burned them
-	# (N85: 0.4 ft/s right and 0.9 down; 0.1 forward, 1.2 right and 0.5
-	# down) [published: the Apollo Flight Journal, 127:18:31 and 127:33:31].
-	for after in rt.mission.section("rendezvous")["tpm_after_tpi_s"]:
-		run(tpi_tig + float(after) - 300.0 - SimClock.get_seconds)
-		keys("V37E35EP", lgc)
-		burns["TPM%d" % burns.size()] = fly_lm_pad(41, 0, Callable(), false, 900.0, true)
+	var got := lm_coelliptic(pad)
+	var burns := {"CSI": got["CSI"], "CDH": got["CDH"], "TPI": got["TPI"], "TPM3": got["TPM1"], "TPM4": got["TPM2"]}
+	var err_csi := float(got["err_csi"])
+	var errv_csi := float(got["errv_csi"])
+	var rss_csi := float(got["rss_csi"])
+	var csi_lgc := float(got["csi_lgc"])
+	var csi_first := float(got["csi_first"])
+	var marks_csi := int(got["marks_csi"])
+	var dh := float(got["dh"])
+	var tpi_tig := float(got["tpi_tig"])
 	var t_brake := SimClock.get_seconds
 	assert_true(lm_brake(1800.0), "braked to station-keeping")
 	var t_stop := SimClock.get_seconds
 	var lm_dv := rt.dynamics.lm.dv_total - lm0
-	gut.p("P20 had Columbia %.1f m off by CSI; CSI %.1f ft/s (LGC %.1f, PAD %.1f), CDH %.1f ft/s, dH %.1f nmi, TPI %s (PAD %s) %.1f ft/s, midcourses %.1f and %.1f ft/s; braking %.0f s; station-keeping at %s; the LM's ΔV %.1f ft/s against the plan's %.1f" % [
-		err_csi, burns["CSI"] / Units.FT, csi_lgc / Units.FT, float(pad["dv"]) / Units.FT, burns["CDH"] / Units.FT,
-		dh / Units.NMI, Units.hms(tpi_tig), Units.hms(float(pad["tpi_get"])), burns["TPI"] / Units.FT,
-		burns["TPM3"] / Units.FT, burns["TPM4"] / Units.FT, t_stop - t_brake, Units.hms(t_stop), lm_dv / Units.FT,
-		float(pad["total_dv"]) / Units.FT])
+	gut.p("P20 had Columbia %.1f m and %.3f m/s off by CSI (its own RSS %.1f m) after %d marks; CSI %.1f ft/s (LGC %.1f, first %.1f, PAD %.1f), CDH %.1f ft/s, dH %.1f nmi, TPI %s (PAD %s) %.1f ft/s, midcourses %.1f and %.1f ft/s; braking %.0f s; station-keeping at %s; the LM's ΔV %.1f ft/s against the plan's %.1f" % [
+		err_csi, errv_csi, rss_csi, marks_csi, burns["CSI"] / Units.FT, csi_lgc / Units.FT, csi_first / Units.FT,
+		float(pad["dv"]) / Units.FT, burns["CDH"] / Units.FT, dh / Units.NMI, Units.hms(tpi_tig),
+		Units.hms(float(pad["tpi_get"])), burns["TPI"] / Units.FT, burns["TPM3"] / Units.FT, burns["TPM4"] / Units.FT,
+		t_stop - t_brake, Units.hms(t_stop), lm_dv / Units.FT, float(pad["total_dv"]) / Units.FT])
 	# Collins docks: Eagle turns its docking port to Columbia, and Columbia
 	# its probe to Eagle.
 	face_x(true, func() -> Vector3: return Rendezvous.rel_pos(rt.dynamics.lm.traj, rt.dynamics.traj).normalized())
@@ -216,23 +177,24 @@ func test_from_insertion_to_docking() -> void:
 	# The checks: the sequence as planned, and the ΔV within 20 % of the plan.
 	# The LGC flies on its own model of the Moon's field and its own state
 	# vectors, the ground planned on the truth: with Columbia's orbit out of
-	# round, Apollo 11's TPI came 6 min 39 s after the plan's, and its
-	# midcourse corrections were 1.4 and 1.2 ft/s (the CMC's solutions)
-	# [MSC-00171, section 5 and table 5-VII].
-	# The platform (slice 11a) widens them. Its drift through the ascent
-	# leaves Eagle's own state vector some 600 m and 1.3 m/s off, which
-	# P20's marks, moving Columbia's (V81), don't take out; and its drift
-	# after the P52, 0.25° by TPI, turns the radar's line of sight, which
-	# P20's fixed gains take partly for velocity. With neither, CSI comes
-	# out the PAD's, CDH's ΔH the PAD's, TPI 27.0 ft/s and the midcourse
-	# corrections 2.5 ft/s together; slice 11d's filter is to bring them
-	# back.
-	assert_lt(err_csi, floor_csi, "P20 had Columbia's state vector by CSI, but for the platform's drift")
-	assert_almost_eq(csi_lgc, float(pad["dv"]), 0.6, "the LGC's CSI near the ground's")
+	# round, Apollo 11's TPI came 6 min 39 s after the plan's, and its LGC's
+	# midcourse corrections were 0.98 and 1.30 ft/s [MSC-00171, table 5-VI].
+	# All four of Apollo 11's CSI solutions agreed within 0.2 ft/s [ibid.,
+	# section 4.15]. The platform drifts some 0.1°/h, as Eagle's did, and
+	# turns the radar's line of sight by as much across the range; P20's
+	# filter takes the radar's biases, and some of that, as boresight
+	# biases. The midcourse corrections are what TPI's final computation
+	# left in the state vectors: with the radar's errors drawn for Apollo
+	# 11 (mission.json "dispersions"), 3.9 and 2.4 ft/s; the three other
+	# draws tried came to 1.1, 3.1 and 1.1 ft/s together, and an ideal
+	# radar to 0.8 [slice 11d's probe runs].
+	assert_lt(err_csi, 3.0 * rss_csi, "P20's error at CSI within its own 3 sigma")
+	assert_lt(err_csi, 300.0, "P20 had Columbia by CSI")
+	assert_almost_eq(csi_lgc, float(pad["dv"]), 0.3, "the LGC's CSI with the ground's")
 	assert_almost_eq(burns["CSI"], float(pad["dv"]), 0.5, "CSI flown")
 	assert_almost_eq(dh, float(pad["dh"]), 2.5 * Units.NMI, "coelliptic near the PAD's ΔH")
 	assert_almost_eq(tpi_tig, float(pad["tpi_get"]), 400.0, "TPI within minutes of the plan")
-	assert_almost_eq(burns["TPI"], float(pad["tpi_dv"]), 2.0, "TPI flown near the PAD's")
-	assert_lt(burns["TPM3"] + burns["TPM4"], 4.0, "midcourse corrections")
+	assert_almost_eq(burns["TPI"], float(pad["tpi_dv"]), 1.0, "TPI flown within 1 m/s of the PAD's")
+	assert_lt(burns["TPM3"] + burns["TPM4"], 2.5, "midcourse corrections within 2.5 m/s together")
 	assert_between(lm_dv, float(pad["total_dv"]), 1.2 * float(pad["total_dv"]), "the LM's ΔV within 20 % of the plan")
 	assert_true(Bus.has_channel("mission.event.docking"))

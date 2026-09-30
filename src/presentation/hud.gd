@@ -445,8 +445,9 @@ func _momentary(parent: Node, text: String, ch: String, on: Variant = true,
 ## Eagle's switches: the LGC's mode, the engines, staging, the RCS and the
 ## ROD switch; the LM's power, its PGNS and AGS, the AGS's body-axis align
 ## and the guidance control switch (Apollo 13's lifeboat); the rendezvous
-## radar's mode select (Apollo 11's program alarms); ABORT and the master
-## alarm (the LM's aborts).
+## radar's mode select (Apollo 11's program alarms) and its SLEW RATE and
+## SLEW switch, to lock on by hand (slice 11d); ABORT and the master alarm
+## (the LM's aborts).
 func _lm_switch_panel() -> PanelContainer:
 	var p := PanelContainer.new()
 	_style(p)
@@ -471,6 +472,11 @@ func _lm_switch_panel() -> PanelContainer:
 	_option(g, "GUID CONT", "ctl.lm.guid_cont", ["PGNS", "AGS"])
 	_momentary(g, "AGS ALIGN", "ctl.lm.ags_align")
 	_option(g, "RNDZ RADAR", "ctl.lm.rr_mode", ["LGC", "AUTO TRACK", "SLEW"])
+	_option(g, "SLEW RATE", "ctl.lm.rr_slew_rate", ["LO", "HI"])
+	_momentary(g, "SLEW UP", "ctl.lm.rr_slew_shaft", 1, 0)
+	_momentary(g, "SLEW DOWN", "ctl.lm.rr_slew_shaft", -1, 0)
+	_momentary(g, "SLEW LEFT", "ctl.lm.rr_slew_trunnion", 1, 0)
+	_momentary(g, "SLEW RIGHT", "ctl.lm.rr_slew_trunnion", -1, 0)
 	return p
 
 
@@ -593,10 +599,11 @@ func _lm_flight_text() -> String:
 			lamps.append(l.to_upper())
 	if bool(Bus.get_value("lm.contact_light", false)):
 		lamps.append("CONTACT LIGHT")
-	var rr := "RR   no track"
+	var rr := "RR   NO TRACK"
 	if bool(Bus.get_value("lm.rr.data_good", false)):
 		rr = "RR   %8.2f nmi  %+7.1f ft/s" % [float(Bus.get_value("lm.rr.range_m", 0.0)) / nm,
 			float(Bus.get_value("lm.rr.range_rate_mps", 0.0)) / ft]
+	rr += "  SIGNAL %.2f" % float(Bus.get_value("lm.rr.signal", 0.0))
 	return """EAGLE  CONFIG %s%s
 AGL     %9s ft
 HDOT    %+9.1f ft/s

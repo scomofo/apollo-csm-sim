@@ -330,35 +330,22 @@ func test_apollo_10_flies_its_data_from_the_parking_orbit_to_the_splashdown() ->
 	# can see [estimated: as Apollo 11's crew flew theirs, the Apollo Flight
 	# Journal, 124:32:44].
 	lm_realign(visible_star_pair())
-	keys("V37E20E", lgc)
-	run(float(pad["tig"]) - 1500.0 - SimClock.get_seconds)
-	keys("V37E32E", lgc)
-	keys("PPP", lgc)
-	assert_eq(lgc.step_name, "n75", "P32: V06N75")
-	keys("PP", lgc)
-	var csi := _lm_burn(41, 0, false)
-	var o_csi := _orbit(lm.traj)
-	run(lgc.rdv_cdh_tig - 1200.0 - SimClock.get_seconds)
-	keys("V37E33EP", lgc)
-	var dh := lgc.rdv_dh
-	var t_cdh := lgc.rdv_cdh_tig
-	keys("PP", lgc)
-	var cdh := _lm_burn(41, 0, false)
-	run(float(pad["tpi_get"]) - 1800.0 - SimClock.get_seconds)
-	for lead in [0.0, 720.0]:
-		if lead > 0.0:
-			run(lgc.rdv_tpi_tig - lead - SimClock.get_seconds)
-		keys("V37E34EP", lgc)
-		assert_eq(lgc.step_name, "n37", "P34: V06N37, TPI's time")
-		keys("P", lgc)
-		keys("PP", lgc)
-	var tpi_tig := lgc.rdv_tpi_tig
-	var tpi := _lm_burn(41, 0, false)
-	var tpm := 0.0
-	for after in sq.mission.section("rendezvous")["tpm_after_tpi_s"]:
-		run(tpi_tig + float(after) - 300.0 - SimClock.get_seconds)
-		keys("V37E35EP", lgc)
-		tpm += _lm_burn(41, 0, false, true).x
+	# The coelliptic sequence on P20's marks as Apollo 11's crew flew it
+	# (lm_coelliptic()), each burn where the LM is, its +Z on the CSM.
+	var holder := {}
+	var got := lm_coelliptic(pad, func(name: String) -> Vector4:
+		var b := _lm_burn(41, 0, false, true)
+		if name == "CSI":
+			holder["o_csi"] = _orbit(lm.traj)
+		return b)
+	var csi: Vector4 = got["CSI"]
+	var o_csi: Vector2 = holder["o_csi"]
+	var dh := float(got["dh"])
+	var t_cdh := float(got["cdh_tig"])
+	var cdh: Vector4 = got["CDH"]
+	var tpi_tig := float(got["tpi_tig"])
+	var tpi: Vector4 = got["TPI"]
+	var tpm := (got["TPM1"] as Vector4).x + (got["TPM2"] as Vector4).x
 	assert_true(lm_brake(1800.0), "braked to station-keeping")
 	var lm_dv := (lm.dv_total - lm0) / Units.FT
 	face_x(true, func() -> Vector3: return Rendezvous.rel_pos(rt.dynamics.lm.traj, rt.dynamics.traj).normalized())
