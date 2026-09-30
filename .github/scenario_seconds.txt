@@ -5,39 +5,39 @@
 # 9 min 37 s; the runners took up to seven tenths longer than each other
 # on a file. test_apollo_13_launch.gd's, slice 10d's, is the longer of
 # its two runs in 9eeb020's CI. Slice 11a's new file and the LM's flights
-# its platform lengthened (test_apollo_10, test_apollo_12, test_ascent,
-# test_docking, test_doi, test_lm_aborts, test_lm_alignment,
-# test_lm_burns and test_rendezvous) are estimated from local runs, a
-# local second being about 1.3 of CI's, until CI measures them.
+# its platform lengthened are the longer of their two runs in 267c6bd's
+# CI, but test_apollo_12.gd's, which keeps 10c's 505 s: its 318 and
+# 384 s there were on faster runners, and alone in its part it sets that
+# part's time.
 # A file not listed counts 60 s.
 # Add a new file's time once CI has run it, and measure again when the
 # parts drift apart.
-test_apollo_10.gd 377
+test_apollo_10.gd 395
 test_apollo_10_launch.gd 40
-test_apollo_12.gd 523
+test_apollo_12.gd 505
 test_apollo_12_launch.gd 43
 test_apollo_13.gd 180
 test_apollo_13_launch.gd 72
 test_apollo_8.gd 160
 test_apollo_8_launch.gd 39
-test_ascent.gd 65
+test_ascent.gd 60
 test_backups.gd 109
 test_cabin_checklists.gd 231
 test_cabin_mcc.gd 7
 test_cabin_wrist_menu.gd 5
-test_docking.gd 29
-test_doi.gd 55
+test_docking.gd 24
+test_doi.gd 59
 test_entry.gd 143
 test_flight_menu.gd 1
 test_imu_alignment.gd 89
-test_landing.gd 208
+test_landing.gd 222
 test_launch.gd 62
 test_launch_aborts.gd 136
-test_lm_aborts.gd 343
-test_lm_alignment.gd 85
-test_lm_burns.gd 58
-test_lm_cabin_checklists.gd 467
-test_lm_checklists.gd 461
+test_lm_aborts.gd 359
+test_lm_alignment.gd 88
+test_lm_burns.gd 57
+test_lm_cabin_checklists.gd 481
+test_lm_checklists.gd 474
 test_lunar_mission.gd 121
 test_lunar_timeline.gd 85
 test_mascons.gd 7
@@ -45,6 +45,6 @@ test_onboard_navigation.gd 131
 test_onboard_state.gd 5
 test_p40_steering.gd 59
 test_program_alarms.gd 102
-test_rendezvous.gd 165
+test_rendezvous.gd 189
 test_tli.gd 33
 test_vr_acceptance_recorder.gd 5

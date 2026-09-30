@@ -13,8 +13,8 @@ test_cabin_bus.gd 1
 test_cabin_instruments.gd 1
 test_checklist_books.gd 13
 test_checklist_card.gd 2
-test_checkpoint.gd 74
-test_cockpit_layout.gd 12
+test_checkpoint.gd 94
+test_cockpit_layout.gd 13
 test_control_library.gd 1
 test_desktop_inspection.gd 1
 test_dsky.gd 1
@@ -37,6 +37,7 @@ test_lifeboat.gd 27
 test_lightning.gd 15
 test_lm_abort_buttons.gd 39
 test_lm_cabin.gd 1
+test_lm_p52.gd 1
 test_lunar_ground.gd 1
 test_main_scene.gd 17
 test_main_scene_xr.gd 3
