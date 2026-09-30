@@ -41,8 +41,8 @@ picture).
 - **Start phases stay consistent.** A new `--phase` is built the way the
   existing ones are, from the RTCC's own solutions, so it continues the
   mission it claims to.
-- **CI stays fast.** The suite runs in eleven jobs side by side: the
-  unit tests in two parts and the scenario tests in nine, each dealt out
+- **CI stays fast.** The suite runs in twelve jobs side by side: the
+  unit tests in two parts and the scenario tests in ten, each dealt out
   by each file's time on the runners (`.github/unit_seconds.txt`,
   `.github/scenario_seconds.txt`). Keep each job under ten minutes:
   start a long scenario from a phase or checkpoint instead of flying the
@@ -2057,24 +2057,68 @@ Apollo 12's and 13's launches fly their troubles as they came.
 
 ## 11. The LM's navigation
 
-**Status: not started.** Milestone 4 gave the CSM its crew's navigation;
-the LM's is still simpler. Its IMU is ideal while it flies free (docked
-and powered up, as Apollo 13's lifeboat, it is a real one); its P40 to
-P42 hold the ΔV's direction in the rotating LVLH frame; the rendezvous
+**Status: 11a done.** Milestone 4 gave the CSM its crew's navigation;
+the LM's is still simpler. Its IMU is real since 11a, but its P40 to
+P42 hold the ΔV's direction in the rotating LVLH frame, and its auto
+maneuvers turn the thrust axis first every time; the rendezvous
 radar is noise-free and finds the CSM wherever it is; P20 weights each
 mark by fixed gains; and the AGS holds an attitude and counts ΔV, with
 none of its guidance. This milestone gives the LM what the CSM has.
 
 | Slice | Work | Check |
 |---|---|---|
-| 11a The LGC's platform and P52 | The LGC's IMU real whenever it runs: drift, coarse align, gimbal lock; the alignment optical telescope (AOT) with its detents, reticle and view; P52 on its marks in orbit; REFSMMAT uplinks to the LGC | Test: from Apollo 11's undocking, P52 on the AOT's stars aligns the LGC within set limits, and the landing and the ascent fly on it |
-| 11b P57 on the surface | The lunar surface alignment, from the gravity the accelerometers sense and the AOT's stars, as Apollo 11 did before its liftoff | Test: P57's alignment within set limits, and the ascent reaches its insertion on it |
-| 11c Luminary's steering | P40 to P42 steered as Luminary's did, in place of the LVLH hold, as 5e gave the CMC | Test: DOI and the insertion come nearer their targets than on the LVLH hold, and short burns come out as they did |
-| 11d The rendezvous radar | Its noise and biases, its gimbal limits and coverage, its lock-on by hand, and Luminary's P20 filter, updating the LM's state vector or the CSM's | Test: Apollo 11's rendezvous on the noisy radar docks, the LGC's estimate of Columbia at CSI within set limits |
+| 11a (done) The LGC's platform and P52 | The LGC's IMU real whenever it runs: drift, coarse align, gimbal lock; the alignment optical telescope (AOT) with its detents, reticle and view; P52 on its marks in orbit; REFSMMAT uplinks to the LGC | Test: from Apollo 11's undocking, P52 on the AOT's stars aligns the LGC within set limits, and the landing and the ascent fly on it |
+| 11b P57 on the surface | The lunar surface alignment, from the gravity the accelerometers sense and the AOT's stars, as Apollo 11 did before its liftoff; Eagle's checklists gain their P52s after undocking and after insertion, and their P57s | Test: P57's alignment within set limits, and the ascent reaches its insertion on it |
+| 11c Luminary's steering | P40 to P42 steered as Luminary's did, in place of the LVLH hold, as 5e gave the CMC; and KALCMANU's auto maneuvers, about a single axis, re-planned only where the turn would take the middle gimbal past 60°, where 11a routes every turn thrust axis first | Test: DOI and the insertion come nearer their targets than on the LVLH hold, short burns come out as they did, and a turn clear of the lock zone is flown about a single axis |
+| 11d The rendezvous radar | Its noise and biases, its gimbal limits and coverage, its lock-on by hand, and Luminary's P20 filter, updating the LM's state vector or the CSM's | Test: Apollo 11's rendezvous on the noisy radar docks, the LGC's estimate of Columbia at CSI within set limits, and CDH's ΔH, TPI and the midcourse corrections on 11a's drifting platform back within the limits they held on an ideal one |
 | 11e The AGS's guidance | Its own navigation from the PGNS's state vectors, its abort insertion, and CSI, CDH and TPI targeting as the rendezvous's backup through the DEDA | Test: the AGS's solutions for Apollo 11's CSI, CDH and TPI within set limits of the LGC's, and an insertion flown on the AGS reaches orbit |
 
 **Done when** the README's simplifications of the LM's IMU, steering,
 radar and AGS are gone, or measured against the flights.
+
+- **The LGC's platform and P52.** Done in 11a. The LGC's IMU is real
+  whenever it runs, as the CMC's is: its gyros drift at the rates each
+  mission report measured between its LM's first two alignments (Eagle's
+  +4.5, −5.0 and +0.4 mERU, Table 9.6-I of MSC-00171), and at undocking
+  its platform stands on the landing site REFSMMAT where the crew's
+  docked alignment left it, off by the flight's first P52's torquing
+  angles less the drift between. The alignment optical telescope
+  (`src/systems/aot.gd`) has its six detents 60° apart, 45° up from +X,
+  and its reticle's Y-line and X-line (Luminary's OANB and OPTAXIS); its
+  view is on the HUD (O) and at the cabin's overhead eyepiece, with the
+  detent knob and the MARK X, MARK Y and REJECT buttons. P52
+  (`src/systems/lgc_align.gd`) follows Luminary 099's displays: V04N06's
+  four options (the landing site's with N34 and N89), N22, the coarse
+  align (00013), R56's star choice or the crew's in N70, R60's maneuver
+  to each star, AOTMARK's marks and alarms (V54, V53, V52 N71; 00107,
+  00111, 00114, 00115), N05 and N93. From Apollo 11's undocking, Eagle's
+  P52 at 101:15 on Acrux and Antares shows N93 −0.289, +0.293 and
+  −0.094° (flown −0.292, +0.289, −0.094) and N05 0.002° (0.03), and
+  leaves the platform 0.005° off. DOI and the automatic landing fly on
+  it, 0.13° off at PDI and 0.15° at touchdown, 169 m from the site
+  (`tests/scenarios/test_lm_alignment.gd`). The real platform showed up
+  what the ideal one had hidden. P63's maneuver to the ignition
+  attitude, from DOI's windows-down one, rolled the thrust axis across
+  the stable member's Y into gimbal lock; it now takes the routing clear
+  of it that the CMC's maneuvers have, the X axis first and then a yaw
+  about it, as Luminary's KALCMANU turned where a turn would cross the
+  lock zone. Every LM maneuver takes that route for now, the long way
+  round for a big one KALCMANU would have flown about a single axis
+  (11c): the DAP steers each axis at its own rate, not about the turn's
+  axis, so a straight turn can stray into the zone. And a small
+  correction pointed near the stable member's Y can't be burned along +X
+  without gimbal lock (00401): P41 now also burns where the LM is (ENTER
+  at V50N18), nulling N85 along each body axis, as Luminary's P41 left
+  it to the crew and Apollo 11's crew burned their midcourse
+  corrections. The ascent's true insertion comes off the LGC's by what
+  its drift since the P57 makes of the ascent, as the flight's must
+  have: Eagle's P52 after insertion torqued 0.15°. The crews' P52 after
+  insertion (Apollo 11's on Rigel and Acrux) comes before P20's marks,
+  in the rendezvous test and in `SimTest.fly_rendezvous()`, and P20's
+  marks leave the relative state off by the platform's misalignment
+  across the range. P57 on the surface is 11b's: until then the
+  sequencer aligns the platform for the crew 33 min before the liftoff,
+  as Apollo 11's last P57 was, and at the LM start phases.
 
 ### Order
 

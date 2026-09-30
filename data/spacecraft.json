@@ -199,6 +199,11 @@
     "drift_deg_per_h": 0.015,
     "coarse_align_deg": 0.2
   },
+  "lm_imu": {
+    "_source": "The LGC's IMU (slice 11a): each gyro's drift about its stable member axis, standard deviation in deg/h, drawn once for the flight from the mission's seed where the mission doesn't give its own (mission.json \"lgc\": drift_meru): 2 milli-earth-rate units, 0.03 deg/h, the IMU's one-sigma specification (Apollo 13 Mission Report supplement 1, GNC, section 2 and 4.1.3: 'the 3-sigma design uncertainty of 0.09 deg/hr') [published]; the coarse align's error as the CMC's [estimated]",
+    "drift_deg_per_h": 0.03,
+    "coarse_align_deg": 0.2
+  },
   "docking": {
     "_source": "Probe-and-drogue docking [estimated throughout]: each docking port's distance from its vehicle's centre of mass along +X (the LM's, whole and as its ascent stage), the probe's push apart at undocking, the capture limits (closing speed, lateral speed, lateral miss, misalignment, relative rate), the radius within which the probe strikes the LM, and the rebound of a contact without capture. The docking tunnel's push at LM JETT from the CM: Apollo 13's command module, 12,367.6 lb after it, sensed 1.54, 0.42 and 1.00 ft/s in its axes, 1.88 ft/s (MSC-02680, section 6.4.1 and Table A-I) [published], the impulse that gives it along the docking axis [derived]",
     "csm_port_m": 5.5,

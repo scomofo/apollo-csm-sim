@@ -36,6 +36,11 @@
 ##   P41  RCS thrusting: +X translation on the LM RCS
 ##   P42  APS thrusting (the ascent stage, after staging)
 ##   P47  Thrust monitor (manual burns): V16N83 body ΔV
+##   P52  IMU realign on the alignment optical telescope's marks (slice
+##        11a): options 1 to 4 on V04N06, the stars on V01N70 and V01N71,
+##        the LGC turning the LM to each, the crew's X and Y marks
+##        (V54N71), V06N05 and V06N93, as Luminary 099's (src/systems/
+##        lgc_align.gd)
 ##   P63  Braking: the ignition algorithm finds TIG, 470 km (ground range)
 ##        before the landing site, then V50N18 auto maneuver, V99 at TIG-5 s,
 ##        26 s at 10 % throttle, and Klumpp's quadratic guidance at full
@@ -96,15 +101,22 @@
 ## rendezvous radar has the CSM, moves it toward what the radar measures
 ## (V81): the first after an uplink takes the radar's relative position
 ## outright, later ones weight it and the range rate in. V06N49 shows the
-## last update. [simplified: the IMU is ideal, so the sensed ΔV and the
-## attitude are true]
+## last update.
+##
+## The IMU (slice 11a): a real one, as the CMC's, its gyros drifting at
+## rates drawn from the mission's seed (spacecraft.json "lm_imu"). The LGC
+## reads its attitude and its sensed ΔV through the platform, and its
+## gimbal angles are the platform's against the LM. Undocking, the
+## platform is at the landing site REFSMMAT the crew aligned it to docked,
+## off by what the flight's first P52 found (the sequencer's); P52 on the
+## AOT's stars brings it back.
 ##
 ## The LGC runs while the LM's buses are powered (lm.sys.powered, the LM's
 ## EPS's) and its PGNS breakers are in (ctl.lm.pgns): while the LM flies
 ## free [simplified: the LM powers up as it undocks], or docked once its
 ## crew has powered it up, as Apollo 13's did. Docked, it flies the stack:
 ## its DAP on the stack's inertia, and P30, P40 and P41 on the LM's engine
-## and jets. Powered up docked, its IMU is a real one, caged until the
+## and jets. Powered up docked, its IMU is caged until the
 ## crew coarse aligns it to the CMC's platform (V41N20, the angles the
 ## CMC's N20 gives turned through the docking geometry, Docking.
 ## lm_gimbals()) and the ground's REFSMMAT comes up with it; losing its
@@ -184,6 +196,15 @@ const LGC_NOUNS := {
 	55: {"name": "N/E/WT", "c": [["N", "i", 1.0], ["E", "d2", 1.0], ["WT", "d2", 1.0]]},
 	58: {"name": "HP/DVTPI/DVTPF", "c": [["HP", "d1", 1.0 / Dsky.NMI], ["DVTPI", "d1", 1.0 / Dsky.FT], ["DVTPF", "d1", 1.0 / Dsky.FT]]},
 	75: {"name": "DH/DTCDH/DTTPI", "c": [["DH", "d1", 1.0 / Dsky.NMI], ["DTCDH", "mmss", 1.0], ["DTTPI", "mmss", 1.0]]},
+	# P52's (LgcAlign).
+	5: {"name": "STAR ANGLE DIFF", "c": [["SAD", "d2", 1.0], ["", "blank", 1.0], ["", "blank", 1.0]]},
+	6: {"name": "OPTION CODE", "c": [["CODE", "o", 1.0], ["OPTION", "o", 1.0], ["", "blank", 1.0]]},
+	25: {"name": "CHECKLIST", "c": [["CODE", "o", 1.0], ["", "blank", 1.0], ["", "blank", 1.0]]},
+	34: {"name": "TIME OF EVENT", "c": [["HRS", "hms_h", 1.0], ["MIN", "hms_m", 1.0], ["SEC", "hms_s", 1.0]]},
+	70: {"name": "AOT DETENT/STAR", "c": [["CODE", "o", 1.0], ["", "blank", 1.0], ["", "blank", 1.0]]},
+	71: {"name": "AOT DETENT/STAR", "c": [["CODE", "o", 1.0], ["", "blank", 1.0], ["", "blank", 1.0]]},
+	89: {"name": "LANDING SITE", "c": [["LAT", "d3", 1.0], ["LONG/2", "d3", 1.0], ["ALT", "d2", 1.0 / Dsky.NMI]]},
+	93: {"name": "TORQUING ANGLES", "c": [["X", "d3", 1.0], ["Y", "d3", 1.0], ["Z", "d3", 1.0]]},
 }
 
 ## The landing site in the Moon-fixed frame (uplinked with the DOI PAD),
@@ -194,6 +215,11 @@ var landing_site: Vector3 = Vector3.ZERO
 var guidance_frame: Basis = Basis.IDENTITY
 ## Powered descent's ignition, GET s.
 var pdi_tig: float = 0.0
+## TLAND: the landing's time, GET s, uplinked with the DOI PAD (P52 option
+## 4's orientation is the site's at it); 0 until then.
+var tland: float = 0.0
+## P52 (slice 11a).
+var align: LgcAlign
 ## Time to go to the phase's target, s.
 var tgo: float = 0.0
 ## The DPS throttle the descent commands, a fraction of full thrust.
@@ -290,6 +316,7 @@ var _lpd := 0.0
 func _init() -> void:
 	super()
 	prefix = "lm."
+	align = LgcAlign.new(self)
 	dsky.nouns = Dsky.NOUNS.merged(LGC_NOUNS, true)
 	var r := SpacecraftData.section("rendezvous_guidance")
 	rdv_elev = deg_to_rad(float(r["tpi_elevation_deg"]))
@@ -305,7 +332,18 @@ func _ready() -> void:
 
 
 func programs() -> Array:
-	return [0, ASCENT, 20, 30] + RENDEZVOUS + [40, 41, 42, 47] + DESCENT + ABORTS
+	return [0, ASCENT, 20, 30] + RENDEZVOUS + [40, 41, 42, 47, 52] + DESCENT + ABORTS
+
+
+## Its IMU is a real one (slice 11a).
+func real_imu() -> bool:
+	return true
+
+
+## The auto maneuver refuses a final attitude past 70 deg of middle gimbal
+## (alarm 00401) [published: Luminary 099, KALCMANU's LOCKANGL].
+func lock_alarm_deg() -> float:
+	return 70.0
 
 
 func thrusting_programs() -> Array:
@@ -392,7 +430,6 @@ func powered_up() -> void:
 	nav = null
 	rr_nav = false
 	if not _free():
-		imu.ideal = false
 		imu.cage(Basis(_true_att()))
 
 
@@ -628,6 +665,8 @@ func _software_restart(code: int, now: float) -> void:
 
 
 func verb_noun(v: int, n: int) -> bool:
+	if program == 52 and ((v == 32 and align.recycle()) or align.enter(v, n)):
+		return true
 	if v == 57:
 		# Permit landing radar updates.
 		lr_update = true
@@ -680,6 +719,8 @@ func _refused(p: int) -> bool:
 
 
 func start_program(p: int) -> void:
+	if p == 52 and not _restoring:
+		align.start()
 	if p == 63 and not _restoring:
 		_start_p63()
 	if p == ASCENT and not _restoring:
@@ -725,6 +766,10 @@ static func pdi_time(tr: Trajectory, site_mf: Vector3, pdi_range: float) -> floa
 
 
 func proceed() -> void:
+	if program == 52:
+		align.proceed()
+		_publish_imu()
+		return
 	if program in RENDEZVOUS:
 		_proceed_rendezvous()
 		return
@@ -758,6 +803,11 @@ func proceed() -> void:
 				step_name = "v50n18"
 				dsky.show(50, 18, true)
 			"v50n18":
+				# Clear of gimbal lock on the way, as Luminary's KALCMANU
+				# took it: from DOI's attitude, a roll about +Z onto the
+				# windows-up one would take the thrust axis across the
+				# stable member's Y.
+				_plan_via()
 				step_name = "maneuver"
 				auto_active = true
 				dsky.show(6, 18)
@@ -788,6 +838,7 @@ func extra_step() -> void:
 	var step_dt := now - _step_get if _step_get >= 0.0 else 0.0
 	_step_get = now
 	_landing_radar(step_dt if program in DESCENT else 0.0)
+	align.step()
 	_rendezvous_nav(now)
 	_executive(step_dt, now)
 	_abort_discretes()
@@ -1406,6 +1457,8 @@ static func _v3(a: Array) -> Vector3:
 
 func noun_values(n: int) -> Variant:
 	var v: Variant = null
+	if n in [5, 6, 25, 34, 70, 71, 89, 93] or (n == 22 and not _v41):
+		return align.noun_values(n)
 	match n:
 		33:
 			if program == 63:
@@ -1457,16 +1510,18 @@ func noun_values(n: int) -> Variant:
 ## V24N76: the crew load P12's horizontal velocity and climb targets.
 ## V21N69 (or V22 to V25) in P63 or P64: the landing site correction, m.
 func noun_load(n: int, idx: int, value: float) -> bool:
+	if n in [6, 34, 70, 71] and program == 52:
+		return align.noun_load(n, idx, value)
 	if n == 69:
 		var ok := program in [63, 64] and landing_site != Vector3.ZERO
 		if ok:
 			correct_landing_site([Vector3(0.0, 0.0, value), Vector3(0.0, value, 0.0), Vector3(value, 0.0, 0.0)][idx])
 		return ok
 	if n == 76:
-		if ascent_targets.is_empty() or idx > 1:
-			return false
-		ascent_targets["vh" if idx == 0 else "rdot"] = value
-		return true
+		var took := not ascent_targets.is_empty() and idx <= 1
+		if took:
+			ascent_targets["vh" if idx == 0 else "rdot"] = value
+		return took
 	if n in TIME_NOUNS:
 		match n:
 			11:
@@ -1505,6 +1560,8 @@ func snapshot() -> Dictionary:
 		"step_get": _step_get, "restart_hold": _restart_hold,
 	}
 	d["executive"] = executive.snapshot()
+	d["align"] = align.snapshot()
+	d["tland"] = tland
 	d["restarts"] = {"count": restarts, "get": restart_get, "alarm": restart_alarm}
 	d["nav_landed_mf"] = [nav_landed_mf.x, nav_landed_mf.y, nav_landed_mf.z]
 	d["p40_schedule"] = p40_schedule.duplicate()
@@ -1534,6 +1591,10 @@ func restore(d: Dictionary) -> void:
 	_restoring = false
 	nav_landed_mf = _v3(d.get("nav_landed_mf", [0.0, 0.0, 0.0]))
 	executive.restore(d.get("executive", {}))
+	align.restore(d.get("align", {}))
+	tland = float(d.get("tland", 0.0))
+	if program == 52:
+		align.show_step()
 	var rs: Dictionary = d.get("restarts", {})
 	restarts = int(rs.get("count", 0))
 	restart_get = float(rs.get("get", -1.0))

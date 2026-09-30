@@ -139,6 +139,8 @@ var _looking: bool = false
 var _t_held: bool = false
 var _mark_held: bool = false
 var _reject_held: bool = false
+## The AOT's MARK X, MARK Y and REJECT keys, held.
+var _aot_held: Array[bool] = [false, false, false]
 ## The flight phase the flight started in.
 var _first_phase: String = ""
 ## The GET the flight started at.
@@ -578,6 +580,15 @@ func _process(_delta: float) -> void:
 	if reject != _reject_held:
 		_reject_held = reject
 		Bus.set_value("ctl.optics.mark_reject", reject)
+	# At the LM's AOT: X is MARK X, Y MARK Y, Z REJECT (Z inspects in the
+	# cabin view).
+	var at_aot := hud.aot_open()
+	var aot := [Input.is_key_pressed(KEY_X) and at_aot, Input.is_key_pressed(KEY_Y) and at_aot,
+		Input.is_key_pressed(KEY_Z) and at_aot and view.view_mode != VIEW_CABIN]
+	for i in 3:
+		if aot[i] != _aot_held[i]:
+			_aot_held[i] = aot[i]
+			Bus.set_value(["ctl.lm.aot.mark_x", "ctl.lm.aot.mark_y", "ctl.lm.aot.reject"][i], aot[i])
 
 
 const DSKY_KEYS := {

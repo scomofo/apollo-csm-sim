@@ -157,7 +157,9 @@ func test_every_timeline_entry_is_one_mission_control_can_make() -> void:
 			assert_true(e.has("get") or e.has("after") or e.has("before"), "%s: its time" % what)
 			var when := str(e.get("when", ""))
 			assert_true(when in MissionSequencer.PHASES or when in MissionSequencer.CONDITIONS, "%s: when %s" % [what, when])
-			assert_true(e.has("say") or e.has("pad"), "%s: a call or a PAD" % what)
+			assert_true(e.has("say") or e.has("pad") or e.has("align"), "%s: a call, a PAD or an alignment" % what)
+			if e.has("align"):
+				assert_eq(str(e["align"]), "lgc", "%s: the LGC's platform aligned" % what)
 			if e.has("pad"):
 				assert_true(str(e["pad"]) in MissionSequencer.PAD_KINDS, "%s: pad %s" % [what, e["pad"]])
 			if e.has("n81_ft_s"):

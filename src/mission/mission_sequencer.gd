@@ -118,6 +118,8 @@ const PAD_KINDS := ["mcc", "loi", "circ", "plane", "tei", "sv", "lm_sv", "doi", 
 ## The CSM's fixed maneuvers from this ΔV are the SPS's (P40), smaller ones
 ## the SM RCS's (P41), m/s.
 const SPS_MIN_MPS := 10.0 * Units.FT
+## A milli-earth-rate unit, the gyros' drift's unit: 0.015 deg/h, in rad/s.
+const MERU_RAD_S := 0.015 * PI / 180.0 / 3600.0
 ## A launch abort's orbit is safe (phase "earth_orbit") with its perigee
 ## this high, m: 75 nmi [estimated].
 const SAFE_PERIGEE_M := 75.0 * Units.NMI
@@ -537,6 +539,7 @@ func _crew_commands() -> void:
 						_separate()
 				"ctl.seq.undock":
 					if dynamics.undock():
+						_lgc_undocked()
 						_fire("undocking")
 						_say("Houston copies undocking. {lm} is flying free.")
 				"ctl.seq.lm_jett":
@@ -946,6 +949,7 @@ func request_pad(kind: String, earliest: float = -1.0, e: Dictionary = {}) -> Di
 		systems["lgc"].uplink_maneuver(float(pad["tig"]), pad["dv_lvlh"])
 		systems["lgc"].uplink_throttle([])
 		systems["lgc"].uplink_landing_site(landing_site())
+		systems["lgc"].tland = float(pad["land_get"])
 	_say("Houston, uplinking " + text)
 	_fire("pad_" + kind)
 	return pad
@@ -1187,8 +1191,9 @@ func _computer_of(computer: String) -> String:
 
 ## The ground's coarse align angles for [param computer]'s IMU (see
 ## _computer_of()): the gimbal angles, for its V41N20, that put its platform
-## on the REFSMMAT the ground has picked for it, the local vertical frame
-## now (P52's nominal orientation) [simplified: Apollo 13's entry
+## on the REFSMMAT the ground has picked for it: for an LM flying free or
+## landed the lunar one (_lgc_refsmmat()), otherwise the local vertical
+## frame now (P52's nominal orientation) [simplified: Apollo 13's entry
 ## REFSMMAT, and the LGC's for MCC-7], at the vehicle's attitude now, which
 ## the ground knew from the LM's platform and the AGS [simplified:
 ## exactly]. CAPCOM reads them up [published: Apollo 13's for the CM's
@@ -1199,6 +1204,8 @@ func _coarse_pad(computer: String) -> Dictionary:
 	var c := _computer_of(computer)
 	var tr := tracked_state(dynamics.traj)
 	var m := Imu.nominal(tr.pos(), tr.vel())
+	if c == "lgc" and dynamics.lm != null:
+		m = _lgc_refsmmat()
 	var q := dynamics.attitude.q
 	if c == "lgc":
 		q = dynamics.lm.attitude.q if dynamics.lm != null else (q * Docking.LM_IN_CSM).normalized()
@@ -1215,7 +1222,8 @@ func _coarse_pad(computer: String) -> Dictionary:
 
 ## The ground's REFSMMAT for [param computer]'s IMU (see _computer_of()),
 ## uplinked (P27) with the REFSMMAT flag set (AgcCore.uplink_refsmmat()):
-## the one its coarse align went to (the coarse PAD's), or [param docked]
+## the one its coarse align went to (the coarse PAD's), for an LM flying
+## free or landed the lunar one (_lgc_refsmmat()), or [param docked]
 ## the docked alignment's: the CMC's REFSMMAT, to which the crew coarse
 ## aligned the LGC's platform from the CMC's (Docking.lm_gimbals()), and
 ## the fine align's torquing, which the ground worked out from both
@@ -1231,6 +1239,8 @@ func _refsmmat_pad(computer: String, docked: bool) -> Dictionary:
 	var c := _computer_of(computer)
 	var core: AgcCore = systems.get("agc" if c == "cmc" else "lgc")
 	var m := Imu.nominal(dynamics.traj.pos(), dynamics.traj.vel())
+	if c == "lgc" and dynamics.lm != null:
+		m = _lgc_refsmmat()
 	if docked and systems.has("agc"):
 		m = systems["agc"].imu.refsmmat
 	elif pads.has("coarse") and str(pads["coarse"]["computer"]) == c:
@@ -1297,9 +1307,14 @@ func _disperse() -> void:
 	if systems.has("agc"):
 		systems["agc"].imu.disperse(dispersion_seed + 2, float(imu["drift_deg_per_h"]), float(imu["coarse_align_deg"]))
 	if systems.has("lgc"):
-		# The LGC's coarse aligns in the lifeboat [simplified: its gyros
-		# ideal].
-		systems["lgc"].imu.disperse(dispersion_seed + 3, 0.0, float(imu["coarse_align_deg"]))
+		# The LGC's (slice 11a): its gyros drift as the flight's measured
+		# where the mission has them (mission.json "lgc": drift_meru).
+		var lm_imu := SpacecraftData.section("lm_imu")
+		var lgc: Lgc = systems["lgc"]
+		lgc.imu.disperse(dispersion_seed + 3, float(lm_imu["drift_deg_per_h"]), float(lm_imu["coarse_align_deg"]))
+		var d: Array = mission.section("lgc").get("drift_meru", [])
+		if not d.is_empty():
+			lgc.imu.drift = Vector3(d[0], d[1], d[2]) * MERU_RAD_S
 
 
 ## The REFSMMAT a start phase's IMU is aligned to: the launch pad's until
@@ -1327,6 +1342,61 @@ func start_refsmmat(p_phase: String) -> Basis:
 ## lunar orbit REFSMMAT was LOI-2's burn attitude].
 func landing_site_refsmmat(tr: Trajectory) -> Basis:
 	return Imu.landing_site(Rtcc.site_at(landing_site(), site_get()), tr.pos().cross(tr.vel()))
+
+
+## The LGC's REFSMMAT in lunar orbit (slice 11a): the landing site's (P52
+## option 4), X up through the site at the landing time, Z downrange in the
+## CSM's orbit; on the surface, once the ascent PAD has the liftoff, the
+## spot the LM landed on at the liftoff's time (P57 option 4's, Apollo 11's
+## last before its liftoff) [published: Apollo 11 Mission Report, MSC-00171,
+## Table 9.6-I].
+func _lgc_refsmmat() -> Basis:
+	var h := dynamics.traj.pos().cross(dynamics.traj.vel())
+	var lm := dynamics.lm
+	if lm != null and lm.landed and plan.has("liftoff_tig"):
+		return Imu.landing_site(Bodies.moon_fixed(float(plan["liftoff_tig"])) * lm.landed_pos, h)
+	return landing_site_refsmmat(dynamics.traj)
+
+
+## Undocked: the LGC's platform as its crew aligned it docked, at the
+## landing site REFSMMAT, off by what the flight's first P52 after
+## undocking found (its torquing angles, N93, at its time), less the drift
+## between (mission.json "lgc": first_p52) [published: the mission
+## reports' LM alignment tables]; exactly there without it. An undocking
+## before the flight's (timeline "undocking_get") finds the platform as
+## the flight's undocking did: the crew aligned it docked shortly before.
+func _lgc_undocked() -> void:
+	var lgc: Lgc = systems.get("lgc")
+	if lgc == null:
+		return
+	var eps := Vector3.ZERO
+	var f: Dictionary = mission.section("lgc").get("first_p52", {})
+	if not f.is_empty():
+		# N93 is the turn that takes the platform back onto REFSMMAT: at
+		# the P52 the platform stood turned by it (misalign()'s sense), and
+		# at undocking by that less the drift between.
+		var a: Array = f["torque_deg"]
+		var n93 := Vector3(deg_to_rad(a[0]), deg_to_rad(a[1]), deg_to_rad(a[2]))
+		var t := SimClock.get_seconds
+		var tl := mission.section("timeline")
+		if tl.has("undocking_get"):
+			t = maxf(t, _get_s(tl["undocking_get"]))
+		eps = n93 + lgc.imu.drift * (_get_s(f["get"]) - t)
+	lgc.imu.misalign(_lgc_refsmmat(), eps)
+	lgc.reference_changed()
+
+
+## The crew's last alignment of the LGC's platform, exactly, to its REFSMMAT
+## (_lgc_refsmmat()): at an LM start phase the P52 or P57 before it, and on
+## the surface the P57 before the liftoff that the timeline brings
+## ("align": "lgc"), or the ascent PAD when that is due already
+## [simplified: until slice 11b's P57, made for them].
+func _lgc_align() -> void:
+	var lgc: Lgc = systems.get("lgc")
+	if lgc == null or lgc.imu.failed:
+		return
+	lgc.imu.align(_lgc_refsmmat())
+	lgc.reference_changed()
 
 
 ## The PDI PAD, after DOI: the ground predicts PDI with the LGC's own
@@ -1459,6 +1529,15 @@ func ascent_pad(earliest: float = -1.0) -> Dictionary:
 		return {}
 	pads["ascent"] = pad
 	plan["liftoff_tig"] = pad["tig"]
+	# A liftoff nearer than the crew's last P57 before it (the timeline's
+	# "align" entry, due already) finds the platform as that P57 leaves
+	# it, made for them now [simplified: until slice 11b's P57].
+	for e in _timeline_entries():
+		var id := str(e["id"])
+		if str(e.get("align", "")) == "lgc" and str(e.get("before", "")) == "liftoff_tig" and not timeline_done.has(id) \
+				and _entry_time(e) <= SimClock.get_seconds and lgc.imu.operating():
+			timeline_done[id] = SimClock.get_seconds
+			_lgc_align()
 	var text := "ASCENT PAD: TIG %s  N76 VH %.1f HDOT %.1f ft/s  XRNG %.2f nmi  INSERTION %s, %.1f x %.1f nmi" % [
 		Units.hms(float(pad["tig"])), float(pad["vh"]) / Units.FT, float(pad["hdot"]) / Units.FT,
 		float(pad["xrng"]) / Units.NMI, Units.hms(float(pad["insertion_get"])), float(pad["hp"]) / Units.NMI,
@@ -1578,6 +1657,8 @@ func _timeline() -> void:
 		timeline_done[id] = now
 		if e.has("say"):
 			_say(str(e["say"]))
+		if str(e.get("align", "")) == "lgc" and systems.has("lgc") and systems["lgc"].imu.operating():
+			_lgc_align()
 		if e.has("n81_ft_s"):
 			maneuver_pad(e)
 		elif e.has("pad"):
@@ -1683,6 +1764,7 @@ func _lm_start(p_phase: String) -> void:
 	# [simplified] Columbia drifts in CMC MODE FREE while Eagle flies.
 	Bus.set_value("ctl.cmc.mode", 0)
 	dynamics.undock()
+	_lgc_undocked()
 	_fire("undocking")
 	_advance(_entry_time(_timeline_entry("doi_pad")))
 	if not plan.has("doi_tig"):
@@ -1700,6 +1782,7 @@ func _lm_start(p_phase: String) -> void:
 	if p_phase == "lunar_descent":
 		_advance(float(plan["pdi_tig"]) - 1200.0)
 		lgc.nav = lm.traj.clone()
+		_lgc_align()
 		# The PDI PAD's state vector, if it came on the way (Apollo 12's
 		# half an hour out), as the LGC would have it now.
 		if pads.has("pdi"):
@@ -1717,9 +1800,11 @@ func _lm_start(p_phase: String) -> void:
 	lgc.nav_landed_mf = Vector3.ZERO
 	if p_phase == "lunar_surface":
 		_advance(t_land + 600.0)
+		_lgc_align()
 		return
 	_advance_flying(_entry_time(_timeline_entry("ascent_pad")))
 	_advance(float(plan["liftoff_tig"]) - 1200.0)
+	_lgc_align()
 
 
 ## Coast both vehicles to GET [param t], the landed LM held on the surface,

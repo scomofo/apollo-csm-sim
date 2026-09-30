@@ -24,7 +24,8 @@ C             window / chase / cabin view   (right-drag: look)
 Cabin view    click a control, scroll to move it; right-click: mouse look,
               Z: inspect, Home: recentre, M: wrist menu
 O             the optics (sextant and telescope): W/S A/D move them,
-              X MARK, Y MARK REJECT
+              X MARK, Y MARK REJECT; flying the LM, the AOT: the LM
+              turns on the ACA, X MARK X, Y MARK Y, Z REJECT
 F5 / F9       quick save / back to it (the flight menu's SAVES lists it)
 F1            the flight menu: another mission or start phase, saved flights
 H             this help"""
@@ -43,6 +44,10 @@ var vehicle: String = "csm"
 var book: ChecklistBook
 var csm_book: ChecklistBook
 var lm_book: ChecklistBook
+## The LM's alignment optical telescope's view (toggle_optics() flying the
+## LM), in its panel with its detent and the CCRD's MARK X, MARK Y and
+## REJECT.
+var aot_view: AotView
 var _flight: Label
 var _systems: Label
 var _top: Label
@@ -60,6 +65,9 @@ var _systems_panel: PanelContainer
 ## The optics: their view and their controls (toggle_optics()).
 var _optics: PanelContainer
 var optics_view: OpticsView
+## The AOT's panel and its detent.
+var _aot: PanelContainer
+var _aot_detent: OptionButton
 var _in_cabin: bool = false
 var _toggles: Dictionary = {}
 var _options: Dictionary = {}
@@ -135,6 +143,14 @@ func setup(p_rt: SimRuntime, p_book: ChecklistBook = null, p_lm_book: ChecklistB
 	_optics.offset_top = 34
 	_optics.visible = false
 	root.add_child(_optics)
+	_aot = _aot_panel()
+	_aot.anchor_left = 0.5
+	_aot.anchor_right = 0.5
+	_aot.offset_left = -200
+	_aot.offset_right = 200
+	_aot.offset_top = 34
+	_aot.visible = false
+	root.add_child(_aot)
 	# CAPCOM strip along the bottom.
 	var cp := PanelContainer.new()
 	_style(cp)
@@ -183,16 +199,63 @@ func toggle_help() -> void:
 
 
 ## Open or close the optics: while they are open the rotation keys move
-## them (player.optics, src/interaction/hand_controller_input.gd). Only
-## from Columbia.
+## them (player.optics, src/interaction/hand_controller_input.gd). Flying
+## the LM, its AOT instead (player.aot), through which the crew marks as
+## the ACA turns the LM.
 func toggle_optics(on: Variant = null) -> void:
+	if vehicle == "lm":
+		_aot.visible = (not _aot.visible) if on == null else bool(on)
+		Bus.set_value("player.aot", _aot.visible)
+		return
 	var want: bool = (not _optics.visible) if on == null else bool(on)
-	_optics.visible = want and vehicle != "lm"
+	_optics.visible = want
 	Bus.set_value("player.optics", _optics.visible)
 
 
 func optics_open() -> bool:
 	return _optics.visible
+
+
+func aot_open() -> bool:
+	return _aot.visible
+
+
+## The AOT's view, its detent knob, and the CCRD's MARK X, MARK Y and
+## REJECT.
+func _aot_panel() -> PanelContainer:
+	var p := PanelContainer.new()
+	_style(p)
+	var v := VBoxContainer.new()
+	p.add_child(v)
+	aot_view = AotView.new()
+	aot_view.font = mono
+	aot_view.custom_minimum_size = Vector2(380, 400)
+	v.add_child(aot_view)
+	var h := HBoxContainer.new()
+	v.add_child(h)
+	var l := Label.new()
+	l.text = "DETENT"
+	l.add_theme_font_size_override("font_size", 11)
+	h.add_child(l)
+	var o := OptionButton.new()
+	o.focus_mode = Control.FOCUS_NONE
+	for n in ["1 LF", "2 F", "3 RF", "4 RR", "5 CL", "6 LR"]:
+		o.add_item(n)
+	o.selected = int(Bus.get_value("ctl.lm.aot.detent", 2)) - 1
+	o.item_selected.connect(func(i: int) -> void: Bus.set_value("ctl.lm.aot.detent", i + 1))
+	h.add_child(o)
+	_aot_detent = o
+	_momentary(h, "MARK X", "ctl.lm.aot.mark_x")
+	_momentary(h, "MARK Y", "ctl.lm.aot.mark_y")
+	_momentary(h, "REJECT", "ctl.lm.aot.reject")
+	var names := CheckButton.new()
+	names.text = "NAMES"
+	names.focus_mode = Control.FOCUS_NONE
+	names.add_theme_font_size_override("font_size", 11)
+	names.button_pressed = aot_view.names
+	names.toggled.connect(func(on: bool) -> void: aot_view.names = on)
+	h.add_child(names)
+	return p
 
 
 ## The sextant and telescope's view, their mode, zero and speed switches,
@@ -251,7 +314,11 @@ func _show_panels() -> void:
 	_mcc.visible = not lm
 	_lm_mcc.visible = lm
 	if lm and _optics.visible:
-		toggle_optics(false)
+		_optics.visible = false
+		Bus.set_value("player.optics", false)
+	if not lm and _aot.visible:
+		_aot.visible = false
+		Bus.set_value("player.aot", false)
 
 
 func _style(p: PanelContainer) -> void:
@@ -730,3 +797,6 @@ func _sync_controls() -> void:
 		var want := int(Bus.get_value(ch, 0))
 		if _options[ch].selected != want:
 			_options[ch].selected = want
+	var detent := int(Bus.get_value("ctl.lm.aot.detent", 2)) - 1
+	if _aot_detent.selected != detent:
+		_aot_detent.selected = detent
