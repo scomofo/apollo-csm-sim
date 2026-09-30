@@ -128,7 +128,49 @@ func _build_panels() -> void:
 		plate.position.z = -0.01
 		plate.material_override = CabinMaterials.get_material("panel_face")
 		mount.add_child(plate)
+		_add_panel_hardware(mount, size)
 		_panels[panel_name] = mount
+
+
+## A narrow black reveal and real geometry at the panel corners keep the MDC
+## from reading as one unbroken grey slab.  Fasteners stand just proud of the
+## face so the grazing cabin light gives each one a highlight and a shadow.
+func _add_panel_hardware(mount: Node3D, size: Vector2) -> void:
+	var edge := CabinMaterials.get_material("panel_edge")
+	var fastener := CabinMaterials.get_material("fastener")
+	const REVEAL := 0.006
+	const FACE_Z := 0.003
+	for item in [
+		["RevealTop", Vector3(0.0, size.y * 0.5, FACE_Z), Vector3(size.x, REVEAL, REVEAL)],
+		["RevealBottom", Vector3(0.0, -size.y * 0.5, FACE_Z), Vector3(size.x, REVEAL, REVEAL)],
+		["RevealLeft", Vector3(-size.x * 0.5, 0.0, FACE_Z), Vector3(REVEAL, size.y, REVEAL)],
+		["RevealRight", Vector3(size.x * 0.5, 0.0, FACE_Z), Vector3(REVEAL, size.y, REVEAL)],
+	]:
+		var strip := MeshInstance3D.new()
+		strip.name = item[0]
+		var strip_mesh := BoxMesh.new()
+		strip_mesh.size = item[2]
+		strip.mesh = strip_mesh
+		strip.position = item[1]
+		strip.material_override = edge
+		mount.add_child(strip)
+	var inset := 0.018
+	var fastener_index := 0
+	for corner in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]:
+		var screw := MeshInstance3D.new()
+		screw.name = "Fastener%d" % fastener_index
+		fastener_index += 1
+		var screw_mesh := CylinderMesh.new()
+		screw_mesh.top_radius = 0.006
+		screw_mesh.bottom_radius = 0.006
+		screw_mesh.height = 0.003
+		screw_mesh.radial_segments = 12
+		screw.mesh = screw_mesh
+		# CylinderMesh points along Y; its cap must face along panel +Z.
+		screw.rotation.x = PI * 0.5
+		screw.position = Vector3(corner.x * (size.x * 0.5 - inset), corner.y * (size.y * 0.5 - inset), 0.006)
+		screw.material_override = fastener
+		mount.add_child(screw)
 
 
 ## A flat face through [param origin] (body) spanned by [param u] and

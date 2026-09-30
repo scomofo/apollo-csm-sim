@@ -5,7 +5,10 @@
 ## so the control and instrument prefabs taken from it work unchanged.
 ## The prefabs use "bezel"; the CM and LM cabins (src/cabin/) and their
 ## DSKYs use the rest, Eagle's in the CM's looks until its own are sourced.
-## Every look here is [estimated].
+## The values deliberately avoid perfectly flat colours: at cabin scale the
+## difference between painted aluminium, anodised hardware and rubber is read
+## mostly through roughness and specular response.  These are still procedural
+## approximations (there are no scanned Apollo texture maps in the project).
 class_name CabinMaterials
 extends RefCounted
 
@@ -18,6 +21,11 @@ const PROVENANCE := {
 	"couch": {"basis": "Pale couch pads: a general impression, not yet matched to photographs", "confidence": "estimated"},
 	"dsky_case": {"basis": "Dark grey DSKY case and keys: a general impression, not yet matched to photographs", "confidence": "estimated"},
 	"lpd": {"basis": "Landing point designator marks on the commander's window, drawn bright red-orange so they read against the ground; the flown scale's colour is not sourced", "confidence": "estimated"},
+	"panel_edge": {"basis": "Dark edge reveal between removable MDC panels", "confidence": "estimated"},
+	"fastener": {"basis": "Dull stainless panel fasteners", "confidence": "estimated"},
+	"window_frame": {"basis": "Bare aluminium inner window retainers", "confidence": "estimated"},
+	"window_seal": {"basis": "Black pressure-window gasket and shadowed reveal", "confidence": "estimated"},
+	"couch_frame": {"basis": "Tubular metal couch structure", "confidence": "estimated"},
 }
 
 static var _cache: Dictionary = {}
@@ -42,15 +50,25 @@ static func _built(role: String) -> Material:
 			m.metallic = 0.4
 			return m
 		"wall":
-			return _plain(Color(0.78, 0.77, 0.72), 0.85, true)
+			return _plain(Color(0.70, 0.69, 0.64), 0.92, true)
 		"bulkhead":
 			return _plain(Color(0.62, 0.63, 0.62), 0.7, true)
 		"panel_face":
-			return _plain(Color(0.36, 0.37, 0.38), 0.55)
+			return _metal(Color(0.285, 0.295, 0.30), 0.12, 0.64)
 		"couch":
 			return _plain(Color(0.86, 0.84, 0.78), 0.9)
 		"dsky_case":
 			return _plain(Color(0.2, 0.21, 0.22), 0.5)
+		"panel_edge":
+			return _plain(Color(0.035, 0.038, 0.04), 0.76)
+		"fastener":
+			return _metal(Color(0.48, 0.49, 0.48), 0.72, 0.28)
+		"window_frame":
+			return _metal(Color(0.52, 0.53, 0.51), 0.68, 0.32)
+		"window_seal":
+			return _plain(Color(0.018, 0.02, 0.021), 0.96)
+		"couch_frame":
+			return _metal(Color(0.34, 0.35, 0.34), 0.66, 0.36)
 		"lpd":
 			var m := StandardMaterial3D.new()
 			m.albedo_color = lpd_colour()
@@ -70,6 +88,12 @@ static func _plain(c: Color, roughness: float, both_sides: bool = false) -> Stan
 	m.roughness = roughness
 	if both_sides:
 		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return m
+
+
+static func _metal(c: Color, metallic: float, roughness: float) -> StandardMaterial3D:
+	var m := _plain(c, roughness)
+	m.metallic = metallic
 	return m
 
 
