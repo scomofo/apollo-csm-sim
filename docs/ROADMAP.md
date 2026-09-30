@@ -2319,19 +2319,19 @@ radar and AGS are gone, or measured against the flights.
 
 ## 12. The last lunar missions
 
-**Status: 12a in progress.** Milestone 7's pattern, for Apollo 14 to 17:
+**Status: 12a done.** Milestone 7's pattern, for Apollo 14 to 17:
 each mission is data, and each slice brings what its flight needed that
 the simulator can't do yet. The J missions' surfaces stay out, the EVAs,
 the rover and the experiments, and so does the SIM bay's science: the
 stays on the surface pass as time, as the other missions' do. After
 milestone 10 each flies from its pad. Apollo 14 flies from its data
-alone, in four parts: its flight (12a-1), the ABORT switch's short
+alone, built in four parts: its flight (12a-1), the ABORT switch's short
 (12a-2), the landing radar's scale (12a-3), and the docking's six
 attempts (12a-4).
 
 | Slice | Work | Check |
 |---|---|---|
-| 12a Apollo 14 (in progress: its flight, the ABORT switch, the landing radar, the docking) | Kitty Hawk's probe failing to capture Antares until the sixth try (a soft dock, and its latches); the CSM's DOI with the LM docked; the abort switch's short, and the keyed workaround that had the LGC ignore it; the landing radar's late lock-on, until its breaker was cycled; the direct rendezvous, TPI in the first revolution after the insertion, without CSI and CDH; Fra Mauro's terrain | Test: as 7a, Antares landing within a set limit of where it came down |
+| 12a (done) Apollo 14 | Kitty Hawk's probe failing to capture Antares until the sixth try (its capture latches, and the probe's retraction); the CSM's DOI with the LM docked; the abort switch's short, and the keyed workaround that had the LGC ignore it; the landing radar's late lock-on, until its breaker was cycled; the direct rendezvous, TPI in the first revolution after the insertion, without CSI and CDH; Fra Mauro's terrain | Test: as 7a, Antares landing within a set limit of where it came down |
 | 12b Apollo 15 | The J mission's LM, its descent stage heavier and its stay three days; the steep descent past the Apennines; Endeavour's plane changes; Worden's EVA on the way home, the CM depressurised, as an event; the splashdown on two main parachutes, the third having failed | Test: as 7a, Falcon landing within a set limit of Hadley, and the CM coming down on two parachutes at the flown speed |
 | 12c Apollo 16 | Casper's SPS, its secondary yaw gimbal servo oscillating before the circularization, and the landing waved off for about six hours; the flight a day shorter | Test: as 7a, Orion landing about six hours late within a set limit of its site |
 | 12d Apollo 17 | The night launch, Taurus-Littrow's terrain, and the longest stay | Test: as 7a, Challenger landing within a set limit of its site |
