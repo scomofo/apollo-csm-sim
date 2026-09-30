@@ -337,6 +337,16 @@ func _click_every_control(cabin: Cabin, p_layout: CockpitLayout, expect: int) ->
 
 func test_the_commander_faces_the_console_inside_the_vessel() -> void:
 	var cabin := _cabin()
+	for panel_name in CmCabin.PANELS:
+		var mount := cabin.panel_node(panel_name)
+		var fasteners := mount.get_children().filter(func(n: Node) -> bool: return n.name.begins_with("Fastener"))
+		assert_eq(fasteners.size(), 4,
+			"%s has four raised panel fasteners" % panel_name)
+		for edge in ["RevealTop", "RevealBottom", "RevealLeft", "RevealRight"]:
+			assert_true(mount.has_node(edge), "%s has its %s" % [panel_name, edge])
+	for window_name in CmCabin.WINDOWS:
+		var retainer := cabin.get_node(window_name + "Retainer")
+		assert_eq(retainer.get_child_count(), 8, "%s has a gasket and four-piece retainer" % window_name)
 	assert_true(cabin.anchor.global_basis.is_equal_approx(Basis.IDENTITY),
 		"the rig looks along the render -Z, which is body +X, with the crew's up")
 	assert_almost_eq(cabin.anchor.global_position, Frames.BODY_TO_GODOT * CmCabin.EYE_CDR, Vector3.ONE * 1e-6)
