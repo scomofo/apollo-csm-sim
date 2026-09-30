@@ -210,7 +210,10 @@ the flight's Mission Operation Report (`src/systems/eds.gd`,
 
 **Eagle's aborts.** From the descent's ignition to the touchdown, the
 LGC answers Eagle's two abort pushbuttons (Luminary 099's P70 and P71;
-the switches are on panel 1 and the HUD):
+the switches are on panel 1 and the HUD). Its abort monitor reads them
+on channel 30 while its aborts are enabled (LETABORT, set 0.2 s after
+the ignition), skipping both while its mode register reads 71 and
+ABORT while it reads 70, as Luminary's did:
 - **ABORT** (P70): the descent engine throttles up to full thrust and
   P12's guidance flies it to insertion, 60,000 ft up.
 - **ABORT STAGE** (P71): the descent engine stops, the LM stages, and the
@@ -231,6 +234,22 @@ the switches are on panel 1 and the HUD):
   the PGNS. DES QTY comes on quietly with 5.6 % of the descent
   propellant left, about two minutes of hovering. Each failure opens its
   procedure in Eagle's checklist book.
+- **Apollo 14's ABORT switch** (the failure catalog's lm_abort_switch):
+  a particle in the switch shorts its contacts to the LGC, which sees
+  ABORT with the pushbutton out. No light shows it; Houston calls it.
+  `V11N10E 30E` monitors channel 30 in R1, each bit 0 while its signal
+  is present: its last digit even while ABORT is set. TAP (panel 1, and
+  the HUD's TAP PANEL), a tap on the panel by the switch, clears it, as
+  the pushbutton's press does, and it comes back. Flying Apollo 14, it
+  shorts at the flown times and Houston calls each. After the ignition
+  it would start P70; Houston's workaround, in the descent checklist,
+  keeps P63 flying: `V21N01E 1010E 107E` before PDI puts 71 in the mode
+  register, and the abort monitor takes P71 for running. That also
+  passes ZOOM by at 26 s, so THROTTLE (panel 1's lever or the HUD) goes
+  to MAX by hand, over AUTO; `V25N07E 101E 200E 1E` sets ZOOMFLAG, and
+  the guidance steers; `V25N07E 105E 400E 0E` resets LETABORT, locking
+  P70 and P71 out, so an abort now is the AGS's; `V21N01E 1010E 77E`
+  puts 63 back, and THROTTLE goes back to MIN.
 
 The launch vehicle's engines and its guidance platform are on the
 failure catalog. A failure can also be armed a time after a mission
@@ -490,6 +509,8 @@ range zero where the flight moved its clocks 40 min 3 s at 54:54:
 - the separation PAD, docked (101:52), for 0.8 ft/s radially down after
   the undocking at 103:47, and Kitty Hawk's CIRC PAD (104:35), back up to
   60 nmi at 105:12;
+- the ABORT switch's shorts from 104:16, each called and tapped clear,
+  and at 107:34 Houston's workaround, keyed before PDI and after it;
 - the PDI PAD and its state vector (105:53), two hours before PDI
   (108:02); GO for Fra Mauro, and noun 69 after throttle-up, keyed as
   Apollo 12's;
@@ -677,8 +698,9 @@ held on it, the LM's roll left alone. Before PDI the ground uplinks the
 LM's state vector with the PDI PAD, and it carries the tracking error
 (mission.json "pdi"). The LGC flies on its own state vector from then on,
 not on truth. Half a revolution after DOI, P63 ignites powered descent
-470 km before the site. It brakes at full thrust until the throttle comes
-back into its range.
+470 km before the site. For 26 s it holds the attitude at 10 %; then, at
+ZOOM, it throttles up and its guidance steers, braking at full thrust
+until the throttle comes back into its range.
 
 The landing radar under the descent stage finds the ground, the real
 ground of NASA's elevation maps. From ignition P63 shows N63, the speed,
@@ -773,7 +795,9 @@ trunnion angles, weighed in by Luminary's filter, which also learns the
 radar's boresight biases. A mark that would move the state vector more
 than 2,000 ft or 2 ft/s shows V06N49, the change (nmi, ft/s) and which
 measurement: PRO takes it, V32 drops it and marks again, V34 ends P20.
-Between burns P20 keeps +Z on Columbia while LGC MODE is in AUTO.
+Between burns P20 keeps +Z on Columbia while LGC MODE is in AUTO,
+rolled about the line of sight, where the least turn would light GIMBAL
+LOCK, to keep the middle gimbal within 60°.
 - `V67E` shows the filter's own error (N99) and loads it anew; `V93E`
   starts it again from those loads at the next mark.
 - P32 to P35 let the marks in from their start to their final
@@ -1091,7 +1115,7 @@ A flown Apollo 11 profile in the simulator reproduces these values:
 | TEI | GET 135:23:41, 3,309 ft/s | 135:23:42, 3,284 ft/s |
 | Eagle's P52 after undocking | on Acrux and Antares, torqued at 101:13:25: N05 0.011°, N93 −0.287, +0.290, −0.089° | torqued at 101:20:18: N05 0.03°, N93 −0.292, +0.289, −0.094° |
 | DOI | GET 101:34:56, 74.3 ft/s, 30 s | 101:36:14, ~76 ft/s, ~30 s |
-| Powered descent | 12 min 7 s, touchdown at 102:45:22, 85 m from the target (the LGC's error across the ground, which the radar can't see) | 12 min 35 s, touchdown at 102:45:40, about 6 km past the target |
+| Powered descent | 12 min 7 s, touchdown at 102:45:22, 86 m from the target (the LGC's error across the ground, which the radar can't see) | 12 min 35 s, touchdown at 102:45:40, about 6 km past the target |
 | The Sun at touchdown | 10.7° up | 10.8° up |
 | Eagle's P57s on the surface | 103:47 on Rigel and Navi, which R59 finds in the left-rear and right-rear detents: N05 0.001°; 122:17 on gravity and Capella, in the right rear: N93 −0.692, +0.704, −0.620° | 103:47 on the same stars through the same detents: N05 0.09°; 122:17 on Capella through the right rear: N93 −0.699, +0.695, −0.628° |
 | Ascent, liftoff to cutoff | GET 124:22:23, 7 min 8 s, then 59,641 ft and 29.8 ft/s up (the LGC's 60,034 ft and 32.0 ft/s, its platform 0.050° off after the P57 at 123:49), 9.1 × 45.3 nmi | 124:22:00, 7 min 17 s, then 60,666 ft and 32.8 ft/s up, 9.5 × 47.3 nmi |
@@ -1173,15 +1197,15 @@ Apollo Flight Journal:
 | The low pass | 46,925 ft over the terrain at the lowest; 55,744 ft up over the site, 2.5 nmi south of it | 47,400 ft by the landing radar; 56,783 ft, about 5 miles south |
 | The phasing burn | 100:57:46, 176.8 ft/s in 41 s, 10 % at 10 s and full at 35 s; 191.7 × 11.5 nmi | 100:58:26, 176.0 ft/s in 40.0 s, 13.1 % and full; 190.1 × 12.1 nmi |
 | Staging and the insertion | the ascent stage 8,383 lb; 102:54:22, 220.9 ft/s in 18 s; 46.9 × 11.1 nmi | 8,273 lb; 102:55:02, 220.9 ft/s in 15.5 s; 46.5 × 11.0 nmi |
-| CSI | 103:43:24, 43.1 ft/s; 46.3 × 42.5 nmi | 103:45:55, 45.3 ft/s; 48.7 × 40.7 nmi |
-| CDH | 104:41:18, 6.0 ft/s, 15.8 nmi below Charlie Brown | 104:43:53, 3.0 ft/s, 15.0 nmi |
-| TPI, and the midcourse corrections | 105:25:00, 25.9 ft/s; 1.8 ft/s | 105:22:56, 24.1 ft/s; two small ones |
-| Docking | 106:16:19, the LM's RCS having given 118 ft/s from CSI | 106:22:02 |
-| TEI | 137:36:28, N81 +3,616.9, +137.2, −451.4; 3,647 ft/s in 174.0 s | 137:36:29, N81 +3,625.2, +40.0, +188.0; 3,630 ft/s in 164.8 s |
-| Transearth midcourse corrections | MCC-6 12.3 ft/s, MCC-7 4.2 ft/s | MCC-6 not flown, MCC-7 2.2 ft/s |
-| Entry interface | 191:49:05, 36,308 ft/s, 6.63° down, 23.55° S 174.08° E | 191:48:55, 36,314 ft/s, 6.54° down, 23.60° S 174.39° E |
-| The entry | P61 to P65, then P67; 7.12 g at the peak | P61 to P67; 6.78 g |
-| Splashdown | 192:04:26, 15.07° S 164.70° W, 1.9 nmi from the target | 192:03:23, 15.06° S 164.65° W, 1.3 nmi from it |
+| CSI | 103:43:24, 42.7 ft/s; 46.3 × 42.1 nmi | 103:45:55, 45.3 ft/s; 48.7 × 40.7 nmi |
+| CDH | 104:41:18, 5.8 ft/s, 16.2 nmi below Charlie Brown | 104:43:53, 3.0 ft/s, 15.0 nmi |
+| TPI, and the midcourse corrections | 105:22:11, 26.3 ft/s; 2.5 ft/s | 105:22:56, 24.1 ft/s; two small ones |
+| Docking | 106:13:36, the LM's RCS having given 120 ft/s from CSI | 106:22:02 |
+| TEI | 137:36:28, N81 +3,617.0, +137.2, −450.3; 3,648 ft/s in 174.0 s | 137:36:29, N81 +3,625.2, +40.0, +188.0; 3,630 ft/s in 164.8 s |
+| Transearth midcourse corrections | MCC-6 12.9 ft/s, MCC-7 4.4 ft/s | MCC-6 not flown, MCC-7 2.2 ft/s |
+| Entry interface | 191:48:55, 36,307 ft/s, 6.64° down, 23.56° S 174.09° E | 191:48:55, 36,314 ft/s, 6.54° down, 23.60° S 174.39° E |
+| The entry | P61 to P65, then P67; 7.13 g at the peak | P61 to P67; 6.78 g |
+| Splashdown | 192:04:18, 15.07° S 164.70° W, 1.8 nmi from the target | 192:03:23, 15.06° S 164.65° W, 1.3 nmi from it |
 
 Here too the report's figures don't all agree, and the table takes these:
 - Its TEI gave 3,680.3 ft/s by Table 6-V and 3,630.2 ft/s by the SPS's
@@ -1222,24 +1246,24 @@ Journal and the Apollo Lunar Surface Journal:
 | The CSM's separation maneuver | 2.5 ft/s radially down; Yankee Clipper in 64.0 × 55.8 nmi | 2.4 ft/s (the PAD's 2.5); 63.5 × 56.3 nmi |
 | Intrepid's first P52 | 108:46:07 on Capella and Rigel: N05 0.005°, N93 +0.013, −0.001, −0.066° | 108:48 on the same stars: N05 0.02°, N93 +0.018, −0.002, −0.069° |
 | DOI | 109:20:11, 69.6 ft/s in 30 s; 60.7 × 9.0 nmi | 109:23:40, 72.4 ft/s in 29.0 s; 60.6 × 8.1 nmi |
-| PDI, and the crossrange | 110:19:46; the site 4.3 nmi south of the orbit's plane, the lateral velocity up to 85 ft/s 224 s on | 110:20:38; about 5 miles south, up to 78 ft/s about 5 min on |
-| Noun 69, and the landing radar | +4,300 ft 80 s after PDI; ΔH −1,033 ft at 35,640 ft | +4,200 ft 79 s after PDI; ΔH −918, −1,000 ft, the radar's altitude from 41,438 ft |
-| P64 | 110:28:25 at 8,096 ft, aiming 455 ft from the Surveyor; 51 LPD clicks | 110:29:11 near 7,000 ft, aiming 416 ft from it |
-| The landing | P66 at 110:30:34 at 395 ft; touchdown 110:31:50, 515 ft from Surveyor III, where Intrepid came down; 1,379 lb of the DPS's propellant left | P66 at 110:30:50 at 400 ft; 110:32:36, 535 ft from it; 1,175 lb |
+| PDI, and the crossrange | 110:19:46; the site 4.3 nmi south of the orbit's plane, the lateral velocity up to 86 ft/s 228 s on | 110:20:38; about 5 miles south, up to 78 ft/s about 5 min on |
+| Noun 69, and the landing radar | +4,300 ft 80 s after PDI; ΔH −1,033 ft at 35,563 ft | +4,200 ft 79 s after PDI; ΔH −918, −1,000 ft, the radar's altitude from 41,438 ft |
+| P64 | 110:28:25 at 8,075 ft, aiming 455 ft from the Surveyor; 49 LPD clicks | 110:29:11 near 7,000 ft, aiming 416 ft from it |
+| The landing | P66 at 110:30:34 at 395 ft; touchdown 110:31:50, 515 ft from Surveyor III, where Intrepid came down; 1,375 lb of the DPS's propellant left | P66 at 110:30:50 at 400 ft; 110:32:36, 535 ft from it; 1,175 lb |
 | The first plane change | 119:45:06, N81 −9.2, +312.8, 0; 313.1 ft/s in 19.0 s; 62.4 × 57.1 nmi | 119:47:13, N81 −11.5, +349.6, 0; 349.9 ft/s in 18.2 s; 62.5 × 57.6 nmi |
-| The P57 before the liftoff | 141:26:58, option 4, on gravity and Arcturus, which R59 finds in the right-rear detent: N05 0.02°, N93 +0.023, +0.116, −0.034° | 141:29 on Procyon through the left-front detent: N05 0.04°, N93 −0.023, +0.004, +0.015° |
-| The ascent | liftoff 142:01:21, N76 5,532.7 and 37.0 ft/s, 0.28 nmi crossrange; 440 s on the APS; 45.5 × 8.7 nmi, 0.03° from Yankee Clipper's plane | 142:03:48 (planned 142:01:18), N76 5,535.0 and 37.0 ft/s, 0.2 nmi; 423.2 s; 46.3 × 8.8 nmi |
-| The P52 after the insertion | 142:22:39 on Rigel and Capella: N05 0.007°, N93 −0.016, +0.017, +0.019° | 142:23 on the same stars: N05 0.01° |
-| CSI | 142:58:34, 47.0 ft/s; 44.9 × 42.2 nmi | 143:01:51, 45.0 ft/s; 51.0 × 41.5 nmi |
-| CDH | 143:56:30, 4.0 ft/s, 16.8 nmi below Yankee Clipper | 144:00:03, 13.8 ft/s |
-| TPI, and the midcourse corrections | 144:34:14, 28.7 ft/s; 2.9 ft/s | 144:36:26, 29.0 ft/s |
-| Docking | 145:24:42, the LM's RCS having given 127 ft/s from CSI | 145:36:20 |
+| The P57 before the liftoff | 141:26:58, option 4, on gravity and Arcturus, which R59 finds in the right-rear detent: N05 0.02°, N93 +0.005, +0.107, −0.026° | 141:29 on Procyon through the left-front detent: N05 0.04°, N93 −0.023, +0.004, +0.015° |
+| The ascent | liftoff 142:01:21, N76 5,532.7 and 37.0 ft/s, 0.28 nmi crossrange; 439 s on the APS; 45.5 × 8.7 nmi, 0.02° from Yankee Clipper's plane | 142:03:48 (planned 142:01:18), N76 5,535.0 and 37.0 ft/s, 0.2 nmi; 423.2 s; 46.3 × 8.8 nmi |
+| The P52 after the insertion | 142:21:05 on Rigel and Capella: N05 0.013°, N93 +0.002, +0.018, +0.014° | 142:23 on the same stars: N05 0.01° |
+| CSI | 142:58:35, 47.3 ft/s; 44.9 × 42.4 nmi | 143:01:51, 45.0 ft/s; 51.0 × 41.5 nmi |
+| CDH | 143:56:31, 3.6 ft/s, 16.6 nmi below Yankee Clipper | 144:00:03, 13.8 ft/s |
+| TPI, and the midcourse corrections | 144:34:41, 28.3 ft/s; 3.3 ft/s | 144:36:26, 29.0 ft/s |
+| Docking | 145:25:26, the LM's RCS having given 122 ft/s from CSI | 145:36:20 |
 | The second plane change | 159:04:44, 381.4 ft/s in 22.0 s; 63.0 × 56.8 nmi | 159:04:46, 381.8 ft/s in 19.2 s; 64.7 × 56.8 nmi |
-| TEI | 172:22:43, N81 +3,029.6, +65.2, −0.1; 3,030 ft/s in 138.2 s; entry interface after it at 244:21:18 | 172:27:17, N81 +3,027.2, +302.1, −25.3; 3,042 ft/s in 130.3 s; 244:22:19 |
-| Transearth midcourse corrections | MCC-5 4.3 ft/s, MCC-7 none | MCC-5 2.0 ft/s, MCC-7 2.4 ft/s |
-| Entry interface | 244:18:18, 36,115 ft/s, 6.54° down, 13.56° S 174.41° E | 244:22:19, 36,116 ft/s, 6.48° down, 13.80° S 173.52° E |
-| The entry | P61 to P64, then P67; 6.79 g at the peak | P61 to P67; 6.1 g on the PAD |
-| Splashdown | 244:33:09, 15.83° S 165.17° W, 1.1 nmi from the target | 244:36:25, 15.78° S 165.15° W, within 2 miles of it |
+| TEI | 172:22:44, N81 +3,029.6, +64.6, −0.1; 3,030 ft/s in 138.2 s; entry interface after it at 244:21:08 | 172:27:17, N81 +3,027.2, +302.1, −25.3; 3,042 ft/s in 130.3 s; 244:22:19 |
+| Transearth midcourse corrections | MCC-5 3.9 ft/s, MCC-7 none | MCC-5 2.0 ft/s, MCC-7 2.4 ft/s |
+| Entry interface | 244:18:37, 36,117 ft/s, 6.52° down, 13.57° S 174.37° E | 244:22:19, 36,116 ft/s, 6.48° down, 13.80° S 173.52° E |
+| The entry | P61 to P64, then P67; 6.82 g at the peak | P61 to P67; 6.1 g on the PAD |
+| Splashdown | 244:33:29, 15.84° S 165.17° W, 1.8 nmi from the target | 244:36:25, 15.78° S 165.15° W, within 2 miles of it |
 
 The table takes these from the flight's figures:
 - TLI's 10,515 ft/s is the J-2's (MSC-01855, Table 5-IV), which the
@@ -1346,19 +1370,20 @@ Journal and the Apollo Lunar Surface Journal:
 | DOI, Kitty Hawk with Antares docked | 86:13:30, 208.0 ft/s in 24.0 s; 58.5 × 9.1 nmi; PDI planned for 108:01:06 | 86:10:52, N81 −206.4, 0, −3.6; 20.6 s; 58.8 × 10.4 nmi as the crew read it |
 | The separation, and CIRC | 0.8 ft/s radially down; CIRC 105:11:45, 73.4 ft/s into 63.2 × 55.4 nmi | 0.8 ft/s; 105:11:45, 76.2 ft/s on the PAD, into 63.9 × 56.0 nmi |
 | Antares's first P52, on stars 22 and 16 | 104:45:38: N05 0.005°, N93 +0.098, +0.056, −0.017° | 104:46:37: 0.04°; +0.097, +0.062, −0.013° |
-| PDI | the PAD at 105:52:04; 108:00:49, 46,240 ft over the site | the PAD at 105:53:23; 108:02:25, 47,355 ft (the PGNCS's) |
+| PDI | the PAD at 105:52:04; 108:00:49, 46,257 ft over the site | the PAD at 105:53:23; 108:02:25, 47,355 ft (the PGNCS's) |
+| The ABORT switch's workaround | MODREG 71 before PDI; the throttle-up by hand at +27.3 s; ZOOMFLAG at +44.5 s, 45,495 ft; LETABORT reset at +66.5 s, 45,197 ft; MODREG 63 at +80.5 s, 45,188 ft | the same keys at the same times; 47,503, 46,996 and 46,459 ft |
 | Noun 69 | +2,600 ft 113 s after PDI | +2,800 ft, 112 s after PDI |
-| P64 | 108:09:03 at 8,075 ft, aiming 1,326 ft short of where Antares came down | 108:11:09 at 8,190 ft, aiming 1,350 ft short of the target |
-| The landing | P66 at 108:11:17 at 359 ft, 1,643 ft short; touchdown 108:13:38 on the spot; 911 lb of the DPS's propellant left | P66 at 108:13:09 at 360 ft, about 2,200 ft short; 108:15:09; 794 lb |
+| P64 | 108:08:39 at 8,007 ft, aiming 1,317 ft short of where Antares came down | 108:11:09 at 8,190 ft, aiming 1,350 ft short of the target |
+| The landing | P66 at 108:10:54 at 359 ft, 1,641 ft short; touchdown 108:13:14 on the spot; 1,059 lb of the DPS's propellant left | P66 at 108:13:09 at 360 ft, about 2,200 ft short; 108:15:09; 794 lb |
 | The plane change (LOPC-1) | 117:32:40, N81 −12.1, +359.5, 0; 359.7 ft/s; 62.0 × 56.3 nmi | 117:29:32, N81 −12.9, +370.7, −5.5; 370.8 ft/s; 62.1 × 57.2 nmi on the PAD |
 | The ascent | liftoff 141:43:53, N76 5,542.9 and 31.3 ft/s, −0.12 nmi crossrange, TPI's TIG 142:29:15; 442 s on the APS into 52.6 × 9.2 nmi | 141:45:40, N76 5,542.9 and 31.3 ft/s, −0.3 nmi, TPI 142:30:51; 432.1 s into 51.7 × 8.5 nmi |
-| The tweak | 141:55:13, 9.2 ft/s on the RCS | 141:56:49, 10.3 ft/s |
-| TPI on the APS | 142:29:15, 98.5 ft/s; Kitty Hawk 26.6° up, Antares 15.0 nmi below | 142:30:51, 88.5 ft/s; 26.6°, 15 nmi below |
-| Midcourse corrections, and docking | 0.3 ft/s together; 143:24:18 | 1.1 and 1.6 ft/s; 143:32:51 |
-| TEI | 148:36:01, N81 +2,955.0, +1,711.9, −958.8; 3,547 ft/s in 162.3 s | 148:36:01, N81 +3,013.3, +1,667.4, −340.3; 3,460.6 ft/s in 149.2 s |
-| MCC-5 | 0.3 ft/s | 0.5 ft/s (the PAD's 0.7) |
-| Entry interface | 215:48:01, 36,150 ft/s, 6.70° down, 36.36° S 164.96° E | 215:47:45, 36,170.2 ft/s, 6.37° down, 36.36° S 165.80° E |
-| The entry, and splashdown | P61 to P64, then P67; 7.32 g at the peak; 216:03:02, 27.01° S 172.65° W, 0.9 nmi from the target | P61 to P67; 6.2 g on the PAD; 216:01:58, 27.01° S 172.65° W, 0.62 nmi from it |
+| The tweak | 141:55:13, 9.3 ft/s on the RCS | 141:56:49, 10.3 ft/s |
+| TPI on the APS | 142:29:15, 99.1 ft/s; Kitty Hawk 26.6° up, Antares 15.0 nmi below | 142:30:51, 88.5 ft/s; 26.6°, 15 nmi below |
+| Midcourse corrections, and docking | 0.3 ft/s together; 143:24:26 | 1.1 and 1.6 ft/s; 143:32:51 |
+| TEI | 148:36:01, N81 +2,955.0, +1,712.0, −958.4; 3,547 ft/s in 162.3 s | 148:36:01, N81 +3,013.3, +1,667.4, −340.3; 3,460.6 ft/s in 149.2 s |
+| MCC-5 | 0.7 ft/s | 0.5 ft/s (the PAD's 0.7) |
+| Entry interface | 215:48:10, 36,150 ft/s, 6.70° down, 36.37° S 164.93° E | 215:47:45, 36,170.2 ft/s, 6.37° down, 36.36° S 165.80° E |
+| The entry, and splashdown | P61 to P64, then P67; 7.31 g at the peak; 216:03:12, 27.01° S 172.65° W, 0.7 nmi from the target | P61 to P67; 6.2 g on the PAD; 216:01:58, 27.01° S 172.65° W, 0.62 nmi from it |
 
 The table takes these from the flight's figures:
 - The launch: AS-509's F-1s give 7,940 kN each in vacuum, the stage's
@@ -1854,14 +1879,16 @@ The unit tests cover:
   gone, the quad dead, the CMC's DSKY dark, the IMU caged for good); a
   checkpoint keeps the armed and the failed, and the clock comes to an
   armed one on its second; a mission arms its own; the instructor's page
-  fails the one it shows; and a failure opens its malfunction procedure
+  fails the one it shows; and a failure opens its malfunction procedure.
+  Apollo 14's ABORT switch, which no light shows, sets the LGC's abort
+  bit
 - Apollo 11's program alarms (`tests/scenarios/test_program_alarms.gd`),
   slice 9b: the landing flown as its crew flew it, the rendezvous radar's
   switch turned to SLEW, Aldrin's V16N68 for ΔH, and Armstrong's ATT HOLD
   at 102:43:08 and P66 at 430 ft. It brings 1202s 358 and 412 s after
   PDI in P63, and 1201s at 562 and 592 s in P64, each on V05N09, with
   Houston's GO; the flight had them 5 min 17 s to 9 min 53 s after PDI.
-  Eagle lands 168 m from the site, 0.5 m/s down, 12 min 17 s after PDI.
+  Eagle lands 80 m from the site, 0.5 m/s down, 12 min 15 s after PDI.
   With the switch at LGC no alarm comes, and the LGC's load peaks at 92 %.
   `tests/unit/test_lgc_executive.gd`: the eight core sets and five VAC
   areas and their alarms, the jobs by priority, a load within the LGC
@@ -1918,8 +1945,8 @@ The unit tests cover:
 
   | Abort | Set off by | Insertion | Rendezvous |
   |---|---|---|---|
-  | P70, 3 min into P63, 17 km up, Eagle 7.2° ahead of Columbia | the crew's ABORT | on the descent engine in 156 s: 9.1 by 130.1 nmi (the phasing's apolune 131.4), 3,519 kg left | CSI 49.7 ft/s, CDH 115.8, ΔH 16.2 nmi; TPI 2 min 12 s after the PDI PAD's 105:12:41, midcourses 4.2 ft/s; docked at 106:04:46 |
-  | P71, in P66 at 500 ft, Columbia 10.4° ahead | DES REG at 522 ft, the descent helium's regulator failed | on the ascent engine in 429 s, no lower than 487 ft: 9.3 by 64.1 nmi (63.6), 170 kg left | CSI 47.3 ft/s, CDH 36.4, ΔH 18.8 nmi; TPI 13 s before the PAD's 107:11:41, midcourses 3.8 ft/s; docked at 108:02:09 |
+  | P70, 3 min into P63, 17 km up, Eagle 7.2° ahead of Columbia | the crew's ABORT | on the descent engine in 156 s: 9.1 by 130.1 nmi (the phasing's apolune 131.4), 3,520 kg left | CSI 49.9 ft/s, CDH 115.5, ΔH 16.1 nmi; TPI 2 min 44 s after the PDI PAD's 105:12:41, midcourses 7.3 ft/s; docked at 106:05:17 |
+  | P71, in P66 at 500 ft, Columbia 10.4° ahead | DES REG at 523 ft, the descent helium's regulator failed | on the ascent engine in 428 s, no lower than 488 ft: 9.3 by 64.3 nmi (63.6), 170 kg left | CSI 47.2 ft/s, CDH 36.5, ΔH 18.7 nmi; TPI 1 min 28 s after the PAD's 107:11:41, midcourses 3.7 ft/s; docked at 108:04:01 |
 
   A checkpoint in P70 flies on to the same orbit.
   `tests/unit/test_lm_abort_buttons.gd`: in orbit ABORT STAGE only
@@ -1928,8 +1955,9 @@ The unit tests cover:
   RCS A REG goes out as its valves close, LGC as GUID CONT goes to AGS,
   and DES REG is dark before the first arming and after staging.
   `tests/unit/test_failures.gd`: each of the LM's failures lights its
-  light and the LM's master alarm and opens its procedure in Eagle's
-  book. `tests/unit/test_ascent_guidance.gd`: the aborts' apolune is
+  light and the LM's master alarm (the ABORT switch's short, which no
+  light shows, sets the LGC's abort bit) and opens its procedure in
+  Eagle's book. `tests/unit/test_ascent_guidance.gd`: the aborts' apolune is
   above Columbia's with Eagle ahead, lower the more Columbia leads, and
   P12's with no TPI time.
 - The lightning's pieces (`tests/unit/test_lightning.gd`), slice 10c: the
@@ -1997,6 +2025,11 @@ The unit tests cover:
 - The LGC's R47 (`tests/unit/test_lgc_r47.gd`, slice 11e): V34, or a new
   V47, taking the downlist off at once, so that the AGS waits for the
   next
+- The LGC's erasable words from the DSKY (`tests/unit/test_lgc_erasable.gd`,
+  slice 12a): V21N01 asking for its address, then loading MODREG in
+  octal (107 is 71, on PROG); V25N07 setting ZOOMFLAG and resetting
+  LETABORT, and refusing a third register neither 0 nor 1; V11N10
+  monitoring channel 30 in R1 alone
 - DSKY key logic, with V01 showing R1 alone
 - CMC programs, and Colossus's velocity to be gained for an External ΔV
   (`tests/unit/test_agc.gd`): the ΔV's size and its part out of the
@@ -2073,7 +2106,9 @@ The unit tests cover:
   schedule for P40, and whether N69 has moved its landing site (schema
   17). Older checkpoints are rejected. The AGS comes back from one taken
   mid-initialization, R47 at V06N16 and the DEDA mid-entry (schema 30),
-  and R47's downlist from one taken while it is on (schema 31)
+  and R47's downlist from one taken while it is on (schema 31), and the
+  LGC's mode register, its LETABORT and the ABORT switch's short from
+  one taken with MODREG loaded at 71 (schema 32)
 - The main scene, and in Eagle from `lunar_descent`: its HUD, the keys on
   its LGC or, with G, its DEDA, its two views, its checklist for the
   phase, and L between the vehicles; and the mission it's given, Apollo
@@ -2278,8 +2313,8 @@ The scenario tests fly real segments through the crew interface:
   `lunar_descent`, the timeline's PDI PAD puts the LGC's state vector
   off by the tracking error at PDI. From a checkpoint before PDI:
   - The automatic landing. The crew keys V57 when the radar's altitude
-    comes good, with ΔH at −814 m, and ΔH is −3 m by high gate. P63,
-    P64 and P65 land Eagle 85 m from the site at 0.8 m/s down and none
+    comes good, with ΔH at −813 m, and ΔH is −3 m by high gate. P63,
+    P64 and P65 land Eagle 86 m from the site at 0.8 m/s down and none
     across.
   - Without V57, Eagle hits the ground 2.8 km from the site at 18.6 m/s.
   - With a 900 m error along the track, the commander redesignates in
@@ -2300,7 +2335,7 @@ The scenario tests fly real segments through the crew interface:
   shows N05 0.011° (flown 0.03°) and N93 −0.287, +0.290 and −0.089° (flown
   −0.292, +0.289 and −0.094°). It torques the platform to within 0.007° of
   REFSMMAT. DOI and the automatic landing fly on it, 0.13° off at PDI and
-  0.15° at touchdown, and Eagle lands 184 m from the site
+  0.15° at touchdown, and Eagle lands 178 m from the site
 - Eagle's P57s (`tests/scenarios/test_lm_surface_alignment.gd`), slice
   11b's check. From `lunar_surface`, Eagle sits at Tranquility Base
   yawed 13° left, as Aldrin reported it, its platform aligned 10 min
@@ -2437,7 +2472,7 @@ The scenario tests fly real segments through the crew interface:
     +0.222 and −0.098°), and DOI to a pericynthion 15,218 m above the
     site.
   - From `lunar_descent`: P63 to P68, and a landing 85 m from the site.
-    At high gate the site is 33.8° down the commander's window, and N64
+    At high gate the site is 33.7° down the commander's window, and N64
     shows 34.
   - From `lunar_surface`: STAY for T3, the ascent PAD, the P57 33 min
     before the liftoff (option 4, gravity and a star; N93 −0.642,
@@ -2604,12 +2639,22 @@ The scenario tests fly real segments through the crew interface:
   alone, from the parking orbit to the landing at Fra Mauro: TLI, MCC-2
   onto the hybrid, LOI into the plane over the site, DOI by Kitty Hawk
   with Antares docked, the undocking and CIRC, Antares's P52 after it,
-  and powered descent with noun 69, P66 flown from 360 ft to the spot
+  and powered descent with noun 69 and Houston's workaround for the ABORT
+  switch keyed at the flown times, P66 flown from 360 ft to the spot
   Antares came down on; then from the surface to the splashdown: Kitty
   Hawk's plane change, the P57 before the liftoff, the direct
   rendezvous's liftoff, tweak and TPI on the ascent engine, docking, LM
   JETT, TEI, MCC-5 and the entry on P61 to P67. Each row of Apollo 14's
   Fidelity table (above) is held within limits of the flight's figures
+- Apollo 14's ABORT switch (`tests/scenarios/test_apollo_14_abort_switch.gd`),
+  slice 12a: from the lunar_descent start, the switch shorted at the
+  flown times on the way and taken up tapped clear. Channel 30 on
+  V11N10 shows the short, its last digit even, and a tap on the panel,
+  or the pushbutton's press, clears it. After the throttle-up the short
+  starts P70, the descent engine at full thrust. With the workaround
+  keyed as flown, ZOOM passes by at 26 s (10 %, the attitude held), the
+  commander's throttle-up goes over AUTO, and after it neither the short
+  nor ABORT itself stops P63
 
 `tools/screenshot.tscn` renders the images above (`--view=0` window,
 `1` chase, `2` cabin; `--hud=0` leaves the HUD out, `--menu=1` shows the

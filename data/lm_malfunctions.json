@@ -17,6 +17,12 @@
       {"text": "MASTER ALARM - press", "control": "P1_MASTER_ALARM", "check": {"channel": "lm.cw.master_alarm", "op": "eq", "value": false}},
       {"text": "GUID CONT - AGS: the AGS holds the attitude, and the light goes out", "control": "P1_GUID_CONT", "check": {"channel": "ctl.lm.guid_cont", "op": "eq", "value": 1}},
       {"text": "In the powered descent: an abort on the AGS [the AGS's own insertion guidance isn't modelled]"}
+    ]},
+    {"title": "Malfunction: ABORT switch", "phases": [], "steps": [
+      {"text": "The abort bit: the LGC sees ABORT with the pushbutton out, which in P63 would start P70. No light: Houston sees it on the downlink"},
+      {"text": "V11N10E 30E: channel 30 in R1, its last digit even while the LGC sees ABORT (each bit 0 while its signal is present)", "control": "P4_DSKY"},
+      {"text": "Tap the panel beside ABORT (TAP PANEL): the bit clears", "control": "P1_TAP", "check": {"channel": "lm.lgc.abort_bit", "op": "eq", "value": false}},
+      {"text": "It comes back: before PDI, the workaround in the powered descent checklist locks P70 and P71 out, and any abort is flown on the AGS"}
     ]}
   ]
 }

@@ -1,6 +1,6 @@
 ## Two- or three-position toggle switch. Position 0 is lever down.
 ## Publishes the integer position on [member channel], or the position's
-## entry in [member values].
+## entry in [member values], or on a float channel in [member float_values].
 ##
 ## Variants (gemini-capsule's docs/VR_INTERACTION.md §3):
 ##  - guarded: a hinged guard covers the lever; the first push lifts the
@@ -33,6 +33,10 @@ extends ControlBase
 ## of descent switch -1, 0, +1. A value outside the list on the channel
 ## leaves the lever where it is.
 @export var values: PackedInt32Array = []
+## On a float channel, the value each position publishes, lever down
+## first: Eagle's TTCA throttle lever, its minimum and full (slice 12a). A
+## value between them puts the lever at the nearer.
+@export var float_values: PackedFloat64Array = []
 
 var position_index: int = 0:
 	set = set_position_index
@@ -59,6 +63,12 @@ func _ready() -> void:
 func _index_of(v: Variant) -> int:
 	if v is bool:
 		return 1 if v else 0
+	if not float_values.is_empty():
+		var near := 0
+		for i in float_values.size():
+			if absf(float_values[i] - float(v)) < absf(float_values[near] - float(v)):
+				near = i
+		return near
 	if values.is_empty():
 		return int(v)
 	var i := values.find(int(v))
@@ -66,7 +76,9 @@ func _index_of(v: Variant) -> int:
 
 
 ## The value position [param i] publishes.
-func value_at(i: int) -> int:
+func value_at(i: int) -> Variant:
+	if not float_values.is_empty():
+		return float_values[mini(i, float_values.size() - 1)]
 	return values[i] if i < values.size() else i
 
 

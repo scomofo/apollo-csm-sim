@@ -257,7 +257,11 @@ func test_apollo_14_flies_its_data_and_lands_at_fra_mauro() -> void:
 	# PGNCS's). The ground's noun 69, plus 2,800 ft (108:04:18), keyed in
 	# (V21N69), and V57 when the landing radar's altitude comes good
 	# [simplified: Antares's radar, which came good only after its breaker
-	# was cycled, is slice 12a's third part].
+	# was cycled, is slice 12a's third part]. The crew fly Houston's
+	# workaround for the ABORT switch at the flown times (AbortSwitchCrew):
+	# the throttle-up by hand at 27.3 s, the steering from 44.5 s, at 47,503
+	# ft, P70 and P71 locked out at 66.5 s, at 46,996 ft, and MODREG 63 at
+	# 80.5 s, at 46,459 ft (71-FM22-36, Table A-I).
 	var lgc := rt.lgc()
 	var lm := rt.dynamics.lm
 	assert_true(run_until(func() -> bool: return sq.pads.has("pdi"), 3600.0, 10.0), "the PDI PAD")
@@ -268,6 +272,7 @@ func test_apollo_14_flies_its_data_and_lands_at_fra_mauro() -> void:
 	keys("P", lgc)
 	Bus.set_value("ctl.lm.mode", 2)
 	keys("P", lgc)
+	AbortSwitchCrew.before_pdi(self)
 	Bus.set_value("ctl.lm.engine_arm", 2)
 	run(maxf(lgc.pdi_tig - 12.0 - SimClock.get_seconds, 0.0))
 	assert_string_contains(str(Bus.get_value("mission.capcom")), "Go for Fra Mauro")
@@ -279,6 +284,11 @@ func test_apollo_14_flies_its_data_and_lands_at_fra_mauro() -> void:
 	var h_pdi := lm.traj.radius() - site.length()
 	var seen := {"programs": []}
 	var landed := run_until(func() -> bool:
+		var since := SimClock.get_seconds - t_pdi
+		AbortSwitchCrew.after_ignition(self, since, seen)
+		for ev: Array in AbortSwitchCrew.FLOWN.slice(1, 4):
+			if not seen.has(ev[1]) and since >= float(ev[0]):
+				seen[ev[1]] = lm.traj.radius() - site.length()
 		permit_lr_updates(lgc, seen)
 		if sq.pads.has("n69") and not seen.has("n69"):
 			var ft := float(sq.pads["n69"]["dz_ft"])
@@ -289,6 +299,9 @@ func test_apollo_14_flies_its_data_and_lands_at_fra_mauro() -> void:
 			seen["programs"].append(lgc.program)
 		return lgc.program == 64, 900.0, 1.0, false)
 	assert_true(landed, "P64")
+	var h_keyed: Array = AbortSwitchCrew.FLOWN.slice(1, 4).map(func(ev: Array) -> float: return float(seen[ev[1]]) / Units.FT)
+	assert_eq([lgc.erasable.modreg, lgc.erasable.zoomflag, lgc.erasable.letabort], [64, true, false],
+		"the workaround's end: P64 in MODREG, the guidance steering, P70 and P71 locked out")
 	# P64 at 108:11:09 near 8,190 ft, the automatic guidance aiming 1,350 ft
 	# short of the target after the noun 69; one LPD click, 350 ft south, at
 	# 2,700 ft; the commander took over in P66 at 360 ft (108:13:09) about
@@ -317,6 +330,7 @@ func test_apollo_14_flies_its_data_and_lands_at_fra_mauro() -> void:
 	var dps_left := float(Bus.get_value("lm.dps.prop_kg"))
 	rows.append("PDI | the PAD at %s; GET %s, %.0f ft over the site | the PAD at 105:53:23; 108:02:25, 47,355 ft (the PGNCS's)" % [
 		_hms(t_pad), _hms(t_pdi), h_pdi / Units.FT])
+	rows.append("The ABORT switch's workaround | MODREG 71 before PDI; the throttle-up by hand at +27.3 s; ZOOMFLAG at +44.5 s, %.0f ft; LETABORT reset at +66.5 s, %.0f ft; MODREG 63 at +80.5 s, %.0f ft | 47,503, 46,996 and 46,459 ft" % h_keyed)
 	rows.append("Noun 69 and the landing radar | %+.0f ft %.0f s after PDI; ΔH %.0f ft at %.0f ft | +2,800 ft (108:04:18, 112 s after PDI)" % [
 		float(seen["n69"]), float(seen["n69_after"]), float(seen["dh0"]) / Units.FT, float(seen["dh0_agl"]) / Units.FT])
 	rows.append("P64 | GET %s at %.0f ft, aiming %.0f ft short of where Antares came down | 108:11:09 at 8,190 ft, aiming 1,350 ft short of the target" % [
@@ -326,6 +340,9 @@ func test_apollo_14_flies_its_data_and_lands_at_fra_mauro() -> void:
 	assert_almost_eq(t_pad, _get_s("105:53:23.1"), 180.0, "the PDI PAD, two hours ahead")
 	assert_almost_eq(t_pdi, _get_s("108:02:24.61"), 180.0, "PDI's time")
 	assert_almost_eq(h_pdi / Units.FT, 47355.0, 3000.0, "PDI's height")
+	for i in 3:
+		assert_almost_eq(float(h_keyed[i]), [47503.0, 46996.0, 46459.0][i], 3000.0,
+			"%s keyed at the flown height, as PDI's" % ["ZOOMFLAG", "LETABORT", "MODREG 63"][i])
 	assert_almost_eq(float(seen["n69"]), 2800.0, 800.0, "noun 69, the landing site's move downrange")
 	assert_almost_eq(float(seen["n69_after"]), 112.0, 2.0, "after throttle-up")
 	assert_eq(seen["programs"], [63, 64], "braking, then the approach")

@@ -3,7 +3,8 @@
 ## (mission.json "failures": [{id, get_s}]) or by arm(), or a time after a
 ## mission event (slice 9d: [{id, event, after_s}], arm_on(), armed at
 ## that GET when the event fires, as the launch's are), and failed at
-## once by fail(), as the instructor's page on the wrist menu does. A
+## once by fail(), as the instructor's page on the wrist menu does, or
+## again by recur(), one that comes and goes (slice 12a). A
 ## failure that comes due goes to its system's fail(part), which changes
 ## the system as the catalog says; its caution light follows from the
 ## system's state (CautionWarning). It fires the mission event the catalog
@@ -130,6 +131,19 @@ func fail(id: String) -> bool:
 	active[id] = SimClock.get_seconds
 	_publish()
 	failed.emit(id)
+	return true
+
+
+## Fail [param id] now or, failed already, its part again: a failure that
+## comes and goes, as Apollo 14's ABORT switch's short did (slice 12a; the
+## mission's timeline, "fail"). Returns whether it did.
+func recur(id: String) -> bool:
+	if not active.has(id):
+		return fail(id)
+	var sys: Node = systems.get(str(entry(id)["system"]))
+	if sys == null or not sys.has_method("fail"):
+		return false
+	sys.call("fail", str(entry(id)["part"]))
 	return true
 
 

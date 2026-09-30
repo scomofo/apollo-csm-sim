@@ -19,7 +19,7 @@ func before_each() -> void:
 func test_each_book_opens_the_checklist_for_the_phase() -> void:
 	var csm := ChecklistBook.load_default()
 	var lm := ChecklistBook.load_lm()
-	assert_eq(lm.lists.size(), 7, "Eagle's four, and the LM's three malfunction procedures")
+	assert_eq(lm.lists.size(), 8, "Eagle's four, and the LM's four malfunction procedures")
 	for phase in CSM_FOR:
 		csm.select_for_phase(phase)
 		assert_eq(csm.list().title, CSM_FOR[phase], "Columbia in %s" % phase)

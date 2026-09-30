@@ -1768,6 +1768,9 @@ func _timeline() -> void:
 		timeline_done[id] = now
 		if e.has("say"):
 			_say(str(e["say"]))
+		if e.has("fail") and failures != null:
+			# A failure that comes and goes: Apollo 14's ABORT switch.
+			failures.recur(str(e["fail"]))
 		if e.has("n81_ft_s"):
 			maneuver_pad(e)
 		elif e.has("pad"):
@@ -1931,6 +1934,9 @@ func _lm_start_on_descent_orbit(p_phase: String) -> void:
 	var lm := dynamics.lm
 	if p_phase == "lunar_descent":
 		_advance_flying(float(plan["pdi_tig"]) - 1200.0)
+		# Apollo 14's crew tapped each of their ABORT switch's shorts clear
+		# as Houston called it: the start takes the switch up clear.
+		lgc.abort_short = false
 		lgc.nav = lm.traj.clone()
 		_lgc_align()
 		if pads.has("pdi"):
@@ -1938,6 +1944,7 @@ func _lm_start_on_descent_orbit(p_phase: String) -> void:
 		return
 	var t_land := float(plan["land_get"])
 	_advance_flying(t_land)
+	lgc.abort_short = false
 	_set_lm_landed(t_land)
 	var dps: Dps = systems["dps"]
 	var left := float(mission.section("landing")["dps_prop_left_kg"])

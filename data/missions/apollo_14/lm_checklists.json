@@ -1,5 +1,5 @@
 {
- "_comment": "Antares's checklists, condensed from Apollo 12's (data/missions/apollo_12/lm_checklists.json) for Apollo 14's flight: the undocking on the descent orbit Kitty Hawk's DOI left and the P52 after it, powered descent to Fra Mauro with the ground's landing site update (Noun 69), the surface stay, the liftoff and the direct rendezvous: the tweak four minutes after insertion, TPI on the ascent engine on the first revolution, no CSI or CDH [adapted for this simulator]. Keys as in checklists.json: V/N/Enter = VERB/NOUN/ENTR, Space = PRO; the switches are on Antares's HUD and in its cabin, and the PAD buttons on the HUD and the wrist menu. control: the cabin control a step is done on (an id in data/cockpit/lm_controls.csv); without it the checklist highlight finds the control that writes the step's check channel. phases: the flight phases (mission.phase) a checklist is for; it opens as the commander boards in one. LGC MODE FREE between burns until the rendezvous, where P20 keeps AUTO for its tracking attitude.",
+ "_comment": "Antares's checklists, condensed from Apollo 12's (data/missions/apollo_12/lm_checklists.json) for Apollo 14's flight: the undocking on the descent orbit Kitty Hawk's DOI left and the P52 after it, powered descent to Fra Mauro with the ground's landing site update (Noun 69) and Houston's workaround for the ABORT switch's short, as CAPCOM read it up from 107:33:49 to 107:38:48 (Apollo Lunar Surface Journal) [published], the surface stay, the liftoff and the direct rendezvous: the tweak four minutes after insertion, TPI on the ascent engine on the first revolution, no CSI or CDH [adapted for this simulator]. Keys as in checklists.json: V/N/Enter = VERB/NOUN/ENTR, Space = PRO; the switches are on Antares's HUD and in its cabin, and the PAD buttons on the HUD and the wrist menu. control: the cabin control a step is done on (an id in data/cockpit/lm_controls.csv); without it the checklist highlight finds the control that writes the step's check channel. phases: the flight phases (mission.phase) a checklist is for; it opens as the commander boards in one. LGC MODE FREE between burns until the rendezvous, where P20 keeps AUTO for its tracking attitude.",
  "checklists": [
   {
    "title": "Undocking and the P52 after it",
@@ -127,6 +127,15 @@
      }
     },
     {
+     "text": "Houston's workaround for the ABORT switch, after the final trim: V21N01E 1010E 107E, MODREG to 71 (octal 107): the abort monitor takes P71 for running and passes the switch by",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.lgc.modreg",
+      "op": "eq",
+      "value": 71
+     }
+    },
+    {
      "text": "ENG ARM - DES",
      "check": {
       "channel": "ctl.lm.engine_arm",
@@ -149,6 +158,51 @@
       "channel": "lm.dps.on",
       "op": "eq",
       "value": true
+     }
+    },
+    {
+     "text": "Ignition +26 s: THROTTLE - MAX over AUTO, MODREG 71 having kept the LGC from its throttle-up and its steering",
+     "control": "P1_THROTTLE",
+     "check": {
+      "channel": "ctl.lm.throttle",
+      "op": "gt",
+      "value": 0.5
+     }
+    },
+    {
+     "text": "V25N07E 101E 200E 1E: ZOOMFLAG set, the guidance steering",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.lgc.zoomflag",
+      "op": "eq",
+      "value": true
+     }
+    },
+    {
+     "text": "V25N07E 105E 400E 0E: LETABORT reset, P70 and P71 locked out; any abort now is the AGS's",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.lgc.letabort",
+      "op": "eq",
+      "value": false
+     }
+    },
+    {
+     "text": "V21N01E 1010E 77E: MODREG back to 63 (octal 77)",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.lgc.modreg",
+      "op": "eq",
+      "value": 63
+     }
+    },
+    {
+     "text": "THROTTLE - MIN: the LGC throttles",
+     "control": "P1_THROTTLE",
+     "check": {
+      "channel": "ctl.lm.throttle",
+      "op": "lt",
+      "value": 0.5
      }
     },
     {
