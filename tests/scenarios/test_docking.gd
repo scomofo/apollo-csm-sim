@@ -164,7 +164,9 @@ func test_equiperiod_separation_a_revolution_and_docking_again() -> void:
 	# that share of the motion's 1.4 km.
 	var steps0 := SimClock.step_count
 	run(t_sep + period / 2.0 - SimClock.get_seconds)
-	assert_lt(SimClock.step_count - steps0, 1500, "both vehicles coast on long steps")
+	# The LM's DAP trims the attitude its drifting platform moves (slice
+	# 11a) now and then, on fine steps.
+	assert_lt(SimClock.step_count - steps0, 2000, "both vehicles coast on long steps")
 	var half: Vector3 = _local()[0]
 	gut.p("Half a revolution after the separation, the CSM is %.0f m ahead of the LM and %.1f m above it" % [half.y, half.x])
 	assert_almost_eq(half.y - at_sep.y, 4.0 * 0.6 / n, 0.01 * 4.0 * 0.6 / n, "4 dv/n farther ahead")

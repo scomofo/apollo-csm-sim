@@ -21,11 +21,11 @@
 ## angles, and the alignment is lost until the crew coarse aligns it again
 ## and finds its orientation from the stars (P51).
 ##
-## An ideal IMU (the LGC's [simplified: its alignments, P52 with the AOT
-## and P57, are left for later]) has REFSMMAT the ECI frame, never drifts
-## and never loses its alignment; its GIMBAL LOCK lamp lights past
-## IDEAL_LAMP_DEG. Powered up docked, as Apollo 13's lifeboat, the LGC's is
-## a real one, caged until the crew coarse aligns it.
+## An ideal IMU has REFSMMAT the ECI frame, never drifts and never loses
+## its alignment; its GIMBAL LOCK lamp lights past IDEAL_LAMP_DEG. Both
+## computers' are real (the LGC's from slice 11a, its P52 on the
+## alignment optical telescope's marks: src/systems/lgc_align.gd); an
+## ideal one is left for tests.
 ##
 ## Without power the platform's orientation is lost: the IMU comes back
 ## caged (cage()), NO ATT lit, until a coarse align.
@@ -167,6 +167,15 @@ static func preferred(dv: Vector3, r: Vector3) -> Basis:
 ## [param v] (X forward, Y against the orbit's normal, Z down).
 static func nominal(r: Vector3, v: Vector3) -> Basis:
 	return Trajectory.lvlh_basis(r, v).transposed()
+
+
+## Luminary's nominal orientation (P52 option 2, S52.3), the LM's: X up
+## along [param r], Y along [param v] x [param r] (against the orbit's
+## normal), Z completing them, forward.
+static func lm_nominal(r: Vector3, v: Vector3) -> Basis:
+	var x := r.normalized()
+	var y := v.cross(r).normalized()
+	return from_axes(x, y, x.cross(y))
 
 
 ## The landing site orientation: X up through the site at [param site]
@@ -322,6 +331,28 @@ func _coarse_error() -> Vector3:
 func lock_lamp(body: Basis) -> bool:
 	var mg := absf(wrapf(icdu(body).z, -180.0, 180.0))
 	return mg > (IDEAL_LAMP_DEG if ideal else LOCK_LAMP_DEG)
+
+
+## Axes from two directions, as columns, sharing their errors: the
+## bisector, the normal and the third. The rotation between two such
+## triads takes one pair of directions onto the other (the alignments'
+## AXISGEN).
+static func triad(a: Vector3, b: Vector3) -> Basis:
+	var x := (a.normalized() + b.normalized()).normalized()
+	var y := a.cross(b).normalized()
+	return Basis(x, y, x.cross(y))
+
+
+## The shortest turn from direction [param a] to [param b] (VECPOINT's),
+## exact however small: Quaternion(a, b) takes a turn of a few tenths of a
+## degree for none.
+static func arc(a: Vector3, b: Vector3) -> Quaternion:
+	var c := a.normalized().cross(b.normalized())
+	var s := c.length()
+	if s < 1e-12:
+		return Quaternion.IDENTITY if a.dot(b) > 0.0 else Quaternion(a.normalized().cross(
+			Vector3.RIGHT if absf(a.normalized().x) < 0.9 else Vector3.UP).normalized(), PI)
+	return Quaternion(c / s, atan2(s, a.normalized().dot(b.normalized())))
 
 
 static func rows_of(b: Basis) -> Array:

@@ -245,7 +245,9 @@ func test_without_radar_updates_the_lgc_flies_into_the_ground() -> void:
 	var td: Dictionary = rt.dynamics.lm.touchdown
 	gut.p("Without V57: at high gate the LGC had %.0f m, the ground was %.0f m below (ΔH %.0f m); it hit %.0f m from the site at %.1f m/s down" % [
 		seen.get("h_hg", 0.0), seen.get("agl_hg", 0.0), seen["dh_hg"], _miss(), td["vertical_mps"]])
-	assert_lt(float(seen["dh_hg"]), -900.0, "the LGC still a kilometre high at high gate")
+	# Near the PDI PAD's 900 m: its platform's drift since the start (slice
+	# 11a) takes a little of it off.
+	assert_lt(float(seen["dh_hg"]), -700.0, "the LGC still most of a kilometre high at high gate")
 	assert_true(td["hard"], "a hard landing")
 	assert_gt(float(td["vertical_mps"]), 10.0, "at speed")
 	assert_gt(_miss(), 2000.0, "well short of the site")

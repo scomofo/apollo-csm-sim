@@ -492,7 +492,9 @@ func noun_values(n: int) -> Variant:
 		91:
 			return [float(Bus.get_value("optics.shaft_deg", 0.0)), float(Bus.get_value("optics.trunnion_deg", 0.0)), 0.0]
 		93:
-			return [rad_to_deg(align_torque.x), rad_to_deg(align_torque.y), rad_to_deg(align_torque.z)]
+			# The gyros' torquing, the platform's own turn back onto
+			# REFSMMAT: Imu.torque() takes the reverse, its reference's.
+			return [-rad_to_deg(align_torque.x), -rad_to_deg(align_torque.y), -rad_to_deg(align_torque.z)]
 		99:
 			return [_rms_shown.x, _rms_shown.y, 0.0]
 		60:

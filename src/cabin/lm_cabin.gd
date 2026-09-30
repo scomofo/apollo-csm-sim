@@ -16,7 +16,9 @@
 ## follows the LM's: 1 the commander's flight displays and engine arming,
 ## 2 the LM pilot's, with the RCS, 3 between them, with the guidance mode,
 ## 4 the LGC's DSKY, and 5 by the commander's left hand, with the engine
-## start and stop and the rate of descent switch. Every dimension and
+## start and stop and the rate of descent switch; overhead between them the
+## alignment optical telescope's eyepiece (slice 11a), its detent knob and
+## the MARK X, MARK Y and REJECT buttons on its guard. Every dimension and
 ## position is [estimated]: the shapes follow the LM in outline only.
 ##
 ## Reads: lm.dyn.config
@@ -61,6 +63,7 @@ const PANELS := {
 	"P3": {"centre": Vector3(-2.05, 0.0, 1.50), "size": Vector2(0.58, 0.16), "yaw": 0.0, "tilt": 35.0},
 	"P4": {"centre": Vector3(-2.30, 0.0, 1.40), "size": Vector2(0.30, 0.34), "yaw": 0.0, "tilt": 45.0},
 	"P5": {"centre": Vector3(-2.02, -0.80, 1.52), "size": Vector2(0.24, 0.22), "yaw": 35.0, "tilt": 15.0},
+	"AOT": {"centre": Vector3(-1.15, 0.0, 1.45), "size": Vector2(0.32, 0.30), "yaw": 0.0, "tilt": -60.0},
 }
 ## The forward windows in the front bulkhead, square to +Z: (Y, X) corners
 ## (m, body), wide at the top about eye level and narrowing to a point

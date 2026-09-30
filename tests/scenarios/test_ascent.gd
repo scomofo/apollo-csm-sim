@@ -8,7 +8,8 @@
 ## test). The crew request the ascent PAD, select P12, PRO through the
 ## liftoff time (N33) and the targets (N76), and set LGC MODE AUTO. At
 ## V99, TIG-5 s, they stage (ABORT STAGE), arm the ascent engine and PRO,
-## as Aldrin did.
+## as Aldrin did. The LGC's platform (slice 11a) is aligned for them 33 min
+## before the liftoff, as Apollo 11's last P57 was, and drifts on.
 extends SimTest
 
 ## The LM's heading off the CSM's track on the surface, degrees.
@@ -164,10 +165,22 @@ func test_p12_flies_eagle_to_insertion() -> void:
 	assert_lt(rad_to_deg(b.y.angle_to(-rt.dynamics.traj.pos().cross(rt.dynamics.traj.vel()).normalized())), 1.0, "+Y to the right")
 	assert_between(t_ins, 400.0, 460.0, "about seven minutes (Apollo 11: 7 min 15 s)")
 	assert_almost_eq(t_ins, float(pad["insertion_get"]) - tig, 3.0, "when the RTCC predicted")
-	# Within the target orbit's limits: 60,000 ft, 32 ft/s up, 9 x 45 nmi,
-	# in Columbia's plane.
-	assert_almost_eq((tr.radius() - lgc.ascent_base) / Units.FT, 60000.0, 500.0, "insertion at 60,000 ft")
-	assert_almost_eq(tr.radial_rate() / Units.FT, 32.0, 3.0, "climbing at 32 ft/s")
+	# Within the target orbit's limits: 60,000 ft and 32 ft/s up where the
+	# LGC has Eagle, which its guidance flies to; 9 x 45 nmi, in Columbia's
+	# plane. The platform, drifting since the P57 33 min before liftoff,
+	# turns the thrust and the LGC's measure of it alike: the truth is off
+	# the LGC's by at most the misalignment's angle of the velocity gained,
+	# and of the half of it the burn has flown on (Apollo 11's P52 after
+	# insertion torqued 0.15°) [published: MSC-00171, Table 9.6-I].
+	var nav := lgc.current_traj()
+	var mis := lgc.imu.misalignment().length()
+	var h_lgc := nav.radius() - lgc.ascent_base
+	gut.p("The LGC has Eagle at %.0f ft, %.2f ft/s up; the platform %.3f° off" % [h_lgc / Units.FT, nav.radial_rate() / Units.FT, rad_to_deg(mis)])
+	assert_almost_eq(h_lgc / Units.FT, 60000.0, 500.0, "insertion at 60,000 ft")
+	assert_almost_eq(nav.radial_rate() / Units.FT, 32.0, 3.0, "climbing at 32 ft/s")
+	assert_between(rad_to_deg(mis), 0.01, 0.2, "the platform off by its drift since the P57")
+	assert_lt(absf(tr.radius() - lgc.ascent_base - h_lgc), mis * vh * t_ins / 2.0, "the height, off by what the platform makes of it")
+	assert_lt(absf(tr.radial_rate() - nav.radial_rate()), mis * vh, "and the climb")
 	assert_almost_eq(float(o["hp"]) / Units.NMI, 9.0, 0.5, "perilune 9 nmi")
 	assert_almost_eq(float(o["ha"]) / Units.NMI, 45.0, 1.0, "apolune 45 nmi")
 	assert_lt(float(o["plane"]), 0.05, "in Columbia's plane")

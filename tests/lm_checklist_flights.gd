@@ -390,7 +390,12 @@ func test_rendezvous_and_docking() -> void:
 	assert_eq(hud.book, main.book, "the HUD on Columbia's checklists")
 	assert_eq(hud.book.list().title, "Lunar orbit and TEI")
 	assert_almost_eq(burns["CSI"], float(pad["dv"]), 0.5, "CSI flown")
-	assert_almost_eq(burns["TPI"], float(pad["tpi_dv"]), 0.5, "TPI flown")
+	# The LGC's platform (slice 11a) drifts through the ascent and the
+	# rendezvous, without the P52 after insertion that Eagle's checklists
+	# don't have yet (slice 11b), and P20's fixed gains take part of what
+	# that makes of the radar's line of sight for velocity (slice 11d's
+	# filter): TPI comes out up to 2.5 m/s off the PAD's.
+	assert_almost_eq(burns["TPI"], float(pad["tpi_dv"]), 2.5, "TPI flown near the PAD's")
 
 
 ## Stop Columbia relative to Eagle on the THC's keys.

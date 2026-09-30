@@ -260,6 +260,10 @@ func fly_entry(max_s: float = 3.0 * 3600.0, each: Callable = Callable(), chunk: 
 			n67 = agc.noun_values(67)
 		if agc.step_name in ["n69", "n67"]:
 			keys("P")
+	# The sequencer ticks before the dynamics, so it sees a splashdown on a
+	# chunk's last step only a step later.
+	if rt.dynamics.landed:
+		run(SimClock.FIXED_DT, false)
 	var peaks := []
 	for i in range(1, g.size() - 1):
 		if g[i] > 1.0 and g[i] > g[i - 1] and g[i] >= g[i + 1]:
@@ -508,8 +512,11 @@ func fly_stored(p52_option: int = 1, lead: float = 900.0) -> float:
 ## residuals; then ENGINE ARM OFF and MODE FREE. [param monitor], if
 ## given, is called at each second of the countdown and the burn. Without
 ## [param from_p30] the maneuver is one the LGC stored itself (P32 to
-## P35). Returns the maneuver's sensed ΔV (m/s).
-func fly_lm_pad(prog: int, arm: int, monitor: Callable = Callable(), from_p30: bool = true, lead: float = 900.0) -> float:
+## P35). With [param in_place], P41 burns where the LM is, ENTER at V50N18
+## (a midcourse correction, as Apollo 11's crew burned theirs on N85).
+## Returns the maneuver's sensed ΔV (m/s).
+func fly_lm_pad(prog: int, arm: int, monitor: Callable = Callable(), from_p30: bool = true, lead: float = 900.0,
+		in_place: bool = false) -> float:
 	var lgc := rt.lgc()
 	if from_p30:
 		keys("V37E30E", lgc)
@@ -521,7 +528,7 @@ func fly_lm_pad(prog: int, arm: int, monitor: Callable = Callable(), from_p30: b
 	Bus.set_value("ctl.lm.mode", 2)
 	keys("V37E%dE" % prog, lgc)
 	assert_eq(lgc.program, prog, "P%d selected" % prog)
-	keys("P", lgc)   # V50N18: perform auto maneuver
+	keys("E" if in_place else "P", lgc)   # V50N18: perform auto maneuver, or not
 	Bus.set_value("ctl.lm.engine_arm", arm)
 	run(maxf(tig - 12.0 - SimClock.get_seconds, 0.0))
 	var ok := run_until(func() -> bool: return lgc.step_name == "v99", 20.0, 1.0, false)
@@ -554,6 +561,28 @@ func set_lm_down(yaw_deg: float = 0.0) -> void:
 	lm.attitude.q = Basis(up, fwd.cross(up), fwd).get_rotation_quaternion()
 	lm.attitude.omega = Vector3.ZERO
 	lm.land(site.length() + cm)
+
+
+# --- the LM's platform: P52 on the AOT (tests/aot_crew.gd) ----------------------
+
+## The crew's P52 on the AOT (AotCrew.realign()).
+func lm_realign(stars: Array = [], pairs: int = 1) -> Dictionary:
+	return AotCrew.realign(self, stars, pairs)
+
+
+## Two stars the crew could mark now (AotCrew.star_pair()).
+func visible_star_pair() -> Array:
+	return AotCrew.star_pair(self)
+
+
+## [param pairs] pairs of marks on a star (AotCrew.marks()).
+func aot_marks(code: int, detent: int, pairs: int = 1) -> void:
+	AotCrew.marks(self, code, detent, pairs)
+
+
+## The LM turned to put a star in the AOT's field (AotCrew.put_star()).
+func put_star_in_aot(code: int, detent: int, off: Vector2) -> void:
+	AotCrew.put_star(self, code, detent, off)
 
 
 # --- powered descent: the LM crew -------------------------------------------------
@@ -748,10 +777,12 @@ func dock_contact() -> Dictionary:
 
 
 ## The LM crew's rendezvous from the CSI PAD [param pad] to docking, as
-## tests/scenarios/test_rendezvous.gd flies it step by step: P20's marks;
-## P32 25 min before CSI and P33 20 min before CDH, each flown on P41; P34
+## tests/scenarios/test_rendezvous.gd flies it step by step: a P52 on two
+## stars they can see (visible_star_pair()), as Apollo 11's crew realigned
+## after insertion; P20's marks; P32 25 min before CSI and P33 20 min before CDH, each flown on P41; P34
 ## half an hour before TPI and again 12 min before it, and P41; P35 before
-## each midcourse correction; braking by the gates; and Collins docking.
+## each midcourse correction, burned where Eagle is; braking by the gates;
+## and Collins docking.
 ## With the descent stage still on (an abort on the descent engine), CSI,
 ## CDH and TPI burn on it (P40) when they need more than a few m/s.
 ## Returns the burns' sensed ΔV ("csi", "cdh", "tpi", "tpm" their sum, m/s),
@@ -763,6 +794,7 @@ func fly_rendezvous(pad: Dictionary) -> Dictionary:
 		if rt.dynamics.lm.config == "lm" and _vg_stored(lgc) > 3.0:
 			return fly_lm_pad(40, 2, Callable(), false)
 		return fly_lm_pad(41, 0, Callable(), false)
+	lm_realign(visible_star_pair())
 	keys("V37E20E", lgc)
 	run(float(pad["tig"]) - 1500.0 - SimClock.get_seconds)
 	keys("V37E32E", lgc)
@@ -787,7 +819,7 @@ func fly_rendezvous(pad: Dictionary) -> Dictionary:
 	for after in rt.mission.section("rendezvous")["tpm_after_tpi_s"]:
 		run(float(out["tpi_tig"]) + float(after) - 300.0 - SimClock.get_seconds)
 		keys("V37E35EP", lgc)
-		out["tpm"] += fly_lm_pad(41, 0, Callable(), false)
+		out["tpm"] += fly_lm_pad(41, 0, Callable(), false, 900.0, true)
 	out["braked"] = lm_brake(1800.0)
 	face_x(true, func() -> Vector3: return Rendezvous.rel_pos(rt.dynamics.lm.traj, rt.dynamics.traj).normalized())
 	face_x(false, func() -> Vector3: return Rendezvous.rel_pos(rt.dynamics.traj, rt.dynamics.lm.traj).normalized())

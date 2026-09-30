@@ -51,7 +51,9 @@ extends RefCounted
 ##    tumbled, and the ground's calls about them.
 ## 25: Apollo 13's centre engine (slice 10d): the S-II's velocity gain the
 ##    IU has sensed and its command to shift the mixture ratio on it.
-const SCHEMA_VERSION := 25
+## 26: the LGC's platform (slice 11a): its P52 on the alignment optical
+##    telescope, TLAND, the AOT's detent, and the LM's IMU real.
+const SCHEMA_VERSION := 26
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],
@@ -80,6 +82,7 @@ const LM_SYSTEMS := [
 	["aps", "res://src/systems/aps.gd"],
 	["lr", "res://src/systems/landing_radar.gd"],
 	["rr", "res://src/systems/rendezvous_radar.gd"],
+	["aot", "res://src/systems/aot.gd"],
 	["lm_cw", "res://src/systems/lm_caution_warning.gd"],
 ]
 ## Crew control defaults: CMC attitude source, HOLD, SPS disarmed, UP TLM
@@ -89,7 +92,8 @@ const LM_SYSTEMS := [
 ## systems open, the PGNS's breakers in and its guidance in control, the
 ## AGS off, the TTCA's throttle at its minimum, the rendezvous radar's mode
 ## switch at AUTO TRACK (0 LGC, 1 AUTO TRACK, 2 SLEW), where Apollo 11's
-## radar ranging test after DOI left it, and docked, the LM powered down;
+## radar ranging test after DOI left it, the AOT in its front detent, and
+## docked, the LM powered down;
 ## EDS AUTO, 2 ENG OUT and LV RATES on, as the launch has them, the abort
 ## handle at neutral; the LM's ABORT out; SCE PWR at NORM.
 const CONTROL_DEFAULTS := {
@@ -111,6 +115,7 @@ const CONTROL_DEFAULTS := {
 	"ctl.lm.eng_start": false, "ctl.lm.eng_stop": false, "ctl.lm.rod": 0,
 	"ctl.lm.power": false, "ctl.lm.pgns": true, "ctl.lm.ags": false, "ctl.lm.ags_align": false, "ctl.lm.guid_cont": 0,
 	"ctl.lm.throttle": 0.1, "ctl.lm.rr_mode": 1, "ctl.lm.abort": false, "ctl.lm.cw.master_alarm": false,
+	"ctl.lm.aot.detent": 2, "ctl.lm.aot.mark_x": false, "ctl.lm.aot.mark_y": false, "ctl.lm.aot.reject": false,
 }
 
 var mission: Mission

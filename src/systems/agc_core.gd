@@ -22,7 +22,12 @@
 ##        is steered onto it until the last STEER_OFF_S. The LGC holds the
 ##        N81 direction in the rotating LVLH frame [simplified: Luminary's
 ##        External ΔV steered as Colossus's]. An RCS program (P41) burns +X
-##        translation instead of an engine
+##        translation instead of an engine; or, ENTER at V50N18 (R60's "no
+##        maneuver"), where the vehicle is, V16N85's residuals nulled by
+##        translation along each body axis, as the LM's crews burned their
+##        midcourse corrections on the translation controller (Luminary's
+##        P41 "displays parameters for manual control") [simplified: the
+##        computer works the controller]
 ##   P47  Thrust monitor (manual burns): V16N83 body ΔV
 ##   V05N09 the program alarms' codes (the first, the second and the last
 ##   since RSET, which clears them), V06/V16 display/monitor, V21-V25
@@ -45,9 +50,9 @@
 ## member. While the IMU is in coarse align or caged NO ATT lights and the
 ## DAP only damps the rates. A thrusting program needs the IMU's
 ## orientation known (alarm 00220), and won't maneuver to a burn attitude
-## past LOCK_MANEUVER_DEG of middle gimbal (alarm 00401): P52 to the
+## past lock_alarm_deg() of middle gimbal (alarm 00401): P52 to the
 ## preferred orientation first. Each auto maneuver is planned clear of
-## gimbal lock on the way (_plan_via()). The LGC's IMU is ideal
+## gimbal lock on the way (_plan_via()). Both computers' IMUs are real
 ## (real_imu()).
 ##
 ## Digital autopilot, from the computer's mode switch:
@@ -79,6 +84,9 @@ const ATT_DEADBAND := 0.00873     ## rad, 0.5°
 ## Cross-product steering stops, the attitude held, once the time to go is
 ## under this, s (Colossus's S40.81).
 const STEER_OFF_S := 4.0
+## A burn in place ends with the velocity to be gained under this, m/s: a
+## tenth of a foot per second, as the crews trimmed N85 [estimated].
+const IN_PLACE_DONE_MPS := 0.03
 ## The rate the hold nulls down to before it leaves the jets off, rad/s:
 ## the attitude moves about 0.02° an hour on what is left.
 const REST_RATE := 1e-7
@@ -119,6 +127,9 @@ var engine_enabled: bool = false
 var engine_on: bool = false
 ## An RCS program's +X translation in progress.
 var rcs_burn: bool = false
+## P41 burned where the vehicle is (ENTER at V50N18): VG drawn down whole,
+## the translation along it in body axes.
+var burn_in_place: bool = false
 var burn_dir: Vector3 = Vector3.RIGHT
 ## GET the engine was commanded on, for a throttle schedule.
 var ignition_get: float = -1.0
@@ -455,16 +466,25 @@ func gimbal_angles_of(q: Quaternion) -> Vector3:
 	return Imu.gimbal_angles(imu.refsmmat * Basis(q))
 
 
-## Attitude [param q] puts the middle gimbal past LOCK_MANEUVER_DEG: the
+## The middle gimbal angle past which the auto maneuver won't fly to a
+## burn attitude (alarm 00401), deg: LOCK_MANEUVER_DEG.
+func lock_alarm_deg() -> float:
+	return LOCK_MANEUVER_DEG
+
+
+## Attitude [param q] puts the middle gimbal past lock_alarm_deg(): the
 ## auto maneuver won't fly there (alarm 00401). Never for an ideal IMU.
 func _locks_gimbals(q: Quaternion) -> bool:
-	return not imu.ideal and absf(wrapf(gimbal_angles_of(q).z, -180.0, 180.0)) > LOCK_MANEUVER_DEG
+	return not imu.ideal and absf(wrapf(gimbal_angles_of(q).z, -180.0, 180.0)) > lock_alarm_deg()
 
 
 ## Plan the auto maneuver to auto_target clear of gimbal lock, on a real
-## IMU [aid: the sim's own routing]. The thrust axis (body X) turns the
-## shortest way onto the target's, then the CSM rolls about it, which turns
-## the outer gimbal alone. Where the first leg would take the middle gimbal
+## IMU, as Luminary's KALCMANU planned the LM's: the X axis aligned first,
+## then "a final yaw about X" [adapted: Luminary 099's ATTITUDE MANEUVER
+## ROUTINE re-plans only a turn that would cross the gimbal lock zone, to
+## skim it; this routes every turn]. The thrust axis (body X) turns the
+## shortest way onto the target's, then the vehicle turns about it, which
+## turns the outer gimbal alone. Where the first leg would take the middle gimbal
 ## past LOCK_MANEUVER_DEG, the gimbals turn one at a time instead: the
 ## inner (about the stable member's Y), the middle, then the outer. The
 ## middle gimbal then runs only between its two ends' angles.
@@ -582,6 +602,15 @@ func noun_load(n: int, idx: int, value: float) -> bool:
 
 
 func verb_noun(v: int, n: int) -> bool:
+	if v == 50 and n == 18 and _rcs_program() and step_name == "v50n18":
+		# No maneuver: burn where the vehicle is, holding it there.
+		burn_in_place = true
+		auto_active = false
+		maneuver_vias.clear()
+		hold_q = _att()
+		step_name = "wait"
+		dsky.show(16, 85)
+		return true
 	if v == 41 and n == 20:
 		_v41 = true
 		_coarse_load = icdu()
@@ -679,6 +708,7 @@ func change_program(p: int) -> bool:
 	engine_enabled = false
 	engine_on = false
 	rcs_burn = false
+	burn_in_place = false
 	ignition_get = -1.0
 	maneuver_vias.clear()
 	dsky.set_prog(p)
@@ -775,6 +805,7 @@ func _start_thrusting() -> void:
 	vg_left = maneuver_dv_lvlh.length()
 	dv_accum = 0.0
 	burn_dir = g.normalized()
+	burn_in_place = false
 	auto_target = burn_attitude(burn_dir, p.pos())
 	desired_q = auto_target
 	step_name = "v50n18"
@@ -803,6 +834,8 @@ func burn_attitude(dir: Vector3, r: Vector3 = Vector3.ZERO) -> Quaternion:
 ## rates, not on the cross product's gain]; or along the maneuver's LVLH
 ## direction as the frame rotates.
 func _steer() -> void:
+	if burn_in_place:
+		return
 	if cross_product():
 		var g := Vector3(vg[0], vg[1], vg[2])
 		var a := engine_thrust(program) / maxf(float(Bus.get_value(_ch("dyn.mass_kg"), 30000.0)), 1.0)
@@ -813,6 +846,14 @@ func _steer() -> void:
 		burn_dir = (Trajectory.lvlh_basis(tr.pos(), tr.vel()) * maneuver_dv_lvlh).normalized()
 	auto_target = burn_attitude(burn_dir)
 	desired_q = auto_target
+
+
+## The translation that nulls VG where the vehicle is: along VG in body
+## axes, its largest part at full duty.
+func _in_place_trans() -> Vector3:
+	var b := Basis(_att()).inverse() * Vector3(vg[0], vg[1], vg[2])
+	var m := maxf(absf(b.x), maxf(absf(b.y), absf(b.z)))
+	return b / m if m > 1e-9 else Vector3.ZERO
 
 
 func _vg_mag() -> float:
@@ -878,6 +919,12 @@ func _sense_step(step: Vector3) -> void:
 			# Residual trimming with the RCS works on the VG vector.
 			for i in 3:
 				vg[i] -= step[i]
+		elif burn_in_place:
+			# The whole sensed ΔV draws VG down, and the burn ends as the
+			# residuals null.
+			for i in 3:
+				vg[i] -= step[i]
+			vg_left = _vg_mag() - IN_PLACE_DONE_MPS
 		elif cross_product():
 			# The whole sensed ΔV draws VG down (S40.8, with no b term for
 			# an External ΔV); the time to go runs on its part along the
@@ -1094,7 +1141,10 @@ static func _rate_cmd(err: Vector3, alpha: Vector3, tau: float) -> Vector3:
 func _publish() -> void:
 	Bus.set_value(_ch("guid.program"), program)
 	publish_engine(engine_on and engine_enabled)
-	Bus.set_value(_ch("guid.rcs_trans_cmd"), Vector3(1, 0, 0) if rcs_burn and engine_enabled else Vector3.ZERO)
+	var trans := Vector3.ZERO
+	if rcs_burn and engine_enabled:
+		trans = _in_place_trans() if burn_in_place else Vector3(1, 0, 0)
+	Bus.set_value(_ch("guid.rcs_trans_cmd"), trans)
 	Bus.set_value(_ch("guid.vg_mps"), _vg_mag())
 	Bus.set_value(_ch("guid.maneuver_valid"), maneuver_valid)
 	Bus.set_value(_ch("guid.maneuver_tig"), maneuver_tig)
@@ -1151,7 +1201,7 @@ func snapshot() -> Dictionary:
 		"maneuver_dv": [maneuver_dv_inertial.x, maneuver_dv_inertial.y, maneuver_dv_inertial.z],
 		"maneuver_dv_lvlh": [maneuver_dv_lvlh.x, maneuver_dv_lvlh.y, maneuver_dv_lvlh.z], "vg_left": vg_left,
 		"vg": Array(vg), "dv_accum": dv_accum, "engine_enabled": engine_enabled, "engine_on": engine_on,
-		"ignition_get": ignition_get, "burn_dir": [burn_dir.x, burn_dir.y, burn_dir.z],
+		"ignition_get": ignition_get, "burn_dir": [burn_dir.x, burn_dir.y, burn_dir.z], "in_place": burn_in_place,
 		"auto_active": auto_active, "hold_q": [hold_q.x, hold_q.y, hold_q.z, hold_q.w],
 		"vias": maneuver_vias.map(func(q: Quaternion) -> Array: return [q.x, q.y, q.z, q.w]),
 		"auto_target": [auto_target.x, auto_target.y, auto_target.z, auto_target.w],
@@ -1193,6 +1243,7 @@ func restore(d: Dictionary) -> void:
 	ignition_get = float(d.get("ignition_get", -1.0))
 	var bd: Array = d.get("burn_dir", [1.0, 0.0, 0.0])
 	burn_dir = Vector3(bd[0], bd[1], bd[2])
+	burn_in_place = bool(d.get("in_place", false))
 	auto_active = bool(d["auto_active"])
 	var h: Array = d["hold_q"]
 	hold_q = Quaternion(h[0], h[1], h[2], h[3])

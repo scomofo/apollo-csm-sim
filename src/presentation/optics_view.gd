@@ -57,15 +57,15 @@ static func view_axes_eci(landmark: bool = false) -> Array:
 	return [b * (ax[0] as Vector3), b * (ax[1] as Vector3), b * (ax[2] as Vector3)]
 
 
-## The Earth, the Moon and the Sun from the CSM: [direction (ECI), angular
-## radius (deg), colour] each.
-static func bodies() -> Array:
-	var r: Array = Bus.get_value("dyn.r_m", [Bodies.R_EARTH + 185000.0, 0.0, 0.0])
+## The Earth, the Moon and the Sun from the CSM (or with [param prefix]
+## "lm." the LM): [direction (ECI), angular radius (deg), colour] each.
+static func bodies(prefix: String = "") -> Array:
+	var r: Array = Bus.get_value(prefix + "dyn.r_m", [Bodies.R_EARTH + 185000.0, 0.0, 0.0])
 	var t := float(Bus.get_value("time.get_s", 0.0))
 	var m := Bodies.moon_position(t)
 	var moon := Vector3(m[0], m[1], m[2])
 	var pos := Vector3(r[0], r[1], r[2])
-	var geo := pos if str(Bus.get_value("dyn.primary", "earth")) == "earth" else pos + moon
+	var geo := pos if str(Bus.get_value(prefix + "dyn.primary", "earth")) == "earth" else pos + moon
 	var out := []
 	for b in [[-geo, Bodies.R_EARTH, EARTH], [moon - geo, Bodies.R_MOON, MOON]]:
 		var d: Vector3 = b[0]

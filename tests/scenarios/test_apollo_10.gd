@@ -50,8 +50,9 @@ func _fly(pad: Dictionary, p52: int = 1) -> Vector2:
 ## engine armed at [param arm] (fly_lm_pad()). Returns x the ΔV the LGC
 ## sensed (ft/s), y the engine's time from the ignition command to the
 ## cutoff command (s, to a second), z the DPS's throttle 10 s after
-## ignition and w 35 s after (per cent).
-func _lm_burn(prog: int, arm: int, from_p30: bool = true) -> Vector4:
+## ignition and w 35 s after (per cent). [param in_place] burns P41 where
+## Snoopy is (a midcourse correction).
+func _lm_burn(prog: int, arm: int, from_p30: bool = true, in_place: bool = false) -> Vector4:
 	var lgc := rt.lgc()
 	var box := {"off": -1.0, "ign": -1.0, "t10": -1.0, "t35": -1.0}
 	var dv := fly_lm_pad(prog, arm, func() -> void:
@@ -63,7 +64,7 @@ func _lm_burn(prog: int, arm: int, from_p30: bool = true) -> Vector4:
 			if since >= 35.0 and box["t35"] < 0.0:
 				box["t35"] = float(Bus.get_value("lm.dps.throttle_pct", 0.0))
 		if lgc.step_name in ["tailoff", "post"] and box["off"] < 0.0:
-			box["off"] = SimClock.get_seconds, from_p30, LEAD_S)
+			box["off"] = SimClock.get_seconds, from_p30, LEAD_S, in_place)
 	return Vector4(dv / Units.FT, float(box["off"]) - float(box["ign"]), box["t10"], box["t35"])
 
 
@@ -218,6 +219,20 @@ func test_apollo_10_flies_its_data_from_the_parking_orbit_to_the_splashdown() ->
 	assert_almost_eq(o.x, 62.9, 2.0, "Charlie Brown's apolune")
 	assert_almost_eq(o.y, 57.7, 2.0, "and perilune")
 
+	# Snoopy's first P52 (slice 11a), torqued at 99:20 on stars 33
+	# (Antares) and 25 (Acrux): its star angle difference 0.09° and N93
+	# -0.668, -0.195 and -0.055° (MSC-00126, Table 8.6-II). The platform
+	# stood so at undocking, less the drift since (mission.json
+	# "lgc": first_p52).
+	run(_get_s("99:17:00") - SimClock.get_seconds)
+	var p52 := lm_realign([33, 25])
+	var n93: Vector3 = p52["torque"]
+	rows.append("Snoopy's first P52 | GET %s on stars 33 and 25: N05 %.3f°, N93 %+.3f, %+.3f and %+.3f° | 99:20: 0.09°; −0.668, −0.195 and −0.055°" % [
+		_hms(float(p52["get"])), p52["sad"], n93.x, n93.y, n93.z])
+	assert_almost_eq(n93, Vector3(-0.668, -0.195, -0.055), Vector3.ONE * 0.015, "N93 as flown")
+	assert_lt(float(p52["sad"]), 0.09, "N05 within the flown")
+	assert_lt(rad_to_deg(rt.lgc().imu.misalignment().length()), 0.01, "the platform on the REFSMMAT")
+
 	# DOI on the DPS, 15 s at 10 % and then 40 %: the PAD's 71.3 ft/s at
 	# 99:46:00.89 (Apollo Flight Journal, 98:28:05); flown 71.3 ft/s in 27.4 s
 	# into 60.9 x 8.5 nmi (Table 6-IV).
@@ -311,6 +326,10 @@ func test_apollo_10_flies_its_data_from_the_parking_orbit_to_the_splashdown() ->
 	var pad: Dictionary = sq.pads["csi"]
 	var lgc := rt.lgc()
 	var lm0 := lm.dv_total
+	# The crew's P52 after insertion, before P20's marks, on two stars they
+	# can see [estimated: as Apollo 11's crew flew theirs, the Apollo Flight
+	# Journal, 124:32:44].
+	lm_realign(visible_star_pair())
 	keys("V37E20E", lgc)
 	run(float(pad["tig"]) - 1500.0 - SimClock.get_seconds)
 	keys("V37E32E", lgc)
@@ -339,7 +358,7 @@ func test_apollo_10_flies_its_data_from_the_parking_orbit_to_the_splashdown() ->
 	for after in sq.mission.section("rendezvous")["tpm_after_tpi_s"]:
 		run(tpi_tig + float(after) - 300.0 - SimClock.get_seconds)
 		keys("V37E35EP", lgc)
-		tpm += _lm_burn(41, 0, false).x
+		tpm += _lm_burn(41, 0, false, true).x
 	assert_true(lm_brake(1800.0), "braked to station-keeping")
 	var lm_dv := (lm.dv_total - lm0) / Units.FT
 	face_x(true, func() -> Vector3: return Rendezvous.rel_pos(rt.dynamics.lm.traj, rt.dynamics.traj).normalized())
