@@ -2331,7 +2331,7 @@ attempts (12a-4).
 
 | Slice | Work | Check |
 |---|---|---|
-| 12a Apollo 14 (in progress: its flight, the ABORT switch) | Kitty Hawk's probe failing to capture Antares until the sixth try (a soft dock, and its latches); the CSM's DOI with the LM docked; the abort switch's short, and the keyed workaround that had the LGC ignore it; the landing radar's late lock-on, until its breaker was cycled; the direct rendezvous, TPI in the first revolution after the insertion, without CSI and CDH; Fra Mauro's terrain | Test: as 7a, Antares landing within a set limit of where it came down |
+| 12a Apollo 14 (in progress: its flight, the ABORT switch, the landing radar) | Kitty Hawk's probe failing to capture Antares until the sixth try (a soft dock, and its latches); the CSM's DOI with the LM docked; the abort switch's short, and the keyed workaround that had the LGC ignore it; the landing radar's late lock-on, until its breaker was cycled; the direct rendezvous, TPI in the first revolution after the insertion, without CSI and CDH; Fra Mauro's terrain | Test: as 7a, Antares landing within a set limit of where it came down |
 | 12b Apollo 15 | The J mission's LM, its descent stage heavier and its stay three days; the steep descent past the Apennines; Endeavour's plane changes; Worden's EVA on the way home, the CM depressurised, as an event; the splashdown on two main parachutes, the third having failed | Test: as 7a, Falcon landing within a set limit of Hadley, and the CM coming down on two parachutes at the flown speed |
 | 12c Apollo 16 | Casper's SPS, its secondary yaw gimbal servo oscillating before the circularization, and the landing waved off for about six hours; the flight a day shorter | Test: as 7a, Orion landing about six hours late within a set limit of its site |
 | 12d Apollo 17 | The night launch, Taurus-Littrow's terrain, and the longest stay | Test: as 7a, Challenger landing within a set limit of its site |
@@ -2396,6 +2396,20 @@ own troubles.
   roll, and the crew flew clear of gimbal lock]: after an abort from P63,
   its attitude held to ZOOM, the least turn onto the line of sight ended
   at 89° and caged the platform.
+- **The landing radar.** Done in 12a's third part. The radar's range
+  scale goes low below a slant range of 2,500 ft and high again above
+  2,800 ft, on the range it measures (LMA790-3-LM, p. 2.2-18); in low
+  scale it takes the range only within 3,500 ft and the velocity within
+  about 4,600 ft of altitude (MSC-04112, p. 8-5). The failure catalog's
+  lm_lr_scale switches it to low with nothing measured, as noise at the
+  edge of its range did Antares's 4 min 52 s before PDI, and it can't
+  switch back. Its breaker, PGNS: LDG RDR on panel 11 (a proxy on panel
+  3, and the HUD's LDG RDR CB), brings it back in high scale, the
+  velocity's data good 20 s later and the range's 22 s later (MSC-04112,
+  Table 8-V). Apollo 14's timeline has the low scale at the flown time
+  and Houston's call to cycle the breaker 6 min 16 s after ignition;
+  the crew cycle it and key V57, and its ΔH is about 1,000 ft, as
+  Antares's was. Checkpoints are schema 33.
 
 ## Later, not scheduled
 

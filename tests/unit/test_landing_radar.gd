@@ -1,5 +1,7 @@
 ## The landing radar: slant range to the terrain along its altitude beam,
-## its data-good ranges and its velocity over the turning surface.
+## its data-good ranges and its velocity over the turning surface; its
+## range scale, and its breaker's cycle bringing Apollo 14's back from low
+## scale (slice 12a).
 extends GutTest
 
 const T := 367000.0
@@ -124,3 +126,54 @@ func test_the_beam_meets_the_real_ground() -> void:
 	lr.tick(0.02)
 	assert_almost_eq(float(Bus.get_value("lm.lr.range_m")), r.length() - ground, 1.0, "to the crater's floor")
 	assert_gt(float(Bus.get_value("lm.lr.range_m")), 325.0, "25 m or more below the site's level")
+
+
+func test_in_low_scale_it_takes_the_range_only_within_3500_ft() -> void:
+	# Apollo 14's failure: the scale low with nothing measured.
+	Bus.set_value("lm.guid.lr_antenna", 2)
+	lr.fail("scale")
+	_place(3000.0, _upright())
+	lr.tick(0.02)
+	assert_eq([Bus.get_value("lm.lr.alt_good"), Bus.get_value("lm.lr.vel_good")], [false, false],
+		"at 3,000 m, well within the high scale's range, nothing")
+	assert_true(Bus.get_value("lm.lr.low_scale"), "and the scale stays low")
+	_place(1300.0, _upright())
+	lr.tick(0.02)
+	assert_eq([Bus.get_value("lm.lr.alt_good"), Bus.get_value("lm.lr.vel_good")], [false, true],
+		"at 4,265 ft the velocity, within 4,600 ft of altitude, and not the range")
+	_place(1000.0, _upright())
+	lr.tick(0.02)
+	assert_true(Bus.get_value("lm.lr.alt_good"), "the range within 3,500 ft")
+	assert_false(Bus.get_value("lm.lr.low_scale"), "measured beyond 2,800 ft, the scale goes back to high")
+	_place(700.0, _upright())
+	lr.tick(0.02)
+	assert_true(Bus.get_value("lm.lr.low_scale"), "below 2,500 ft, low again")
+	_place(800.0, _upright())
+	lr.tick(0.02)
+	assert_true(Bus.get_value("lm.lr.low_scale"), "and low still between 2,500 and 2,800 ft")
+	_place(900.0, _upright())
+	lr.tick(0.02)
+	assert_false(Bus.get_value("lm.lr.low_scale"), "high again above 2,800 ft")
+
+
+func test_a_breaker_cycle_brings_it_back_in_high_scale() -> void:
+	Bus.set_value("lm.guid.lr_antenna", 2)
+	lr.fail("scale")
+	_place(6000.0, _upright())
+	lr.tick(0.02)
+	assert_false(Bus.get_value("lm.lr.alt_good"), "in low scale, nothing at 6,000 m")
+	Bus.set_value("ctl.lm.cb_ldg_rdr", false)
+	lr.tick(0.02)
+	assert_false(Bus.get_value("lm.lr.powered"), "the breaker out: the radar off")
+	Bus.set_value("time.get_s", T + 2.0)
+	Bus.set_value("ctl.lm.cb_ldg_rdr", true)
+	lr.tick(0.02)
+	assert_eq([Bus.get_value("lm.lr.powered"), Bus.get_value("lm.lr.low_scale")], [true, false], "back in: high scale")
+	assert_false(Bus.get_value("lm.lr.vel_good"), "its trackers searching")
+	Bus.set_value("time.get_s", T + 22.0)
+	lr.tick(0.02)
+	assert_eq([Bus.get_value("lm.lr.vel_good"), Bus.get_value("lm.lr.alt_good")], [true, false], "the velocity 20 s on")
+	Bus.set_value("time.get_s", T + 24.0)
+	lr.tick(0.02)
+	assert_true(Bus.get_value("lm.lr.alt_good"), "and the range 22 s on")
+	assert_almost_eq(float(Bus.get_value("lm.lr.range_m")), 6000.0, 30.0, "over the Moon that turned under it")

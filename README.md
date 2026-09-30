@@ -250,6 +250,17 @@ ABORT while it reads 70, as Luminary's did:
   the guidance steers; `V25N07E 105E 400E 0E` resets LETABORT, locking
   P70 and P71 out, so an abort now is the AGS's; `V21N01E 1010E 77E`
   puts 63 back, and THROTTLE goes back to MIN.
+- **Apollo 14's landing radar** (lm_lr_scale): its range scale goes to
+  low with nothing measured, where it takes the range only within 3,500
+  ft and the velocity within about 4,600 ft of altitude. Measuring
+  nothing, it can't switch back, and ALT and VEL stay on through the
+  braking phase; by the mission rules, without the radar by 10,000 ft
+  the landing was aborted. LDG RDR (panel 3, standing in for panel 11's
+  breaker, and the HUD's LDG RDR CB) pulled and pushed back in brings it
+  back in high scale: VEL goes out 20 s later and ALT 22 s later, and
+  V57 lets the radar in. Flying Apollo 14, the scale goes low 4 min
+  52 s before PDI, and Houston calls for the breaker's cycle 6 min 16 s
+  after ignition.
 
 The launch vehicle's engines and its guidance platform are on the
 failure catalog. A failure can also be armed a time after a mission
@@ -511,6 +522,8 @@ range zero where the flight moved its clocks 40 min 3 s at 54:54:
   60 nmi at 105:12;
 - the ABORT switch's shorts from 104:16, each called and tapped clear,
   and at 107:34 Houston's workaround, keyed before PDI and after it;
+- the landing radar's scale low from 4 min 52 s before PDI, and Houston's
+  call to cycle its breaker 6 min 16 s after ignition;
 - the PDI PAD and its state vector (105:53), two hours before PDI
   (108:02); GO for Fra Mauro, and noun 69 after throttle-up, keyed as
   Apollo 12's;
@@ -1371,10 +1384,11 @@ Journal and the Apollo Lunar Surface Journal:
 | The separation, and CIRC | 0.8 ft/s radially down; CIRC 105:11:45, 73.4 ft/s into 63.2 × 55.4 nmi | 0.8 ft/s; 105:11:45, 76.2 ft/s on the PAD, into 63.9 × 56.0 nmi |
 | Antares's first P52, on stars 22 and 16 | 104:45:38: N05 0.005°, N93 +0.098, +0.056, −0.017° | 104:46:37: 0.04°; +0.097, +0.062, −0.013° |
 | PDI | the PAD at 105:52:04; 108:00:49, 46,257 ft over the site | the PAD at 105:53:23; 108:02:25, 47,355 ft (the PGNCS's) |
-| The ABORT switch's workaround | MODREG 71 before PDI; the throttle-up by hand at +27.3 s; ZOOMFLAG at +44.5 s, 45,495 ft; LETABORT reset at +66.5 s, 45,197 ft; MODREG 63 at +80.5 s, 45,188 ft | the same keys at the same times; 47,503, 46,996 and 46,459 ft |
+| The ABORT switch's workaround | MODREG 71 before PDI; the throttle-up by hand at +27.3 s; ZOOMFLAG at +44.5 s, 45,495 ft; LETABORT reset at +66.5 s, 45,197 ft; MODREG 63 at +80.5 s, 45,189 ft | the same keys at the same times; 47,503, 46,996 and 46,459 ft |
 | Noun 69 | +2,600 ft 113 s after PDI | +2,800 ft, 112 s after PDI |
-| P64 | 108:08:39 at 8,007 ft, aiming 1,317 ft short of where Antares came down | 108:11:09 at 8,190 ft, aiming 1,350 ft short of the target |
-| The landing | P66 at 108:10:54 at 359 ft, 1,641 ft short; touchdown 108:13:14 on the spot; 1,059 lb of the DPS's propellant left | P66 at 108:13:09 at 360 ft, about 2,200 ft short; 108:15:09; 794 lb |
+| The landing radar | low scale from 4 min 52 s before PDI; its breaker cycled 386 s after PDI, 25,033 ft up; VEL out 21 s later and ALT 23 s later, 20,016 ft up; ΔH 949 ft | low scale from 107:57:34.66; the breaker cycled 384 s after PDI; velocity good 20 s later and range 22 s later, 22,486 ft up; ΔH about 1,000 ft |
+| P64 | 108:08:39 at 8,098 ft, aiming 1,419 ft short of where Antares came down | 108:11:09 at 8,190 ft, aiming 1,350 ft short of the target |
+| The landing | P66 at 108:10:54 at 359 ft, 1,687 ft short; touchdown 108:13:16 on the spot; 1,027 lb of the DPS's propellant left | P66 at 108:13:09 at 360 ft, about 2,200 ft short; 108:15:09; 794 lb |
 | The plane change (LOPC-1) | 117:32:40, N81 −12.1, +359.5, 0; 359.7 ft/s; 62.0 × 56.3 nmi | 117:29:32, N81 −12.9, +370.7, −5.5; 370.8 ft/s; 62.1 × 57.2 nmi on the PAD |
 | The ascent | liftoff 141:43:53, N76 5,542.9 and 31.3 ft/s, −0.12 nmi crossrange, TPI's TIG 142:29:15; 442 s on the APS into 52.6 × 9.2 nmi | 141:45:40, N76 5,542.9 and 31.3 ft/s, −0.3 nmi, TPI 142:30:51; 432.1 s into 51.7 × 8.5 nmi |
 | The tweak | 141:55:13, 9.3 ft/s on the RCS | 141:56:49, 10.3 ft/s |
@@ -1401,6 +1415,12 @@ The table takes these from the flight's figures:
   plane through its end and the site came out 2.5° steeper.
 - DOI's TIG is the pericynthion the simulator's LOI left, 2 min 38 s
   after the flight's, and the landing pass comes round 1 min 18 s early.
+- The landing radar: Houston's call comes at the flight's time after
+  ignition; the simulator's braking runs short of Antares's, so it
+  finds the LM lower, and the radar comes good 2,500 ft lower than
+  Antares's. The ΔH is the radar's first, at the V57, where the flight's
+  first readings ran 13,000 ft long on a side lobe before they settled
+  (MSC-04112, section 14.2.4).
 - The TPI geometry is the tweak's target: 26.6° and 15 nmi below at
   N37's time (MSC-04330, Appendix B).
 - TEI is solved at the flight's TIG for the flown return's inclination,
@@ -1881,7 +1901,7 @@ The unit tests cover:
   armed one on its second; a mission arms its own; the instructor's page
   fails the one it shows; and a failure opens its malfunction procedure.
   Apollo 14's ABORT switch, which no light shows, sets the LGC's abort
-  bit
+  bit, and its landing radar's scale goes low
 - Apollo 11's program alarms (`tests/scenarios/test_program_alarms.gd`),
   slice 9b: the landing flown as its crew flew it, the rendezvous radar's
   switch turned to SLEW, Aldrin's V16N68 for ΔH, and Armstrong's ATT HOLD
@@ -1978,7 +1998,11 @@ The unit tests cover:
   spot 10 m higher
 - The landing radar: its slant range to the ground in both antenna
   positions, over West crater too, its data-good ranges and its velocity
-  over the turning surface
+  over the turning surface; in low scale the range within 3,500 ft and
+  the velocity within 4,600 ft of altitude, the scale low below 2,500 ft
+  and high above 2,800 ft, and a breaker's cycle bringing it back in high
+  scale, its velocity good 20 s later and its range 22 s later (slice
+  12a)
 - The ascent guidance: its targets are a 9 × 45 nmi orbit, it pitches
   over along the track, steers back into the CSM's plane, and its time to
   go is the rocket equation's
@@ -2108,7 +2132,8 @@ The unit tests cover:
   mid-initialization, R47 at V06N16 and the DEDA mid-entry (schema 30),
   and R47's downlist from one taken while it is on (schema 31), and the
   LGC's mode register, its LETABORT and the ABORT switch's short from
-  one taken with MODREG loaded at 71 (schema 32)
+  one taken with MODREG loaded at 71 (schema 32), and the landing radar's
+  low scale and its breaker's cycle (schema 33)
 - The main scene, and in Eagle from `lunar_descent`: its HUD, the keys on
   its LGC or, with G, its DEDA, its two views, its checklist for the
   phase, and L between the vehicles; and the mission it's given, Apollo
@@ -2639,8 +2664,9 @@ The scenario tests fly real segments through the crew interface:
   alone, from the parking orbit to the landing at Fra Mauro: TLI, MCC-2
   onto the hybrid, LOI into the plane over the site, DOI by Kitty Hawk
   with Antares docked, the undocking and CIRC, Antares's P52 after it,
-  and powered descent with noun 69 and Houston's workaround for the ABORT
-  switch keyed at the flown times, P66 flown from 360 ft to the spot
+  and powered descent with noun 69, Houston's workaround for the ABORT
+  switch keyed at the flown times and the landing radar's breaker cycled
+  at Houston's call, P66 flown from 360 ft to the spot
   Antares came down on; then from the surface to the splashdown: Kitty
   Hawk's plane change, the P57 before the liftoff, the direct
   rendezvous's liftoff, tweak and TPI on the ascent engine, docking, LM
@@ -2655,6 +2681,10 @@ The scenario tests fly real segments through the crew interface:
   keyed as flown, ZOOM passes by at 26 s (10 %, the attitude held), the
   commander's throttle-up goes over AUTO, and after it neither the short
   nor ABORT itself stops P63
+- Apollo 14's landing radar (`tests/scenarios/test_apollo_14_landing_radar.gd`),
+  slice 12a: from the lunar_descent start, the range scale low 4 min
+  52 s before PDI; with the breaker left in at Houston's call, ALT and
+  VEL are still on at 10,000 ft, where the mission rules called an abort
 
 `tools/screenshot.tscn` renders the images above (`--view=0` window,
 `1` chase, `2` cabin; `--hud=0` leaves the HUD out, `--menu=1` shows the
@@ -2762,6 +2792,7 @@ CSI, CDH and TPI solutions, keyed on the DEDA (slice 11e). That finishes
 the LM's navigation. Of Apollo 14 to 17 (milestone 12), Apollo 14 flies
 from its data alone (slice 12a): AS-509 from the pad, DOI by Kitty Hawk
 with Antares docked, the landing at Fra Mauro, and the first direct
-rendezvous, TPI on the ascent engine in the first revolution; its
-failures, the ABORT switch's short and the landing radar's scale, and
-the docking's six attempts are still to come.
+rendezvous, TPI on the ascent engine in the first revolution. Its
+troubles come with it: the ABORT switch's short and Houston's workaround
+keyed on the DSKY, and the landing radar's low scale and its breaker's
+cycle; the docking's six attempts are still to come.

@@ -67,7 +67,9 @@ extends RefCounted
 ## 32: Apollo 14's ABORT switch (slice 12a): the LGC's mode register, its
 ##    LETABORT and ZOOMFLAG and the words the crew loaded, P63's times for
 ##    LETABORT and ZOOM, and the switch's short.
-const SCHEMA_VERSION := 32
+## 33: Apollo 14's landing radar (slice 12a): its range scale, and when it
+##    last came on.
+const SCHEMA_VERSION := 33
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],
@@ -129,7 +131,8 @@ const CONTROL_DEFAULTS := {
 	"ctl.lm.eng_start": false, "ctl.lm.eng_stop": false, "ctl.lm.rod": 0,
 	"ctl.lm.power": false, "ctl.lm.pgns": true, "ctl.lm.ags": false, "ctl.lm.ags_align": false, "ctl.lm.guid_cont": 0,
 	"ctl.lm.throttle": 0.1, "ctl.lm.rr_mode": 1, "ctl.lm.rr_slew_shaft": 0, "ctl.lm.rr_slew_trunnion": 0,
-	"ctl.lm.rr_slew_rate": 1, "ctl.lm.abort": false, "ctl.lm.panel_tap": false, "ctl.lm.cw.master_alarm": false,
+	"ctl.lm.rr_slew_rate": 1, "ctl.lm.abort": false, "ctl.lm.panel_tap": false, "ctl.lm.cb_ldg_rdr": true,
+	"ctl.lm.cw.master_alarm": false,
 	"ctl.lm.aot.detent": 2, "ctl.lm.aot.mark_x": false, "ctl.lm.aot.mark_y": false, "ctl.lm.aot.reject": false,
 	"ctl.lm.aot.reticle": 0,
 }

@@ -255,9 +255,11 @@ func test_apollo_14_flies_its_data_and_lands_at_fra_mauro() -> void:
 	# the track: the PAD 2 h 9 min before PDI, 108:02:24.61 (Apollo Lunar
 	# Surface Journal, 105:53:23); Antares 47,355 ft up at ignition (the
 	# PGNCS's). The ground's noun 69, plus 2,800 ft (108:04:18), keyed in
-	# (V21N69), and V57 when the landing radar's altitude comes good
-	# [simplified: Antares's radar, which came good only after its breaker
-	# was cycled, is slice 12a's third part]. The crew fly Houston's
+	# (V21N69). The landing radar's range scale went to low 4 min 52 s
+	# before PDI (the timeline), and ALT and VEL stay on until Houston's call
+	# to cycle its breaker, 6 min 16 s after ignition (LandingRadarCrew);
+	# V57 when its altitude comes good (MSC-04112, Table 8-V; the Apollo
+	# Lunar Surface Journal). The crew fly Houston's
 	# workaround for the ABORT switch at the flown times (AbortSwitchCrew):
 	# the throttle-up by hand at 27.3 s, the steering from 44.5 s, at 47,503
 	# ft, P70 and P71 locked out at 66.5 s, at 46,996 ft, and MODREG 63 at
@@ -289,6 +291,14 @@ func test_apollo_14_flies_its_data_and_lands_at_fra_mauro() -> void:
 		for ev: Array in AbortSwitchCrew.FLOWN.slice(1, 4):
 			if not seen.has(ev[1]) and since >= float(ev[0]):
 				seen[ev[1]] = lm.traj.radius() - site.length()
+		if not seen.has("lr_call") and str(Bus.get_value("mission.capcom", "")).contains(LandingRadarCrew.CALL):
+			seen["low_scale_at_call"] = bool(Bus.get_value("lm.lr.low_scale", false))
+			seen["alt_lamp_at_call"] = bool(Bus.get_value("lm.dsky.lamp.alt", false))
+		if LandingRadarCrew.cycle_breaker(seen) and not seen.has("lr_pushed_h"):
+			seen["lr_pushed_h"] = lm.traj.radius() - site.length()
+		for k: String in ["vel", "alt"]:
+			if not seen.has("lr_" + k) and bool(Bus.get_value("lm.lr.%s_good" % k, false)):
+				seen["lr_" + k] = [SimClock.get_seconds, lm.traj.radius() - site.length()]
 		permit_lr_updates(lgc, seen)
 		if sq.pads.has("n69") and not seen.has("n69"):
 			var ft := float(sq.pads["n69"]["dz_ft"])
@@ -331,8 +341,13 @@ func test_apollo_14_flies_its_data_and_lands_at_fra_mauro() -> void:
 	rows.append("PDI | the PAD at %s; GET %s, %.0f ft over the site | the PAD at 105:53:23; 108:02:25, 47,355 ft (the PGNCS's)" % [
 		_hms(t_pad), _hms(t_pdi), h_pdi / Units.FT])
 	rows.append("The ABORT switch's workaround | MODREG 71 before PDI; the throttle-up by hand at +27.3 s; ZOOMFLAG at +44.5 s, %.0f ft; LETABORT reset at +66.5 s, %.0f ft; MODREG 63 at +80.5 s, %.0f ft | 47,503, 46,996 and 46,459 ft" % h_keyed)
-	rows.append("Noun 69 and the landing radar | %+.0f ft %.0f s after PDI; ΔH %.0f ft at %.0f ft | +2,800 ft (108:04:18, 112 s after PDI)" % [
-		float(seen["n69"]), float(seen["n69_after"]), float(seen["dh0"]) / Units.FT, float(seen["dh0_agl"]) / Units.FT])
+	rows.append("Noun 69 | %+.0f ft %.0f s after PDI | +2,800 ft (108:04:18, 112 s after PDI)" % [float(seen["n69"]), float(seen["n69_after"])])
+	var pushed := float(seen["lr_pushed"])
+	var lr_alt: Array = seen["lr_alt"]
+	rows.append(("The landing radar | low scale from 4 min 52 s before PDI; its breaker cycled %.0f s after PDI, %.0f ft up; VEL out %.0f s on"
+		+ " and ALT %.0f s on, %.0f ft up; ΔH %.0f ft | low scale from 107:57:34.66; cycled 108:08:50.66, 384 s after PDI; velocity good 20 s on"
+		+ " and range 22 s on, 22,486 ft up; ΔH about 1,000 ft") % [pushed - t_pdi, float(seen["lr_pushed_h"]) / Units.FT,
+		float(seen["lr_vel"][0]) - pushed, float(lr_alt[0]) - pushed, float(lr_alt[1]) / Units.FT, float(seen["dh0"]) / Units.FT])
 	rows.append("P64 | GET %s at %.0f ft, aiming %.0f ft short of where Antares came down | 108:11:09 at 8,190 ft, aiming 1,350 ft short of the target" % [
 		_hms(t_p64), h_p64 / Units.FT, _apart(auto_aim, spot) / Units.FT])
 	rows.append("The landing | P66 at %s at %.0f ft, %.0f ft short; touchdown %s, %.0f ft from where Antares came down; %.0f lb of the DPS's propellant left | P66 at 108:13:09 at 360 ft, about 2,200 ft short; 108:15:09; 794 lb" % [
@@ -345,6 +360,15 @@ func test_apollo_14_flies_its_data_and_lands_at_fra_mauro() -> void:
 			"%s keyed at the flown height, as PDI's" % ["ZOOMFLAG", "LETABORT", "MODREG 63"][i])
 	assert_almost_eq(float(seen["n69"]), 2800.0, 800.0, "noun 69, the landing site's move downrange")
 	assert_almost_eq(float(seen["n69_after"]), 112.0, 2.0, "after throttle-up")
+	assert_true(rt.failures.active.has("lm_lr_scale"), "the landing radar's scale went low before PDI")
+	assert_eq([seen["low_scale_at_call"], seen["alt_lamp_at_call"]], [true, true], "still low, ALT on, at Houston's call")
+	# The crew and the radar looked at each second, the radar powered a
+	# step after the push.
+	assert_between(pushed - float(seen["lr_call"]), LandingRadarCrew.PUSH_S, LandingRadarCrew.PUSH_S + 1.0, "the breaker cycled at Houston's call")
+	assert_between(float(seen["lr_vel"][0]) - pushed, 20.0, 21.1, "the velocity's data good 20 s on")
+	assert_between(float(lr_alt[0]) - pushed, 22.0, 23.1, "and the range's 22 s on")
+	assert_almost_eq(float(lr_alt[1]) / Units.FT, 22486.0, 3000.0, "the radar's altitude good where Antares's was")
+	assert_almost_eq(float(seen["dh0"]) / Units.FT, 1000.0, 500.0, "ΔH about 1,000 ft")
 	assert_eq(seen["programs"], [63, 64], "braking, then the approach")
 	assert_almost_eq(t_p64, _get_s("108:11:09"), 180.0, "P64's time")
 	assert_almost_eq(h_p64 / Units.FT, 8190.0, 800.0, "P64's height")
