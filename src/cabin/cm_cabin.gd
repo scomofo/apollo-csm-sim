@@ -92,6 +92,7 @@ func _init() -> void:
 	name = "CmCabin"
 	basis = Frames.BODY_TO_GODOT
 	_build_vessel()
+	_build_window_reveals()
 	_build_couches()
 	_build_panels()
 	_build_lights()
@@ -165,6 +166,44 @@ func _build_vessel() -> void:
 	_revolve("ForwardHatch", Vector2(TUNNEL_X, TUNNEL_R), Vector2(TUNNEL_X, 0.0), 1, bulkhead, false)
 
 
+## The pressure shell cannot end in a paper-thin edge at a window.  A dark
+## gasket behind a raised aluminium retainer gives every opening thickness,
+## a readable silhouette, and highlights as the spacecraft turns in sunlight.
+## The rectangular retainers follow the tangent plane of the conical wall;
+## rendezvous windows remain an approximation until dimensioned outlines are
+## available, but their aperture and all five sourced locations are unchanged.
+func _build_window_reveals() -> void:
+	var frame := CabinMaterials.get_material("window_frame")
+	var seal := CabinMaterials.get_material("window_seal")
+	for window_name in WINDOWS:
+		var window: Dictionary = WINDOWS[window_name]
+		var ext: Vector2 = window["x"]
+		var x := (ext.x + ext.y) * 0.5
+		var half_x := (ext.y - ext.x) * 0.5
+		var phi := deg_to_rad(float(window["phi_deg"]))
+		var r := wall_radius(x) - 0.012
+		var radial := Vector3(0.0, cos(phi), sin(phi))
+		var around := Vector3(0.0, -sin(phi), cos(phi))
+		var axial := Vector3(1.0, 0.0, 0.0)
+		var half_arc := r * deg_to_rad(float(window["half_deg"]))
+		var centre := Vector3(x, radial.y * r, radial.z * r)
+		var axes := Basis(axial, around, radial)
+		var root := Node3D.new()
+		root.name = window_name + "Retainer"
+		add_child(root)
+		# Rubber lies outboard of the metal and remains visible as a dark keyline.
+		_window_ring(root, centre - radial * 0.006, axes, half_x + 0.018, half_arc + 0.018, 0.022, seal)
+		_window_ring(root, centre - radial * 0.013, axes, half_x + 0.010, half_arc + 0.010, 0.018, frame)
+
+
+func _window_ring(parent: Node3D, centre: Vector3, axes: Basis, half_x: float, half_y: float,
+		width: float, material: Material) -> void:
+	_box(parent, "Top", centre + axes.y * half_y, Vector3(half_x * 2.0, width, 0.014), axes, material)
+	_box(parent, "Bottom", centre - axes.y * half_y, Vector3(half_x * 2.0, width, 0.014), axes, material)
+	_box(parent, "Left", centre - axes.x * half_x, Vector3(width, half_y * 2.0, 0.014), axes, material)
+	_box(parent, "Right", centre + axes.x * half_x, Vector3(width, half_y * 2.0, 0.014), axes, material)
+
+
 ## A surface of revolution about +X between profile points (x, r), cut
 ## where the windows are when [param cut].
 func _revolve(node_name: String, a: Vector2, b: Vector2, steps: int, mat: Material, cut: bool) -> void:
@@ -205,7 +244,7 @@ static func _ring(p: Vector2, phi_deg: float) -> Vector3:
 
 func _build_couches() -> void:
 	var pad := CabinMaterials.get_material("couch")
-	var frame := CabinMaterials.get_material("bulkhead")
+	var frame := CabinMaterials.get_material("couch_frame")
 	var names := ["CouchLeft", "CouchCentre", "CouchRight"]
 	for i in COUCH_Y.size():
 		var y: float = COUCH_Y[i]
