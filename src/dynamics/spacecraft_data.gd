@@ -13,6 +13,9 @@
 ## and the LM's, while it flies free of the CSM:
 ##   lm         the whole LM
 ##   lm_ascent  its ascent stage, after staging
+## and, where a mission flies transposition and docking (slice 12a), the
+## CSM's target between CSM/LV SEP and the docking:
+##   lm_sivb    the LM in the S-IVB's adapter, with the S-IVB
 ## A mission that carries no LM (mission.json "vehicles": mass.payload_kg,
 ## Apollo 8's test article) flies stack, then csm after CSM/LV SEP.
 ##

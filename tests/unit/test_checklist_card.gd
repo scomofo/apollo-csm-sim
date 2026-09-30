@@ -35,7 +35,7 @@ func _step_texts(card: ChecklistCard) -> PackedStringArray:
 
 
 func test_the_book_opens_by_phase_cycles_and_acknowledges() -> void:
-	assert_eq(book.lists.size(), 15, "six for the flight, nine malfunction procedures")
+	assert_eq(book.lists.size(), 16, "six for the flight, ten malfunction procedures")
 	book.select_for_phase("translunar_coast")
 	assert_eq(book.list().title, "SPS burn (P30 / P40)")
 	var w := book.window()
@@ -141,7 +141,7 @@ func test_every_step_names_a_cabin_control_or_one_writes_its_check() -> void:
 				assert_ne(id, "", "%s: a cabin control writes %s" % [s["text"], channel])
 			if id != "":
 				framed += 1
-	assert_eq(framed, 57, "43 of the flight's steps point at a cabin control, and 14 of the malfunction procedures'")
+	assert_eq(framed, 58, "43 of the flight's steps point at a cabin control, and 15 of the malfunction procedures'")
 
 
 func test_every_apollo_8_step_names_a_cabin_control_or_one_writes_its_check() -> void:
@@ -157,7 +157,7 @@ func test_every_apollo_8_step_names_a_cabin_control_or_one_writes_its_check() ->
 				assert_ne(id, "", "%s: a cabin control writes %s" % [s["text"], channel])
 			if id != "":
 				framed += 1
-	assert_eq(framed, 64, "50 of Apollo 8's steps point at a cabin control, and 14 of the malfunction procedures'")
+	assert_eq(framed, 65, "50 of Apollo 8's steps point at a cabin control, and 15 of the malfunction procedures'")
 
 
 func test_every_apollo_10_step_names_a_control_or_one_writes_its_check() -> void:
@@ -178,7 +178,7 @@ func test_every_apollo_10_step_names_a_control_or_one_writes_its_check() -> void
 					assert_ne(id, "", "%s: a cabin control writes %s" % [s["text"], channel])
 				if id != "":
 					framed[1 if lm else 0] += 1
-	assert_eq(framed, [65, 88], "Charlie Brown's and Snoopy's steps that point at a cabin control (14 and 12 of them the malfunction procedures')")
+	assert_eq(framed, [66, 88], "Charlie Brown's and Snoopy's steps that point at a cabin control (15 and 12 of them the malfunction procedures')")
 
 
 func test_every_apollo_12_step_names_a_control_or_one_writes_its_check() -> void:
@@ -199,7 +199,7 @@ func test_every_apollo_12_step_names_a_control_or_one_writes_its_check() -> void
 					assert_ne(id, "", "%s: a cabin control writes %s" % [s["text"], channel])
 				if id != "":
 					framed[1 if lm else 0] += 1
-	assert_eq(framed, [65, 92], "Yankee Clipper's and Intrepid's steps that point at a cabin control (14 and 12 of them the malfunction procedures')")
+	assert_eq(framed, [66, 92], "Yankee Clipper's and Intrepid's steps that point at a cabin control (15 and 12 of them the malfunction procedures')")
 
 
 func test_every_apollo_14_step_names_a_control_or_one_writes_its_check() -> void:
@@ -220,7 +220,7 @@ func test_every_apollo_14_step_names_a_control_or_one_writes_its_check() -> void
 					assert_ne(id, "", "%s: a cabin control writes %s" % [s["text"], channel])
 				if id != "":
 					framed[1 if lm else 0] += 1
-	assert_eq(framed, [65, 79], "Kitty Hawk's and Antares's steps that point at a cabin control (14 and 12 of them the malfunction procedures')")
+	assert_eq(framed, [66, 79], "Kitty Hawk's and Antares's steps that point at a cabin control (15 and 12 of them the malfunction procedures')")
 
 
 func test_every_eagle_step_names_one_of_its_controls_or_one_writes_its_check() -> void:

@@ -109,7 +109,7 @@ const DESCENT_LEAD_S := 6.0 * 3600.0
 ## The conditions a timeline entry may name ("when") besides a flight
 ## phase (_condition()).
 const CONDITIONS := ["", "separated", "docked", "lm_free", "lm_descent", "lm_landed", "lm_orbit", "docked_ascent",
-	"csm_orbit", "earth_return", "lifeboat"]
+	"csm_orbit", "earth_return", "lifeboat", "tde"]
 ## The PADs a timeline entry may bring ("pad"): request_pad()'s, and for a
 ## maneuver the entry fixes itself (maneuver_pad()) "sep", the CSM's, or
 ## the LM's "phasing" and "insertion".
@@ -556,7 +556,7 @@ func _crew_commands() -> void:
 			match ch:
 				"ctl.seq.csm_sep":
 					if dynamics.config == "stack" and str(Bus.get_value("sivb.state", "")) == "done":
-						_separate()
+						_separate(true)
 				"ctl.seq.undock":
 					if dynamics.undock():
 						_lgc_undocked()
@@ -582,9 +582,15 @@ func _crew_commands() -> void:
 
 ## The probe met the drogue: capture docks the LM again, and the flight
 ## phase is the docked vehicles' from that step (the sequencer ticks
-## before Dynamics).
+## before Dynamics). At transposition and docking the hard dock draws the
+## LM out of the S-IVB's adapter [simplified: at once].
 func _on_docking_contact(contact: Dictionary) -> void:
-	if contact["captured"]:
+	var tde := bool(contact.get("tde", false))
+	if contact["captured"] and tde:
+		_fire("transposition_docking")
+		_say("Houston confirms hard dock and LM extraction. {csm} and {lm} are on their way.")
+		_update_phase()
+	elif contact["captured"]:
 		_fire("docking")
 		_say("Houston copies hard dock. {csm} and {lm} are docked.")
 		_update_phase()
@@ -645,14 +651,21 @@ func _check_insertion() -> void:
 ## CSM/LV SEP: the CSM leaves the S-IVB, and with an LM turns about,
 ## docks with it and draws it out [simplified: transposition, docking and
 ## extraction at once]; without one it flies on alone, the test article
-## left in the adapter.
-func _separate() -> void:
+## left in the adapter. Where the mission flies transposition and docking
+## (mission.json tde_flown) the crew's CSM/LV SEP leaves the CSM free of
+## its target, the LM in the adapter (Dynamics.start_tde()), for the crew
+## to turn about and dock (slice 12a).
+func _separate(crew: bool = false) -> void:
 	Bus.set_value("sivb.prop_kg", 0.0)
 	systems["sivb"].prop_kg = 0.0
 	if not SpacecraftData.carries_lm():
 		dynamics.set_configuration("csm")
 		_fire("csm_lv_sep")
 		_say("Houston copies CSM/LV SEP. {csm}, you're on your own.")
+		return
+	if crew and bool(mission.data.get("tde_flown", false)) and dynamics.start_tde():
+		_fire("csm_lv_sep")
+		_say("Houston copies CSM/LV SEP. {csm}, turn around and dock with {lm}.")
 		return
 	dynamics.set_configuration("csm_lm")
 	_fire("transposition_docking")
@@ -674,6 +687,13 @@ func _automation() -> void:
 		# if the crew has not already separated.
 		if tli_cutoff_get >= 0.0 and now - tli_cutoff_get > float(mission.data.get("tde_delay_s", 3600.0)):
 			_separate()
+	elif dynamics.tde_in_progress() and tli_cutoff_get >= 0.0 \
+			and now - tli_cutoff_get > float(mission.data.get("tde_delay_s", 3600.0)):
+		# The ground's time for the LM's extraction came before the crew
+		# docked [simplified: their docking taken as done].
+		dynamics.finish_tde()
+		_fire("transposition_docking")
+		_say("Houston confirms hard dock and LM extraction. {csm} and {lm} are on their way.")
 	if dynamics.landed and not _has("landing"):
 		_fire("landing")
 	_check_lm_abort()
@@ -1821,7 +1841,7 @@ func _condition(when: String) -> bool:
 	var lm := dynamics.lm
 	var tr := dynamics.traj
 	var in_orbit := tr.primary == "moon" and float(tr.conic()["energy"]) < 0.0
-	var before_landing := lm != null and not lm.landed and not _has("lm_landing")
+	var before_landing := lm != null and lm.config != "lm_sivb" and not lm.landed and not _has("lm_landing")
 	var ok := true
 	match when:
 		"separated":
@@ -1851,6 +1871,10 @@ func _condition(when: String) -> bool:
 			ok = tr.primary == "earth" and dynamics.config == "csm" and visited_lunar_orbit
 		"lifeboat":
 			ok = _lifeboat()
+		"tde":
+			# The crew flying transposition and docking, the LM still in the
+			# S-IVB's adapter.
+			ok = dynamics.tde_in_progress()
 	return ok
 
 

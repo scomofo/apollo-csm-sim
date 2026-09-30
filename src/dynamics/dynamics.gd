@@ -15,8 +15,10 @@
 ## channels (dock.*)
 ## give the ports' relative state (src/dynamics/docking.gd). A contact
 ## between the ports within the capture limits docks the vehicles again;
-## any other contact rebounds. The LM's mass, docked or free, follows its
-## own propellant (its DPS, APS and RCS). The LM can land: CONTACT LIGHT
+## any other contact rebounds. Flying transposition and docking (slice
+## 12a), CSM/LV SEP leaves the CSM free of the LM on the S-IVB
+## (start_tde()). The LM's mass, docked or free, follows its own
+## propellant (its DPS, APS and RCS). The LM can land: CONTACT LIGHT
 ## when a probe touches the surface, touchdown when the footpads do, and
 ## then it sits on its gear, turning with the Moon, until its engine lifts
 ## it off.
@@ -49,11 +51,14 @@
 ##         guid.bank_auto, ctl.rhc, guid.dap_busy; the LM's lm.dps.thrust_n,
 ##         lm.aps.thrust_n, lm.rcs.force_body, lm.rcs.torque_body,
 ##         lm.dps.prop_kg, lm.aps.prop_kg, lm.rcs.prop_kg, lm.guid.dap_busy,
-##         lm.ags.dap_busy, lm.sys.powered
+##         lm.ags.dap_busy, lm.sys.powered, dock.probe.latches_failed,
+##         dock.probe.retracted
 ## Writes: dyn.* (see publish_state), lm.dyn.* (the free LM's; docked,
 ##         its config, and while its crew has it powered its motion as the
 ##         stack's: primary, r_m, v_mps, att_q, omega, mass_kg, dv_step),
-##         dock.state, dock.range_m,
+##         dock.state (none, docked, free, or tde while the CSM flies free
+##         of the LM in the adapter), dock.seated (the probe held in the
+##         drogue, for DockingProbe's retraction), dock.range_m,
 ##         dock.range_rate_mps, dock.rel_pos, dock.rel_vel (the LM's port
 ##         relative to the CSM's, CSM body axes), dock.misalign_deg,
 ##         dock.contact (the last contact, Docking.contact()),
@@ -73,6 +78,10 @@ signal lm_liftoff(get_s: float)
 ## it happens.
 const PROXIMITY_M := 200.0
 const PROXIMITY_DT := 1.0
+## How far past the drogue's face a probe pushing into it touches it, and
+## how far out of it one held in it under +X may bounce, m [estimated].
+const SEAT_DEPTH_M := 0.5
+const SEAT_GAP_M := 0.05
 ## Above this height over the reference sphere the LM is clear of any
 ## ground (the Moon's highest is 10.8 km).
 const SURFACE_CHECK_M := 11000.0
@@ -117,6 +126,8 @@ var lm_config: String = "lm"
 ## the last step: a contact is where the height crosses zero.
 var _last_axial: float = 0.0
 var _last_lateral: Vector3 = Vector3.ZERO
+## When the probe last touched the drogue, GET s.
+var _contact_get: float = -1.0e9
 
 
 func _ready() -> void:
@@ -374,25 +385,7 @@ func undock() -> bool:
 		return false
 	var p := Docking.params()
 	var m_lm := _lm_mass(lm_config)
-	update_mass()
-	var m := mass
-	var m_csm := m - m_lm
-	var ecl := attitude.eci_from_body()
-	var x := ecl * Vector3.RIGHT
-	var w := ecl * attitude.omega
-	var span := float(p["csm_port_m"]) + Docking.lm_port_m(lm_config)
-	var push := float(p["undock_speed_mps"])
-	# Each centre of mass from the stack's, and its velocity.
-	var off_csm := -x * (span * m_lm / m)
-	var off_lm := x * (span * m_csm / m)
-	var dv_csm := w.cross(off_csm) - x * (push * m_lm / m)
-	var dv_lm := w.cross(off_lm) + x * (push * m_csm / m)
-	var s := traj.s.duplicate()
-	for i in 3:
-		s[i] += off_lm[i]
-		s[3 + i] += dv_lm[i]
-		traj.s[i] += off_csm[i]
-		traj.s[3 + i] += dv_csm[i]
+	var s := _split(m_lm, float(p["csm_port_m"]) + Docking.lm_port_m(lm_config), float(p["undock_speed_mps"]))
 	lm = Vehicle.new("lm", lm_config, m_lm)
 	lm.traj.set_state_d(traj.primary, traj.t, s)
 	lm.attitude.q = (attitude.q * Docking.LM_IN_CSM).normalized()
@@ -406,15 +399,87 @@ func undock() -> bool:
 	return true
 
 
-## Step the free LM under its engines and RCS. On the surface it sits
+## Split the stack into the CSM and a vehicle of [param m_other] kg, its
+## centre of mass [param span] m ahead of the CSM's along +X (behind, for a
+## negative span), each moving as its part did and [param push] m/s apart,
+## momentum conserved. The CSM takes its part; returns the other's state.
+func _split(m_other: float, span: float, push: float = 0.0) -> PackedFloat64Array:
+	update_mass()
+	var m := mass
+	var ecl := attitude.eci_from_body()
+	var x := ecl * Vector3.RIGHT
+	var w := ecl * attitude.omega
+	var off_csm := -x * (span * m_other / m)
+	var off_o := x * (span * (m - m_other) / m)
+	var dv_csm := w.cross(off_csm) - x * (push * m_other / m)
+	var dv_o := w.cross(off_o) + x * (push * (m - m_other) / m)
+	var s := traj.s.duplicate()
+	for i in 3:
+		s[i] += off_o[i]
+		s[3 + i] += dv_o[i]
+		traj.s[i] += off_csm[i]
+		traj.s[3 + i] += dv_csm[i]
+	return s
+
+
+## CSM/LV SEP with transposition and docking flown (slice 12a): the stack
+## splits into the CSM, ahead, and its target, the LM in the S-IVB's
+## adapter (configuration lm_sivb), the IU holding its attitude
+## [simplified: inertially]. Returns false unless the stack is whole.
+func start_tde() -> bool:
+	if config != "stack":
+		return false
+	var m_t := _tde_mass()
+	var s := _split(m_t, -float(Docking.params()["tde_span_m"]))
+	lm = Vehicle.new("lm", "lm_sivb", m_t)
+	lm.traj.set_state_d(traj.primary, traj.t, s)
+	lm.attitude.q = attitude.q
+	lm.attitude.omega = Vector3.ZERO
+	lm_config = "lm"
+	config = "csm"
+	_contact_get = -1.0e9
+	update_mass()
+	_arm_contact()
+	publish_state()
+	return true
+
+
+## The ground's time for the extraction came with the crew not docked:
+## the CSM docks as it is and draws the LM out [simplified]. Returns
+## whether there was a target.
+func finish_tde() -> bool:
+	if not tde_in_progress():
+		return false
+	lm = null
+	lm_config = "lm"
+	set_configuration("csm_lm")
+	publish_state()
+	return true
+
+
+## The CSM flies free of its target, the LM in the S-IVB's adapter.
+func tde_in_progress() -> bool:
+	return lm != null and lm.config == "lm_sivb"
+
+
+## The LM and the S-IVB after TLI, kg: the LM's mass and the S-IVB's dry
+## mass (its propellant left in it at CSM/LV SEP, the sequencer's zero).
+func _tde_mass() -> float:
+	return _lm_mass("lm") + float(SpacecraftData.section("mass")["sivb_dry_kg"]) + float(Bus.get_value("sivb.prop_kg", 0.0))
+
+
+## Step the free LM under its engines and RCS, or the LM on the S-IVB,
+## unpowered, the IU holding their attitude. On the surface it sits
 ## on its gear until its engine's thrust carries it off: thrust that beats
 ## its weight by LIFTOFF_MARGIN for LIFTOFF_S, not an engine tailing off
 ## after touchdown.
 func _step_lm(dt: float) -> void:
 	if lm == null:
 		return
-	lm.mass = _lm_mass(lm.config)
+	lm.mass = _tde_mass() if lm.config == "lm_sivb" else _lm_mass(lm.config)
 	lm.attitude.inertia = SpacecraftData.inertia(lm.config, lm.mass)
+	if lm.config == "lm_sivb":
+		lm.attitude.omega = Vector3.ZERO
 	var thrust := float(Bus.get_value("lm.dps.thrust_n", 0.0)) + float(Bus.get_value("lm.aps.thrust_n", 0.0))
 	if lm.landed:
 		var up := lm.traj.pos().normalized()
@@ -435,6 +500,7 @@ func _step_lm(dt: float) -> void:
 	lm.step(dt, force, Bus.get_value("lm.rcs.torque_body", Vector3.ZERO))
 	_check_surface()
 	_check_contact()
+	_retracted()
 
 
 ## The LM's centre of mass above its footpads on the surface, m (the
@@ -510,27 +576,53 @@ func _arm_contact() -> void:
 
 
 ## A contact is the probe tip reaching the drogue's face during the step,
-## within the strike radius of its centre: within the capture limits it
-## docks the vehicles, otherwise they rebound. The probe passing beside the
-## LM touches nothing.
+## within the strike radius of its centre, or pushing into it at the face
+## (held there under +X): within the capture limits, the capture latches
+## working, it docks the vehicles, otherwise they rebound. The probe
+## passing beside the LM touches nothing. Contacts within contact_repeat_s
+## of the last are one attempt, reported once.
 func _check_contact() -> void:
+	var p := Docking.params()
 	var g := Docking.relative(traj, attitude, lm)
 	var axial: float = g["axial"]
 	var lateral: Vector3 = g["lateral"]
-	if _last_axial > 0.0 and axial <= 0.0 and float(g["closing"]) > 1e-6:
-		var f := _last_axial / (_last_axial - axial)
+	var closing := float(g["closing"])
+	var strike := float(p["strike_radius_m"])
+	var crossed := _last_axial > 0.0 and axial <= 0.0 and closing > 1e-6
+	var pressing := not crossed and _last_axial <= 0.0 and axial <= 0.0 and axial > -SEAT_DEPTH_M \
+		and closing > 1e-6 and lateral.length() <= strike
+	if crossed or pressing:
+		var f := _last_axial / (_last_axial - axial) if crossed else 1.0
 		var miss := _last_lateral.lerp(lateral, f).length()
-		if miss <= float(Docking.params()["strike_radius_m"]):
-			var c := Docking.contact(g, miss)
+		if miss <= strike:
+			var c := Docking.contact(g, miss, bool(Bus.get_value("dock.probe.latches_failed", false)))
+			c["tde"] = lm.config == "lm_sivb"
+			c["get_s"] = traj.t
+			var repeat := traj.t - _contact_get < float(p["contact_repeat_s"])
+			_contact_get = traj.t
 			if c["captured"]:
 				_capture()
 			else:
 				_rebound(g)
-			Bus.set_value("dock.contact", c)
-			docking_contact.emit(c)
+			if c["captured"] or not repeat:
+				Bus.set_value("dock.contact", c)
+				docking_contact.emit(c)
 			return
 	_last_axial = axial
 	_last_lateral = lateral
+
+
+## The probe retracted with the drogue held on it (DockingProbe's
+## dock.probe.retracted): the rings are in and the ring latches fire, hard
+## dock, as Apollo 14's crew docked on the sixth attempt with the capture
+## latches failed (MSC-04112, section 14.1.1).
+func _retracted() -> void:
+	if lm == null or not bool(Bus.get_value("dock.probe.retracted", false)):
+		return
+	var c := {"captured": true, "fault": "", "retract": true, "tde": lm.config == "lm_sivb", "get_s": traj.t}
+	_capture()
+	Bus.set_value("dock.contact", c)
+	docking_contact.emit(c)
 
 
 ## Capture: the vehicles are one again, the stack moving with their joint
@@ -538,6 +630,7 @@ func _check_contact() -> void:
 ## of mass, in the CSM's attitude [simplified: the latches pull the LM
 ## straight].
 func _capture() -> void:
+	var tde := lm.config == "lm_sivb"
 	var m_csm := mass
 	var m_lm := lm.mass
 	var m := m_csm + m_lm
@@ -549,9 +642,18 @@ func _capture() -> void:
 	var h := Vector3(ic.x * attitude.omega.x, ic.y * attitude.omega.y, ic.z * attitude.omega.z)
 	h += to_body * lm.attitude.eci_from_body() * Vector3(il.x * wl.x, il.y * wl.y, il.z * wl.z)
 	h += to_body * Vector3(rel[0], rel[1], rel[2]).cross(Vector3(rel[3], rel[4], rel[5])) * (m_csm * m_lm / m)
-	for i in 6:
-		traj.s[i] += rel[i] * m_lm / m
-	lm_config = lm.config
+	# From the S-IVB the LM is drawn out at once [simplified: Apollo 14's
+	# came 50 min on]: the stack at the CSM's and the LM's centre of mass,
+	# with the momentum the three had.
+	var to := Vector3(rel[0], rel[1], rel[2])
+	var k := m_lm / m
+	if tde:
+		to += lm.attitude.eci_from_body() * Vector3(Docking.lm_port_m("lm_sivb") - Docking.lm_port_m("lm"), 0.0, 0.0)
+		k = _lm_mass("lm") / (m_csm + _lm_mass("lm"))
+	for i in 3:
+		traj.s[i] += to[i] * k
+		traj.s[3 + i] += rel[3 + i] * m_lm / m
+	lm_config = "lm" if tde else lm.config
 	lm = null
 	# The LM's IMU senses nothing more of its own.
 	Bus.set_value("lm.dyn.dv_step", [0.0, 0.0, 0.0])
@@ -582,7 +684,11 @@ func _rebound(g: Dictionary) -> void:
 
 func _publish_docking() -> void:
 	var docked := SpacecraftData.lm_docked(config)
-	Bus.set_value("dock.state", "free" if lm != null else ("docked" if docked else "none"))
+	var state := "docked" if docked else "none"
+	if lm != null:
+		state = "tde" if lm.config == "lm_sivb" else "free"
+	Bus.set_value("dock.state", state)
+	Bus.set_value("dock.seated", false)
 	if lm == null:
 		if docked:
 			Bus.set_value("lm.dyn.config", lm_config)
@@ -599,6 +705,10 @@ func _publish_docking() -> void:
 	Bus.set_value("dock.rel_pos", to_body * d)
 	Bus.set_value("dock.rel_vel", to_body * u)
 	Bus.set_value("dock.misalign_deg", g["misalign_deg"])
+	# The probe held in the drogue, touching it within seated_s.
+	var p := Docking.params()
+	Bus.set_value("dock.seated", float(g["axial"]) < SEAT_GAP_M and (g["lateral"] as Vector3).length()
+		<= float(p["strike_radius_m"]) and traj.t - _contact_get <= float(p["seated_s"]))
 
 
 ## The docked LM's motion, its crew having it powered: the stack's, in the
@@ -844,7 +954,7 @@ func snapshot() -> Dictionary:
 		"omega": [attitude.omega.x, attitude.omega.y, attitude.omega.z],
 		"config": config, "landed": landed, "landed_speed": landed_speed,
 		"bank": bank, "bank_rate": bank_rate, "max_g": max_g, "sensed_dv": Array(sensed_dv),
-		"lm_config": lm_config,
+		"lm_config": lm_config, "contact_get": _contact_get,
 		"vent_force": [vent_force.x, vent_force.y, vent_force.z],
 		"jet_imbalance": [jet_imbalance.x, jet_imbalance.y, jet_imbalance.z],
 	}
@@ -867,6 +977,7 @@ func restore(d: Dictionary, lm_d: Dictionary = {}) -> void:
 	max_g = float(d.get("max_g", 0.0))
 	sensed_dv = PackedFloat64Array(d.get("sensed_dv", [0, 0, 0]))
 	lm_config = str(d.get("lm_config", "lm"))
+	_contact_get = float(d.get("contact_get", -1.0e9))
 	var vf: Array = d.get("vent_force", [0.0, 0.0, 0.0])
 	vent_force = Vector3(vf[0], vf[1], vf[2])
 	var ji: Array = d.get("jet_imbalance", [0.0, 0.0, 0.0])

@@ -1,5 +1,5 @@
 {
- "_comment": "Condensed from Apollo 12's CSM checklists (data/missions/apollo_12/) for Apollo 14's flight: the launch as Apollo 12's, Antares docked from TLI to the undocking, the midcourse corrections on the SPS or the RCS, DOI flown by Kitty Hawk with Antares docked, the separation maneuver after the undocking and Kitty Hawk's circularization (CIRC), the plane change over Antares on the surface, the direct rendezvous, LM JETT and TEI [adapted for this simulator]. Keys: V/N/Enter = VERB/NOUN/ENTR, Space = PRO. control: the cabin control a step is done on (an id in data/cockpit/controls.csv); without it the checklist highlight finds the control that writes the step's check channel. phases: the flight phases (mission.phase) a checklist is for; it opens at the start, and as the crew comes back aboard Kitty Hawk, in one. Antares's are in lm_checklists.json.",
+ "_comment": "Condensed from Apollo 12's CSM checklists (data/missions/apollo_12/) for Apollo 14's flight: the launch as Apollo 12's, transposition and docking flown after TLI and Antares docked from there to the undocking, the midcourse corrections on the SPS or the RCS, DOI flown by Kitty Hawk with Antares docked, the separation maneuver after the undocking and Kitty Hawk's circularization (CIRC), the plane change over Antares on the surface, the direct rendezvous, LM JETT and TEI [adapted for this simulator]. Keys: V/N/Enter = VERB/NOUN/ENTR, Space = PRO. control: the cabin control a step is done on (an id in data/cockpit/controls.csv); without it the checklist highlight finds the control that writes the step's check channel. phases: the flight phases (mission.phase) a checklist is for; it opens at the start, and as the crew comes back aboard Kitty Hawk, in one. Antares's are in lm_checklists.json.",
  "checklists": [
   {
    "title": "Launch",
@@ -125,8 +125,27 @@
      }
     },
     {
-     "text": "CSM/LV SEP: transposition, docking and LM extraction",
+     "text": "CSM/LV SEP: Kitty Hawk off the S-IVB, Antares still on it. +X for about 4 s, away from it",
      "control": "P1_CSM_LV_SEP",
+     "check": {
+      "channel": "dock.state",
+      "op": "eq",
+      "value": "tde"
+     }
+    },
+    {
+     "text": "Transposition: pitch 180 deg (RHC) to face Antares's drogue; null the translation about 50 ft out (THC)"
+    },
+    {
+     "text": "Docking: close at 0.1 to 0.2 ft/s on the HUD's LM RNG and RDOT, the probe into the drogue: capture and hard dock",
+     "check": {
+      "channel": "dock.state",
+      "op": "eq",
+      "value": "docked"
+     }
+    },
+    {
+     "text": "Houston confirms the hard dock; Antares extracted from the S-IVB",
      "check": {
       "channel": "dyn.config",
       "op": "eq",

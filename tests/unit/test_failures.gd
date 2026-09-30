@@ -63,7 +63,7 @@ func test_the_catalog_names_what_the_flight_has() -> void:
 		assert_true(str(f.get("launch", "")) in ["", "abort", "return"], "%s: what the ground does in the launch" % f["id"])
 		for k in ["title", "part", "effect", "expect", "light"]:
 			assert_true(f.has(k), "%s: %s" % [f["id"], k])
-	assert_eq(ids.size(), 26)
+	assert_eq(ids.size(), 27)
 
 
 func test_each_failure_lights_its_caution_sounds_the_master_alarm_and_changes_its_system() -> void:
@@ -216,7 +216,7 @@ func test_the_instructors_page_fails_the_failure_it_shows() -> void:
 	menu.activate("instructor")
 	assert_eq(menu.page, "failures")
 	assert_true(menu.button("fail").is_visible_in_tree())
-	assert_string_contains(menu.choice_label.text, "INSTRUCTOR: FAILURE 1 OF 26")
+	assert_string_contains(menu.choice_label.text, "INSTRUCTOR: FAILURE 1 OF 27")
 	assert_string_contains(menu.choice_label.text, "Cryogenic oxygen tank 2: CRYO PRESS light")
 	assert_string_contains(menu.choice_label.text, "READY")
 	menu.activate("failure_next")
@@ -228,7 +228,7 @@ func test_the_instructors_page_fails_the_failure_it_shows() -> void:
 	menu.activate("failure_prev")
 	menu.activate("failure_prev")
 	menu.activate("failure_prev")
-	assert_string_contains(menu.choice_label.text, "FAILURE 26 OF 26", "round to the last")
+	assert_string_contains(menu.choice_label.text, "FAILURE 27 OF 27", "round to the last")
 	menu.activate("failures_back")
 	assert_eq(menu.page, "flight")
 

@@ -14,18 +14,22 @@
 # their two runs in 25b98e2's CI, and the parts went to twelve with them;
 # test_apollo_14_abort_switch.gd the longer of its two in bfae1f4's, and
 # test_apollo_14_landing_radar.gd the longer of its two in 7cde781's.
+# The parts went to thirteen in slice 12a's fourth part, when on 403d71c's
+# CI a part dealt at 488 s took 10 min 38 s on a runner 1.2 times as slow
+# as the table, test_apollo_10.gd's share 456 s; the files that ran
+# longer there than listed carry the longer of their two runs.
 test_ags.gd 74
-test_apollo_10.gd 370
-test_apollo_10_launch.gd 42
+test_apollo_10.gd 456
+test_apollo_10_launch.gd 50
 test_apollo_12.gd 543
 test_apollo_12_launch.gd 45
 test_apollo_13.gd 165
-test_apollo_13_launch.gd 76
+test_apollo_13_launch.gd 91
 test_apollo_14.gd 170
 test_apollo_14_abort_switch.gd 35
 test_apollo_14_landing_radar.gd 43
-test_apollo_14_launch.gd 42
-test_apollo_14_return.gd 346
+test_apollo_14_launch.gd 48
+test_apollo_14_return.gd 367
 test_apollo_8.gd 190
 test_apollo_8_launch.gd 41
 test_ascent.gd 78
@@ -56,7 +60,7 @@ test_mascons.gd 9
 test_onboard_navigation.gd 143
 test_onboard_state.gd 6
 test_p40_steering.gd 63
-test_program_alarms.gd 105
+test_program_alarms.gd 113
 test_rendezvous.gd 189
 test_tli.gd 35
 test_vr_acceptance_recorder.gd 6

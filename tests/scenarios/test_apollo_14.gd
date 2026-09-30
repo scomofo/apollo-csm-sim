@@ -129,13 +129,14 @@ func test_apollo_14_flies_its_data_and_lands_at_fra_mauro() -> void:
 	assert_almost_eq(p.x, 1979.0, 10.0, "the free return's pericynthion")
 	assert_almost_eq(p.y, _get_s("82:15:19"), 60.0, "and when")
 
-	# CSM/LV SEP, transposition, docking and extraction after the scripted
-	# delay [simplified: the six contacts before Kitty Hawk's latches caught
-	# are slice 12a's fourth part]. MCC-2 on the SPS takes the stack off the
-	# free return: the PAD's 71.4 ft/s at 30:36:07.01, N81 -25.9, +4.4, +66.4
-	# (Apollo Flight Journal, 29:12:22); MCC-4, the PAD's 3.8 ft/s at
-	# 76:58:11.08 (ibid., 76:05:52 updated), after which the pericynthion
-	# was 60.7 nmi up at 82:00:33 (MSC-04112, p. 6-1 and Table 6-V).
+	# CSM/LV SEP, transposition, docking and extraction as the ground takes
+	# them at the flight's extraction, 5:47:14, the crew not having separated
+	# (the six attempts, flown, are test_apollo_14_docking.gd's). MCC-2 on the
+	# SPS takes the stack off the free return: the PAD's 71.4 ft/s at
+	# 30:36:07.01, N81 -25.9, +4.4, +66.4 (Apollo Flight Journal, 29:12:22);
+	# MCC-4, the PAD's 3.8 ft/s at 76:58:11.08 (ibid., 76:05:52 updated), after
+	# which the pericynthion was 60.7 nmi up at 82:00:33 (MSC-04112, p. 6-1 and
+	# Table 6-V).
 	var mcc2 := _await_pad("mcc2_pad", "mcc")
 	assert_eq(rt.dynamics.config, "csm_lm", "Antares docked since the transposition")
 	assert_false(mcc2.is_empty(), "MCC-2")

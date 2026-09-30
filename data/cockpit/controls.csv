@@ -74,6 +74,7 @@ P2_CW_FC_BUS_DISC,MDC2,lamp,FC BUS DISCONNECT,-120,120,0,cw.fc_bus_disconnect,,A
 P2_DSKY,MDC2,dsky,DSKY,0,-50,0,dsky,,AOH G&N,D,implemented,historical
 P2_UP_TLM_CM,MDC2,toggle,UP TLM CM,180,40,0,ctl.cmc.up_tlm,labels=BLOCK|ACCEPT,estimated,D,implemented,historical
 P2_UNDOCK,MDC2,pushbutton,UNDOCK,-200,-180,0,ctl.seq.undock,,AOH §3,D,implemented,proxy
+P2_PROBE_RETRACT,MDC2,pushbutton,PROBE RETRACT,-130,-180,0,ctl.seq.probe_retract,,AOH §3; Apollo 14 AFJ 004:39:02 (RETRACT PRIM 1),D,implemented,proxy
 P3_FC1,MDC3,toggle,FC 1,-200,120,0,ctl.eps.fc1,,AOH §3,D,implemented,proxy
 P3_FC2,MDC3,toggle,FC 2,-130,120,0,ctl.eps.fc2,,AOH §3,D,implemented,proxy
 P3_FC3,MDC3,toggle,FC 3,-60,120,0,ctl.eps.fc3,,AOH §3,D,implemented,proxy

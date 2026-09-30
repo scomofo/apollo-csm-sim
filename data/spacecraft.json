@@ -232,7 +232,9 @@
     "cm_les": {"inertia": [7000.0, 60000.0, 60000.0], "ref_mass_kg": 9600.0, "rcs_pitch_arm_m": 1.6, "rcs_roll_arm_m": 1.4,
       "_source": "The launch escape vehicle, the CM under its tower after an LES abort [estimated]; the escape system turns it (les), not its jets"},
     "lm":     {"inertia": [33000.0, 42000.0, 42000.0], "ref_mass_kg": 15103.0},
-    "lm_ascent": {"inertia": [7000.0, 5000.0, 5000.0], "ref_mass_kg": 4821.0}
+    "lm_ascent": {"inertia": [7000.0, 5000.0, 5000.0], "ref_mass_kg": 4821.0},
+    "lm_sivb": {"inertia": [185000.0, 2000000.0, 2000000.0], "ref_mass_kg": 32300.0,
+      "_source": "The LM in the adapter on the S-IVB after TLI, the CSM's target at transposition and docking: the S-IVB's dry mass and the LM's full [estimated: a rod of 26 m about its middle, and a cylinder of 3.3 m radius about its axis]"}
   },
   "unmodelled": {
     "_source": "Small forces on the CSM that its computer's navigation doesn't model [estimated]: the SM's vents (waste water, fuel cell purges) as a steady force, standard deviation per body axis in N (0.01 N is about 6e-7 m/s^2 on the CSM alone); and the attitude jets' net force from their mismatched thrust and alignment, standard deviation per body axis as a fraction of the force the jets' torque takes. Drawn once for the flight from the mission's seed (mission.json \"dispersions\")",
@@ -262,7 +264,13 @@
     "rate_max_dps": 1.0,
     "strike_radius_m": 1.2,
     "restitution": 0.5,
-    "tunnel_impulse_ns": 3215.0
+    "tunnel_impulse_ns": 3215.0,
+    "_tde": "Transposition and docking, flown (mission.json tde_flown): the LM's drogue from the centre of mass of the LM and the S-IVB, and the CSM's centre of mass from theirs at CSM/LV SEP [estimated from the stack's layout: the S-IVB 17.8 m and the IU 0.9 m under the LM, the drogue 3 m under the SM's aft end, clear of the SPS nozzle]; the probe retracting under +X pulls the rings to the twelve latches 4.9 s on (Apollo 14's sixth attempt: the retract began 6.9 s after contact, the first ring latch fired 11.8 s after it; MSC-04112, Table 14-I) [published]; a probe that touched the drogue within seated_s and is still in it is held in it, and contacts within contact_repeat_s of the last are one attempt [estimated]",
+    "tde_port_m": 10.0,
+    "tde_span_m": 18.5,
+    "retract_s": 4.9,
+    "seated_s": 3.0,
+    "contact_repeat_s": 3.0
   },
   "cm_aero": {
     "_source": "Hypersonic trim CD ~1.29, L/D ~0.30 on 3.91 m diameter [published, rounded]. The entry DAP's roll: at most 20 deg/s, the CM's roll acceleration on two jets 9.1 deg/s^2 (Comanche 055's CM entry DAP constants VM and A) [published]",
