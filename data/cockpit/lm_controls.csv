@@ -21,10 +21,10 @@
 # DSKY; panel 5 ENGINE START and
 # STOP and the rate of descent switch (DES RATE); overhead between the
 # crew the alignment optical telescope (slice 11a): its eyepiece, its
-# detent selector knob and, on its guard, the computer control and reticle
-# dimmer assembly's MARK X, MARK Y and REJECT (retrieved 2026-09-29 from
-# https://www.apollojournals.org/alsj/aot.htm, the Apollo Lunar Module News
-# Reference's description). Every placement
+# detent selector knob, its reticle knob (slice 11b) and, on its guard, the
+# computer control and reticle dimmer assembly's MARK X, MARK Y and REJECT
+# (retrieved 2026-09-29 from https://www.apollojournals.org/alsj/aot.htm,
+# the Apollo Lunar Module News Reference's description). Every placement
 # on its panel is confidence D (estimated). role: historical = the control
 # or display exists in the LM as modelled; proxy = stands in for different
 # LM hardware (LGC MODE for the PGNS mode control's OFF, ATT HOLD and AUTO;
@@ -32,7 +32,7 @@
 # for its valves; a number for a tape meter; LM PWR for the battery feeds
 # and bus ties of the activation, PGNS and AGS for their breakers, AGS
 # ALIGN and DEDA 470 for the DEDA's keys and readout; a screen for the
-# AOT's eyepiece).
+# AOT's eyepiece; a spring-loaded rocker for its reticle knob).
 id,panel,type,label,x_mm,y_mm,rot_deg,channel,params,source,confidence,status,role
 P1_MISSION_TIMER,P1,clock,MISSION TIMER,-40,160,0,time.get_s,,estimated,D,implemented,historical
 P1_RANGE,P1,numeric,RANGE NMI,85,158,0,lm.rr.range_m,converter=m_to_nmi;format=%6.2f;valid_channel=lm.rr.data_good;blank_text=------,estimated,D,implemented,proxy
@@ -73,3 +73,4 @@ AOT_DETENT,AOT,rotary,DETENT,-130,-60,0,ctl.lm.aot.detent,positions=6;labels=LF|
 AOT_MARK_X,AOT,pushbutton,MARK X,130,60,0,ctl.lm.aot.mark_x,,ALSJ AOT (CCRD),D,implemented,historical
 AOT_MARK_Y,AOT,pushbutton,MARK Y,130,0,0,ctl.lm.aot.mark_y,,ALSJ AOT (CCRD),D,implemented,historical
 AOT_REJECT,AOT,pushbutton,REJECT,130,-60,0,ctl.lm.aot.reject,,ALSJ AOT (CCRD),D,implemented,historical
+AOT_RETICLE,AOT,toggle,RETICLE,-130,60,0,ctl.lm.aot.reticle,positions=5;labels=CCW|ccw||cw|CW;values=-2|-1|0|1|2;rest_position=2;momentary_positions=0|1|3|4,ALSJ AOT,D,implemented,proxy

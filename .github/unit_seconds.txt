@@ -4,7 +4,8 @@
 # (27165eb's, on its push and its pull request), whose runners took up to
 # twice as long as each other on a file. A file not listed counts 10 s.
 # Add a new file's time once CI has run it, and measure again when the
-# parts drift apart.
+# parts drift apart. Slice 11b's test_lm_p57.gd, and test_checkpoint.gd,
+# which 11b lengthened, carry estimates until CI measures them.
 test_agc.gd 26
 test_ascent_guidance.gd 1
 test_audio_director.gd 9
@@ -13,7 +14,7 @@ test_cabin_bus.gd 1
 test_cabin_instruments.gd 1
 test_checklist_books.gd 13
 test_checklist_card.gd 2
-test_checkpoint.gd 94
+test_checkpoint.gd 125
 test_cockpit_layout.gd 13
 test_control_library.gd 1
 test_desktop_inspection.gd 1
@@ -38,6 +39,7 @@ test_lightning.gd 15
 test_lm_abort_buttons.gd 39
 test_lm_cabin.gd 1
 test_lm_p52.gd 1
+test_lm_p57.gd 38
 test_lunar_ground.gd 1
 test_main_scene.gd 17
 test_main_scene_xr.gd 3

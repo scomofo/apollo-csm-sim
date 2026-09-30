@@ -157,9 +157,7 @@ func test_every_timeline_entry_is_one_mission_control_can_make() -> void:
 			assert_true(e.has("get") or e.has("after") or e.has("before"), "%s: its time" % what)
 			var when := str(e.get("when", ""))
 			assert_true(when in MissionSequencer.PHASES or when in MissionSequencer.CONDITIONS, "%s: when %s" % [what, when])
-			assert_true(e.has("say") or e.has("pad") or e.has("align"), "%s: a call, a PAD or an alignment" % what)
-			if e.has("align"):
-				assert_eq(str(e["align"]), "lgc", "%s: the LGC's platform aligned" % what)
+			assert_true(e.has("say") or e.has("pad"), "%s: a call or a PAD" % what)
 			if e.has("pad"):
 				assert_true(str(e["pad"]) in MissionSequencer.PAD_KINDS, "%s: pad %s" % [what, e["pad"]])
 			if e.has("n81_ft_s"):
@@ -293,7 +291,7 @@ func test_apollo_13_has_its_own_checklists_for_the_lifeboat() -> void:
 
 ## Slice 7c: Apollo 12's PDI PAD comes half an hour before PDI, before the
 ## lunar_descent start, whose LGC keeps the state vector it brought: off by
-## 4,400 ft along the track at PDI (mission.json "pdi").
+## 4,400 ft along the track and 145 m high at PDI (mission.json "pdi").
 func test_apollo_12s_lunar_descent_keeps_the_pdi_pads_state_vector() -> void:
 	build("lunar_descent", "apollo_12")
 	var sq := rt.sequencer
@@ -302,7 +300,9 @@ func test_apollo_12s_lunar_descent_keeps_the_pdi_pads_state_vector() -> void:
 	run(float(sq.plan["pdi_tig"]) - SimClock.get_seconds)
 	var t := rt.dynamics.lm.traj
 	var err := Trajectory.lvlh_basis(t.pos(), t.vel()).inverse() * (lgc.nav.pos() - t.pos())
-	assert_almost_eq(err, Vector3(1341.1, 0.0, 40.0), Vector3.ONE * 5.0, "the LGC's error at PDI")
+	var e: Array = sq.mission.section("pdi")["state_error_lvlh_m"]
+	assert_almost_eq(e[2], -145.0, 1e-6, "145 m high")
+	assert_almost_eq(err, Vector3(e[0], e[1], e[2]), Vector3.ONE * 5.0, "the LGC's error at PDI")
 	Mission.load_default()
 
 

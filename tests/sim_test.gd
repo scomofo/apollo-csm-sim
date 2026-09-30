@@ -585,6 +585,12 @@ func put_star_in_aot(code: int, detent: int, off: Vector2) -> void:
 	AotCrew.put_star(self, code, detent, off)
 
 
+## The crew's P57 on the surface (AotCrew.surface_align()).
+func surface_align(option: int = 3, technique: int = 3, stars: Array = [], gravity: int = 1, marks: int = 1,
+		torque: bool = true, talign: float = -1.0) -> Dictionary:
+	return AotCrew.surface_align(self, option, technique, stars, gravity, marks, torque, talign)
+
+
 # --- powered descent: the LM crew -------------------------------------------------
 
 ## Aldrin's part: once the landing radar's altitude is good (the ALT lamp

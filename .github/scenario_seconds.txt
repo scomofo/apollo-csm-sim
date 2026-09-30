@@ -8,7 +8,9 @@
 # its platform lengthened are the longer of their two runs in 267c6bd's
 # CI, but test_apollo_12.gd's, which keeps 10c's 505 s: its 318 and
 # 384 s there were on faster runners, and alone in its part it sets that
-# part's time.
+# part's time. Slice 11b's new files, the LM checklists' four (the
+# rendezvous split out of each) and test_ascent.gd, which 11b lengthened,
+# carry estimates, their local times over 1.22, until CI measures them.
 # A file not listed counts 60 s.
 # Add a new file's time once CI has run it, and measure again when the
 # parts drift apart.
@@ -20,7 +22,7 @@ test_apollo_13.gd 180
 test_apollo_13_launch.gd 72
 test_apollo_8.gd 160
 test_apollo_8_launch.gd 39
-test_ascent.gd 60
+test_ascent.gd 70
 test_backups.gd 109
 test_cabin_checklists.gd 231
 test_cabin_mcc.gd 7
@@ -36,8 +38,11 @@ test_launch_aborts.gd 136
 test_lm_aborts.gd 359
 test_lm_alignment.gd 88
 test_lm_burns.gd 57
-test_lm_cabin_checklists.gd 481
-test_lm_checklists.gd 474
+test_lm_cabin_checklists.gd 219
+test_lm_cabin_checklists_rendezvous.gd 304
+test_lm_checklists.gd 213
+test_lm_checklists_rendezvous.gd 296
+test_lm_surface_alignment.gd 72
 test_lunar_mission.gd 121
 test_lunar_timeline.gd 85
 test_mascons.gd 7

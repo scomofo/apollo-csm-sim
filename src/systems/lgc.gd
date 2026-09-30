@@ -41,6 +41,13 @@
 ##        the LGC turning the LM to each, the crew's X and Y marks
 ##        (V54N71), V06N05 and V06N93, as Luminary 099's (src/systems/
 ##        lgc_align.gd)
+##   P57  Lunar surface alignment (slice 11b): options 3 and 4 on
+##        V04N06, the technique on V05N06 (the stored attitude, REFSMMAT
+##        and gravity, two stars, gravity and a star), gravity measured
+##        in two turns of the platform (V06N04), the stars sighted with
+##        the AOT's reticle (R59's detent and V06N79 cursor and spiral),
+##        V06N05 and V06N93, as Luminary 099's (src/systems/lgc_p57.gd).
+##        Only on the surface
 ##   P63  Braking: the ignition algorithm finds TIG, 470 km (ground range)
 ##        before the landing site, then V50N18 auto maneuver, V99 at TIG-5 s,
 ##        26 s at 10 % throttle, and Klumpp's quadratic guidance at full
@@ -196,13 +203,15 @@ const LGC_NOUNS := {
 	55: {"name": "N/E/WT", "c": [["N", "i", 1.0], ["E", "d2", 1.0], ["WT", "d2", 1.0]]},
 	58: {"name": "HP/DVTPI/DVTPF", "c": [["HP", "d1", 1.0 / Dsky.NMI], ["DVTPI", "d1", 1.0 / Dsky.FT], ["DVTPF", "d1", 1.0 / Dsky.FT]]},
 	75: {"name": "DH/DTCDH/DTTPI", "c": [["DH", "d1", 1.0 / Dsky.NMI], ["DTCDH", "mmss", 1.0], ["DTTPI", "mmss", 1.0]]},
-	# P52's (LgcAlign).
+	# P52's (LgcAlign) and P57's (LgcSurfaceAlign).
+	4: {"name": "ANGLE DIFF", "c": [["ANGLE", "d2", 1.0], ["", "blank", 1.0], ["", "blank", 1.0]]},
 	5: {"name": "STAR ANGLE DIFF", "c": [["SAD", "d2", 1.0], ["", "blank", 1.0], ["", "blank", 1.0]]},
-	6: {"name": "OPTION CODE", "c": [["CODE", "o", 1.0], ["OPTION", "o", 1.0], ["", "blank", 1.0]]},
+	6: {"name": "OPTION CODE", "c": [["CODE", "o", 1.0], ["OPTION", "o", 1.0], ["FLAGS", "o", 1.0]]},
 	25: {"name": "CHECKLIST", "c": [["CODE", "o", 1.0], ["", "blank", 1.0], ["", "blank", 1.0]]},
 	34: {"name": "TIME OF EVENT", "c": [["HRS", "hms_h", 1.0], ["MIN", "hms_m", 1.0], ["SEC", "hms_s", 1.0]]},
 	70: {"name": "AOT DETENT/STAR", "c": [["CODE", "o", 1.0], ["", "blank", 1.0], ["", "blank", 1.0]]},
 	71: {"name": "AOT DETENT/STAR", "c": [["CODE", "o", 1.0], ["", "blank", 1.0], ["", "blank", 1.0]]},
+	79: {"name": "CURSOR/SPIRAL/POS", "c": [["CURSOR", "d2", 1.0], ["SPIRAL", "d2", 1.0], ["POS", "i", 1.0]]},
 	89: {"name": "LANDING SITE", "c": [["LAT", "d3", 1.0], ["LONG/2", "d3", 1.0], ["ALT", "d2", 1.0 / Dsky.NMI]]},
 	93: {"name": "TORQUING ANGLES", "c": [["X", "d3", 1.0], ["Y", "d3", 1.0], ["Z", "d3", 1.0]]},
 }
@@ -218,8 +227,9 @@ var pdi_tig: float = 0.0
 ## TLAND: the landing's time, GET s, uplinked with the DOI PAD (P52 option
 ## 4's orientation is the site's at it); 0 until then.
 var tland: float = 0.0
-## P52 (slice 11a).
+## P52 (slice 11a) and P57 (slice 11b).
 var align: LgcAlign
+var surface: LgcSurfaceAlign
 ## Time to go to the phase's target, s.
 var tgo: float = 0.0
 ## The DPS throttle the descent commands, a fraction of full thrust.
@@ -317,6 +327,7 @@ func _init() -> void:
 	super()
 	prefix = "lm."
 	align = LgcAlign.new(self)
+	surface = LgcSurfaceAlign.new(self)
 	dsky.nouns = Dsky.NOUNS.merged(LGC_NOUNS, true)
 	var r := SpacecraftData.section("rendezvous_guidance")
 	rdv_elev = deg_to_rad(float(r["tpi_elevation_deg"]))
@@ -332,7 +343,7 @@ func _ready() -> void:
 
 
 func programs() -> Array:
-	return [0, ASCENT, 20, 30] + RENDEZVOUS + [40, 41, 42, 47, 52] + DESCENT + ABORTS
+	return [0, ASCENT, 20, 30] + RENDEZVOUS + [40, 41, 42, 47, 52, 57] + DESCENT + ABORTS
 
 
 ## Its IMU is a real one (slice 11a).
@@ -667,6 +678,8 @@ func _software_restart(code: int, now: float) -> void:
 func verb_noun(v: int, n: int) -> bool:
 	if program == 52 and ((v == 32 and align.recycle()) or align.enter(v, n)):
 		return true
+	if program == 57 and ((v == 32 and surface.recycle()) or surface.enter(v, n)):
+		return true
 	if v == 57:
 		# Permit landing radar updates.
 		lr_update = true
@@ -696,7 +709,8 @@ func uplink_landing_site(site_mf: Vector3) -> void:
 
 ## P63 needs the landing site and the LM flying free; P64 to P68 come only
 ## from the descent itself. P12 needs the LM on the surface and the CSM's
-## state vector; P70 and P71 come only from the abort pushbuttons.
+## state vector, P57 the surface; P70 and P71 come only from the abort
+## pushbuttons.
 func change_program(p: int) -> bool:
 	if not _restoring and _refused(p):
 		_alarm(1520)
@@ -706,21 +720,24 @@ func change_program(p: int) -> bool:
 
 ## Whether the LGC refuses program [param p] (alarm 1520): P63 without the
 ## landing site or flying docked; P64 to P68 but from the descent; P12 off
-## the surface or without the state vectors; P20 and P32 to P35 on the
-## surface or without them, and P35 too late for its lead; P70 and P71 but
-## from the pushbuttons.
+## the surface or without the state vectors; P57 off the surface; P20 and
+## P32 to P35 on the surface or without them, and P35 too late for its
+## lead; P70 and P71 but from the pushbuttons.
 func _refused(p: int) -> bool:
 	var landed := bool(Bus.get_value("lm.dyn.landed", false))
 	var navs := csm_nav != null and nav != null and _free()
 	var lead := float(SpacecraftData.section("rendezvous_guidance")["tpm_lead_s"])
 	return (p == 63 and (landing_site == Vector3.ZERO or not _free())) or (p in DESCENT and p != 63) \
-		or (p == ASCENT and not (navs and landed)) or ((p == 20 or p in RENDEZVOUS) and not (navs and not landed)) \
+		or (p == ASCENT and not (navs and landed)) or (p == 57 and not landed) \
+		or ((p == 20 or p in RENDEZVOUS) and not (navs and not landed)) \
 		or (p == 35 and rdv_intercept_get <= _now() + lead) or (p in ABORTS and not _abort_request)
 
 
 func start_program(p: int) -> void:
 	if p == 52 and not _restoring:
 		align.start()
+	if p == 57 and not _restoring:
+		surface.start()
 	if p == 63 and not _restoring:
 		_start_p63()
 	if p == ASCENT and not _restoring:
@@ -766,8 +783,11 @@ static func pdi_time(tr: Trajectory, site_mf: Vector3, pdi_range: float) -> floa
 
 
 func proceed() -> void:
-	if program == 52:
-		align.proceed()
+	if program in [52, 57]:
+		if program == 52:
+			align.proceed()
+		else:
+			surface.proceed()
 		_publish_imu()
 		return
 	if program in RENDEZVOUS:
@@ -839,6 +859,7 @@ func extra_step() -> void:
 	_step_get = now
 	_landing_radar(step_dt if program in DESCENT else 0.0)
 	align.step()
+	surface.step()
 	_rendezvous_nav(now)
 	_executive(step_dt, now)
 	_abort_discretes()
@@ -1199,6 +1220,7 @@ func _p12_step(now: float) -> void:
 			if step_name == "wait" and now >= tig_load - 5.0:
 				step_name = "v99"
 				dsky.show(99, 74, true)
+				next = tig_load
 			else:
 				# Coast landing points: TIG-60 s, then TIG-5 s.
 				next = tig_load - 60.0 if now < tig_load - 60.0 else tig_load - 5.0
@@ -1457,6 +1479,8 @@ static func _v3(a: Array) -> Vector3:
 
 func noun_values(n: int) -> Variant:
 	var v: Variant = null
+	if program == 57 and n in [4, 5, 6, 22, 25, 34, 70, 71, 79, 89, 93]:
+		return surface.noun_values(n)
 	if n in [5, 6, 25, 34, 70, 71, 89, 93] or (n == 22 and not _v41):
 		return align.noun_values(n)
 	match n:
@@ -1510,8 +1534,8 @@ func noun_values(n: int) -> Variant:
 ## V24N76: the crew load P12's horizontal velocity and climb targets.
 ## V21N69 (or V22 to V25) in P63 or P64: the landing site correction, m.
 func noun_load(n: int, idx: int, value: float) -> bool:
-	if n in [6, 34, 70, 71] and program == 52:
-		return align.noun_load(n, idx, value)
+	if (program == 52 and n in [6, 34, 70, 71]) or (program == 57 and n in [6, 34, 70, 71, 79]):
+		return align.noun_load(n, idx, value) if program == 52 else surface.noun_load(n, idx, value)
 	if n == 69:
 		var ok := program in [63, 64] and landing_site != Vector3.ZERO
 		if ok:
@@ -1561,6 +1585,7 @@ func snapshot() -> Dictionary:
 	}
 	d["executive"] = executive.snapshot()
 	d["align"] = align.snapshot()
+	d["surface"] = surface.snapshot()
 	d["tland"] = tland
 	d["restarts"] = {"count": restarts, "get": restart_get, "alarm": restart_alarm}
 	d["nav_landed_mf"] = [nav_landed_mf.x, nav_landed_mf.y, nav_landed_mf.z]
@@ -1592,9 +1617,12 @@ func restore(d: Dictionary) -> void:
 	nav_landed_mf = _v3(d.get("nav_landed_mf", [0.0, 0.0, 0.0]))
 	executive.restore(d.get("executive", {}))
 	align.restore(d.get("align", {}))
+	surface.restore(d.get("surface", {}))
 	tland = float(d.get("tland", 0.0))
 	if program == 52:
 		align.show_step()
+	if program == 57:
+		surface.show_step()
 	var rs: Dictionary = d.get("restarts", {})
 	restarts = int(rs.get("count", 0))
 	restart_get = float(rs.get("get", -1.0))

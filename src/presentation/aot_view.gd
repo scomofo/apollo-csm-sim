@@ -4,20 +4,25 @@
 ## (turned against the LM in the side and rear detents, as the flown
 ## field appeared turned). It shows the navigation stars (dots by
 ## magnitude) and the Earth, the Moon and the Sun where they are, from the
-## LM's true attitude and position, and the reticle over them: the Y-line,
-## the X-line and the pair of one-turn spirals from the centre to the
-## Y-line's top [simplified: the spirals are for slice 11b's P57, the
-## reticle's rotation and its counter left out]. In the rear detent (CL)
-## the prism is stowed: nothing shows. With [member names] it names the
-## stars it shows [aid: the flown AOT named none].
+## LM's true attitude and position, and the reticle over them, turned
+## clockwise by the reticle knob (slice 11b): the Y-line, the X-line and
+## the pair of one-turn spirals from the centre to the Y-line's top, each
+## point of them Aot.SPIRAL_RATIO of the reticle's turn back to the
+## Y-line out from the centre [adapted: the pair drawn as a double line
+## either side of that, SPIRAL_GAP_DEG apart], and under it the counter's
+## reading. In the rear detent (CL) the prism is stowed: nothing shows.
+## With [member names] it names the stars it shows [aid: the flown AOT
+## named none].
 ##
 ## Reads: lm.dyn.att_q, lm.dyn.r_m, lm.dyn.primary, time.get_s,
-##        lm.aot.detent, lm.dsky.verb, lm.dsky.noun
+##        lm.aot.detent, lm.aot.reticle_deg, lm.dsky.verb, lm.dsky.noun
 class_name AotView
 extends OpticsView
 
 const DETENT_NAMES := ["", "LEFT FRONT", "FRONT", "RIGHT FRONT", "RIGHT REAR", "CL (STOWED)", "LEFT REAR"]
-const SPIRAL := Color(0.9, 0.35, 0.2, 0.45)
+const SPIRAL := Color(0.9, 0.35, 0.2, 0.6)
+## The spirals' spacing, deg of the field [estimated].
+const SPIRAL_GAP_DEG := 0.25
 
 
 ## The view axes in ECI now: right, up, line of sight.
@@ -35,8 +40,11 @@ func _draw() -> void:
 	draw_circle(c, r, SKY)
 	if detent != Aot.CL:
 		_sky(c, r, aot_axes_eci())
-	_reticle(c, r)
+	var turn := float(Bus.get_value("lm.aot.reticle_deg", 0.0))
+	_reticle(c, r, turn)
 	draw_arc(c, r, 0.0, TAU, 96, RIM, 2.0)
+	draw_string(f, Vector2(size.x - 130.0, size.y - 6.0), "COUNTER %06.2f" % snappedf(turn, 0.01),
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.85, 0.85, 0.85))
 	draw_string(f, Vector2(c.x - r, 14.0), "AOT %d°  DETENT %d %s" % [int(Aot.FIELD_DEG), detent, DETENT_NAMES[detent]],
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 12, RIM)
 	var verb := str(Bus.get_value("lm.dsky.verb", ""))
@@ -76,15 +84,20 @@ func _sky(c: Vector2, r: float, axes: Array) -> void:
 				HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.6, 0.8, 1.0, 0.85))
 
 
-## The reticle: the Y-line up the field, the X-line across it, and the two
-## spirals, each a turn from the centre out to the Y-line's top.
-func _reticle(c: Vector2, r: float) -> void:
-	draw_line(c + Vector2(0.0, -r), c + Vector2(0.0, r), RETICLE, 1.0)
-	draw_line(c + Vector2(-r, 0.0), c + Vector2(r, 0.0), RETICLE, 1.0)
-	for sense in [1.0, -1.0]:
+## The reticle turned [param turn] deg clockwise: the Y-line up the field
+## and down, the X-line across it, and the two spirals, each a turn from
+## the centre out to the Y-line's top.
+func _reticle(c: Vector2, r: float, turn: float) -> void:
+	var k := r / tan(deg_to_rad(Aot.FIELD_DEG) / 2.0)
+	var t := deg_to_rad(turn)
+	var up := Vector2(sin(t), -cos(t))
+	draw_line(c - up * r, c + up * r, RETICLE, 1.0)
+	draw_line(c - up.orthogonal() * r, c + up.orthogonal() * r, RETICLE, 1.0)
+	for side in [-0.5, 0.5]:
 		var pts := PackedVector2Array()
-		for i in 97:
-			var a := TAU * i / 96.0
-			# From the centre out, ending straight up at the rim.
-			pts.append(c + Vector2(sin(a * sense), -cos(a * sense)) * r * (a / TAU))
+		for i in 181:
+			# The reticle's angle back from the Y-line's top, anticlockwise.
+			var psi := TAU * i / 180.0
+			var off := deg_to_rad(maxf(rad_to_deg(psi) * Aot.SPIRAL_RATIO + side * SPIRAL_GAP_DEG, 0.0))
+			pts.append(c + Vector2(sin(t - psi), -cos(t - psi)) * tan(off) * k)
 		draw_polyline(pts, SPIRAL, 1.0)

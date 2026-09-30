@@ -109,9 +109,11 @@ ctl.lm.aot.detent,int,,crew,The AOT's detent selector: 1 left front 2 front 3 ri
 ctl.lm.aot.mark_x,bool,,crew,MARK X: the LGC takes the ICDU angles with the star on the AOT's X-line (P52; momentary)
 ctl.lm.aot.mark_y,bool,,crew,MARK Y: the LGC takes the ICDU angles with the star on the AOT's Y-line (P52; momentary)
 ctl.lm.aot.reject,bool,,crew,REJECT: the LGC drops the last AOT mark (momentary)
+ctl.lm.aot.reticle,int,,crew,The AOT's reticle knob: -2 and -1 turn the reticle anticlockwise fast and slow and 1 and 2 clockwise (slice 11b; spring-loaded)
 lm.aot,group,,aot,The AOT's channels below
 lm.aot.detent,int,,aot,The detent the AOT looks through
 lm.aot.az_deg,float,deg,aot,The detent's azimuth from the LM's +Z toward +Y
+lm.aot.reticle_deg,float,deg,aot,The reticle counter: the reticle's angle clockwise from the Y-line up the field (slice 11b)
 lm.guid.indicator.attitude,quat,,lgc,Eagle's FDAI attitude: body relative to LVLH
 lm.contact_light,bool,,dynamics,LUNAR CONTACT: a landing probe touches the surface
 lm.dps.throttle_pct,float,%,dps,Descent engine thrust

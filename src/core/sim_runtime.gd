@@ -53,7 +53,10 @@ extends RefCounted
 ##    IU has sensed and its command to shift the mixture ratio on it.
 ## 26: the LGC's platform (slice 11a): its P52 on the alignment optical
 ##    telescope, TLAND, the AOT's detent, and the LM's IMU real.
-const SCHEMA_VERSION := 26
+## 27: P57 on the surface (slice 11b): its option, technique, gravity
+##    vectors and stored attitude, R59's star and the surface marks, and
+##    the AOT's reticle.
+const SCHEMA_VERSION := 27
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],
@@ -116,6 +119,7 @@ const CONTROL_DEFAULTS := {
 	"ctl.lm.power": false, "ctl.lm.pgns": true, "ctl.lm.ags": false, "ctl.lm.ags_align": false, "ctl.lm.guid_cont": 0,
 	"ctl.lm.throttle": 0.1, "ctl.lm.rr_mode": 1, "ctl.lm.abort": false, "ctl.lm.cw.master_alarm": false,
 	"ctl.lm.aot.detent": 2, "ctl.lm.aot.mark_x": false, "ctl.lm.aot.mark_y": false, "ctl.lm.aot.reject": false,
+	"ctl.lm.aot.reticle": 0,
 }
 
 var mission: Mission

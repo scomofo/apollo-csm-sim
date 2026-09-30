@@ -141,6 +141,8 @@ var _mark_held: bool = false
 var _reject_held: bool = false
 ## The AOT's MARK X, MARK Y and REJECT keys, held.
 var _aot_held: Array[bool] = [false, false, false]
+## The AOT's reticle keys' command (ctl.lm.aot.reticle).
+var _reticle_held: int = 0
 ## The flight phase the flight started in.
 var _first_phase: String = ""
 ## The GET the flight started at.
@@ -589,6 +591,15 @@ func _process(_delta: float) -> void:
 		if aot[i] != _aot_held[i]:
 			_aot_held[i] = aot[i]
 			Bus.set_value(["ctl.lm.aot.mark_x", "ctl.lm.aot.mark_y", "ctl.lm.aot.reject"][i], aot[i])
+	# And , and . turn its reticle anticlockwise and clockwise, Shift
+	# slowly.
+	var turn := 0
+	if at_aot:
+		turn = int(Input.is_key_pressed(KEY_PERIOD)) - int(Input.is_key_pressed(KEY_COMMA))
+		turn *= 1 if Input.is_key_pressed(KEY_SHIFT) else 2
+	if turn != _reticle_held:
+		_reticle_held = turn
+		Bus.set_value("ctl.lm.aot.reticle", turn)
 
 
 const DSKY_KEYS := {

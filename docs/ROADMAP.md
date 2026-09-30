@@ -2057,18 +2057,20 @@ Apollo 12's and 13's launches fly their troubles as they came.
 
 ## 11. The LM's navigation
 
-**Status: 11a done.** Milestone 4 gave the CSM its crew's navigation;
-the LM's is still simpler. Its IMU is real since 11a, but its P40 to
-P42 hold the ΔV's direction in the rotating LVLH frame, and its auto
-maneuvers turn the thrust axis first every time; the rendezvous
-radar is noise-free and finds the CSM wherever it is; P20 weights each
-mark by fixed gains; and the AGS holds an attitude and counts ΔV, with
-none of its guidance. This milestone gives the LM what the CSM has.
+**Status: 11a and 11b done.** Milestone 4 gave the CSM its crew's
+navigation; the LM's is still simpler. Its IMU is real since 11a, and
+its crews align it with P52 in flight and P57 on the surface since 11b,
+but its P40 to P42 hold the ΔV's direction in the rotating LVLH frame,
+and its auto maneuvers turn the thrust axis first every time; the
+rendezvous radar is noise-free and finds the CSM wherever it is; P20
+weights each mark by fixed gains; and the AGS holds an attitude and
+counts ΔV, with none of its guidance. This milestone gives the LM what
+the CSM has.
 
 | Slice | Work | Check |
 |---|---|---|
 | 11a (done) The LGC's platform and P52 | The LGC's IMU real whenever it runs: drift, coarse align, gimbal lock; the alignment optical telescope (AOT) with its detents, reticle and view; P52 on its marks in orbit; REFSMMAT uplinks to the LGC | Test: from Apollo 11's undocking, P52 on the AOT's stars aligns the LGC within set limits, and the landing and the ascent fly on it |
-| 11b P57 on the surface | The lunar surface alignment, from the gravity the accelerometers sense and the AOT's stars, as Apollo 11 did before its liftoff; Eagle's checklists gain their P52s after undocking and after insertion, and their P57s | Test: P57's alignment within set limits, and the ascent reaches its insertion on it |
+| 11b (done) P57 on the surface | The lunar surface alignment, from the gravity the accelerometers sense and the AOT's stars, as Apollo 11 did before its liftoff; Eagle's checklists gain their P52s after undocking and after insertion, and their P57s | Test: P57's alignment within set limits, and the ascent reaches its insertion on it |
 | 11c Luminary's steering | P40 to P42 steered as Luminary's did, in place of the LVLH hold, as 5e gave the CMC; and KALCMANU's auto maneuvers, about a single axis, re-planned only where the turn would take the middle gimbal past 60°, where 11a routes every turn thrust axis first | Test: DOI and the insertion come nearer their targets than on the LVLH hold, short burns come out as they did, and a turn clear of the lock zone is flown about a single axis |
 | 11d The rendezvous radar | Its noise and biases, its gimbal limits and coverage, its lock-on by hand, and Luminary's P20 filter, updating the LM's state vector or the CSM's | Test: Apollo 11's rendezvous on the noisy radar docks, the LGC's estimate of Columbia at CSI within set limits, and CDH's ΔH, TPI and the midcourse corrections on 11a's drifting platform back within the limits they held on an ideal one |
 | 11e The AGS's guidance | Its own navigation from the PGNS's state vectors, its abort insertion, and CSI, CDH and TPI targeting as the rendezvous's backup through the DEDA | Test: the AGS's solutions for Apollo 11's CSI, CDH and TPI within set limits of the LGC's, and an insertion flown on the AGS reaches orbit |
@@ -2079,7 +2081,7 @@ radar and AGS are gone, or measured against the flights.
 - **The LGC's platform and P52.** Done in 11a. The LGC's IMU is real
   whenever it runs, as the CMC's is: its gyros drift at the rates each
   mission report measured between its LM's first two alignments (Eagle's
-  +4.5, −5.0 and +0.4 mERU, Table 9.6-I of MSC-00171), and at undocking
+  +4.5, −5.0 and −0.4 mERU, from Table 9.6-I of MSC-00171), and at undocking
   its platform stands on the landing site REFSMMAT where the crew's
   docked alignment left it, off by the flight's first P52's torquing
   angles less the drift between. The alignment optical telescope
@@ -2116,9 +2118,51 @@ radar and AGS are gone, or measured against the flights.
   insertion (Apollo 11's on Rigel and Acrux) comes before P20's marks,
   in the rendezvous test and in `SimTest.fly_rendezvous()`, and P20's
   marks leave the relative state off by the platform's misalignment
-  across the range. P57 on the surface is 11b's: until then the
-  sequencer aligns the platform for the crew 33 min before the liftoff,
-  as Apollo 11's last P57 was, and at the LM start phases.
+  across the range. P57 on the surface was 11b's: until then the
+  sequencer aligned the platform for the crew 33 min before the liftoff,
+  as Apollo 11's last P57 was.
+- **P57 on the surface.** Done in 11b. P57 (`src/systems/lgc_p57.gd`)
+  follows Luminary 099's: V04N06's options 3 and 4 (N34's TALIGN, the
+  ascent's TIG offered, and LSORIENT); V05N06's techniques 0 to 3 and
+  flags, the attitude stored from REFSMMAT (REFMF) and alarm 00701;
+  GVDETER, which coarse aligns to 42, −42 and 35°, reads gravity for 40
+  s, turns 180° about it and reads again (V06N04); the first pass on the
+  stored attitude, with V06N22 for its coarse align; R59, which finds the
+  star's detent (V06N79, alarm 00404); AOTMARK's surface marks, each
+  taking the CDU angles and the counter's cursor and spiral readings
+  (SURFSTAR); SURFLINE's AXISGEN, N05 and N93, the gyros torqued under 5°
+  and a coarse align past it; and technique 2's landing site from gravity
+  (N89). The AOT gains its reticle knob (a rocker, fast and slow), its
+  counter and its spirals. Eagle's gyros drift on the surface at the
+  rates its P57s measured there, +2.6, −2.6 and +2.3 mERU, and the start
+  phases set it down yawed 13° left, as it came to rest. From
+  `lunar_surface`, Eagle's crew align as Apollo 11's did at 103:01,
+  103:47, 104:16, 122:17 and 123:49
+  (`tests/scenarios/test_lm_surface_alignment.gd`): R59 finds Rigel in
+  the left-rear detent and Navi and Capella in the right-rear, as the
+  flight's sightings were; the P57 at 122:17 shows N93 −0.692, +0.704
+  and −0.620° (flown −0.699, +0.695, −0.628); and P12 inserts Eagle on
+  the last one. The sequencer's stand-in is gone: the ascent tests and
+  Apollo 12's fly P57 before the liftoff, and Eagle's checklists gain
+  their P52s after undocking and after insertion and their P57, flown
+  from the HUD and the cabin in four files for CI's parts. Two things
+  turned up on the way. The alignments' AXISGEN matched the two vectors'
+  bisector, where Luminary's and Colossus's match the first exactly and
+  turn the second into its plane: P57 puts gravity first, so the tilt is
+  gravity's alone, and both computers' P51, P52 and P57 now do. And the
+  mission reports' mERU columns give Z's drift (Apollo 12's: Y's) the
+  sign opposite the torquing's, where Apollo 11's Table 9.6-II gives all
+  three as the torquing's reverse: the drifts now take their signs from
+  the torquing angles, which turns over Eagle's Z in flight, Snoopy's Z
+  and Intrepid's Y. Intrepid's Y moved Apollo 12's descent: the
+  platform's tilt along the track swings the LGC's altitude some 500 ft
+  either way by the landing radar's first reading, and the first ΔH
+  went from −1,369 to −359 ft. The PDI state error's height, estimated
+  from that ΔH, is re-tuned (145 m high, −1,016 ft), and Apollo 12's test
+  flies Intrepid's P52s after undocking and after the insertion as the
+  report's Table 8.6-I has them. At Surveyor crater the GRAIL field leans
+  the plumb line 0.017° off the site's radius, which P57 takes for the
+  vertical.
 
 ### Order
 

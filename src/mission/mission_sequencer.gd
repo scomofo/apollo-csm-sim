@@ -576,6 +576,7 @@ func _on_docking_contact(contact: Dictionary) -> void:
 ## Eagle's footpads met the surface.
 func _on_lm_touchdown(touchdown: Dictionary) -> void:
 	_fire("lm_landing")
+	_lgc_drift(true)
 	if touchdown["hard"]:
 		_say("Houston: we saw a hard landing, %.1f ft/s down and %.1f ft/s across. Check your gear." % [
 			float(touchdown["vertical_mps"]) / Units.FT, float(touchdown["horizontal_mps"]) / Units.FT])
@@ -586,6 +587,7 @@ func _on_lm_touchdown(touchdown: Dictionary) -> void:
 ## The LM left the surface.
 func _on_lm_liftoff(_get_s: float) -> void:
 	_fire("lm_liftoff")
+	_lgc_drift(false)
 	_say("Houston: we have liftoff. {lm}, you're looking good.")
 
 
@@ -1386,11 +1388,23 @@ func _lgc_undocked() -> void:
 	lgc.reference_changed()
 
 
+## The LGC's gyros on the surface drift as the flight's measured them there
+## ([param landed]: mission.json "lgc": surface_drift_meru), and in flight
+## as they did in flight ("drift_meru"): on the Moon their g-sensitive
+## drift has a sixth of a g to act on [published: the mission reports' LM
+## alignment tables]. Without the mission's rates the drawn one stays.
+func _lgc_drift(landed: bool) -> void:
+	var lgc: Lgc = systems.get("lgc")
+	if lgc == null:
+		return
+	var d: Array = mission.section("lgc").get("surface_drift_meru" if landed else "drift_meru", [])
+	if not d.is_empty():
+		lgc.imu.drift = Vector3(d[0], d[1], d[2]) * MERU_RAD_S
+
+
 ## The crew's last alignment of the LGC's platform, exactly, to its REFSMMAT
-## (_lgc_refsmmat()): at an LM start phase the P52 or P57 before it, and on
-## the surface the P57 before the liftoff that the timeline brings
-## ("align": "lgc"), or the ascent PAD when that is due already
-## [simplified: until slice 11b's P57, made for them].
+## (_lgc_refsmmat()), at an LM start phase: the P52 or P57 before it. In a
+## flight the crew align it themselves (P52, and on the surface P57).
 func _lgc_align() -> void:
 	var lgc: Lgc = systems.get("lgc")
 	if lgc == null or lgc.imu.failed:
@@ -1529,15 +1543,6 @@ func ascent_pad(earliest: float = -1.0) -> Dictionary:
 		return {}
 	pads["ascent"] = pad
 	plan["liftoff_tig"] = pad["tig"]
-	# A liftoff nearer than the crew's last P57 before it (the timeline's
-	# "align" entry, due already) finds the platform as that P57 leaves
-	# it, made for them now [simplified: until slice 11b's P57].
-	for e in _timeline_entries():
-		var id := str(e["id"])
-		if str(e.get("align", "")) == "lgc" and str(e.get("before", "")) == "liftoff_tig" and not timeline_done.has(id) \
-				and _entry_time(e) <= SimClock.get_seconds and lgc.imu.operating():
-			timeline_done[id] = SimClock.get_seconds
-			_lgc_align()
 	var text := "ASCENT PAD: TIG %s  N76 VH %.1f HDOT %.1f ft/s  XRNG %.2f nmi  INSERTION %s, %.1f x %.1f nmi" % [
 		Units.hms(float(pad["tig"])), float(pad["vh"]) / Units.FT, float(pad["hdot"]) / Units.FT,
 		float(pad["xrng"]) / Units.NMI, Units.hms(float(pad["insertion_get"])), float(pad["hp"]) / Units.NMI,
@@ -1657,8 +1662,6 @@ func _timeline() -> void:
 		timeline_done[id] = now
 		if e.has("say"):
 			_say(str(e["say"]))
-		if str(e.get("align", "")) == "lgc" and systems.has("lgc") and systems["lgc"].imu.operating():
-			_lgc_align()
 		if e.has("n81_ft_s"):
 			maneuver_pad(e)
 		elif e.has("pad"):
@@ -1854,7 +1857,8 @@ func _advance_flying(t: float) -> void:
 
 
 ## Set the LM down where the flight's came down (_touchdown_site()) at GET
-## [param t], upright, facing along the CSM's track.
+## [param t], upright, facing along the CSM's track, or turned left of it
+## as the flight's came to rest (mission.json "landing": yaw_deg).
 func _set_lm_landed(t: float) -> void:
 	var lm := dynamics.lm
 	var cm := Dynamics.lm_cm_height(lm.config)
@@ -1863,11 +1867,13 @@ func _set_lm_landed(t: float) -> void:
 	var pos := up * (site.length() + cm)
 	lm.traj.set_state("moon", t, pos, Bodies.moon_omega(t).cross(pos))
 	var tr := dynamics.traj
-	var fwd := tr.pos().cross(tr.vel()).normalized().cross(up).normalized()
+	var yaw := deg_to_rad(float(mission.section("landing").get("yaw_deg", 0.0)))
+	var fwd := tr.pos().cross(tr.vel()).normalized().cross(up).normalized().rotated(up, yaw)
 	lm.attitude.q = Basis(up, fwd.cross(up), fwd).get_rotation_quaternion()
 	lm.attitude.omega = Vector3.ZERO
 	lm.land(site.length() + cm)
 	dynamics.publish_state()
+	_lgc_drift(true)
 
 
 # --- helpers ---------------------------------------------------------------------

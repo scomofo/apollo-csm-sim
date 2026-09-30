@@ -25,7 +25,8 @@ Cabin view    click a control, scroll to move it; right-click: mouse look,
               Z: inspect, Home: recentre, M: wrist menu
 O             the optics (sextant and telescope): W/S A/D move them,
               X MARK, Y MARK REJECT; flying the LM, the AOT: the LM
-              turns on the ACA, X MARK X, Y MARK Y, Z REJECT
+              turns on the ACA, X MARK X, Y MARK Y, Z REJECT,
+              , . turn the reticle (Shift slowly)
 F5 / F9       quick save / back to it (the flight menu's SAVES lists it)
 F1            the flight menu: another mission or start phase, saved flights
 H             this help"""
@@ -45,8 +46,8 @@ var book: ChecklistBook
 var csm_book: ChecklistBook
 var lm_book: ChecklistBook
 ## The LM's alignment optical telescope's view (toggle_optics() flying the
-## LM), in its panel with its detent and the CCRD's MARK X, MARK Y and
-## REJECT.
+## LM), in its panel with its detent, the CCRD's MARK X, MARK Y and REJECT
+## and the reticle knob.
 var aot_view: AotView
 var _flight: Label
 var _systems: Label
@@ -220,8 +221,8 @@ func aot_open() -> bool:
 	return _aot.visible
 
 
-## The AOT's view, its detent knob, and the CCRD's MARK X, MARK Y and
-## REJECT.
+## The AOT's view, its detent knob, the CCRD's MARK X, MARK Y and REJECT,
+## and the reticle knob (fast and slow each way; slice 11b).
 func _aot_panel() -> PanelContainer:
 	var p := PanelContainer.new()
 	_style(p)
@@ -255,6 +256,14 @@ func _aot_panel() -> PanelContainer:
 	names.button_pressed = aot_view.names
 	names.toggled.connect(func(on: bool) -> void: aot_view.names = on)
 	h.add_child(names)
+	var k := HBoxContainer.new()
+	v.add_child(k)
+	var rl := Label.new()
+	rl.text = "RETICLE"
+	rl.add_theme_font_size_override("font_size", 11)
+	k.add_child(rl)
+	for b in [["<<", -2], ["<", -1], [">", 1], [">>", 2]]:
+		_momentary(k, str(b[0]), "ctl.lm.aot.reticle", int(b[1]), 0)
 	return p
 
 
