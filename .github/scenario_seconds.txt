@@ -11,17 +11,15 @@
 # lengthened, are the longer of their two runs in cbaff83's CI: alone in
 # its part, test_apollo_12.gd sets that part's time. Slice 11c's new file
 # is the longer of its two runs in 978203b's CI. Slice 11d lengthened the
-# LM's rendezvous: test_apollo_10.gd and test_lm_aborts.gd carry
-# estimates, their local times in a whole run of the suite times 0.75
-# (CI took 0.59 to 0.77 of the local time on the files 11d left alone),
-# and test_apollo_12.gd its own 0.726 from 978203b's CI, until CI
-# measures them.
+# LM's rendezvous: test_apollo_10.gd, test_apollo_12.gd, test_lm_aborts.gd,
+# test_rendezvous.gd and the LM checklists' two rendezvous files are the
+# longer of their two runs in 228570b's CI.
 # A file not listed counts 60 s.
 # Add a new file's time once CI has run it, and measure again when the
 # parts drift apart.
-test_apollo_10.gd 399
+test_apollo_10.gd 367
 test_apollo_10_launch.gd 40
-test_apollo_12.gd 570
+test_apollo_12.gd 534
 test_apollo_12_launch.gd 43
 test_apollo_13.gd 180
 test_apollo_13_launch.gd 72
@@ -40,13 +38,13 @@ test_imu_alignment.gd 89
 test_landing.gd 222
 test_launch.gd 62
 test_launch_aborts.gd 136
-test_lm_aborts.gd 425
+test_lm_aborts.gd 392
 test_lm_alignment.gd 88
 test_lm_burns.gd 57
 test_lm_cabin_checklists.gd 239
-test_lm_cabin_checklists_rendezvous.gd 313
+test_lm_cabin_checklists_rendezvous.gd 228
 test_lm_checklists.gd 227
-test_lm_checklists_rendezvous.gd 297
+test_lm_checklists_rendezvous.gd 208
 test_lm_steering.gd 138
 test_lm_surface_alignment.gd 71
 test_lunar_mission.gd 121
@@ -56,6 +54,6 @@ test_onboard_navigation.gd 131
 test_onboard_state.gd 5
 test_p40_steering.gd 59
 test_program_alarms.gd 102
-test_rendezvous.gd 189
+test_rendezvous.gd 180
 test_tli.gd 33
 test_vr_acceptance_recorder.gd 5

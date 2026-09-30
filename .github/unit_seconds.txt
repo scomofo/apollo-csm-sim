@@ -7,8 +7,7 @@
 # parts drift apart. Slice 11b's test_lm_p57.gd, and test_checkpoint.gd,
 # which 11b lengthened, are the longer of their two runs in cbaff83's CI.
 # Slice 11d's test_lgc_p20.gd, and test_checkpoint.gd, which 11d
-# lengthened, carry estimates, their local times times 0.75, until CI
-# measures them.
+# lengthened, are the longer of their two runs in 228570b's CI.
 test_agc.gd 26
 test_ascent_guidance.gd 1
 test_audio_director.gd 9
@@ -17,7 +16,7 @@ test_cabin_bus.gd 1
 test_cabin_instruments.gd 1
 test_checklist_books.gd 13
 test_checklist_card.gd 2
-test_checkpoint.gd 103
+test_checkpoint.gd 123
 test_cockpit_layout.gd 13
 test_control_library.gd 1
 test_desktop_inspection.gd 1
@@ -37,7 +36,7 @@ test_landing_radar.gd 1
 test_launch_escape.gd 34
 test_launch_models.gd 1
 test_lgc_executive.gd 1
-test_lgc_p20.gd 16
+test_lgc_p20.gd 12
 test_lifeboat.gd 27
 test_lightning.gd 15
 test_lm_abort_buttons.gd 39
