@@ -2300,10 +2300,12 @@ radar and AGS are gone, or measured against the flights.
   the dynamics' ΔV before each step, and a restored checkpoint has no
   step before it, so the first step's ΔV was lost and the flights parted;
   it senses after the dynamics now, as the LGC does. On the surface the
-  accelerometers sensed nothing, and between the ascent engine's start and
-  the liftoff, some 0.6 s, the AGS saw Eagle fall; they sense the
-  ground's push now. And a coasting step's sensed ΔV went all to the first
-  of the two-second cycles it spans; it is shared among them by time.
+  vehicle senses nothing, so between the ascent engine's start and the
+  liftoff, some 0.6 s, the AGS would have seen Eagle fall; its
+  accelerometers sense the ground's push. And a coasting step's sensed ΔV
+  went all to the first of the two-second cycles it spans, which lost the
+  push sensed in the cycle the liftoff came in and left the AGS 9.7 ft/s
+  off; it is shared among them by time.
   The rendezvous's N78 check, the radar's range within 50 m of the truth,
   had passed on its noise's draw: the flight's range bias allows 186 m at
   that range, so the check now takes the bias out. Checkpoints are schema
