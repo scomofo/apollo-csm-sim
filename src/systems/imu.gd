@@ -333,12 +333,14 @@ func lock_lamp(body: Basis) -> bool:
 	return mg > (IDEAL_LAMP_DEG if ideal else LOCK_LAMP_DEG)
 
 
-## Axes from two directions, as columns, sharing their errors: the
-## bisector, the normal and the third. The rotation between two such
-## triads takes one pair of directions onto the other (the alignments'
-## AXISGEN).
+## Axes from two directions, as columns: the first, the pair's normal and
+## the third. The rotation between two such triads takes the first
+## direction exactly onto the other's first, and turns the second about it
+## to lie in the other's plane (AXISGEN: UA = S1, VA = UNIT(S1 X S2), WA =
+## UA X VA) [published: Luminary 099 and Comanche 055, INFLIGHT ALIGNMENT
+## ROUTINES].
 static func triad(a: Vector3, b: Vector3) -> Basis:
-	var x := (a.normalized() + b.normalized()).normalized()
+	var x := a.normalized()
 	var y := a.cross(b).normalized()
 	return Basis(x, y, x.cross(y))
 

@@ -53,7 +53,16 @@ extends RefCounted
 ##    IU has sensed and its command to shift the mixture ratio on it.
 ## 26: the LGC's platform (slice 11a): its P52 on the alignment optical
 ##    telescope, TLAND, the AOT's detent, and the LM's IMU real.
-const SCHEMA_VERSION := 26
+## 27: P57 on the surface (slice 11b): its option, technique, gravity
+##    vectors and stored attitude, R59's star and the surface marks, and
+##    the AOT's reticle.
+## 28: Luminary's steering (slice 11c): KALCMANU's turn in progress, and
+##    the LGC's burns on its External ΔV steering.
+## 29: the rendezvous radar and Luminary's P20 (slice 11d): the antenna,
+##    its lock and its errors, and P20's filter, flags and marks.
+## 30: the AGS's flight program (slice 11e): FP6's memory, the DEDA, the
+##    AGS's frame and its 40-ms logic, and the LGC's R47.
+const SCHEMA_VERSION := 30
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],
@@ -114,8 +123,10 @@ const CONTROL_DEFAULTS := {
 	"ctl.lm.engine_arm": 0, "ctl.lm.stage": false, "ctl.lm.rcs.sys_a": true, "ctl.lm.rcs.sys_b": true,
 	"ctl.lm.eng_start": false, "ctl.lm.eng_stop": false, "ctl.lm.rod": 0,
 	"ctl.lm.power": false, "ctl.lm.pgns": true, "ctl.lm.ags": false, "ctl.lm.ags_align": false, "ctl.lm.guid_cont": 0,
-	"ctl.lm.throttle": 0.1, "ctl.lm.rr_mode": 1, "ctl.lm.abort": false, "ctl.lm.cw.master_alarm": false,
+	"ctl.lm.throttle": 0.1, "ctl.lm.rr_mode": 1, "ctl.lm.rr_slew_shaft": 0, "ctl.lm.rr_slew_trunnion": 0,
+	"ctl.lm.rr_slew_rate": 1, "ctl.lm.abort": false, "ctl.lm.cw.master_alarm": false,
 	"ctl.lm.aot.detent": 2, "ctl.lm.aot.mark_x": false, "ctl.lm.aot.mark_y": false, "ctl.lm.aot.reject": false,
+	"ctl.lm.aot.reticle": 0,
 }
 
 var mission: Mission

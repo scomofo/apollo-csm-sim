@@ -5,11 +5,12 @@
 ##
 ## In lunar orbit the LM undocks and is set down at the landing site,
 ## facing 20° off the CSM's track (the landing itself is slice 3c's
-## test). The crew request the ascent PAD, select P12, PRO through the
-## liftoff time (N33) and the targets (N76), and set LGC MODE AUTO. At
-## V99, TIG-5 s, they stage (ABORT STAGE), arm the ascent engine and PRO,
-## as Aldrin did. The LGC's platform (slice 11a) is aligned for them 33 min
-## before the liftoff, as Apollo 11's last P57 was, and drifts on.
+## test). The crew request the ascent PAD and align the LGC's platform
+## (slice 11a) with P57 (slice 11b) 33 min before the liftoff, as Apollo
+## 11's crew last did: option 4, to the site at the liftoff, on gravity and
+## a star. They select P12, PRO through the liftoff time (N33) and the
+## targets (N76), and set LGC MODE AUTO. At V99, TIG-5 s, they stage
+## (ABORT STAGE), arm the ascent engine and PRO, as Aldrin did.
 extends SimTest
 
 ## The LM's heading off the CSM's track on the surface, degrees.
@@ -54,10 +55,15 @@ func _orbit() -> Dictionary:
 	return {"ha": float(c["ra"]) - site_r, "hp": float(c["rp"]) - site_r, "plane": rad_to_deg(h.normalized().angle_to(n))}
 
 
-## Select P12 and fly it to V99: PRO at N33 and N76, LGC MODE AUTO. At
-## TIG-5 s the crew stage, arm the ascent engine and PRO.
+## The crew's P57 33 min before the liftoff, as Apollo 11's last was, then
+## P12 flown to V99: PRO at N33 and N76, LGC MODE AUTO. At TIG-5 s the
+## crew stage, arm the ascent engine and PRO.
 func _to_liftoff(pad: Dictionary) -> Lgc:
 	var lgc := rt.lgc()
+	run(maxf(float(pad["tig"]) - 1980.0 - SimClock.get_seconds, 0.0))
+	var p57 := surface_align(4, 3, [AotCrew.surface_stars(self)[0]])
+	assert_lt(rad_to_deg(lgc.imu.misalignment().length()), 0.02, "P57: the platform aligned (N93 %s)" % p57["torque"])
+	assert_almost_eq(lgc.surface.talign, float(pad["tig"]), 0.01, "to the site at the liftoff")
 	keys("V37E12E", lgc)
 	assert_eq(lgc.program, 12, "P12")
 	assert_eq([Bus.get_value("lm.dsky.verb"), Bus.get_value("lm.dsky.noun")], ["06", "33"], "V06N33: the liftoff time")
@@ -167,7 +173,7 @@ func test_p12_flies_eagle_to_insertion() -> void:
 	assert_almost_eq(t_ins, float(pad["insertion_get"]) - tig, 3.0, "when the RTCC predicted")
 	# Within the target orbit's limits: 60,000 ft and 32 ft/s up where the
 	# LGC has Eagle, which its guidance flies to; 9 x 45 nmi, in Columbia's
-	# plane. The platform, drifting since the P57 33 min before liftoff,
+	# plane. The platform, drifting since the crew's P57 before liftoff,
 	# turns the thrust and the LGC's measure of it alike: the truth is off
 	# the LGC's by at most the misalignment's angle of the velocity gained,
 	# and of the half of it the burn has flown on (Apollo 11's P52 after
@@ -178,7 +184,7 @@ func test_p12_flies_eagle_to_insertion() -> void:
 	gut.p("The LGC has Eagle at %.0f ft, %.2f ft/s up; the platform %.3f° off" % [h_lgc / Units.FT, nav.radial_rate() / Units.FT, rad_to_deg(mis)])
 	assert_almost_eq(h_lgc / Units.FT, 60000.0, 500.0, "insertion at 60,000 ft")
 	assert_almost_eq(nav.radial_rate() / Units.FT, 32.0, 3.0, "climbing at 32 ft/s")
-	assert_between(rad_to_deg(mis), 0.01, 0.2, "the platform off by its drift since the P57")
+	assert_between(rad_to_deg(mis), 0.005, 0.1, "the platform off by its drift since the P57")
 	assert_lt(absf(tr.radius() - lgc.ascent_base - h_lgc), mis * vh * t_ins / 2.0, "the height, off by what the platform makes of it")
 	assert_lt(absf(tr.radial_rate() - nav.radial_rate()), mis * vh, "and the climb")
 	assert_almost_eq(float(o["hp"]) / Units.NMI, 9.0, 0.5, "perilune 9 nmi")

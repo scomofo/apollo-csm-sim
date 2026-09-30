@@ -3,23 +3,24 @@
 ## the splashdown, and Intrepid lands beside Surveyor III. The S-IVB flies
 ## TLI onto the free return, MCC-2 takes the stack off it onto the hybrid
 ## trajectory, and LOI-1 turns the orbit into the plane over the site, 14.6
-## deg to the lunar equator. Intrepid undocks and flies DOI and powered
+## deg to the lunar equator. Intrepid undocks, its crew realign its platform
+## with P52 on the stars they used (slice 11a), and it flies DOI and powered
 ## descent: the ground's landing site update (noun 69) takes out what its
 ## state vector had wrong along the track, the descent guidance steers out
 ## the miles the orbit's plane had drifted north of the site, and the
 ## commander redesignates onto the Surveyor crater in P64 and flies P66 to
 ## the spot Intrepid came down on, 535 ft from the Surveyor. Yankee
 ## Clipper's first plane change puts its orbit back over Intrepid for the
-## liftoff a day and a half later; P12 flies the ascent, the coelliptic
-## sequence the rendezvous, and the second plane change, TEI, the
+## liftoff a day and a half later; the crew align the platform with P57
+## (slice 11b) as Apollo 12's did before it, P12 flies the ascent, and after
+## a P52 the coelliptic sequence the rendezvous. The second plane change, TEI, the
 ## transearth corrections and the entry on P61 to P67 follow. Each PAD
-## Mission Control's timeline brings is flown as the crew flew it: the
-## CSM's on P30 and P40 or P41, the LM's on P30 and P40, P63 to P66, P12
-## and P32 to P35. The flight's figures are the Fidelity table in README.md,
-## each held here within set limits of Apollo 12's: the Apollo 12 Mission
-## Report (MSC-01855), the AS-507 flight evaluation report
-## (MPR-SAT-FE-70-1), the Apollo Flight Journal and the Apollo Lunar
-## Surface Journal [published].
+## Mission Control's timeline brings is flown as the crew flew it: the CSM's
+## on P30 and P40 or P41, the LM's on P30 and P40, P63 to P66, P12 and P32
+## to P35. The flight's figures are the Fidelity table in README.md, each
+## held here within set limits of Apollo 12's: the Apollo 12 Mission Report
+## (MSC-01855), the AS-507 flight evaluation report (MPR-SAT-FE-70-1), the
+## Apollo Flight Journal and the Apollo Lunar Surface Journal [published].
 extends SimTest
 
 ## How long before TIG the crew select the thrusting program, s: time
@@ -55,15 +56,16 @@ func _fly(pad: Dictionary, p52: int = 1) -> Vector2:
 ## Fly the LM's stored or uplinked burn on program [param prog] with the
 ## engine armed at [param arm] (fly_lm_pad()). Returns x the ΔV the LGC
 ## sensed (ft/s) and y the engine's time from the ignition command to the
-## cutoff command (s, to a second).
-func _lm_burn(prog: int, arm: int, from_p30: bool = true) -> Vector2:
+## cutoff command (s, to a second). [param in_place] burns P41 where
+## Intrepid is.
+func _lm_burn(prog: int, arm: int, from_p30: bool = true, in_place: bool = false) -> Vector2:
 	var lgc := rt.lgc()
 	var box := {"off": -1.0, "ign": -1.0}
 	var dv := fly_lm_pad(prog, arm, func() -> void:
 		if lgc.ignition_get > 0.0:
 			box["ign"] = lgc.ignition_get
 		if lgc.step_name in ["tailoff", "post"] and box["off"] < 0.0:
-			box["off"] = SimClock.get_seconds, from_p30, LEAD_S)
+			box["off"] = SimClock.get_seconds, from_p30, LEAD_S, in_place)
 	return Vector2(dv / Units.FT, float(box["off"]) - float(box["ign"]))
 
 
@@ -240,6 +242,20 @@ func test_apollo_12_flies_its_data_and_lands_beside_surveyor_iii() -> void:
 	assert_almost_eq(o.x, 63.5, 2.0, "Yankee Clipper's apolune")
 	assert_almost_eq(o.y, 56.3, 2.0, "and perilune")
 
+	# Intrepid's first P52, torqued at 108:48 on stars 13 (Capella) and 12
+	# (Rigel) through the front detent: its star angle difference 0.02° and
+	# N93 +0.018, -0.002 and -0.069° (MSC-01855, Table 8.6-I). The platform
+	# stood so at undocking, less the drift since (mission.json "lgc":
+	# first_p52), and the descent flies on the platform it leaves.
+	run(_get_s("108:45:00") - SimClock.get_seconds)
+	var p52 := lm_realign([13, 12])
+	var n93: Vector3 = p52["torque"]
+	rows.append("Intrepid's first P52 | GET %s on stars 13 and 12: N05 %.3f°, N93 %+.3f, %+.3f and %+.3f° | 108:48: 0.02°; +0.018, −0.002 and −0.069°" % [
+		_hms(float(p52["get"])), p52["sad"], n93.x, n93.y, n93.z])
+	assert_almost_eq(n93, Vector3(0.018, -0.002, -0.069), Vector3.ONE * 0.015, "N93 as flown")
+	assert_lt(float(p52["sad"]), 0.02, "N05 within the flown")
+	assert_lt(rad_to_deg(rt.lgc().imu.misalignment().length()), 0.01, "the platform on the REFSMMAT")
+
 	# DOI on the DPS, 15 s at 10 % and then 40 %: the PAD's 72.4 ft/s at
 	# 109:23:39.41 (Apollo Lunar Surface Journal, 108:00:32); flown 72.4
 	# ft/s in 29.0 s into 60.6 x 8.1 nmi (MSC-01855, Table 5-VI).
@@ -380,6 +396,21 @@ func test_apollo_12_flies_its_data_and_lands_beside_surveyor_iii() -> void:
 	var asc := _await_pad("ascent_pad", "ascent")
 	assert_false(asc.is_empty(), "the ascent PAD")
 	var tig := float(asc["tig"])
+	# The crew's last P57 before the liftoff, at 141:29: option 4, to the
+	# site at the liftoff, on gravity and Procyon through the left-front
+	# detent; N05 0.04, N93 -0.023, +0.004 and +0.015 (MSC-01855, Table
+	# 8.6-I).
+	run(141.0 * 3600.0 + 25.0 * 60.0 - SimClock.get_seconds)
+	var sighted := AotCrew.surface_stars(self)
+	var star := 16 if sighted.has(16) else int(sighted[0])
+	var p57 := surface_align(4, 3, [star])
+	var p57_n93: Vector3 = p57["torque"]
+	rows.append("The P57 before the liftoff | %s on %s through detent %s: N05 %.2f, N93 %+.3f, %+.3f, %+.3f | 141:29 on Procyon, detent 1: N05 0.04, N93 −0.023, +0.004, +0.015" % [
+		_hms(float(p57["get"])), Stars.name_of(star), p57["detents"], p57["sad"], p57_n93.x, p57_n93.y, p57_n93.z])
+	# P57 takes the plumb line for the vertical, and at Surveyor crater the
+	# GRAIL field leans it 0.017° off the landing site's radius, which
+	# option 4's REFSMMAT is built on.
+	assert_lt(rad_to_deg(lgc.imu.misalignment().length()), 0.03, "the platform aligned for the ascent")
 	keys("V37E12E", lgc)
 	assert_eq(lgc.program, 12, "P12")
 	keys("P", lgc)
@@ -417,6 +448,17 @@ func test_apollo_12_flies_its_data_and_lands_beside_surveyor_iii() -> void:
 	assert_almost_eq(o.y, 8.8, 1.5, "perilune")
 	assert_lt(ins_plane, 0.1, "in Yankee Clipper's plane")
 
+	# The crew's P52 after the insertion, at 142:23 on stars 12 (Rigel) and
+	# 13 (Capella) through the front detent, the star angle difference 0.01°
+	# (MSC-01855, Table 8.6-I): the rendezvous flies on it.
+	run(maxf(_get_s("142:20:00") - SimClock.get_seconds, 0.0))
+	var p52i := lm_realign([12, 13])
+	var n93i: Vector3 = p52i["torque"]
+	rows.append("The P52 after the insertion | GET %s on stars 12 and 13: N05 %.3f°, N93 %+.3f, %+.3f and %+.3f° | 142:23: 0.01°" % [
+		_hms(float(p52i["get"])), p52i["sad"], n93i.x, n93i.y, n93i.z])
+	assert_lt(float(p52i["sad"]), 0.02, "N05 within the flown")
+	assert_lt(rad_to_deg(lgc.imu.misalignment().length()), 0.01, "the platform on the REFSMMAT for the rendezvous")
+
 	# The coelliptic sequence on the LGC's P32 to P35 and the LM RCS: CSI
 	# 45.0 ft/s at 143:01:51 into 51.0 x 41.5 nmi; CDH 13.8 ft/s at
 	# 144:00:02.6; TPI 29.0 ft/s at 144:36:26; docking at 145:36:20.2,
@@ -424,35 +466,22 @@ func test_apollo_12_flies_its_data_and_lands_beside_surveyor_iii() -> void:
 	assert_true(run_until(func() -> bool: return sq.pads.has("csi"), 3600.0, 1.0), "the CSI PAD")
 	var pad: Dictionary = sq.pads["csi"]
 	var lm0 := lm.dv_total
-	keys("V37E20E", lgc)
-	run(float(pad["tig"]) - 1500.0 - SimClock.get_seconds)
-	keys("V37E32E", lgc)
-	keys("PPP", lgc)
-	assert_eq(lgc.step_name, "n75", "P32: V06N75")
-	keys("PP", lgc)
-	var csi := _lm_burn(41, 0, false)
-	var o_csi := _orbit(lm.traj)
-	run(lgc.rdv_cdh_tig - 1200.0 - SimClock.get_seconds)
-	keys("V37E33EP", lgc)
-	var dh := lgc.rdv_dh
-	var t_cdh := lgc.rdv_cdh_tig
-	keys("PP", lgc)
-	var cdh := _lm_burn(41, 0, false)
-	run(float(pad["tpi_get"]) - 1800.0 - SimClock.get_seconds)
-	for lead in [0.0, 720.0]:
-		if lead > 0.0:
-			run(lgc.rdv_tpi_tig - lead - SimClock.get_seconds)
-		keys("V37E34EP", lgc)
-		assert_eq(lgc.step_name, "n37", "P34: V06N37, TPI's time")
-		keys("P", lgc)
-		keys("PP", lgc)
-	var tpi_tig := lgc.rdv_tpi_tig
-	var tpi := _lm_burn(41, 0, false)
-	var tpm := 0.0
-	for after in sq.mission.section("rendezvous")["tpm_after_tpi_s"]:
-		run(tpi_tig + float(after) - 300.0 - SimClock.get_seconds)
-		keys("V37E35EP", lgc)
-		tpm += _lm_burn(41, 0, false).x
+	# The coelliptic sequence on P20's marks as Apollo 11's crew flew it
+	# (lm_coelliptic()), each burn where the LM is, its +Z on the CSM.
+	var holder := {}
+	var got := lm_coelliptic(pad, func(name: String) -> Vector2:
+		var b := _lm_burn(41, 0, false, true)
+		if name == "CSI":
+			holder["o_csi"] = _orbit(lm.traj)
+		return b)
+	var csi: Vector2 = got["CSI"]
+	var o_csi: Vector2 = holder["o_csi"]
+	var dh := float(got["dh"])
+	var t_cdh := float(got["cdh_tig"])
+	var cdh: Vector2 = got["CDH"]
+	var tpi_tig := float(got["tpi_tig"])
+	var tpi: Vector2 = got["TPI"]
+	var tpm := (got["TPM1"] as Vector2).x + (got["TPM2"] as Vector2).x
 	assert_true(lm_brake(1800.0), "braked to station-keeping")
 	var lm_dv := (lm.dv_total - lm0) / Units.FT
 	face_x(true, func() -> Vector3: return Rendezvous.rel_pos(rt.dynamics.lm.traj, rt.dynamics.traj).normalized())

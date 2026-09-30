@@ -443,8 +443,15 @@ func _execute(v: int, n: int) -> void:
 			mode = "program"
 			_buffer = ""
 		_:
+			# V32 and V34 at a flashing display answer it (recycle,
+			# terminate): the display goes back to the program.
+			var answer := v in [32, 34] and bool(_program_display.get("flash", false))
+			if answer:
+				lamps["key_rel"] = false
 			if not agc.verb_noun(v, n):
 				_opr_err()
+			elif answer and verb == "%02d" % v:
+				restore_program_display()
 
 
 ## Noun [param n]'s registers are all octal.

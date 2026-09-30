@@ -6,9 +6,26 @@
 ## checklists turned with the wrist menu. Columbia's UNDOCK and CMC MODE
 ## are worked in Columbia's cabin, and the player is in Eagle's from the
 ## undocking. In P64 the landing site is seen through the commander's
-## window at the LPD mark N64 names.
+## window at the LPD mark N64 names. The rendezvous is
+## test_lm_cabin_checklists_rendezvous.gd's.
 extends LmChecklistFlights
 
 
 func before_all() -> void:
 	in_cabin = true
+
+
+func test_every_checklist_is_flown_here() -> void:
+	_every_checklist_is_flown_here()
+
+
+func test_undocking_and_doi() -> void:
+	await _fly_undocking_and_doi()
+
+
+func test_powered_descent_to_the_landing() -> void:
+	await _fly_powered_descent_to_the_landing()
+
+
+func test_lunar_surface_to_orbit() -> void:
+	await _fly_lunar_surface_to_orbit()

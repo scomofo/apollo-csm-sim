@@ -15,24 +15,33 @@
 # lights' panels estimated: LGC, ISS and DES QTY on 1, RCS A and B REG on 2); panel 3 the guidance mode
 # control, the rendezvous radar's mode select (RNDZ RADAR: AUTO TRACK,
 # SLEW, LGC; slice 9b; retrieved 2026-09-29 from
-# https://apollo11guide.com/Apollo11ManualFree/LunarLander/LunarModuleControlPanel3.htm),
+# https://apollo11guide.com/Apollo11ManualFree/LunarLander/LunarModuleControlPanel3.htm)
+# and, for its lock-on by hand (slice 11d; LM AOH section 2.2.3.1.1 and its
+# panel 3 table), its SLEW RATE (HI 7, LO 1.33 deg/s), its SLEW switch as
+# two spring-loaded toggles (UP and DOWN the shaft, LEFT and RIGHT the
+# trunnion), the NO TRACK light and, as a number, the SIGNAL STRENGTH meter,
 # and for Apollo 13's lifeboat the LM's power, PGNS and AGS
 # switches, the AGS's align and the DEDA's address 470; panel 4 the LGC's
 # DSKY; panel 5 ENGINE START and
-# STOP and the rate of descent switch (DES RATE); overhead between the
+# STOP and the rate of descent switch (DES RATE); panel 6, by the LM
+# pilot's right hand, the AGS's DEDA and its AGS STATUS switch (slice 11e;
+# LM/AGS Operating Manual, FP6, 11176-6033-T000 rev. 1, section 3, and its
+# drawing of panel 6); overhead between the
 # crew the alignment optical telescope (slice 11a): its eyepiece, its
-# detent selector knob and, on its guard, the computer control and reticle
-# dimmer assembly's MARK X, MARK Y and REJECT (retrieved 2026-09-29 from
-# https://www.apollojournals.org/alsj/aot.htm, the Apollo Lunar Module News
-# Reference's description). Every placement
+# detent selector knob, its reticle knob (slice 11b) and, on its guard, the
+# computer control and reticle dimmer assembly's MARK X, MARK Y and REJECT
+# (retrieved 2026-09-29 from https://www.apollojournals.org/alsj/aot.htm,
+# the Apollo Lunar Module News Reference's description). Every placement
 # on its panel is confidence D (estimated). role: historical = the control
 # or display exists in the LM as modelled; proxy = stands in for different
 # LM hardware (LGC MODE for the PGNS mode control's OFF, ATT HOLD and AUTO;
 # a momentary pushbutton for a guarded or latching one; a system's switch
 # for its valves; a number for a tape meter; LM PWR for the battery feeds
 # and bus ties of the activation, PGNS and AGS for their breakers, AGS
-# ALIGN and DEDA 470 for the DEDA's keys and readout; a screen for the
-# AOT's eyepiece).
+# ALIGN and DEDA 470 for the DEDA's keys and readout, kept beside the
+# DEDA for the lifeboat's checklists; AGS STATUS's OFF and OPERATE for
+# its three positions, STANDBY left out; a screen for the
+# AOT's eyepiece; a spring-loaded rocker for its reticle knob).
 id,panel,type,label,x_mm,y_mm,rot_deg,channel,params,source,confidence,status,role
 P1_MISSION_TIMER,P1,clock,MISSION TIMER,-40,160,0,time.get_s,,estimated,D,implemented,historical
 P1_RANGE,P1,numeric,RANGE NMI,85,158,0,lm.rr.range_m,converter=m_to_nmi;format=%6.2f;valid_channel=lm.rr.data_good;blank_text=------,estimated,D,implemented,proxy
@@ -59,6 +68,11 @@ P2_RCS_B_REG,P2,lamp,RCS B REG,-115,-65,0,lm.cw.rcs_b_reg,colour=ff2a1a,LM AOH C
 P2_BATTERY,P2,numeric,BAT A-H,100,160,0,lm.eps.batt_ah,format=%5.0f;blank_text=-----,estimated,D,implemented,proxy
 P3_LGC_MODE,P3,toggle,LGC MODE,-150,-15,0,ctl.lm.mode,positions=3;labels=FREE|HOLD|AUTO,estimated,D,implemented,proxy
 P3_RR_MODE,P3,toggle,RNDZ RADAR,-230,-15,0,ctl.lm.rr_mode,positions=3;labels=AUTO TRACK|SLEW|LGC;values=1|2|0,estimated,D,implemented,historical
+P3_RR_SLEW_RATE,P3,toggle,SLEW RATE,-260,45,0,ctl.lm.rr_slew_rate,labels=LO|HI;values=0|1,LM AOH 3 (panel 3),D,implemented,historical
+P3_RR_SLEW_UD,P3,toggle,SLEW UP DN,-220,45,0,ctl.lm.rr_slew_shaft,positions=3;labels=DOWN||UP;values=-1|0|1;rest_position=1;momentary_positions=0|2,LM AOH 3 (panel 3),D,implemented,historical
+P3_RR_SLEW_LR,P3,toggle,SLEW L R,-180,45,0,ctl.lm.rr_slew_trunnion,positions=3;labels=RIGHT||LEFT;values=-1|0|1;rest_position=1;momentary_positions=0|2,LM AOH 3 (panel 3),D,implemented,historical
+P3_RR_NO_TRACK,P3,lamp,NO TRACK,-135,50,0,lm.rr.no_track,colour=ffb000,LM AOH 2.2.3.1.1,D,implemented,historical
+P3_RR_SIGNAL,P3,numeric,SIGNAL,-75,50,0,lm.rr.signal,format=%4.2f;blank_text=----,LM AOH 3 (panel 3),D,implemented,proxy
 P3_AGS_ALIGN,P3,pushbutton,AGS ALIGN,-60,-15,0,ctl.lm.ags_align,,estimated,D,implemented,proxy
 P3_DEDA,P3,numeric,DEDA 470 FT/S,60,0,0,lm.ags.dv_x_mps,converter=mps_to_fps;format=%+6.1f;valid_channel=lm.ags.on;blank_text=------,estimated,D,implemented,proxy
 P3_LM_POWER,P3,toggle,LM PWR,150,-15,0,ctl.lm.power,labels=OFF|ON,estimated,D,implemented,proxy
@@ -68,8 +82,11 @@ P4_DSKY,P4,dsky,DSKY,0,0,0,lm.dsky,lamp_set=lgc,estimated,D,implemented,historic
 P5_ENGINE_STOP,P5,pushbutton,ENGINE STOP,-75,35,0,ctl.lm.eng_stop,,estimated,D,implemented,proxy
 P5_ENGINE_START,P5,pushbutton,ENGINE START,-15,35,0,ctl.lm.eng_start,,estimated,D,implemented,historical
 P5_DES_RATE,P5,toggle,DES RATE,65,-5,0,ctl.lm.rod,positions=3;labels=-1 FPS||+1 FPS;values=-1|0|1;rest_position=1;momentary_positions=0|2,estimated,D,implemented,historical
+P6_DEDA,P6,deda,DEDA,20,10,0,lm.deda,,FP6 Operating Manual section 3,D,implemented,historical
+P6_AGS_STATUS,P6,toggle,AGS STATUS,-95,-70,0,ctl.lm.ags,labels=OFF|OPERATE,FP6 Operating Manual section 3,D,implemented,proxy
 AOT_EYEPIECE,AOT,aot,AOT,0,40,0,lm.aot,,estimated,D,implemented,proxy
 AOT_DETENT,AOT,rotary,DETENT,-130,-60,0,ctl.lm.aot.detent,positions=6;labels=LF|F|RF|RR|CL|LR;values=1|2|3|4|5|6;start_angle_deg=-75;detent_deg=30,ALSJ AOT,D,implemented,historical
 AOT_MARK_X,AOT,pushbutton,MARK X,130,60,0,ctl.lm.aot.mark_x,,ALSJ AOT (CCRD),D,implemented,historical
 AOT_MARK_Y,AOT,pushbutton,MARK Y,130,0,0,ctl.lm.aot.mark_y,,ALSJ AOT (CCRD),D,implemented,historical
 AOT_REJECT,AOT,pushbutton,REJECT,130,-60,0,ctl.lm.aot.reject,,ALSJ AOT (CCRD),D,implemented,historical
+AOT_RETICLE,AOT,toggle,RETICLE,-130,60,0,ctl.lm.aot.reticle,positions=5;labels=CCW|ccw||cw|CW;values=-2|-1|0|1|2;rest_position=2;momentary_positions=0|1|3|4,ALSJ AOT,D,implemented,proxy

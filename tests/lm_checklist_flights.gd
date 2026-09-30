@@ -1,14 +1,18 @@
 ## Slice 3f's checks (docs/ROADMAP.md, milestone 3): every checklist in
 ## data/missions/apollo_11/lm_checklists.json flown as a player at the
 ## desktop flies it (DesktopTest), until it shows complete: from Eagle's
-## HUD (test_lm_checklists.gd), and from Eagle's cabin through the desktop
-## rig (test_lm_cabin_checklists.gd, with in_cabin). The flights are the
-## same: the DSKY is keyed, the switches set and the buttons clicked on the
-## HUD or in the cabin, and the braking and the docking are flown on the
-## hand controllers' keys. Each checklist starts from its phase's start
-## state, as test_lunar_mission.gd's segments do: the undocking and DOI
-## from lunar_orbit, the landing from lunar_descent, the liftoff from
+## HUD (test_lm_checklists.gd and test_lm_checklists_rendezvous.gd), and
+## from Eagle's cabin through the desktop rig (test_lm_cabin_checklists.gd
+## and test_lm_cabin_checklists_rendezvous.gd, with in_cabin). The flights
+## are the same: the DSKY is keyed, the switches set and the buttons
+## clicked on the HUD or in the cabin, and the braking and the docking are
+## flown on the hand controllers' keys; at the AOT, the P52s' marks and the
+## P57's (slice 11b). Each checklist starts from its phase's start state,
+## as test_lunar_mission.gd's segments do: the undocking and DOI from
+## lunar_orbit, the landing from lunar_descent, the liftoff from
 ## lunar_surface, and the rendezvous from lunar_ascent, after the liftoff.
+## The flights are the _fly_*() calls, the rendezvous's in files of its
+## own for CI's parts (.github/scenario_seconds.txt).
 class_name LmChecklistFlights
 extends DesktopTest
 
@@ -17,6 +21,8 @@ extends DesktopTest
 ## after them (data/lm_malfunctions.json) are tests/unit/test_failures.gd's.
 const FLOWN := ["Undocking and DOI (P30 / P40)", "Powered descent (P63 to P68)",
 	"Lunar surface and liftoff (P12)", "Rendezvous and docking (P20, P32 to P35)"]
+## The DEDA's keys by the letters AgsCrew.keys() uses.
+const DEDA_KEYS := {"C": "CLR", "R": "READOUT", "E": "ENTR", "H": "HOLD"}
 ## The braking gates, as test_rendezvous.gd flies them: the closing rate
 ## the commander allows from each range in, m and m/s, and a stop 40 m out.
 const GATES := [[1852.0, 9.14], [914.0, 6.1], [457.0, 3.05], [152.0, 1.52], [40.0, 0.0]]
@@ -27,7 +33,7 @@ func _from() -> String:
 	return "the cabin" if in_cabin else "the HUD"
 
 
-func test_every_checklist_is_flown_here() -> void:
+func _every_checklist_is_flown_here() -> void:
 	var titles := ChecklistBook.load_lm().lists.map(func(c: Checklist) -> String: return c.title).filter(
 		func(t: String) -> bool: return not t.begins_with("Malfunction: "))
 	assert_eq(titles, FLOWN)
@@ -50,7 +56,7 @@ func _capcom() -> String:
 	return hud._capcom.get_parsed_text()
 
 
-func test_undocking_and_doi() -> void:
+func _fly_undocking_and_doi() -> void:
 	await start("lunar_orbit")
 	assert_eq(main.vehicles.vehicle, "csm", "docked: in Columbia")
 	assert_eq(hud.book.list().title, "Lunar orbit and TEI", "with Columbia's checklist")
@@ -78,6 +84,11 @@ func test_undocking_and_doi() -> void:
 	await type("PPP")
 	assert_true(lgc.maneuver_valid, "TIG and ΔV accepted")
 	var tig := lgc.maneuver_tig
+	# The flight's stars at 101:15, Acrux and Antares (MSC-00171, Table
+	# 9.6-I).
+	var p52 := await _fly_p52([25, 33])
+	gut.p("P52 after undocking from %s: N05 %.3f, N93 %s" % [_from(), p52["sad"], p52["torque"]])
+	assert_lt(float(p52["sad"]), 0.05, "N05 as small as the flown 0.03")
 	await expect_step("Houston: GO for DOI")
 	assert_true(await fly_until(_event("timeline_go_doi"), tig - SimClock.get_seconds, 600.0), "GO for DOI")
 	await expect_step("LGC MODE - AUTO")
@@ -118,7 +129,7 @@ func test_undocking_and_doi() -> void:
 	assert_eq(hud.book.list().title, "Lunar orbit and TEI", "L: Columbia's checklist where it stood")
 
 
-func test_powered_descent_to_the_landing() -> void:
+func _fly_powered_descent_to_the_landing() -> void:
 	await start("lunar_descent")
 	assert_eq(main.vehicles.vehicle, "lm", "the descent starts in Eagle")
 	assert_eq(hud.book.list().title, FLOWN[1], "with its checklist for the descent")
@@ -191,12 +202,17 @@ func _check_lpd() -> void:
 	assert_almost_eq(through.x, LmCabin.lpd_mark(shown).x, 0.02, "on the scale, at its %d deg mark" % shown)
 
 
-## From the ascent PAD in, down the surface checklist to insertion: P12
-## twenty minutes before the liftoff, ABORT STAGE and ENG ARM ASC at V99,
-## PRO, and after insertion P00 and free drift.
+## From the ascent PAD in, down the surface checklist to insertion: P57
+## half an hour before the liftoff (_fly_p57()), the AGS brought up on it
+## (_fly_ags_init()), P12 twenty minutes before the liftoff, ABORT STAGE
+## and ENG ARM ASC at V99, PRO, and after insertion P00 and free drift.
 func _fly_liftoff() -> void:
 	var lgc := rt.lgc()
 	var tig := lgc.tig_load
+	var p57 := await _fly_p57(tig)
+	gut.p("P57 from %s: N05 %.3f, N93 %s" % [_from(), p57["sad"], p57["torque"]])
+	assert_lt(rad_to_deg(lgc.imu.misalignment().length()), 0.02, "the platform aligned for the ascent")
+	await _fly_ags_init()
 	await expect_step("V37E 12E")
 	await fly(tig - 1200.0 - SimClock.get_seconds, 3600.0)
 	await type("V37E12E")
@@ -232,7 +248,77 @@ func _fly_liftoff() -> void:
 	await expect_complete(FLOWN[2])
 
 
-func test_lunar_surface_to_orbit() -> void:
+## Key [param seq] into the AGS's DEDA, AgsCrew.keys() style ("C400+30000E":
+## C CLR, R READOUT, E ENTR, H HOLD): on the HUD's, G opening it and the
+## keyboard keying in (READOUT and HOLD clicked), then G closing it again,
+## so the keyboard types into the DSKY once more; or on the cabin DEDA's
+## keys. Keying takes a moment of flight, a fixed step.
+func _deda(seq: String) -> void:
+	if in_cabin:
+		var d: CabinDeda = cabin().items["P6_DEDA"]
+		for ch in seq:
+			var key: ControlBase = d.keys[DEDA_KEYS.get(ch, ch)]
+			await let_go(key)
+			await rig_click(key, 0, 0.0, false)
+	else:
+		press(KEY_G)
+		assert_true(hud.deda_open(), "G opens the DEDA")
+		for ch in seq:
+			match ch:
+				"R", "H":
+					hud.deda_panel.press(DEDA_KEYS[ch])
+				"C", "E", "+", "-":
+					press(DSKY_KEYS[ch])
+				_:
+					press((KEY_0 + int(ch)) as Key)
+		press(KEY_G)
+	run(SimClock.FIXED_DT, false)
+
+
+## The AGS brought up after the P57 (slice 11e), down the checklist: AGS
+## STATUS to OPERATE; on the DEDA the surface flag (413+10000) and the
+## align to the platform (400+30000); V47, the AGS's clock zeroed at
+## V06N16 (377+00000, its ENTR with V32E); PRO, 414+10000 on the downlist;
+## PRO at V50N16. In the cabin the LM pilot's station, panel 6's.
+func _fly_ags_init() -> void:
+	var lgc := rt.lgc()
+	var ags: Ags = rt.systems["ags"]
+	if in_cabin:
+		cabin().set_seat("LMP")
+		await wait_physics_frames(1)
+	await expect_step("AGS STATUS - OPERATE")
+	await click("AGS STATUS" if in_cabin else "AGS")
+	run(1.0, false)
+	await expect_step("DEDA (G on the HUD)")
+	await _deda("C413+10000E")
+	await _deda("C400+30000E")
+	run(AgsFp6.CYCLE + 0.1, false)
+	await expect_step("V47E - R47")
+	await type("V47E")
+	assert_eq(_vn(), ["06", "16"], "R47 asks for the AGS's clock zero")
+	await _deda("C377+00000")
+	await _deda("E")
+	await type("V32E")
+	await type("P")
+	await expect_step("While V06N16 shows")
+	await _deda("C414+10000E")
+	run(AgsFp6.CYCLE + 0.1, false)
+	await expect_step("V50N16: PRO")
+	assert_true(await fly_until(func() -> bool: return lgc.r47.phase == "done", 30.0, 1.0, false), "V50N16 after 20 s")
+	await type("P")
+	var m := ags.frame.transposed()
+	var truth := LgcR47._sm(m, rt.dynamics.lm.traj.s, 0, 1.0 / Units.FT)
+	var off := Vector3(ags.fp6.r[0] - float(truth[0]), ags.fp6.r[1] - float(truth[1]), ags.fp6.r[2] - float(truth[2]))
+	gut.p("The AGS initialized from %s: %.0f ft from where Eagle is" % [_from(), off.length()])
+	# Its alignment's error: the CDUs' angles, 40 arcsec a count (up to
+	# some 950 ft at the Moon's radius), and the platform's own.
+	assert_lt(off.length(), 1500.0, "the AGS has Eagle within its alignment's error")
+	if in_cabin:
+		cabin().set_seat("CDR")
+		await wait_physics_frames(1)
+
+
+func _fly_lunar_surface_to_orbit() -> void:
 	await start("lunar_surface")
 	assert_eq(hud.book.list().title, FLOWN[2], "Eagle's checklist for the surface")
 	await expect_step("Houston: STAY for T3")
@@ -248,6 +334,125 @@ func test_lunar_surface_to_orbit() -> void:
 	assert_almost_eq(alts.x, 9.0, 1.0, "9 nmi perilune")
 	assert_almost_eq(alts.y, 45.0, 2.0, "45 nmi apolune")
 	assert_eq(rt.sequencer.phase, "lunar_ascent")
+
+
+## Down the checklist's P52 (slice 11a): option 3, on [param stars] loaded
+## by hand in the front detent (ENTER at V50N25 00015), as the crew chose
+## them; for each the maneuver in AUTO (V50N18, ENTER at its end) and, at
+## the AOT, the star put on its Y-line and MARK Y, on its X-line and MARK
+## X, PRO; PRO at N05 and N93, ENTER for P00, and FREE unless
+## [param free] is false (P20 follows the P52 after insertion in AUTO).
+## Returns {"sad": N05, "torque": N93}.
+func _fly_p52(stars: Array, free: bool = true) -> Dictionary:
+	var lgc := rt.lgc()
+	await expect_step("V37E 52E")
+	await type("V37E52E")
+	await type("V22E3EP")
+	await type("E")
+	await expect_step("Each star")
+	for i in 2:
+		assert_eq(lgc.step_name, "n70", "V01N70 for star %d" % (i + 1))
+		await type("V21E%05dEE" % (LgcAlign.FRONT * 100 + int(stars[i])))
+		await type("P")
+		if i == 0:
+			await set_switch("ctl.lm.mode", 2)
+		await type("P")
+		assert_true(await fly_until(_lgc_step("v50n18"), 600.0, 1.0, false), "the LGC turned Eagle to star %d" % (i + 1))
+		await type("E")
+		await type("P")
+		assert_eq(lgc.step_name, "marks", "V54N71")
+		if i == 0:
+			await expect_step("At the AOT")
+		var code := lgc.align.star()
+		var d := lgc.align.detent()
+		await _set_detent(d)
+		await _aot(true)
+		put_star_in_aot(code, d, Vector2(0.0, 1.0))
+		await click("MARK Y", SimClock.FIXED_DT)
+		put_star_in_aot(code, d, Vector2(1.0, 0.0))
+		await click("MARK X", SimClock.FIXED_DT)
+		await _aot(false)
+		await type("P")
+	await expect_step("V06N05")
+	assert_eq(_vn(), ["06", "05"], "the star angle difference")
+	var out := {"sad": lgc.align.sad_deg}
+	await type("P")
+	var n93: Array = lgc.noun_values(93)
+	out["torque"] = Vector3(n93[0], n93[1], n93[2])
+	await type("P")
+	await type("E")
+	assert_eq(lgc.program, 0, "P00")
+	if free:
+		await expect_step("LGC MODE - FREE")
+		await set_switch("ctl.lm.mode", 0)
+	return out
+
+
+## Down the surface checklist's P57 (slice 11b), half an hour before the
+## liftoff at [param tig]: option 4 and TALIGN the liftoff; technique 3,
+## gravity read (PRO at V06N04) and the coarse align back (PRO at V06N22);
+## a star R59 finds (AotCrew.surface_stars()), PRO at V06N79 and V01N71;
+## at the AOT the detent R59 gave, MARK Y, and the counter's readings
+## loaded, V21 the cursor and V22 the spiral; PRO at N05 and N93, ENTER for
+## P00. Returns {"sad": N05, "torque": N93}.
+func _fly_p57(tig: float) -> Dictionary:
+	var lgc := rt.lgc()
+	await expect_step("V37E 57E")
+	await fly(tig - 1980.0 - SimClock.get_seconds, 3600.0)
+	await type("V37E57E")
+	await type("V22E4EP")
+	assert_eq(_vn(), ["06", "34"], "TALIGN")
+	await type("P")
+	await expect_step("V05N06")
+	await type("V22E3EP")
+	assert_true(await fly_until(_lgc_step("n04"), 300.0, 1.0, false), "gravity read")
+	await type("P")
+	await expect_step("V06N22")
+	await type("P")
+	assert_true(await fly_until(_lgc_step("n70"), 120.0, 1.0, false), "the coarse align back")
+	var star := int(AotCrew.surface_stars(self)[0])
+	await type("V21E%05dEEP" % star)
+	assert_eq(_vn(), ["06", "79"], "R59's detent, cursor and spiral")
+	await type("P")
+	await type("P")
+	await expect_step("At the AOT")
+	var d := int(lgc.surface.aotcode / 100.0)
+	await _set_detent(d)
+	await _aot(true)
+	await click("MARK Y", SimClock.FIXED_DT)
+	var r := AotCrew.reticle_readings(self, star, d)
+	await type("V21E+%05dE" % roundi(r.x * 100.0))
+	await type("V22E+%05dE" % roundi(r.y * 100.0))
+	await _aot(false)
+	await type("P")
+	await expect_step("V06N05")
+	var out := {"sad": lgc.surface.sad_deg}
+	await type("P")
+	var n93: Array = lgc.noun_values(93)
+	out["torque"] = Vector3(n93[0], n93[1], n93[2])
+	await type("P")
+	await type("E")
+	assert_eq(lgc.program, 0, "P00")
+	return out
+
+
+## The AOT's detent knob to detent [param d]: its HUD knob, or the cabin's.
+func _set_detent(d: int) -> void:
+	if in_cabin:
+		await set_switch("ctl.lm.aot.detent", d)
+		return
+	var o: OptionButton = hud._aot_detent
+	o.select(d - 1)
+	o.item_selected.emit(d - 1)
+	assert_eq(int(Bus.get_value("ctl.lm.aot.detent")), d, "the detent")
+
+
+## At the AOT ([param open]) or away from it: its HUD panel (O); in the
+## cabin its buttons are overhead.
+func _aot(open: bool) -> void:
+	if not in_cabin and hud.aot_open() != open:
+		press(KEY_O)
+		await wait_process_frames(1)
 
 
 ## The commander's braking on the TTCA's keys, as test_rendezvous.gd's
@@ -284,23 +489,23 @@ func _brake(max_s: float) -> bool:
 	return false
 
 
-## Fly the maneuver the LGC has stored on P41, down the rendezvous
-## checklist: LGC MODE AUTO and P41 ten minutes before TIG (or at once,
-## closer in), which brings the checklist to [param step], PRO to the burn
-## attitude, PRO at V99, and PRO after cutoff. Returns the ΔV flown, m/s.
-func _fly_p41(step: String) -> float:
+## Fly the maneuver the LGC has stored on P41 where Eagle is, down the
+## rendezvous checklist, as Apollo 11's crew burned theirs with +Z on
+## Columbia: P41 ten minutes before TIG (or at once, closer in), ENTER at
+## V50N18 for no maneuver, PRO at V99, and PRO after cutoff. Returns the
+## ΔV flown, m/s.
+func _fly_p41() -> float:
 	var lgc := rt.lgc()
 	var tig := lgc.maneuver_tig
 	await fly(maxf(tig - 600.0 - SimClock.get_seconds, 0.0), 600.0)
-	await set_switch("ctl.lm.mode", 2)
 	await type("V37E41E")
-	await expect_step(step)
 	assert_eq(lgc.program, 41, "P41")
-	await type("P")
-	await fly(tig - 12.0 - SimClock.get_seconds, 60.0, false)
+	await type("E")
+	assert_true(lgc.burn_in_place, "no maneuver: where Eagle is")
+	await fly(tig - 12.0 - SimClock.get_seconds, 60.0)
 	assert_true(await fly_until(_lgc_step("v99"), 10.0, 1.0, false), "V99 at TIG-5 s")
 	await type("P")
-	assert_true(await fly_until(_lgc_step("post"), 120.0, 1.0, false), "RCS cutoff")
+	assert_true(await fly_until(_lgc_step("post"), 300.0, 1.0, false), "RCS cutoff")
 	var dv := lgc.dv_accum
 	await expect_step("Trim N85")
 	await type("P")
@@ -309,7 +514,24 @@ func _fly_p41(step: String) -> float:
 	return dv
 
 
-func test_rendezvous_and_docking() -> void:
+## Fly on until P20 has weighed in [param n] marks, or to GET [param t].
+func _marks(n: int, t: float) -> void:
+	var lgc := rt.lgc()
+	await fly_until(func() -> bool: return lgc.p20.marks >= n, t - SimClock.get_seconds, 10.0)
+
+
+## V32 at V16N45: the rendezvous program's solution again, PRO'd through
+## to N45 (P34's from its TIG's N37, P35's from N81).
+func _recycle() -> void:
+	var lgc := rt.lgc()
+	await type("V32E")
+	if lgc.program == 34:
+		await type("P")
+	await type("P" if lgc.program == 35 else "PP")
+	assert_eq(lgc.step_name, "n45", "P%d recycled to V16N45" % lgc.program)
+
+
+func _fly_rendezvous_and_docking() -> void:
 	await start("lunar_ascent")
 	assert_eq(hud.book.list().title, FLOWN[2], "on the surface: the liftoff's checklist")
 	await _fly_liftoff()
@@ -318,32 +540,73 @@ func test_rendezvous_and_docking() -> void:
 	await expect_step("Mission Control: the CSI PAD")
 	assert_true(await fly_until(_event("pad_csi"), 600.0, 60.0), "the CSI PAD")
 	var pad: Dictionary = rt.sequencer.pads["csi"]
+	# The flight's after insertion, at 124:51: Rigel and Acrux (ibid.).
+	var p52 := await _fly_p52([12, 25], false)
+	gut.p("P52 after insertion from %s: N05 %.3f, N93 %s" % [_from(), p52["sad"], p52["torque"]])
+	# P20 as the G mission's procedures had it (SimTest.start_p20()).
+	await expect_step("RNDZ RADAR - LGC")
+	await set_switch("ctl.lm.rr_mode", 0)
+	# LGC MODE is AUTO from the P52's turns: its step checks itself off.
+	assert_eq(int(Bus.get_value("ctl.lm.mode", 0)), 2, "LGC MODE still AUTO")
+	await expect_step("V95E")
+	await type("V95E")
+	await type("V67E")
+	assert_eq(_vn(), ["06", "99"], "V06N99")
+	await type("V25N99E+10000E+00100E+00015E")
+	await type("P")
 	await expect_step("V37E 20E")
 	await type("V37E20E")
+	if lgc.p20.phase == "r61":
+		await type("P")
+	assert_true(await fly_until(func() -> bool: return lgc.p20.phase == "n72", 600.0, 1.0, false), "the radar locked on")
+	await expect_step("V50N72")
+	await type("P")
+	# From the lock-on the crew's standing answers take over: PRO at each
+	# N49, and at R61's and R21's displays again (SimTest.lm_crew()).
+	lm_crew()
+	await fly(20.0, 20.0, false)
+	await expect_step("V80E")
+	await type("V80E")
 	await expect_step("V37E 32E")
-	assert_true(lgc.rr_nav, "P20's marks")
-	await fly(float(pad["tig"]) - 1500.0 - SimClock.get_seconds, 600.0)
+	var tig := float(pad["tig"])
+	await fly(tig - 1500.0 - SimClock.get_seconds, 600.0)
 	await type("V37E32E")
 	assert_eq(_vn(), ["06", "11"], "P32: CSI's TIG")
 	await type("PPP")
 	assert_eq(_vn(), ["06", "75"], "ΔH and the times to CDH and TPI")
 	await type("PP")
+	# Houston's GO, 12 min 48 s before CSI as Apollo 11's, comes between
+	# the recycle at 10 marks and the final computation.
 	await expect_step("Houston: GO for CSI")
+	await _marks(10, tig - 720.0)
+	await _recycle()
+	await fly(tig - 720.0 - SimClock.get_seconds, 60.0)
+	assert_true(await fly_until(_event("timeline_go_csi"), 60.0, 1.0), "GO for CSI")
+	await expect_step("At 10 marks")
+	await _recycle()
+	await type("P")
 	assert_true(lgc.maneuver_valid, "CSI stored")
-	assert_true(await fly_until(_event("timeline_go_csi"), lgc.maneuver_tig - SimClock.get_seconds, 60.0), "GO for CSI")
-	await expect_step("LGC MODE - AUTO; V37E 41E")
-	var burns := {"CSI": await _fly_p41("V50N18: PRO to maneuver")}
-	await expect_step("LGC MODE - FREE: drift to CDH")
-	await set_switch("ctl.lm.mode", 0)
+	await expect_step("V37E 41E - P41 RCS Thrusting")
+	var burns := {"CSI": await _fly_p41()}
 	await expect_step("V37E 33E")
-	await fly(lgc.rdv_cdh_tig - 1200.0 - SimClock.get_seconds, 600.0)
 	await type("V37E33EP")
 	assert_eq(_vn(), ["06", "75"], "P33: V06N75")
 	await type("PP")
-	await expect_step("LGC MODE - AUTO; V37E 41E")
-	burns["CDH"] = await _fly_p41("V50N18: PRO to maneuver")
-	await expect_step("LGC MODE - FREE: drift to TPI")
-	await set_switch("ctl.lm.mode", 0)
+	var cdh := lgc.rdv_cdh_tig
+	await expect_step("At 4 marks V67E")
+	await _marks(4, cdh - 900.0)
+	await type("V67E")
+	await type("V25N99E+02000E+00020E+00005E")
+	await type("P")
+	await expect_step("V32E at 3 and at 10 marks")
+	for m in [3, 10]:
+		await _marks(m, cdh - 900.0)
+		await _recycle()
+	await fly(cdh - 720.0 - SimClock.get_seconds, 60.0)
+	await _recycle()
+	await type("P")
+	await expect_step("V37E 41E - P41 for CDH")
+	burns["CDH"] = await _fly_p41()
 	await expect_step("V37E 34E")
 	await fly(float(pad["tpi_get"]) - 1800.0 - SimClock.get_seconds, 600.0)
 	await type("V37E34EP")
@@ -351,18 +614,40 @@ func test_rendezvous_and_docking() -> void:
 	await type("P")
 	assert_eq(_vn(), ["06", "58"])
 	await type("PP")
-	await expect_step("LGC MODE - AUTO; V37E 41E")
+	await expect_step("At 4 marks V93E")
+	await _marks(4, lgc.rdv_tpi_tig - 900.0)
+	await type("V93E")
+	await expect_step("V32E at 3 and at 10 marks")
+	for m in [3, 10]:
+		await _marks(m, lgc.rdv_tpi_tig - 900.0)
+		await _recycle()
+	await fly(lgc.rdv_tpi_tig - 720.0 - SimClock.get_seconds, 60.0)
+	await _recycle()
+	await type("P")
+	await expect_step("V37E 41E - P41 for TPI")
 	var tpi_tig := lgc.maneuver_tig
-	burns["TPI"] = await _fly_p41("V50N18: PRO to maneuver")
+	burns["TPI"] = await _fly_p41()
+	# Each midcourse correction's P35 from the burn before on, so that its
+	# marks weigh in, and its final computation a P35 lead (TIG from then)
+	# before the flight's time for it (SimTest.lm_coelliptic()).
+	var lead := float(SpacecraftData.section("rendezvous_guidance")["tpm_lead_s"])
 	for which in ["first", "second"]:
-		await expect_step("LGC MODE - FREE: drift to the %s midcourse" % which)
-		await set_switch("ctl.lm.mode", 0)
-		await expect_step("V37E 35E")
-		var after: float = rt.mission.section("rendezvous")["tpm_after_tpi_s"][burns.size() - 3]
-		await fly(tpi_tig + after - 300.0 - SimClock.get_seconds, 60.0)
+		await expect_step("V93E before the first mark")
+		await type("V93E")
+		await expect_step("V37E 35E - P35 %s midcourse" % which)
 		await type("V37E35EP")
-		await expect_step("LGC MODE - AUTO; V37E 41E - P41")
-		burns["TPM%d" % burns.size()] = await _fly_p41("LGC MODE - AUTO; V37E 41E - P41")
+		var after: float = rt.mission.section("rendezvous")["tpm_after_tpi_s"][burns.size() - 3]
+		await expect_step("%d min after TPI V32E" % roundi((after - lead) / 60.0))
+		await fly(tpi_tig + after - lead - SimClock.get_seconds, 60.0)
+		await _recycle()
+		await type("P")
+		await expect_step("V37E 41E - P41; ENTER")
+		burns["TPM%d" % burns.size()] = await _fly_p41()
+	await expect_step("Inside 18,000 ft")
+	await fly_until(func() -> bool: return Rendezvous.rel_pos(rt.dynamics.lm.traj, rt.dynamics.traj).length() < 18000.0 * Units.FT,
+		1800.0, 10.0)
+	await type("V56E")
+	await set_switch("ctl.lm.rr_mode", 1)
 	await expect_step("Braking by the gates")
 	var t_brake := SimClock.get_seconds
 	assert_true(await _brake(1800.0), "braked on the keys to station-keeping")
@@ -390,12 +675,10 @@ func test_rendezvous_and_docking() -> void:
 	assert_eq(hud.book, main.book, "the HUD on Columbia's checklists")
 	assert_eq(hud.book.list().title, "Lunar orbit and TEI")
 	assert_almost_eq(burns["CSI"], float(pad["dv"]), 0.5, "CSI flown")
-	# The LGC's platform (slice 11a) drifts through the ascent and the
-	# rendezvous, without the P52 after insertion that Eagle's checklists
-	# don't have yet (slice 11b), and P20's fixed gains take part of what
-	# that makes of the radar's line of sight for velocity (slice 11d's
-	# filter): TPI comes out up to 2.5 m/s off the PAD's.
-	assert_almost_eq(burns["TPI"], float(pad["tpi_dv"]), 2.5, "TPI flown near the PAD's")
+	# P20's filter (slice 11d) on the radar's errors drawn for Apollo 11:
+	# TPI and the midcourse corrections within test_rendezvous.gd's limits.
+	assert_almost_eq(burns["TPI"], float(pad["tpi_dv"]), 1.0, "TPI flown within 1 m/s of the PAD's")
+	assert_lt(burns["TPM3"] + burns["TPM4"], 2.5, "midcourse corrections within 2.5 m/s together")
 
 
 ## Stop Columbia relative to Eagle on the THC's keys.

@@ -198,9 +198,6 @@ var entry_lat: float = 0.0
 var entry_lng: float = 0.0
 var entry_headsup: int = -1
 var entry_pred: Dictionary = {}
-## P40 and P41 steer as Colossus's did (cross_product()); false holds the
-## ΔV's LVLH direction instead, as the simulator did before, to compare.
-var cross_product_steering: bool = true
 ## P51 and P52: the option (P52's), the orientation a coarse align goes
 ## to, the two stars (codes), the marks taken (each star's direction as
 ## measured, stable member axes), the star angle difference (deg), the
@@ -265,10 +262,6 @@ func engine_thrust(p: int) -> float:
 	if p == 41:
 		return 4.0 * float(SpacecraftData.section("sm_rcs")["jet_thrust_n"])
 	return float(SpacecraftData.section("sps")["thrust_n"])
-
-
-func cross_product() -> bool:
-	return cross_product_steering
 
 
 func engine_tau_off(_p: int) -> float:
@@ -660,7 +653,7 @@ func _proceed_p51() -> void:
 			# REFSMMAT: the platform's orientation, from the two stars.
 			var s1 := Stars.direction(align_stars[0])
 			var s2 := Stars.direction(align_stars[1])
-			imu.refsmmat = _triad(align_marks[0], align_marks[1]) * _triad(s1, s2).transposed()
+			imu.refsmmat = Imu.triad(align_marks[0], align_marks[1]) * Imu.triad(s1, s2).transposed()
 			imu.aligned = true
 			change_program(0)
 
@@ -831,16 +824,8 @@ func _star_angle_difference() -> void:
 func _torquing_angles() -> Vector3:
 	var e1 := imu.refsmmat * Stars.direction(align_stars[0])
 	var e2 := imu.refsmmat * Stars.direction(align_stars[1])
-	var r := _triad(e1, e2) * _triad(align_marks[0], align_marks[1]).transposed()
+	var r := Imu.triad(e1, e2) * Imu.triad(align_marks[0], align_marks[1]).transposed()
 	return Imu.rotation_vector(r)
-
-
-## Axes from two directions, as columns, sharing their errors: the
-## bisector, the normal and the third.
-static func _triad(a: Vector3, b: Vector3) -> Basis:
-	var x := (a.normalized() + b.normalized()).normalized()
-	var y := a.cross(b).normalized()
-	return Basis(x, y, x.cross(y))
 
 
 func _show_align_step() -> void:

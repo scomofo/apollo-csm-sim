@@ -151,6 +151,10 @@ func test_the_seats_and_what_each_reaches() -> void:
 	for id in ["P5_ENGINE_STOP", "P5_ENGINE_START", "P5_DES_RATE", "P1_ENG_ARM", "P1_ABORT_STAGE", "P3_LGC_MODE",
 			"P3_RR_MODE"]:
 		assert_lt(eye.distance_to(cabin.items[id].global_position), 0.9, "%s within the commander's reach" % id)
+	cabin.set_seat("LMP")
+	eye = cabin.anchor.global_position
+	for id in ["P6_DEDA", "P6_AGS_STATUS"]:
+		assert_lt(eye.distance_to(cabin.items[id].global_position), 0.9, "%s within the LM pilot's reach" % id)
 
 
 func test_the_cabin_stays_about_the_centre_of_mass_as_the_lm_stages() -> void:

@@ -6,7 +6,7 @@
 ## LM's switches (the LGC's mode, ENGINE ARM, ABORT STAGE, ENGINE START and
 ## STOP, the RCS systems and the ROD switch), its flight data and systems,
 ## its checklists, and the FDAI on its attitude [simplified: an overlay,
-## not the LM's panels].
+## not the LM's panels]; G opens the AGS's DEDA (slice 11e).
 class_name Hud
 extends CanvasLayer
 
@@ -25,7 +25,10 @@ Cabin view    click a control, scroll to move it; right-click: mouse look,
               Z: inspect, Home: recentre, M: wrist menu
 O             the optics (sextant and telescope): W/S A/D move them,
               X MARK, Y MARK REJECT; flying the LM, the AOT: the LM
-              turns on the ACA, X MARK X, Y MARK Y, Z REJECT
+              turns on the ACA, X MARK X, Y MARK Y, Z REJECT,
+              , . turn the reticle (Shift slowly)
+G             flying the LM, the AGS's DEDA: while it's open the
+              digits, + -, Enter and Bksp key into it (ENTR, CLR)
 F5 / F9       quick save / back to it (the flight menu's SAVES lists it)
 F1            the flight menu: another mission or start phase, saved flights
 H             this help"""
@@ -45,9 +48,11 @@ var book: ChecklistBook
 var csm_book: ChecklistBook
 var lm_book: ChecklistBook
 ## The LM's alignment optical telescope's view (toggle_optics() flying the
-## LM), in its panel with its detent and the CCRD's MARK X, MARK Y and
-## REJECT.
+## LM), in its panel with its detent, the CCRD's MARK X, MARK Y and REJECT
+## and the reticle knob.
 var aot_view: AotView
+## The AGS's DEDA (toggle_deda() flying the LM).
+var deda_panel: DedaPanel
 var _flight: Label
 var _systems: Label
 var _top: Label
@@ -151,6 +156,21 @@ func setup(p_rt: SimRuntime, p_book: ChecklistBook = null, p_lm_book: ChecklistB
 	_aot.offset_top = 34
 	_aot.visible = false
 	root.add_child(_aot)
+	# The DEDA, below the AOT's place, above the CAPCOM strip.
+	deda_panel = DedaPanel.new()
+	_style(deda_panel)
+	deda_panel.setup(rt.systems["ags"], mono)
+	deda_panel.anchor_left = 0.5
+	deda_panel.anchor_right = 0.5
+	deda_panel.anchor_top = 1.0
+	deda_panel.anchor_bottom = 1.0
+	deda_panel.offset_left = -135
+	deda_panel.offset_right = 135
+	deda_panel.offset_top = -380
+	deda_panel.offset_bottom = -100
+	deda_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	deda_panel.visible = false
+	root.add_child(deda_panel)
 	# CAPCOM strip along the bottom.
 	var cp := PanelContainer.new()
 	_style(cp)
@@ -216,12 +236,22 @@ func optics_open() -> bool:
 	return _optics.visible
 
 
+## Open or close the DEDA, flying the LM: while it's open the keyboard's
+## digits key into it (main.gd).
+func toggle_deda(on: Variant = null) -> void:
+	deda_panel.visible = vehicle == "lm" and ((not deda_panel.visible) if on == null else bool(on))
+
+
+func deda_open() -> bool:
+	return deda_panel.visible
+
+
 func aot_open() -> bool:
 	return _aot.visible
 
 
-## The AOT's view, its detent knob, and the CCRD's MARK X, MARK Y and
-## REJECT.
+## The AOT's view, its detent knob, the CCRD's MARK X, MARK Y and REJECT,
+## and the reticle knob (fast and slow each way; slice 11b).
 func _aot_panel() -> PanelContainer:
 	var p := PanelContainer.new()
 	_style(p)
@@ -255,6 +285,14 @@ func _aot_panel() -> PanelContainer:
 	names.button_pressed = aot_view.names
 	names.toggled.connect(func(on: bool) -> void: aot_view.names = on)
 	h.add_child(names)
+	var k := HBoxContainer.new()
+	v.add_child(k)
+	var rl := Label.new()
+	rl.text = "RETICLE"
+	rl.add_theme_font_size_override("font_size", 11)
+	k.add_child(rl)
+	for b in [["<<", -2], ["<", -1], [">", 1], [">>", 2]]:
+		_momentary(k, str(b[0]), "ctl.lm.aot.reticle", int(b[1]), 0)
 	return p
 
 
@@ -319,6 +357,8 @@ func _show_panels() -> void:
 	if not lm and _aot.visible:
 		_aot.visible = false
 		Bus.set_value("player.aot", false)
+	if not lm:
+		deda_panel.visible = false
 
 
 func _style(p: PanelContainer) -> void:
@@ -436,8 +476,9 @@ func _momentary(parent: Node, text: String, ch: String, on: Variant = true,
 ## Eagle's switches: the LGC's mode, the engines, staging, the RCS and the
 ## ROD switch; the LM's power, its PGNS and AGS, the AGS's body-axis align
 ## and the guidance control switch (Apollo 13's lifeboat); the rendezvous
-## radar's mode select (Apollo 11's program alarms); ABORT and the master
-## alarm (the LM's aborts).
+## radar's mode select (Apollo 11's program alarms) and its SLEW RATE and
+## SLEW switch, to lock on by hand (slice 11d); ABORT and the master alarm
+## (the LM's aborts).
 func _lm_switch_panel() -> PanelContainer:
 	var p := PanelContainer.new()
 	_style(p)
@@ -462,6 +503,11 @@ func _lm_switch_panel() -> PanelContainer:
 	_option(g, "GUID CONT", "ctl.lm.guid_cont", ["PGNS", "AGS"])
 	_momentary(g, "AGS ALIGN", "ctl.lm.ags_align")
 	_option(g, "RNDZ RADAR", "ctl.lm.rr_mode", ["LGC", "AUTO TRACK", "SLEW"])
+	_option(g, "SLEW RATE", "ctl.lm.rr_slew_rate", ["LO", "HI"])
+	_momentary(g, "SLEW UP", "ctl.lm.rr_slew_shaft", 1, 0)
+	_momentary(g, "SLEW DOWN", "ctl.lm.rr_slew_shaft", -1, 0)
+	_momentary(g, "SLEW LEFT", "ctl.lm.rr_slew_trunnion", 1, 0)
+	_momentary(g, "SLEW RIGHT", "ctl.lm.rr_slew_trunnion", -1, 0)
 	return p
 
 
@@ -584,10 +630,11 @@ func _lm_flight_text() -> String:
 			lamps.append(l.to_upper())
 	if bool(Bus.get_value("lm.contact_light", false)):
 		lamps.append("CONTACT LIGHT")
-	var rr := "RR   no track"
+	var rr := "RR   NO TRACK"
 	if bool(Bus.get_value("lm.rr.data_good", false)):
 		rr = "RR   %8.2f nmi  %+7.1f ft/s" % [float(Bus.get_value("lm.rr.range_m", 0.0)) / nm,
 			float(Bus.get_value("lm.rr.range_rate_mps", 0.0)) / ft]
+	rr += "  SIGNAL %.2f" % float(Bus.get_value("lm.rr.signal", 0.0))
 	return """EAGLE  CONFIG %s%s
 AGL     %9s ft
 HDOT    %+9.1f ft/s

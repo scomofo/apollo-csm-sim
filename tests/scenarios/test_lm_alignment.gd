@@ -42,7 +42,7 @@ func test_eagles_p52_after_undocking_aligns_the_platform_and_the_landing_flies_o
 	_undock()
 	assert_false(lgc.imu.ideal, "the LGC's platform a real one")
 	assert_true(lgc.imu.aligned and lgc.imu.operating(), "aligned docked")
-	assert_almost_eq(lgc.imu.drift / MissionSequencer.MERU_RAD_S, Vector3(4.5, -5.0, 0.4), Vector3.ONE * 1e-6,
+	assert_almost_eq(lgc.imu.drift / MissionSequencer.MERU_RAD_S, Vector3(4.5, -5.0, -0.4), Vector3.ONE * 1e-6,
 		"Eagle's gyros drifting as the mission report measured, mERU")
 	var mis0 := rad_to_deg(lgc.imu.misalignment().length())
 	assert_between(mis0, 0.25, 0.40, "off by about the first P52's angles less the hour's drift")

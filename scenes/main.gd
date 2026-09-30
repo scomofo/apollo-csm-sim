@@ -141,6 +141,8 @@ var _mark_held: bool = false
 var _reject_held: bool = false
 ## The AOT's MARK X, MARK Y and REJECT keys, held.
 var _aot_held: Array[bool] = [false, false, false]
+## The AOT's reticle keys' command (ctl.lm.aot.reticle).
+var _reticle_held: int = 0
 ## The flight phase the flight started in.
 var _first_phase: String = ""
 ## The GET the flight started at.
@@ -481,6 +483,14 @@ func _dsky() -> Dsky:
 	return rt.lgc().dsky if vehicles.vehicle == "lm" else rt.agc().dsky
 
 
+## What a keyboard key [param key] (a DSKY key's name) types into: the
+## DEDA, while its panel is open, for the keys it has; else the DSKY.
+func _keypad(key: String) -> Object:
+	if hud.deda_open() and key in Deda.KEYS:
+		return rt.systems["ags"]
+	return _dsky()
+
+
 func _place_rig() -> void:
 	if xr_interface == null:
 		xr_interface = XRServer.find_interface("OpenXR")
@@ -589,6 +599,15 @@ func _process(_delta: float) -> void:
 		if aot[i] != _aot_held[i]:
 			_aot_held[i] = aot[i]
 			Bus.set_value(["ctl.lm.aot.mark_x", "ctl.lm.aot.mark_y", "ctl.lm.aot.reject"][i], aot[i])
+	# And , and . turn its reticle anticlockwise and clockwise, Shift
+	# slowly.
+	var turn := 0
+	if at_aot:
+		turn = int(Input.is_key_pressed(KEY_PERIOD)) - int(Input.is_key_pressed(KEY_COMMA))
+		turn *= 1 if Input.is_key_pressed(KEY_SHIFT) else 2
+	if turn != _reticle_held:
+		_reticle_held = turn
+		Bus.set_value("ctl.lm.aot.reticle", turn)
 
 
 const DSKY_KEYS := {
@@ -607,11 +626,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	var kc: Key = event.keycode
 	if DSKY_KEYS.has(kc):
-		_dsky().press(DSKY_KEYS[kc])
+		_keypad(DSKY_KEYS[kc]).press(DSKY_KEYS[kc])
 	elif kc >= KEY_0 and kc <= KEY_9:
-		_dsky().press(str(kc - KEY_0))
+		_keypad("0").press(str(kc - KEY_0))
 	elif kc >= KEY_KP_0 and kc <= KEY_KP_9:
-		_dsky().press(str(kc - KEY_KP_0))
+		_keypad("0").press(str(kc - KEY_KP_0))
 	else:
 		match kc:
 			KEY_BRACKETLEFT: SimClock.slower()
@@ -626,5 +645,6 @@ func _unhandled_input(event: InputEvent) -> void:
 				else:
 					open_flight_menu()
 			KEY_O: hud.toggle_optics()
+			KEY_G: hud.toggle_deda()
 			KEY_F5: quick_save()
 			KEY_F9: quick_load()
