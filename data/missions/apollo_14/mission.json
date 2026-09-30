@@ -1,0 +1,682 @@
+{
+ "id": "apollo_14",
+ "title": "Apollo 14 - CSM Kitty Hawk, LM Antares",
+ "data_version": 1,
+ "_comment": "Apollo 14, Fra Mauro: the flight of Apollo 13's landing site, launched 40 min late through the overcast; its CSM flew DOI with the LM docked, Antares landed on a descent that kept its abort programs locked out and its landing radar late, and it met Kitty Hawk by a direct rendezvous, TPI in its first revolution. Sources: the Apollo 14 Mission Report (MSC-04112), its trajectory reconstruction (MSC-04330) and descent memo (71-FM22-36), the Saturn V flight evaluation report for AS-509 (MPR-SAT-FE-71-1), the final flight plan and press kit, the Apollo Flight Journal's and the Apollo Lunar Surface Journal's transcripts, and LROC's maps of the site. Distances in km, times in GET seconds or hhh:mm:ss. GET counts from range zero, 21:03:02 UTC on 31 January 1971: the flight moved its clocks 40:02.9 ahead at 54:53:36, and every time here after that is taken back to range zero [simplified: the simulator's clocks aren't moved].",
+ "liftoff_jd": 2440983.3771065,
+ "call_signs": {
+  "mission": "Apollo 14",
+  "csm": "Kitty Hawk",
+  "lm": "Antares",
+  "lm_landed": "Antares",
+  "_comment": "The call signs CAPCOM used for the flight and its vehicles, Antares on the surface as well (Apollo Lunar Surface Journal) [published]"
+ },
+ "start_calls": {
+  "launch": "25 seconds and counting. We are still Go. 20 seconds. Guidance alert. The guidance system now going internal.",
+  "translunar_coast": "{mission}, Houston. Good TLI. You're on the free return; MCC-2 will put you on the hybrid.",
+  "lunar_orbit": "{mission}, Houston. You're on the descent orbit, 59 by 9 miles, with {lm} docked. Undocking comes on the twelfth rev.",
+  "lunar_descent": "{lm}, Houston. You're on the descent orbit. Your state vector and GO for PDI are coming, and a Noun 69 after throttle-up.",
+  "lunar_surface": "{lm_landed}, Houston. You're STAY. {csm}'s plane change comes first; the ascent PAD at {ascent_pad}.",
+  "lunar_ascent": "{lm}, Houston. Your ascent PAD is in, for the direct rendezvous: liftoff at {liftoff}. P12 when you're ready.",
+  "tei": "{csm}, Houston. The LM is gone; your TEI PAD is on its way up.",
+  "transearth_coast": "Houston: TEI was good. Your midcourse PADs will come up to trim the entry corridor.",
+  "entry": "Houston: entry interface in about twenty minutes. P61, CM/SM SEP when P62 asks, ELS LOGIC and AUTO.",
+  "_comment": "CAPCOM's word as each start phase begins, the simulator's own [adapted]"
+ },
+ "moon": {
+  "ephemeris": "res://data/ephemeris/apollo_14.json",
+  "gravity": "res://data/gravity/moon.json"
+ },
+ "vehicles": {
+  "_comment": "Apollo 14's vehicles where they differ from data/spacecraft.json's, Apollo 11's",
+  "mass": {
+   "cm_dry_kg": 5672.2,
+   "sm_dry_kg": 4343.6,
+   "lm_descent_dry_kg": 2165.6,
+   "lm_ascent_dry_kg": 2302.0,
+   "sivb_dry_kg": 16982.5,
+   "_source": "The mission report's mass properties (MSC-04112, Table A-II: the CSM 64,388.0 lb at transposition and docking, the CM 12,715.1 lb after CM/SM separation; the LM 34,125.9 lb at its separation, 10,779.8 lb at lunar lift-off, 5,917.8 lb at insertion, 5,880.1 lb at TPI and 5,781.3 lb at docking) and propellant loads (sections 7.11 and 8.11: the SPS's 40,756.2 lb, the SM RCS's 1,340.6 lb, the CM RCS's usable 210.0 lb; the DPS's 18,417.2 lb, 794.0 lb left at its cutoff; the APS's 5,225.2 lb, 4,893.0 lb used; the LM RCS's 634 lb, 260 lb used to docking) [published]; the vehicle at the S-IVB's second ignition, 136,121 kg (MPR-SAT-FE-71-1, Table 16-9) [published]. From them [derived]: the CM dry of its RCS's propellant, the SM dry of its own and the SPS's; the ascent stage dry, with the crew and their equipment, at lift-off less its APS load and the 479.5 lb of RCS propellant left then (the 634 lb less the 260 lb used to docking, plus the 105.5 lb the ascent, the tweak and the rendezvous took: the mass table's steps less the APS's share, its 51.9 lb in TPI on the rocket equation); the descent stage dry, the LM at its separation less the rest, which puts the LM at landing 23.5 lb under its 16,371.7 lb [simplified: the LM carries its crew from TLI, 474 lb more than its 33,651.9 lb at launch]; the S-IVB dry with the Instrument Unit, the adapter and the residuals, the vehicle at ignition less the CSM, the LM and the propellant"
+  },
+  "sps": {
+   "propellant_kg": 18486.7,
+   "_source": "The SPS's load, 40,756.2 lb (MSC-04112, section 7.11.1) [published]; its engine Apollo 11's"
+  },
+  "sm_rcs": {
+   "quad_propellant_kg": 152.02,
+   "_source": "The SM RCS's load, 1,340.6 lb in four quads (MSC-04112, section 7.11.2) [published]"
+  },
+  "cm_rcs": {
+   "ring_propellant_kg": 47.63,
+   "_source": "The CM RCS's usable load, 210.0 lb in two systems (MSC-04112, section 7.11.2) [published]"
+  },
+  "dps": {
+   "propellant_kg": 8353.9,
+   "_source": "The DPS's load, 18,417.2 lb (MSC-04112, section 8.11.1) [published]; its engine Apollo 11's"
+  },
+  "aps": {
+   "propellant_kg": 2370.1,
+   "_source": "The APS's load, 5,225.2 lb (MSC-04112, section 8.11.2) [published]; its engine Apollo 11's"
+  },
+  "lm_rcs": {
+   "system_propellant_kg": 143.8,
+   "_source": "The LM RCS's load, 317 lb in each of its two systems (MSC-04112, section 8.11.3) [published]"
+  },
+  "sivb": {
+   "thrust_n": 856379.0,
+   "isp_s": 427.1,
+   "propellant_kg": 74453.4,
+   "_source": "The J-2 in AS-509's second S-IVB burn, TLI: 350.8 s from 136,121 kg at ignition to 64,387 kg at the cutoff signal (MPR-SAT-FE-71-1, Tables 2-2 and 16-9), with LOX depletion 13.3 s after the cutoff (section 7.8) [published]; its specific impulse at the steady-state slice, 427.1 s (Table 7-2) [published]; the thrust the burn's mean flow gives at that specific impulse, and the propellant to depletion [derived; the thrust and the specific impulse held through the burn: simplified]"
+  },
+  "ascent_guidance": {
+   "insertion_hdot_mps": 9.54024,
+   "insertion_apolune_alt_m": 96868.0,
+   "_source": "Insertion for the direct rendezvous, climbing at 31.3 ft/s with 5,542.9 ft/s horizontal, the ascent PAD's N76 (Apollo Lunar Surface Journal, 139:56:38) [published]: at 60,000 ft over the site that is an apolune 52.3 nmi above it [derived]; the flight plan's 51.0 by 9.1 nmi (Table 1-6), flown 51.7 by 8.5 (MSC-04112, Table 6-V)"
+  },
+  "saturn_v": {
+   "liftoff_kg": 2911096.0,
+   "s_ic": {
+    "engines": 5,
+    "thrust_vac_n": 7940000,
+    "exit_area_m2": 12.48,
+    "isp_sl_s": 264.52,
+    "isp_vac_s": 305.15,
+    "propellant_kg": 2074190.0,
+    "_source": "AS-509's F-1s: 1,500.8 klbf and an Isp of 264.52 s each reduced to sea level, the five engines' average at the 35 to 38 s time slice (MPR-SAT-FE-71-1, Table 5-1) [published, averaged: derived]; 7838 kN each in vacuum at OECO, the peak 37.46 m/s2 on 836,906 kg over four engines (ibid., Tables 4-1 and 16-9) [derived], the exit area the difference over the sea level's pressure [derived]; the propellant the vehicle's mass from holddown release to OECO (ibid., Table 16-9) [derived], the vacuum Isp that burns it by the flown OECO, 164.10 s [estimated]"
+   },
+   "s_ii": {
+    "start_kg": 666515.0,
+    "propellant_kg": 447171.0,
+    "thrust_n": 5179345,
+    "flow_kg_s": 1237.5,
+    "low_mr_thrust_n": 3452131,
+    "low_mr_flow_kg_s": 824.4,
+    "aft_interstage_kg": 3945.0,
+    "les_kg": 4094.0,
+    "_source": "AS-509's second flight stage at the S-II's start command, its aft interstage and launch escape system jettisoned, and 211,305 kg at its cutoff signal (MPR-SAT-FE-71-1, Table 16-9) [published], the propellant between them [derived]; five J-2s at the high mixture ratio, 1,164,363 lbf 61 s after the start command (ibid., section 6.3), four after the centre engine's cutoff, and 776,070 lbf on four at the low ratio after the shift (ibid.) [published]; the low ratio's flow at the 427 s Isp Apollo 12's figure gave [estimated], and the high ratio's the flow that burns the rest by the flown cutoff, 559.05 s [estimated]"
+   },
+   "s_ivb": {
+    "start_kg": 166504.0,
+    "thrust_n": 896637,
+    "flow_kg_s": 214.07,
+    "_source": "AS-509's third flight stage at the S-IVB's first start command (MPR-SAT-FE-71-1, Table 16-9); the J-2 in the first burn, 201,572 lbf on 392.14 lbm/s of LOX and 79.80 lbm/s of LH2 (ibid., Table 7-1) [published]"
+   },
+   "_source": "AS-509, Apollo 14's Saturn V, where it differs from spacecraft.json's AS-506: at holddown arm release 2,911,096 kg (MPR-SAT-FE-71-1, Table 16-9) [published]; its drag and its guidance failure's rate AS-506's [estimated]"
+  }
+ },
+ "launch": {
+  "pad_lat_deg": 28.608389,
+  "pad_lon_deg": -80.604333,
+  "flight_azimuth_deg": 75.558,
+  "pad_azimuth_deg": 90.0,
+  "start_get_s": -20.0,
+  "grr_get_s": -17.0,
+  "ignition_get_s": -8.9,
+  "thrust_ok_get_s": -1.6,
+  "release_get_s": 0.2,
+  "t1_get_s": 0.57,
+  "yaw_deg": 1.25,
+  "yaw_t1_s": [
+   1.4,
+   9.3
+  ],
+  "tilt_t1_s": 12.2,
+  "attitude_rate_dps": 1.0,
+  "tilt_segments_s": [
+   35.0,
+   80.0,
+   115.0
+  ],
+  "tilt_poly": [
+   [
+    3.1984,
+    -0.544236,
+    0.0351605,
+    -0.00116379,
+    1.13886e-05
+   ],
+   [
+    -10.9607,
+    0.94662,
+    -0.0294206,
+    0.000207717,
+    -4.39036e-07
+   ],
+   [
+    78.7826,
+    -2.83749,
+    0.028971,
+    -0.000178363,
+    4.63029e-07
+   ],
+   [
+    69.9191,
+    -2.00749,
+    0.0105367,
+    -2.33163e-05,
+    1.36702e-08
+   ]
+  ],
+  "sic_ceco_t1_s": 134.57,
+  "tilt_arrest_t2_s": 28.8,
+  "t3_s": {
+   "separation": 0.7,
+   "s2_start": 1.4,
+   "s2_mainstage": 4.4,
+   "aft_interstage": 30.7,
+   "les": 36.6,
+   "igm": 41.8,
+   "s2_ceco": 298.98,
+   "emr_shift": 309.0
+  },
+  "t4_s": {
+   "separation": 1.0,
+   "s4_ignition": 4.3,
+   "s4_mainstage": 6.8
+  },
+  "insertion_t5_s": 9.8,
+  "parking_orbit_loss_kg": 993.0,
+  "calls": {
+   "ignition": "15, 14, 13, 12, 11, 10, 9, 8, ignition sequence start.",
+   "liftoff": "Lift-off. We have lift off with Apollo 14, 3 minutes past the hour.",
+   "tilt": "Tower clear. Roll and pitch starts.",
+   "sic_ceco": "Inboard cut-off.",
+   "s2_ignition": "Ignition on five.",
+   "les_jettison": "And there goes the tower.",
+   "s2_ceco": "Inboard cut-off.",
+   "s4_ignition": "And good thrust on one.",
+   "s4_cutoff": "We've got a good cut-off."
+  },
+  "_comment": "Apollo 14's launch from Launch Complex 39A through the overcast at 21:03:02 UTC on 31 January 1971, GET 0, on AS-509 [published], after a hold of 40 min 2 s at T-8 min 2 s for the weather: the flight azimuth moved from the window's opening 72.067 deg to 75.558 deg (MPR-SAT-FE-71-1, sections 3 and 9.3.1) [published]. The pad's coordinates are Apollo 11's, taken as geocentric [simplified]. The start phase begins on the pad at start_get_s: guidance reference release at grr_get_s, the S-IC's start sequence commanded at ignition_get_s, all engines running by thrust_ok_get_s, first motion at release_get_s and T1 at t1_get_s (ibid., Tables 2-1 and 2-2) [published]. The Instrument Unit's boost program on its time bases as AS-509 flew it (ibid.) [published]: the yaw away from the tower from 2.0 to 9.9 s, the roll and pitch program at 12.8 s, the S-IC's centre engine cutoff (135.14 s) on T1, the tilt arrest (164.1 s) on T2; T3 at the outboard engines' cutoff (164.10 s), which the propellant ends, then staging, the S-II's start, its aft interstage's separation, the launch escape tower's jettison, the iterative guidance's start, the S-II's centre engine cutoff (463.09 s) and the mixture ratio's shift (473.1 s); T4 at the S-II's cutoff (559.05 s), then staging and the S-IVB's ignition; T5 at the S-IVB's velocity cutoff (700.56 s), and insertion after it (710.6 s). The yaw's size, the attitude rate limit and the time-tilt pitch polynomial are SA-504's presettings, as Apollo 11's [estimated for AS-509, whose presettings aren't at hand], toward the flight azimuth. The S-IVB loses parking_orbit_loss_kg between its first burn's end and its second start command: 137,123 kg and 136,130 kg (ibid., Table 16-9) [derived]; the simulator takes it off at insertion [simplified]. The calls are the flight's (Apollo Flight Journal, Apollo 14, launch)"
+ },
+ "launch_aborts": {
+  "ib_get_s": 42.0,
+  "ic_get_s": 119.0,
+  "coi_get_s": 349.0,
+  "iii_get_s": 551.0,
+  "iv_get_s": 552.0,
+  "calls": [
+   [
+    42.0,
+    "Mark; One Bravo now."
+   ],
+   [
+    119.0,
+    "Mark; One Charlie now."
+   ],
+   [
+    203.0,
+    "Roger. We confirm the skirt Sep. And you're in Mode II now."
+   ],
+   [
+    349.0,
+    "Mark. S-IVB to COI now."
+   ],
+   [
+    401.0,
+    "Mark. You have S-IVB to orbit now."
+   ],
+   [
+    552.0,
+    "Stand by for a Mode IV capability. Mark. You have it now."
+   ]
+  ],
+  "landing_nmi": {
+   "I": [
+    0.0,
+    520.0
+   ],
+   "II": [
+    440.0,
+    3200.0
+   ],
+   "III": [
+    3000.0,
+    3350.0
+   ]
+  },
+  "mode_iii_south_nmi": 70.0,
+  "mode_iii_target_nmi": 3300.0,
+  "half_lift_bank_deg": 60.0,
+  "mode_iii_tig_s": 90.0,
+  "mode_iv_tig_s": 120.0,
+  "_comment": "Apollo 14's launch abort modes, Apollo 11's (its mission.json's launch_aborts) on the same vehicles [estimated], at the times Houston marked them on Apollo 14's flight (Apollo Flight Journal, Apollo 14, launch) [published]: Mode I Bravo at 0:42, Mode I Charlie at 1:59, mode II with the skirt's separation at 3:23, S-IVB to COI at 5:49 and to orbit at 6:41, and Mode IV at 9:12. Mode III from 8 s before the S-II's cutoff, as Apollo 11's came [estimated: Houston didn't call it]. The calls are Fullerton's and Evans's [published]"
+ },
+ "parking_orbit": {
+  "alt_km": 185.2,
+  "insertion_get_s": 710.56,
+  "inclination_deg": 31.255,
+  "raan_deg": 303.259,
+  "arg_lat_deg": 92.85,
+  "_comment": "Apollo 14's orbit at insertion, from the Saturn V flight evaluation report for AS-509 (MPR-SAT-FE-71-1, Table 4-4): inclination 31.120 deg and descending node 117.455 deg east of the launch meridian at range zero, insertion at 710.56 s at 31.246 N 52.983 W, 190.9 km [published], put in the ICRF by tools/ephemeris/parking_orbit.py [derived]. The report's 185.3 x 183.2 km orbit is taken as circular [simplified]. The launch start phase flies AS-509 into it"
+ },
+ "launch_refsmmat": {
+  "x": [
+   -0.21976243,
+   0.95080528,
+   0.218343293
+  ],
+  "y": [
+   0.437729784,
+   0.296125148,
+   -0.848942008
+  ],
+  "z": [
+   -0.871835484,
+   -0.090990196,
+   -0.481272972
+  ],
+  "_comment": "The launch pad REFSMMAT, the orientation the CMC's IMU was released at liftoff: X horizontal along the flight azimuth (75.558 deg, MPR-SAT-FE-71-1, section 9.3.1), Z down along Launch Complex 39A's vertical, Y = Z x X, each a stable member axis in the ICRF, from tools/ephemeris/parking_orbit.py [derived]. The parking_orbit and translunar_coast start phases start aligned to it"
+ },
+ "tli": {
+  "c3_m2_per_s2": -1678092.0,
+  "eccentricity": 0.9722,
+  "plane_normal": [
+   -0.430507786,
+   -0.2812927,
+   0.857634808
+  ],
+  "aim_pericynthion_nmi": 1979.0,
+  "aim_pericynthion_get": "82:15:19",
+  "pericynthion_alt_km": 112.4,
+  "pericynthion_get": "82:00:33",
+  "earliest_get_s": 8400.0,
+  "perigee_arc_fraction": 0.455,
+  "node_targeting": true,
+  "_comment": "TLI's conic, as the flown TLI left the stack on it: C3 -1,678,092 m2/s2 and eccentricity 0.9722, in the plane of inclination 30.813 deg and descending node 117.358 deg (MPR-SAT-FE-71-1, Table 4-5: at TLI, 10 s after the cutoff signal) [published]; the plane in the ICRF by tools/ephemeris/parking_orbit.py [derived]; the TLI perigee's place in the burn, which starts it at the flown 2:28:32.4 [derived]. The RTCC plans TLI's ignition time and energy (Rtcc.plan_tli()) for the free return the flown TLI left the stack on, past the Moon 1,979 nmi up at 82:15:19, 4.23 N 172.40 W (MSC-04112, Table 6-V) [published]. The midcourse corrections then aim at pericynthion_alt_km at pericynthion_get, the pericynthion in the plane of the lunar orbit over the landing site (node_targeting), where Apollo 14's MCC-4 left it: 60.7 nmi at 82:00:33, 2.20 N 167.68 E (ibid., p. 6-1 and Table 6-V, its arrival time on the updated clock) [published]. It was the hybrid: MCC-2 took the stack off the free return. earliest_get_s: 2:20:00, ahead of the S-IVB's restart preparation [estimated]"
+ },
+ "tde_delay_s": 11571.2,
+ "loi": {
+  "apolune_alt_km": 313.5,
+  "perilune_alt_km": 107.6,
+  "_comment": "LOI's targets: the final PAD's 169.3 by 58.1 nmi (Apollo Flight Journal, 81:11:09 updated) [published]; flown at 81:56:39.80 (82:36:42.70 on the updated clock), 3,022.4 ft/s in 370.8 s into 169.0 by 58.1 nmi (MSC-04112, Table 6-V), above the Moon's mean radius [simplified]. The RTCC centres the burn on the pericynthion (Rtcc.plan_loi()), which the midcourse corrections put in the plane of the orbit over the landing site (tli: node_targeting), and turns the orbit into that plane. At the flight's TIG the burn, 40 s longer here, was centred 3 min past that node, and the plane through its end and the site came out 2.5 deg steeper [derived: a probe]"
+ },
+ "doi": {
+  "by": "csm",
+  "tig": "86:10:52.1",
+  "pericynthion_alt_km": 14.434,
+  "_comment": "Descent orbit insertion flown by the CSM on the SPS with the LM docked, the first (slice 12a): the PAD's 206.4 ft/s for 58.8 by 9.1 nmi at 86:50:54.97 on the updated clock (Apollo Flight Journal, 85:32:20 updated), flown 205.7 ft/s in 20.8 s at 86:10:53, at the LOI orbit's pericynthion (MSC-04112, Tables 6-III and 6-V) [published]. The stack stayed on the descent orbit until the undocking, a day of revolutions, to save the DPS's propellant for hovering. The RTCC sizes the burn at the pericynthion nearest the PAD's TIG for the landing pass (Rtcc.plan_doi_docked()): the orbit over the PDI point pericynthion_alt_km above the site, the PGNCS's 47,355 ft at ignition, the nominal's 50,000 (MSC-04330, Appendix A) [published]"
+ },
+ "landing": {
+  "site": "Fra Mauro",
+  "lat_deg": -3.64599,
+  "lon_deg": -17.47305,
+  "get_s": 389709.3,
+  "approach_azimuth_deg": 284.0,
+  "touchdown_lat_deg": -3.64544,
+  "touchdown_lon_deg": -17.47139,
+  "dps_prop_left_kg": 360.2,
+  "yaw_deg": 0.0,
+  "_comment": "Apollo 14's landing site at Fra Mauro, west of Cone crater: Antares came down 55 ft north and 165 ft east of the site the planners had chosen (MSC-04112, p. 6-7) at 108:15:09.3 (ibid., Table 6-III) [published], where Davies et al. (1987) put it, 3.64544 S 17.47139 W, the Apollo Lunar Surface Journal's table [published]; the site that far back from it [derived; LROC's own coordinates for Antares aren't at hand]. The site's height is the terrain's there (data/terrain/, LROC's model of the site: 1,063 m below the reference sphere). The lunar orbit crossed the site heading 284.0 deg, 14.4 deg to the lunar equator: the ground track from PDI at 7.38 S 1.57 W to the landing, which the other points of the report's table lie on within 7 km (ibid., Table 6-III) [derived; its heading column isn't the ground track's]. The lunar_surface and lunar_ascent start phases set Antares down where it came down, level [published: within a degree of zero pitch and yaw, ibid., p. 9-8], with the DPS's 794.0 lb left at its cutoff (ibid., section 8.11.1) [published]"
+ },
+ "pdi": {
+  "state_error_lvlh_m": [
+   853.4,
+   0.0,
+   0.0
+  ],
+  "state_error_lvlh_mps": [
+   0.0,
+   0.0,
+   0.0
+  ],
+  "n69_sigma_m": 60.0,
+  "site_error_m": [
+   -411.5,
+   0.0
+  ],
+  "_comment": "The LM state vector the ground uplinks with the PDI PAD is off by this much at PDI, in LVLH (X along track, Y right, Z down): 2,800 ft along the track, the landing site update the ground read up after throttle-up, noun 69 plus 2,800 ft (Apollo Lunar Surface Journal, 108:04:15; MSC-04112, p. 6-7) [published]. The landing site itself went up 1,350 ft short of where the crew landed (site_error_m, along the approach and to its right, m): the automatic guidance, even after the noun 69, was taking Antares there, a landmark's offset in the targeting (MSC-04330, Appendix A) [published]; the crew flew the rest in P66, 2,000 ft downrange in 2 min. Powered descent's landing site correction (N69) is MSFN's powered flight processor's reading of the error along the track, off by n69_sigma_m [estimated, as Apollo 12's]"
+ },
+ "ascent": {
+  "planned_liftoff_get": "141:45:39.1",
+  "_comment": "The direct rendezvous's liftoff (\"rendezvous\"): the ascent PAD's TIG, 142:25:42.00 on the updated clock (Apollo Lunar Surface Journal, 139:56:38) [published]. The CSM's plane change puts its orbit over the LM at it"
+ },
+ "rendezvous": {
+  "direct": true,
+  "tpi_after_insertion_s": 2279.0,
+  "tweak_after_insertion_s": 237.3,
+  "tweak_dh_nmi": 15.0,
+  "tpm_after_tpi_s": [
+   900.0,
+   1800.0
+  ],
+  "csm_state_error_lvlh_m": [
+   900.0,
+   60.0,
+   -150.0
+  ],
+  "csm_state_error_lvlh_mps": [
+   0.0,
+   0.0,
+   0.3
+  ],
+  "_comment": "The direct rendezvous, the first (slice 12a): TPI in the LM's first revolution, 37 min 59 s after the insertion's cutoff, no CSI or CDH: the ascent PAD's TPI time, 143:10:54.00 on the updated clock (Apollo Lunar Surface Journal, 139:56:38), after the APS's 432.1 s from 141:45:40 (MSC-04112, Table 6-V), flown at 142:30:51.1 on the APS; the tweak, a vernier adjustment 237 s after the cutoff, 10.3 ft/s on the RCS at 141:56:49.4 (ibid.), aimed at TPI's nominal 15 nmi below the CSM and 26.6 deg elevation (MSC-04330, Appendix B) [published]; the midcourse corrections 15 and 30 min after TPI [estimated, as Apollo 12's]. The CSM state vector the ground uplinks is off by MSFN's tracking error, Apollo 11's [estimated]"
+ },
+ "lunar_orbit": {
+  "start_get": "86:30:00",
+  "apolune_nmi": 58.8,
+  "perilune_nmi": 9.1,
+  "perilune_lon_deg": 11.12,
+  "loi2_apolune_nmi": 63.3,
+  "loi2_perilune_nmi": 55.5,
+  "loi2_tig": "105:11:45.2",
+  "loi2_rising": true,
+  "sps_dv_mps": 1006.7,
+  "_comment": "Apollo 14's descent orbit after the CSM's DOI, the stack docked on it, above the landing site's radius: 58.8 by 9.1 nmi (MSC-04112, Table 6-V) [published], its pericynthion over the PDI point on the landing pass, 11.1 deg E at the start's time [derived: ignoring the field's turn of the apsides]. The lunar_orbit start phase starts there, placed along it for PDI and the landing at their times. The CSM's circularization after the undocking, the \"circ\" PAD, targets the PAD's 63.3 by 55.5 nmi at 105:51:48.11 on the updated clock (Apollo Flight Journal, 105:14:38 updated), its N81 +70.2, 0, -29.6 [published]: burned there, on its way up from the pericynthion; flown 77.2 ft/s into 63.9 by 56.0 nmi (MSC-04112, Table 6-V). The SPS gave 1,007 m/s to the start: MCC-2, MCC-4, LOI and DOI (71.1, 3.5, 3,022.4 and 205.7 ft/s, ibid.) [published]"
+ },
+ "tei": {
+  "dv_mps": 1054.8,
+  "entry_perigee_alt_km": 33.7,
+  "return_inclination_deg": 40.3,
+  "ei_get": "215:47:45.3",
+  "tig_near": "148:36:01.4",
+  "n81_ft_s": [
+   3013.3,
+   1667.4,
+   -340.3
+  ],
+  "tig_free": false,
+  "_comment": "TEI onto Apollo 14's return: 3,460.6 ft/s at 148:36:02.3 for 149.2 s (MSC-04112, Table 6-V) [published]; the TEI-34 PAD's TIG, 149:16:04.30 on the updated clock, and N81 +3,013.3, +1,667.4, -340.3 ft/s, from which the RTCC starts its solve (Apollo Flight Journal, 147:39:39 updated) [published]; entry interface came at 215:47:45.3, 36.36 S 165.80 E, 36,170.2 ft/s, 6.37 deg down, heading 70.84 deg east of north (ibid., Table 6-III) [published]. That state at 400,000 ft, put in the simulator, is on a return inclined return_inclination_deg to the equator with its vacuum perigee entry_perigee_alt_km up (Rtcc.vacuum_perigee()) [derived]. The RTCC solves the burn for that inclination, that entry interface and that corridor (Rtcc.plan_tei()) at the flown TEI's time"
+ },
+ "entry": {
+  "target_lat_deg": -27.02,
+  "target_lon_deg": -172.65,
+  "_comment": "Apollo 14's target, N61 in the entry PAD at 211:45:34 on the updated clock (Apollo Flight Journal): 27.02 deg S, 172.65 deg W [published]. The ground uplinks it with the entry PAD (the timeline's entry_pad), and the entry start phase starts with it loaded"
+ },
+ "lgc": {
+  "drift_meru": [
+   -1.5,
+   -2.0,
+   -0.6
+  ],
+  "surface_drift_meru": [
+   -0.66,
+   -0.75,
+   1.95
+  ],
+  "_surface_drift": "Antares's gyros on the surface: -0.66, -0.75 and +1.95 mERU, from the torquing of the P57 at 141:13, +0.119, +0.135 and -0.349 deg, over the 11.95 h since the P57 at 129:16 (Apollo 14 Mission Report, MSC-04112, Table 8-I, its times on the updated clock) [derived: the table's drift column gives -0.7, -0.8 and -1.9]; the sequencer switches to them at the touchdown and back at the liftoff (_lgc_drift()). The drift's sign is the torquing's reverse on each axis [derived]",
+  "first_p52": {
+   "get": "104:46:37",
+   "torque_deg": [
+    0.097,
+    0.062,
+    -0.013
+   ],
+   "stars": [
+    22,
+    16
+   ],
+   "detent": 2,
+   "sad_deg": 0.04
+  },
+  "_comment": "Antares's IMU (slice 11a): its gyros' drift, -1.5, -2.0 and -0.6 mERU, the mission report's drift column at the P52 after undocking, its signs the torquing's reverse [derived]; that P52, torqued at 105:26:40 on the LGC's clock, N93 +0.097, +0.062 and -0.013 deg as the crew read them (Apollo Flight Journal, 106:17:22 updated), its stars the table's Regulus and Procyon through the left-front detent, 0.04 deg (MSC-04112, Table 8-I) [published; the table's row may be the CSM's own]"
+ },
+ "dispersions": {
+  "seed": 710131,
+  "_comment": "The seed the flight's dispersions are drawn from: the CSM's unmodelled forces (spacecraft.json \"unmodelled\"), once for the flight, and MSFN's tracking error (\"msfn\"), for each uplink"
+ },
+ "msfn": {
+  "earth": {
+   "pos_m": [
+    500.0,
+    500.0,
+    500.0
+   ],
+   "vel_mps": [
+    0.05,
+    0.05,
+    0.05
+   ]
+  },
+  "moon": {
+   "pos_m": [
+    300.0,
+    150.0,
+    300.0
+   ],
+   "vel_mps": [
+    0.1,
+    0.05,
+    0.1
+   ]
+  },
+  "_comment": "The Manned Space Flight Network's tracking error in the CSM state vector the RTCC plans the CSM's PADs from and uplinks with them (P27): standard deviations in LVLH (X along track, Y right, Z down), by the body the CSM's orbit is about, Apollo 11's [estimated]"
+ },
+ "timeline": {
+  "_comment": "Mission Control from TLI to the entry. Each entry happens once: at its GET ('get'), or 's' seconds 'after' a mission event or a planned time, or 'before' a planned time (the sequencer's plan), if its condition ('when', a flight phase or one of the sequencer's) holds then; CAPCOM makes the call ('say') and the ground uplinks the PAD ('pad'): the RTCC's solution, a midcourse correction's at its TIG ('tig'), a plane change's or TEI's at the opportunity nearest 'near', or a maneuver the flight plan fixed ('n81_ft_s', LVLH) at 'tig'. The times, calls and PADs are Apollo 14's, taken back to range zero where the flight's clocks had moved (Apollo Flight Journal and Lunar Surface Journal) [published]: GO for TLI 2:26:39; the MCC-2 PAD 29:12:22; the MCC-4 PAD 75:25:49.1; the final LOI PAD 80:31:06.1; GO for LOI 81:32:35.1; the DOI PAD, the CSM's, docked, 84:52:17.1; GO for DOI 85:39:14.1; the separation PAD 101:51:59.1, its TIG 103:47:28.1, 0.8 ft/s radially (MSC-04112, Table 6-V; the PAD's N81 wasn't read up: down, as Apollo 12's [estimated]); GO for undocking 103:44:58.1; the CSM's circularization PAD 104:34:35.1 and GO for it 104:43:36.1; the PDI PAD 105:53:23.1, 2 h 9 min before its TIG, 108:02:24.61; GO for PDI (\"Go for Fra Mauro\") 214 s before it; noun 69, plus 2,800 ft, 112 s after ignition, and GO for its Enter 143 s after; GO for landing 108:11:37; STAY for T1, T2 and the next 78, 359 and 4,403 s after the landing at 108:15:09.3; the plane change's PAD 116:17:48.1, TIG 117:29:32.27, GO 117:25:32.1; the ascent PAD 139:56:38, TIG 141:45:39.10; GO for liftoff, the direct rendezvous, 985 s before it; the tweak PAD 123 s after the insertion's cutoff (141:52:54) and GO for the APS TPI 317 s after it; GO for Pyro Arm for the LM's jettison 145:30:07.1, 7,037 s after docking at 143:32:50.5; the TEI-34 PAD 146:59:36.1; the MCC-5 PAD 164:39:55.1, TIG 165:34:55.64; the entry PAD 211:05:31.1; GO for Pyro Arm 214:46:31.1]. MCC-1 and MCC-3 weren't flown; MCC-2 took the stack off the free return. undocking_get: the flown undocking, to which the LM's start phases fly docked [estimated: between GO for undocking and the separation burn at 103:47:41.6]",
+  "undocking_get": "103:47:00",
+  "entries": [
+   {
+    "id": "go_tli",
+    "get": "2:26:39",
+    "when": "parking_orbit",
+    "say": "You're Go for the Moon. Go for TLI."
+   },
+   {
+    "id": "mcc2_pad",
+    "get": "29:12:22",
+    "when": "translunar_coast",
+    "pad": "mcc",
+    "tig": "30:36:07.01"
+   },
+   {
+    "id": "mcc4_pad",
+    "get": "75:25:49.1",
+    "when": "translunar_coast",
+    "pad": "mcc",
+    "tig": "76:58:11.08"
+   },
+   {
+    "id": "loi_pad",
+    "get": "80:31:06.1",
+    "when": "translunar_coast",
+    "pad": "loi"
+   },
+   {
+    "id": "go_loi",
+    "get": "81:32:35.1",
+    "when": "translunar_coast",
+    "say": "Hey, Al. Everything looks good down here and you have a GO for LOI."
+   },
+   {
+    "id": "doi_pad",
+    "get": "84:52:17.1",
+    "when": "docked",
+    "pad": "doi"
+   },
+   {
+    "id": "go_doi",
+    "get": "85:39:14.1",
+    "when": "docked",
+    "say": "Apollo 14, Houston. You are Go for DOI."
+   },
+   {
+    "id": "sep_pad",
+    "get": "101:51:59.1",
+    "when": "docked",
+    "pad": "sep",
+    "name": "SEP",
+    "tig": "103:47:28.1",
+    "n81_ft_s": [
+     0.0,
+     0.0,
+     0.8
+    ]
+   },
+   {
+    "id": "go_undocking",
+    "get": "103:44:58.1",
+    "when": "docked",
+    "say": "Kitty Hawk and Antares, you have a Go for undock."
+   },
+   {
+    "id": "circ_pad",
+    "get": "104:34:35.1",
+    "when": "lm_free",
+    "pad": "circ"
+   },
+   {
+    "id": "go_circ",
+    "get": "104:43:36.1",
+    "when": "lm_free",
+    "say": "Roger. And Kitty Hawk, you are go for Circ."
+   },
+   {
+    "id": "pdi_pad",
+    "before": "pdi_tig",
+    "s": 7742,
+    "when": "lm_free",
+    "pad": "pdi",
+    "say": "Antares, Houston. Your PDI PAD and state vector are coming up."
+   },
+   {
+    "id": "go_pdi",
+    "before": "pdi_tig",
+    "s": 214,
+    "when": "lm_free",
+    "say": "And, Antares; Houston. You're Go for Fra Mauro."
+   },
+   {
+    "id": "n69_pad",
+    "after": "pdi_tig",
+    "s": 112,
+    "when": "lm_descent",
+    "pad": "n69"
+   },
+   {
+    "id": "go_enter",
+    "after": "pdi_tig",
+    "s": 143,
+    "when": "lm_descent",
+    "say": "Okay; go for Enter."
+   },
+   {
+    "id": "go_landing",
+    "after": "pdi_tig",
+    "s": 551,
+    "when": "lm_descent",
+    "say": "Okay, Antares; Houston. You're go for landing."
+   },
+   {
+    "id": "stay_t1",
+    "after": "lm_landing",
+    "s": 78,
+    "when": "lm_landed",
+    "say": "Antares, Houston. You're Stay for T1."
+   },
+   {
+    "id": "stay_t2",
+    "after": "lm_landing",
+    "s": 359,
+    "when": "lm_landed",
+    "say": "Antares, Houston. You are Stay for T2."
+   },
+   {
+    "id": "stay_t3",
+    "after": "lm_landing",
+    "s": 4403,
+    "when": "lm_landed",
+    "say": "Antares, this is Houston. Stay! Over."
+   },
+   {
+    "id": "lopc1_pad",
+    "get": "116:17:48.1",
+    "when": "lm_landed",
+    "pad": "plane",
+    "near": "117:29:32.27"
+   },
+   {
+    "id": "go_lopc1",
+    "get": "117:25:32.1",
+    "when": "lm_landed",
+    "say": "Okay, Kitty Hawk; Houston. You're looking mighty fine down here. You have a Go for plane change."
+   },
+   {
+    "id": "ascent_pad",
+    "get": "139:56:38",
+    "when": "lm_landed",
+    "pad": "ascent",
+    "near": "141:45:39.10"
+   },
+   {
+    "id": "go_liftoff",
+    "before": "liftoff_tig",
+    "s": 985,
+    "when": "lm_landed",
+    "say": "Antares, this is Houston. You are Go for lift-off this pass; direct rendezvous; guidance control, PGNS. Over."
+   },
+   {
+    "id": "tweak_pad",
+    "after": "lm_insertion",
+    "s": 123,
+    "when": "lm_orbit",
+    "pad": "tweak"
+   },
+   {
+    "id": "go_tpi",
+    "after": "lm_insertion",
+    "s": 317,
+    "when": "lm_orbit",
+    "say": "Antares, Houston. You're Go for the APS TPI. APS TPI."
+   },
+   {
+    "id": "go_jettison",
+    "after": "docking",
+    "s": 7037,
+    "when": "docked_ascent",
+    "say": "Apollo 14, this is Houston. You are Go for Pyro Arm, over."
+   },
+   {
+    "id": "tei_pad",
+    "get": "146:59:36.1",
+    "when": "csm_orbit",
+    "pad": "tei",
+    "near": "148:36:01.40"
+   },
+   {
+    "id": "mcc5_pad",
+    "get": "164:39:55.1",
+    "when": "earth_return",
+    "pad": "mcc",
+    "tig": "165:34:55.64"
+   },
+   {
+    "id": "entry_pad",
+    "get": "211:05:31.1",
+    "when": "earth_return",
+    "pad": "entry"
+   },
+   {
+    "id": "go_pyro_arm",
+    "get": "214:46:31.1",
+    "when": "earth_return",
+    "say": "Apollo 14, this is Houston. You are Go for Pyro Arm."
+   }
+  ]
+ },
+ "failures": [],
+ "start_phases": [
+  "launch",
+  "parking_orbit",
+  "translunar_coast",
+  "lunar_orbit",
+  "lunar_descent",
+  "lunar_surface",
+  "lunar_ascent",
+  "tei",
+  "transearth_coast",
+  "entry"
+ ],
+ "start_notes": {
+  "_comment": "The flight menu's line on each start phase (src/presentation/flight_choice.gd), the simulator's own",
+  "launch": "On the pad at LC-39A, 20 s before liftoff after the weather's hold",
+  "parking_orbit": "In the parking orbit, TLI ahead",
+  "translunar_coast": "After TLI, docked to Antares",
+  "lunar_orbit": "After DOI, 59 × 9 nmi, Antares docked",
+  "lunar_descent": "Antares on its descent orbit, 20 min before PDI",
+  "lunar_surface": "Antares at Fra Mauro, 10 min after the landing",
+  "lunar_ascent": "Antares 20 min before liftoff for the direct rendezvous",
+  "tei": "Kitty Hawk alone, a minute before the TEI PAD",
+  "transearth_coast": "After TEI, on the way home",
+  "entry": "About 20 min before entry interface, the target in"
+ }
+}

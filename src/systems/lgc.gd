@@ -1608,9 +1608,18 @@ func _target_cdh() -> bool:
 
 
 ## P34: TPI's TIG, when the CSM comes up to the TPI elevation within the
-## next three hours.
+## next three hours; with the elevation loaded as zero (N55), N37's TIG as
+## it stands [published: P34 computes "TIG(TPI) given E, or E given
+## TIG(TPI)" (GSOP R-567, section 4, P34); Apollo 14's direct rendezvous
+## had TPI a set 38 min after the insertion (MSC-04330), the ascent PAD's
+## N37].
 func _find_tpi_tig() -> bool:
 	var now := maxf(_now(), nav.t)
+	if is_zero_approx(rdv_elev):
+		if rdv_tpi_tig <= now:
+			_alarm(611)
+			return false
+		return true
 	var t := Rendezvous.tpi_time(nav, csm_nav, rdv_elev, now + 60.0, now + 3.0 * 3600.0)
 	if t < 0.0:
 		_alarm(611)

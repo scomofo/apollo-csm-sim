@@ -1,9 +1,11 @@
 ## The LM crew's rendezvous on Luminary's P20 (slice 11d), for the tests:
 ## P20 started as Apollo 11's crew did after the P52, and the coelliptic
-## sequence flown on its marks by the G mission's procedures. SimTest's
-## start_p20(), lgc_rel_error(), lgc_rel_v_error() and lm_coelliptic()
-## hand these their test (a SimTest, untyped here, since SimTest names this
-## class); its lm_crew() gives the crew's standing answers.
+## sequence flown on its marks by the G mission's procedures, or Apollo
+## 14's direct rendezvous (slice 12a). SimTest's start_p20(),
+## lgc_rel_error(), lgc_rel_v_error() and lm_coelliptic() hand these their
+## test (a SimTest, untyped here, since SimTest names this class), as
+## Apollo 14's tests hand direct() theirs; its lm_crew() gives the crew's
+## standing answers.
 class_name RendezvousCrew
 extends RefCounted
 
@@ -137,8 +139,58 @@ static func coelliptic(st: Variant, pad: Dictionary, burn: Callable = Callable()
 	st.keys("P", lgc)
 	out["CDH"] = fly.call("CDH")
 	Bus.set_value("ctl.lm.mode", 2)
-	st.run(float(pad["tpi_get"]) - 1800.0 - SimClock.get_seconds)
-	st.keys("V37E34EP", lgc)
+	_tpi_on(st, fly, out, float(pad["tpi_get"]) - 1800.0)
+	return out
+
+
+## The direct rendezvous as Apollo 14's crew flew it, TPI on the first
+## revolution with no CSI or CDH [published: MSC-04112, section 6.4; the
+## Apollo Flight Journal]: the tweak the ground's PAD brought four minutes
+## after insertion, verified in P30 and burned where the LM is [simplified:
+## the crew burned it by hand in P47]; P20 (start_p20()); P34 25 min before
+## TPI, at the TIG
+## the ascent PAD gave, and TPI on the ascent engine (P42); then the
+## midcourse corrections and V56 as coelliptic()'s. Each burn flies by
+## [param burn] (a Callable taking its name, "TWEAK", "TPI", "TPM1" or
+## "TPM2", returning what it flew): by default P41 where the LM is, TPI on
+## P42 at its attitude. Returns what each burn returned, and TPI's TIG
+## ("tpi_tig").
+static func direct(st: Variant, burn: Callable = Callable()) -> Dictionary:
+	var lgc: Lgc = st.rt.lgc()
+	var sq: MissionSequencer = st.rt.sequencer
+	var fly := burn
+	if not fly.is_valid():
+		fly = func(name: String) -> float:
+			if name == "TPI":
+				return st.fly_lm_pad(42, 1, Callable(), false, 600.0)
+			if name == "TWEAK":
+				return st.fly_lm_pad(41, 0, Callable(), true, 60.0, true)
+			return st.fly_lm_pad(41, 0, Callable(), false, 900.0, true)
+	var out := {}
+	st.assert_true(st.run_until(func() -> bool: return sq.pads.has("tweak"), 900.0, 1.0), "the tweak PAD")
+	out["TWEAK"] = fly.call("TWEAK")
+	Bus.set_value("ctl.lm.mode", 2)
+	start_p20(st)
+	_tpi_on(st, fly, out, float(sq.plan["tpi_tig"]) - 1500.0, true)
+	return out
+
+
+## TPI and the midcourse corrections on P20's marks, from P34 at GET
+## [param p34_at] (coelliptic()'s and direct()'s): with [param fixed_tig],
+## the elevation loaded as zero at N55 (V25), for N37's TIG to stand; V93
+## at 4 marks, V32 at 3 and 10, the final computation 12 min before TPI;
+## after TPI and after the first correction V93 and P35 at once, and its
+## final computation a P35 lead before each correction's time; V56 inside
+## 18,000 ft, the radar left in AUTO TRACK. Each burn flies by
+## [param fly]; [param out] gets TPI's TIG ("tpi_tig") and what each burn
+## returned.
+static func _tpi_on(st: Variant, fly: Callable, out: Dictionary, p34_at: float, fixed_tig: bool = false) -> void:
+	var lgc: Lgc = st.rt.lgc()
+	st.run(p34_at - SimClock.get_seconds)
+	st.keys("V37E34E", lgc)
+	if fixed_tig:
+		st.keys("V25N55E+00001E+00000E+13000E", lgc)
+	st.keys("P", lgc)
 	st.assert_eq(lgc.step_name, "n37", "P34: V06N37, TPI's time")
 	st.keys("P", lgc)
 	st.keys("PP", lgc)
@@ -169,4 +221,3 @@ static func coelliptic(st: Variant, pad: Dictionary, burn: Callable = Callable()
 	st.run_until(func() -> bool: return Rendezvous.rel_pos(lm, cm).length() < 18000.0 * Units.FT, 1800.0, 10.0)
 	st.keys("V56E", lgc)
 	Bus.set_value("ctl.lm.rr_mode", 1)
-	return out

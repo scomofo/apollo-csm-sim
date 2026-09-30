@@ -1,5 +1,5 @@
 {
- "_comment": "The Moon's and the Sun's geocentric positions and the Moon's orientation for moon_orientation, fitted by tools/ephemeris/fit_ephemeris.py. Frame: ICRF (J2000 equator and equinox), Earth-centred. Time: GET, s after the mission's liftoff_jd (UTC). Each quantity is a Chebyshev series in each segment of segment_s from start_get_s: for x in [-1, 1] across the segment, value = sum c[k] T_k(x), one list of c per component.",
+ "_comment": "The Moon's and the Sun's geocentric positions and the Moon's orientation for Apollo 10, fitted by tools/ephemeris/fit_ephemeris.py. Frame: ICRF (J2000 equator and equinox), Earth-centred. Time: GET, s after the mission's liftoff_jd (UTC). Each quantity is a Chebyshev series in each segment of segment_s from start_get_s: for x in [-1, 1] across the segment, value = sum c[k] T_k(x), one list of c per component.",
  "_source": "Positions: JPL Horizons, DE441, geocentric geometric states in the ICRF (ssd.jpl.nasa.gov). Moon orientation: the IAU WGCCRE 2009 model (Archinal et al. 2011, Celest. Mech. Dyn. Astr. 109) from NAIF's pck00010.tpc, in the Moon's mean Earth/polar axis frame; TDB from UTC by TAI - UTC (USNO) + 32.184 s.",
  "_fit_error": {
   "moon_pos_m": 0.106,

@@ -1,6 +1,6 @@
-"""Build the terrain around the landing sites, Tranquility Base and
-Apollo 12's beside Surveyor III (data/terrain/), from NASA's lunar
-elevation maps.
+"""Build the terrain around the landing sites, Tranquility Base, Apollo
+12's beside Surveyor III and Apollo 14's at Fra Mauro (data/terrain/),
+from NASA's lunar elevation maps.
 
     python3 tools/terrain/build_terrain.py [--cache DIR]
 
@@ -29,8 +29,21 @@ equator, west-northwest:
                 344.75 E, 2.85 S to 5.26 S: the approach's diagonal across it
                 is what the landing radar can see.
 
+Apollo 14's three, where its LM came down at Fra Mauro on a track 14.4
+deg to the equator, west-northwest:
+
+    site14      LROC NAC DTM of the Apollo 14 site (NAC_DTM_APOLLO14, 2 m/px),
+                resampled to 4 m about Antares: 2.7 km east-west, 1.6 km
+                north-south. Cone crater's rim is at its eastern edge.
+    near14      SLDEM2015 at 512 px/deg over the final approach, 8 km past the
+                site to 34 km before it.
+    approach14  SLDEM2015 averaged to 64 px/deg (474 m) from 343.5 E to
+                352 E, 3.2 S to 6.45 S: the approach from the east, where the
+                landing radar looks from its first data; west of 344.75 E
+                approach12 is finer.
+
 Only the rows each layer needs are downloaded, with HTTP range requests
-(about 170 MB, and NAC_DTM_APOLLO12 whole, 14 MB). The raw rows are kept
+(about 220 MB, and NAC_DTM_APOLLO12 whole, 14 MB). The raw rows are kept
 in the cache directory, so a second run doesn't download them again.
 Needs numpy.
 """
@@ -86,6 +99,25 @@ SLDEM12_ROWS = (1450, 2720)
 NAC12_LAT_TOP = math.degrees(-89822.000000027 / R_MOON_M)
 NAC12_LON_WEST = 180.0 + math.degrees(4737648.0000014 / (R_MOON_M * math.cos(math.radians(3.0))))
 NAC12_LON_RES = NAC_RES * math.cos(math.radians(3.0))
+
+# Apollo 14: where Antares stands (Davies et al., 1987, in the ALSJ's
+# table of the landing sites' coordinates; about 100 m from LROC's for
+# Apollo 11's and 12's LMs).
+LM14_LAT = -3.64544
+LM14_LON = 342.52861
+NAC14_DTM = ("https://pds.lroc.im-ldi.com/data/LRO-L-LROC-5-RDR-V1.0/LROLRC_2001/DATA/SDP/"
+             "NAC_DTM/APOLLO14/NAC_DTM_APOLLO14.TIF")
+# NAC_DTM_APOLLO14: a GeoTIFF of 14400 lines x 2156 float32 samples, a
+# strip a line from byte 115871, equirectangular about 3 S at 2 m/px, as
+# Apollo 12's; its tie point, the first post's top-left corner, is at x
+# 4919932.0000015 m and y -89856.000000027 m from 180 E on the equator.
+NAC14_OFFSET = 115871
+NAC14_SAMPLES = 2156
+NAC14_ROWS = (9930, 10760)
+NAC14_LAT_TOP = math.degrees(-89856.000000027 / R_MOON_M)
+NAC14_LON_WEST = 180.0 + math.degrees(4919932.0000015 / (R_MOON_M * math.cos(math.radians(3.0))))
+# SLDEM2015's tile 30S-00N, 315-360E, on from Apollo 12's rows, to 6.45 S.
+SLDEM14_ROWS = (2720, 3303)
 
 
 def fetch(url, path, first=None, last=None):
@@ -210,6 +242,63 @@ def apollo12_layers(c, out):
     return layers
 
 
+def apollo14_layers(c, out):
+    """Apollo 14's layers, coarsest first."""
+    rb = SLDEM_SAMPLES * 4
+    fetch(SLDEM12, c("sldem12_rows.bin"), SLDEM12_ROWS[0] * rb, SLDEM12_ROWS[1] * rb - 1)
+    fetch(SLDEM12, c("sldem14_rows.bin"), SLDEM14_ROWS[0] * rb, SLDEM14_ROWS[1] * rb - 1)
+    nb = NAC14_SAMPLES * 4
+    fetch(NAC14_DTM, c("nac14_rows.bin"), NAC14_OFFSET + NAC14_ROWS[0] * nb, NAC14_OFFSET + NAC14_ROWS[1] * nb - 1)
+    sld = np.concatenate([np.fromfile(c(f), dtype="<f4").reshape(-1, SLDEM_SAMPLES)
+                          for f in ("sldem12_rows.bin", "sldem14_rows.bin")]).astype(np.float64) * 1000.0
+    nac = np.fromfile(c("nac14_rows.bin"), dtype="<f4").reshape(-1, NAC14_SAMPLES).astype(np.float64)
+
+    def sld_rc(lat, lon):
+        return -lat * 512.0 - 0.5 - SLDEM12_ROWS[0], (lon - 315.0) * 512.0 - 0.5
+
+    layers = []
+    # The approach from the east: SLDEM2015 averaged 8 x 8 (64 px/deg).
+    k = 8
+    r0, c0 = int(round(3.2 * 512)) - SLDEM12_ROWS[0], int(round((343.5 - 315.0) * 512))
+    z = block_mean(sld[r0:r0 + int(round(3.25 * 512)), c0:c0 + int(round(8.5 * 512))], k)
+    layers.append(layer("approach14", z, -(r0 + SLDEM12_ROWS[0] + k / 2.0) / 512.0,
+                        315.0 + (c0 + k / 2.0) / 512.0, 512.0 / k, 8, -2000.0, 0.1, out))
+
+    # The final approach at SLDEM2015's own 512 px/deg.
+    r0, c0 = sld_rc(-3.54, 342.25)
+    r0, c0 = int(round(r0)), int(round(c0))
+    z = sld[r0:r0 + 215, c0:c0 + int(round(1.40 * 512))]
+    layers.append(layer("near14", z, -(r0 + SLDEM12_ROWS[0] + 0.5) / 512.0,
+                        315.0 + (c0 + 0.5) / 512.0, 512.0, 8, -2000.0, 0.1, out))
+
+    # The site: the NAC DTM resampled to 4 m, its gaps filled from
+    # SLDEM2015; it reaches 1.2 km east of Antares, to Cone crater's rim.
+    ppd = M_PER_DEG / 4.0
+    lat_top = LM14_LAT + 800.0 / M_PER_DEG
+    lon_left = LM14_LON - 1500.0 / M_PER_DEG
+    rows, cols = 400, 675
+    lat = lat_top - np.arange(rows)[:, None] / ppd + np.zeros((1, cols))
+    lon = lon_left + np.arange(cols)[None, :] / ppd + np.zeros((rows, 1))
+    ny = (NAC14_LAT_TOP - lat) * NAC_RES - 0.5 - NAC14_ROWS[0]
+    nx = (lon - NAC14_LON_WEST) * NAC12_LON_RES - 0.5
+    ok = nac > NAC_NODATA
+    nf = np.where(ok, nac, 0.0)
+    good = np.zeros_like(ny)
+    zn = np.zeros_like(ny)
+    for dy in (-0.5, 0.5):
+        for dx in (-0.5, 0.5):
+            good += bilinear(ok.astype(np.float64), ny + dy, nx + dx) / 4.0
+            zn += bilinear(nf, ny + dy, nx + dx) / 4.0
+    sy, sx = sld_rc(lat, lon)
+    zs = bilinear(sld, sy, sx)
+    z = np.where(good > 0.999, zn / np.maximum(good, 1e-9), zs)
+    at = float(bilinear(nf, np.array([(NAC14_LAT_TOP - LM14_LAT) * NAC_RES - 0.5 - NAC14_ROWS[0]]),
+                        np.array([(LM14_LON - NAC14_LON_WEST) * NAC12_LON_RES - 0.5]))[0])
+    print("gaps filled from SLDEM2015: %d of %d posts; Antares's spot %.2f m" % (np.sum(good <= 0.999), z.size, at))
+    layers.append(layer("site14", z, lat_top, lon_left, ppd, 25, -1060.0, 0.01, out))
+    return layers
+
+
 def main():
     ap = argparse.ArgumentParser()
     here = os.path.dirname(os.path.abspath(__file__))
@@ -281,14 +370,16 @@ def main():
                             np.array([(LM_LON - NAC_LON_WEST) * nac_lon_res - 0.5]))[0])
     print("gaps filled from SLDEM2015: %d of %d posts; the LM's spot: %.2f m" % (np.sum(good <= 0.999), z.size, site_h))
     layers.append(layer("site", z, lat_top, lon_left, ppd, 25, -1930.0, 0.01, a.out))
-    layers += apollo12_layers(c, a.out)
+    a14 = apollo14_layers(c, a.out)
+    # Apollo 14's approach map under Apollo 12's finer one where they meet.
+    layers += a14[:1] + apollo12_layers(c, a.out) + a14[1:]
 
     manifest = {
         "_comment": "Heights relative to the 1737.4 km reference sphere: DN * scale_m + offset_m, "
                     "int16 little-endian, row-major, row 0 northmost. Row r's centre is at "
                     "lat_top - r / ppd, column c's at lon_left + c / ppd (degrees east). "
                     "Built by tools/terrain/build_terrain.py; sources in NOTICE.",
-        "_source": "LROC NAC_DTM_APOLLO11 and NAC_DTM_APOLLO12 (NASA/GSFC/Arizona State University); "
+        "_source": "LROC NAC_DTM_APOLLO11, NAC_DTM_APOLLO12 and NAC_DTM_APOLLO14 (NASA/GSFC/Arizona State University); "
                    "SLDEM2015 (Barker et al., 2016, LOLA and SELENE TC); LOLA LDEM_4 (NASA/GSFC)",
         "lm_lat_deg": LM_LAT, "lm_lon_deg": LM_LON,
         "layers": layers[::-1],

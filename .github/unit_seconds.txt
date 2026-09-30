@@ -3,9 +3,11 @@
 # the scenario files: the longer of each file's two runs in slice 11e's CI
 # (00593ec's, on its push and its pull request). A file not listed counts
 # 10 s. Add a new file's time once CI has run it, and measure again when
-# the parts drift apart.
+# the parts drift apart. Slice 12a's test_apollo_14_starts.gd carries an
+# estimate, its local time times 0.75.
 test_agc.gd 30
 test_ags_fp6.gd 1
+test_apollo_14_starts.gd 14
 test_ascent_guidance.gd 1
 test_audio_director.gd 10
 test_bus.gd 1

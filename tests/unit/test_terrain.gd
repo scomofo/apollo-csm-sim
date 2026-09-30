@@ -1,6 +1,7 @@
 ## The surface around Tranquility Base: NASA's elevation maps
 ## (data/terrain/), blended from the Apollo 11 site's 4 m terrain model out
-## to LOLA's 1° map; and around the Surveyor III site, Apollo 12's.
+## to LOLA's 1° map; around the Surveyor III site, Apollo 12's; and at Fra
+## Mauro, Apollo 14's.
 extends GutTest
 
 const LM_LAT := 0.67416
@@ -65,6 +66,25 @@ func test_the_surveyor_iii_site() -> void:
 	assert_almost_eq(Terrain.height(-3.0128, -23.4219), -1422.2, 0.5, "Intrepid's spot")
 	assert_eq(Terrain.source(-3.0162, -23.4180 + 10000.0 / M_PER_DEG), "near12", "SLDEM2015 at 59 m, 10 km along the approach")
 	assert_eq(Terrain.source(-3.2, -23.4180 + 60000.0 / M_PER_DEG), "approach12", "at 237 m, 60 km along it")
+
+
+## Slice 12a: the Apollo 14 site at Fra Mauro, from its own terrain model
+## (LROC's NAC_DTM_APOLLO14) and SLDEM2015 along the approach from the
+## east-southeast, which crossed the site heading 284 deg: Antares's spot,
+## the final approach at 59 m, the approach at 474 m where it runs past
+## Apollo 12's map at 237 m, and that map where they meet.
+func test_the_fra_mauro_site() -> void:
+	assert_almost_eq(Terrain.height(-3.64544, -17.47139), -1063.2, 0.5, "Antares's spot")
+	assert_eq(Terrain.source(-3.64544, -17.47139), "site14")
+	var back := func(km: float) -> Vector2:
+		var a := deg_to_rad(104.0)
+		return Vector2(-3.64544 + km * 1000.0 * cos(a) / M_PER_DEG, -17.47139 + km * 1000.0 * sin(a) / M_PER_DEG)
+	var at10: Vector2 = back.call(10.0)
+	assert_eq(Terrain.source(at10.x, at10.y), "near14", "SLDEM2015 at 59 m, 10 km along the approach")
+	var at150: Vector2 = back.call(150.0)
+	assert_eq(Terrain.source(at150.x, at150.y), "approach14", "at 474 m, 150 km along it")
+	var at45: Vector2 = back.call(45.0)
+	assert_eq(Terrain.source(at45.x, at45.y), "approach12", "Apollo 12's finer map, 45 km along it")
 
 
 func test_heights_under_a_moon_fixed_point() -> void:

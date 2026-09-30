@@ -216,7 +216,7 @@ def main():
     with open(MISSION) as f:
         mission = json.load(f)
     epoch = float(mission["liftoff_jd"])
-    name = str(mission.get("name", "Apollo 11"))
+    label = str(mission.get("call_signs", {}).get("mission", MISSION_ID))
     with urllib.request.urlopen(PCK, timeout=120) as r:
         pck = pck_values(r.read().decode())
 
@@ -292,7 +292,7 @@ def main():
     assert worst["sub_earth_deg"] < 0.02, worst
 
     out = {
-        "_comment": ("The Moon's and the Sun's geocentric positions and the Moon's orientation for " + name + ", "
+        "_comment": ("The Moon's and the Sun's geocentric positions and the Moon's orientation for " + label + ", "
                      "fitted by tools/ephemeris/fit_ephemeris.py. Frame: ICRF (J2000 equator and equinox), "
                      "Earth-centred. Time: GET, s after the mission's liftoff_jd (UTC). Each quantity is a "
                      "Chebyshev series in each segment of segment_s from start_get_s: for x in [-1, 1] "

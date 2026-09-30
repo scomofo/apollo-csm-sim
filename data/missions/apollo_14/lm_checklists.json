@@ -1,0 +1,679 @@
+{
+ "_comment": "Antares's checklists, condensed from Apollo 12's (data/missions/apollo_12/lm_checklists.json) for Apollo 14's flight: the undocking on the descent orbit Kitty Hawk's DOI left and the P52 after it, powered descent to Fra Mauro with the ground's landing site update (Noun 69), the surface stay, the liftoff and the direct rendezvous: the tweak four minutes after insertion, TPI on the ascent engine on the first revolution, no CSI or CDH [adapted for this simulator]. Keys as in checklists.json: V/N/Enter = VERB/NOUN/ENTR, Space = PRO; the switches are on Antares's HUD and in its cabin, and the PAD buttons on the HUD and the wrist menu. control: the cabin control a step is done on (an id in data/cockpit/lm_controls.csv); without it the checklist highlight finds the control that writes the step's check channel. phases: the flight phases (mission.phase) a checklist is for; it opens as the commander boards in one. LGC MODE FREE between burns until the rendezvous, where P20 keeps AUTO for its tracking attitude.",
+ "checklists": [
+  {
+   "title": "Undocking and the P52 after it",
+   "phases": [
+    "lunar_orbit"
+   ],
+   "steps": [
+    {
+     "text": "Kitty Hawk: CMC MODE - FREE, then UNDOCK on GO for undocking",
+     "check": {
+      "channel": "dock.state",
+      "op": "eq",
+      "value": "free"
+     }
+    },
+    {
+     "text": "LGC MODE - FREE: drift on the descent orbit Kitty Hawk's DOI left",
+     "check": {
+      "channel": "ctl.lm.mode",
+      "op": "eq",
+      "value": 0
+     }
+    },
+    {
+     "text": "V37E 52E - P52 IMU realign after undocking: V22E 3E option 3 (REFSMMAT), PRO; at V50N25 00015 PRO for the LGC's pair of stars, or ENTER to load your own at V01N70 (V21E, the detent and the star, E)",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.step",
+      "op": "eq",
+      "value": "n70"
+     }
+    },
+    {
+     "text": "Each star: PRO at V01N70; LGC MODE - AUTO, PRO at V50N18 to turn to it, ENTER when V50N18 comes back; PRO at V01N71",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.step",
+      "op": "eq",
+      "value": "marks"
+     }
+    },
+    {
+     "text": "At the AOT (O): on the ACA put the star on the Y-line, MARK Y, and on the X-line, MARK X; PRO. The second star as the first",
+     "control": "AOT_MARK_Y",
+     "check": {
+      "channel": "lm.guid.step",
+      "op": "eq",
+      "value": "n05"
+     }
+    },
+    {
+     "text": "V06N05 star angle difference: PRO; V06N93 torquing angles: PRO; ENTER at V50N25 00014 for P00",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.program",
+      "op": "eq",
+      "value": 0
+     }
+    },
+    {
+     "text": "LGC MODE - FREE: drift to PDI",
+     "check": {
+      "channel": "ctl.lm.mode",
+      "op": "eq",
+      "value": 0
+     }
+    },
+    {
+     "text": "Kitty Hawk's CIRC PAD: it climbs back to 60 nmi, Antares stays on the descent orbit",
+     "check": {
+      "channel": "mission.event.pad_circ",
+      "op": "gt",
+      "value": 0
+     }
+    }
+   ]
+  },
+  {
+   "title": "Powered descent (P63 to P68)",
+   "phases": [
+    "lunar_descent"
+   ],
+   "steps": [
+    {
+     "text": "Mission Control: the PDI PAD and a state vector (UPLINK ACTY)",
+     "check": {
+      "channel": "mission.event.pad_pdi",
+      "op": "gt",
+      "value": 0
+     }
+    },
+    {
+     "text": "V37E 63E - P63 Braking, TIG-10 min",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.program",
+      "op": "ge",
+      "value": 63
+     }
+    },
+    {
+     "text": "Verify TIG (V06N33), PRO",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.step",
+      "op": "ne",
+      "value": "tig"
+     }
+    },
+    {
+     "text": "LGC MODE - AUTO",
+     "check": {
+      "channel": "ctl.lm.mode",
+      "op": "eq",
+      "value": 2
+     }
+    },
+    {
+     "text": "V50N18 flashing: PRO to maneuver to the PDI attitude",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.step",
+      "op": "ne",
+      "value": "v50n18"
+     }
+    },
+    {
+     "text": "ENG ARM - DES",
+     "check": {
+      "channel": "ctl.lm.engine_arm",
+      "op": "eq",
+      "value": 2
+     }
+    },
+    {
+     "text": "Houston: GO for Fra Mauro, powered descent",
+     "check": {
+      "channel": "mission.event.timeline_go_pdi",
+      "op": "gt",
+      "value": 0
+     }
+    },
+    {
+     "text": "At TIG-5 s V99N68 flashing: PRO for ignition",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.dps.on",
+      "op": "eq",
+      "value": true
+     }
+    },
+    {
+     "text": "Houston: Noun 69, the site's move downrange; V21N69E, R1 as read (+/-, ft), E",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.ls_corrected",
+      "op": "eq",
+      "value": true
+     }
+    },
+    {
+     "text": "V57E: landing radar updates (ALT and VEL lights out)",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.lr_update",
+      "op": "eq",
+      "value": true
+     }
+    },
+    {
+     "text": "High gate: P64, the LPD on the window (V16N64): redesignate onto the flat ground short of Cone crater",
+     "check": {
+      "channel": "lm.guid.program",
+      "op": "ge",
+      "value": 64
+     }
+    },
+    {
+     "text": "ROD clicks fly P66, low, to CONTACT LIGHT",
+     "control": "P1_LUNAR_CONTACT",
+     "check": {
+      "channel": "lm.contact_light",
+      "op": "eq",
+      "value": true
+     }
+    },
+    {
+     "text": "Touchdown: P68 (V06N43)",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.dyn.landed",
+      "op": "eq",
+      "value": true
+     }
+    },
+    {
+     "text": "ENG ARM - OFF",
+     "check": {
+      "channel": "ctl.lm.engine_arm",
+      "op": "eq",
+      "value": 0
+     }
+    },
+    {
+     "text": "PRO: P00",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.program",
+      "op": "eq",
+      "value": 0
+     }
+    }
+   ]
+  },
+  {
+   "title": "Lunar surface and liftoff (P12)",
+   "phases": [
+    "lunar_surface"
+   ],
+   "steps": [
+    {
+     "text": "Houston: STAY for T1",
+     "check": {
+      "channel": "mission.event.timeline_stay_t1",
+      "op": "gt",
+      "value": 0
+     }
+    },
+    {
+     "text": "Houston: STAY for T2",
+     "check": {
+      "channel": "mission.event.timeline_stay_t2",
+      "op": "gt",
+      "value": 0
+     }
+    },
+    {
+     "text": "Mission Control: the ascent PAD, TPI's TIG (N37) and Kitty Hawk's state vector (UPLINK ACTY)",
+     "check": {
+      "channel": "mission.event.pad_ascent",
+      "op": "gt",
+      "value": 0
+     }
+    },
+    {
+     "text": "V37E 57E - P57 lunar surface align, half an hour before the liftoff: V22E 4E option 4 (the landing site), PRO; PRO at V06N34 (TALIGN: the liftoff)",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.step",
+      "op": "eq",
+      "value": "technique"
+     }
+    },
+    {
+     "text": "V05N06: V22E 3E technique 3 (gravity and a star), PRO; the platform turns to read gravity, then PRO at V06N04",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.step",
+      "op": "eq",
+      "value": "n22"
+     }
+    },
+    {
+     "text": "V06N22: PRO for the coarse align; V01N70: V21E the star, ENTER, PRO; PRO at V06N79 (the detent R59 finds it in); PRO at V01N71",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.step",
+      "op": "eq",
+      "value": "marks"
+     }
+    },
+    {
+     "text": "At the AOT (O): DETENT to N79's; MARK Y; turn the reticle (, and .) till the Y-line crosses the star, V21E its counter (the cursor), ENTER; on till the spiral crosses it, V22E the counter (the spiral), ENTER; PRO",
+     "control": "AOT_RETICLE",
+     "check": {
+      "channel": "lm.guid.step",
+      "op": "eq",
+      "value": "n05"
+     }
+    },
+    {
+     "text": "V06N05: PRO; V06N93: PRO; ENTER at V50N25 00014 for P00",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.program",
+      "op": "eq",
+      "value": 0
+     }
+    },
+    {
+     "text": "V37E 12E - P12 Powered Ascent",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.program",
+      "op": "eq",
+      "value": 12
+     }
+    },
+    {
+     "text": "Verify TIG (V06N33), PRO",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.step",
+      "op": "ne",
+      "value": "tig"
+     }
+    },
+    {
+     "text": "Verify targets and crossrange (V06N76), PRO",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.step",
+      "op": "ne",
+      "value": "targets"
+     }
+    },
+    {
+     "text": "LGC MODE - AUTO",
+     "check": {
+      "channel": "ctl.lm.mode",
+      "op": "eq",
+      "value": 2
+     }
+    },
+    {
+     "text": "Houston: GO for lift-off this pass, the direct rendezvous",
+     "check": {
+      "channel": "mission.event.timeline_go_liftoff",
+      "op": "gt",
+      "value": 0
+     }
+    },
+    {
+     "text": "At TIG-5 s V99N74 flashing: ABORT STAGE",
+     "control": "P1_ABORT_STAGE",
+     "check": {
+      "channel": "lm.dyn.config",
+      "op": "eq",
+      "value": "lm_ascent"
+     }
+    },
+    {
+     "text": "ENG ARM - ASC",
+     "check": {
+      "channel": "ctl.lm.engine_arm",
+      "op": "eq",
+      "value": 1
+     }
+    },
+    {
+     "text": "PRO: liftoff",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "mission.event.lm_liftoff",
+      "op": "gt",
+      "value": 0
+     }
+    },
+    {
+     "text": "Monitor V16N94 to insertion, V16N85",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "mission.event.lm_insertion",
+      "op": "gt",
+      "value": 0
+     }
+    },
+    {
+     "text": "ENG ARM - OFF",
+     "check": {
+      "channel": "ctl.lm.engine_arm",
+      "op": "eq",
+      "value": 0
+     }
+    },
+    {
+     "text": "PRO: P00",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.program",
+      "op": "eq",
+      "value": 0
+     }
+    },
+    {
+     "text": "LGC MODE - AUTO: the tweak comes four minutes after insertion",
+     "check": {
+      "channel": "ctl.lm.mode",
+      "op": "eq",
+      "value": 2
+     }
+    }
+   ]
+  },
+  {
+   "title": "Direct rendezvous and docking (P41, P20, P34 and P42, P35)",
+   "phases": [
+    "lunar_ascent"
+   ],
+   "steps": [
+    {
+     "text": "Mission Control: the tweak PAD and Kitty Hawk's state vector (UPLINK ACTY)",
+     "check": {
+      "channel": "mission.event.pad_tweak",
+      "op": "gt",
+      "value": 0
+     }
+    },
+    {
+     "text": "V37E 41E - P41 RCS Thrusting for the tweak: ENTER at V50N18 to burn where Antares is; at TIG-5 s V99N40: PRO; cutoff V16N85",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.step",
+      "op": "eq",
+      "value": "post"
+     }
+    },
+    {
+     "text": "Trim N85 residuals with the TTCA, then PRO",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.maneuver_valid",
+      "op": "eq",
+      "value": false
+     }
+    },
+    {
+     "text": "RNDZ RADAR - LGC",
+     "control": "P3_RR_MODE",
+     "check": {
+      "channel": "ctl.lm.rr_mode",
+      "op": "eq",
+      "value": 0
+     }
+    },
+    {
+     "text": "LGC MODE - AUTO",
+     "control": "P3_LGC_MODE",
+     "check": {
+      "channel": "ctl.lm.mode",
+      "op": "eq",
+      "value": 2
+     }
+    },
+    {
+     "text": "V95E: no state vector update yet; V67E: at V06N99 load the W matrix, V25N99E +10000E +00100E +00015E, then PRO",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.rr_update",
+      "op": "eq",
+      "value": "none"
+     }
+    },
+    {
+     "text": "V37E 20E - P20: PRO at V50N18 for the turn onto Kitty Hawk; the radar designates and locks on",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.rr_phase",
+      "op": "eq",
+      "value": "n72"
+     }
+    },
+    {
+     "text": "V50N72: NO TRACK out, the main lobe (SIGNAL STRENGTH): PRO",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.rr_phase",
+      "op": "eq",
+      "value": "track"
+     }
+    },
+    {
+     "text": "V80E: the marks update Antares's state vector (V16N54)",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.rr_update",
+      "op": "eq",
+      "value": "lm"
+     }
+    },
+    {
+     "text": "Houston: GO for the APS TPI",
+     "check": {
+      "channel": "mission.event.timeline_go_tpi",
+      "op": "gt",
+      "value": 0
+     }
+    },
+    {
+     "text": "V37E 34E - P34 TPI, TIG-25 min: at V06N55 V25E, +1E, 0E (E zero: N37's TIG stands, the ascent PAD's), +13000E, PRO; check N37, PRO; N58, PRO; N81, PRO",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.maneuver_valid",
+      "op": "eq",
+      "value": true
+     }
+    },
+    {
+     "text": "At 4 marks V93E: the W matrix anew",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.rr_w_valid",
+      "op": "eq",
+      "value": false
+     }
+    },
+    {
+     "text": "V32E at 3 and at 10 marks; 12 min before TIG V32E, PRO on N37, then PRO at N45: the final computation",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.program",
+      "op": "eq",
+      "value": 0
+     }
+    },
+    {
+     "text": "V37E 42E - P42 APS Thrusting for TPI, TIG-10 min: PRO at V50N18 to turn to the burn attitude",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.program",
+      "op": "eq",
+      "value": 42
+     }
+    },
+    {
+     "text": "ENG ARM - ASC",
+     "check": {
+      "channel": "ctl.lm.engine_arm",
+      "op": "eq",
+      "value": 1
+     }
+    },
+    {
+     "text": "At TIG-5 s V99N40 flashing: PRO for the ascent engine; cutoff V16N85",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.step",
+      "op": "eq",
+      "value": "post"
+     }
+    },
+    {
+     "text": "ENG ARM - OFF",
+     "check": {
+      "channel": "ctl.lm.engine_arm",
+      "op": "eq",
+      "value": 0
+     }
+    },
+    {
+     "text": "Trim N85 residuals with the TTCA, then PRO",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.maneuver_valid",
+      "op": "eq",
+      "value": false
+     }
+    },
+    {
+     "text": "V93E before the first mark",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.rr_w_valid",
+      "op": "eq",
+      "value": false
+     }
+    },
+    {
+     "text": "V37E 35E - P35 first midcourse at once: PRO on N81; V16N45 the marks weigh in",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.maneuver_valid",
+      "op": "eq",
+      "value": true
+     }
+    },
+    {
+     "text": "10 min after TPI V32E, PRO on N81, then PRO at N45: the final computation, TIG 5 min on",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.program",
+      "op": "eq",
+      "value": 0
+     }
+    },
+    {
+     "text": "V37E 41E - P41; ENTER at V50N18; V99N40 PRO; cutoff V16N85",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.step",
+      "op": "eq",
+      "value": "post"
+     }
+    },
+    {
+     "text": "Trim N85 residuals with the TTCA, then PRO",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.maneuver_valid",
+      "op": "eq",
+      "value": false
+     }
+    },
+    {
+     "text": "V93E before the first mark",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.rr_w_valid",
+      "op": "eq",
+      "value": false
+     }
+    },
+    {
+     "text": "V37E 35E - P35 second midcourse at once: PRO on N81; V16N45 the marks weigh in",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.maneuver_valid",
+      "op": "eq",
+      "value": true
+     }
+    },
+    {
+     "text": "25 min after TPI V32E, PRO on N81, then PRO at N45: the final computation, TIG 5 min on",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.program",
+      "op": "eq",
+      "value": 0
+     }
+    },
+    {
+     "text": "V37E 41E - P41; ENTER at V50N18; V99N40 PRO; cutoff V16N85",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.step",
+      "op": "eq",
+      "value": "post"
+     }
+    },
+    {
+     "text": "Trim N85 residuals with the TTCA, then PRO",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.maneuver_valid",
+      "op": "eq",
+      "value": false
+     }
+    },
+    {
+     "text": "Inside 18,000 ft: V56E, P20 ends; RNDZ RADAR - AUTO TRACK for the tapes",
+     "control": "P4_DSKY",
+     "check": {
+      "channel": "lm.guid.rr_nav",
+      "op": "eq",
+      "value": false
+     }
+    },
+    {
+     "text": "Braking by the gates on the TTCA: stop 40 m from Kitty Hawk",
+     "check": {
+      "channel": "dock.range_m",
+      "op": "le",
+      "value": 60
+     }
+    },
+    {
+     "text": "Face Kitty Hawk with Antares's +X; L: Kitty Hawk docks",
+     "check": {
+      "channel": "dock.state",
+      "op": "eq",
+      "value": "docked"
+     }
+    }
+   ]
+  }
+ ]
+}
