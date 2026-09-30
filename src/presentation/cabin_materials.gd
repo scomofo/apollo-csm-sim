@@ -23,6 +23,7 @@ const PROVENANCE := {
 	"lpd": {"basis": "Landing point designator marks on the commander's window, drawn bright red-orange so they read against the ground; the flown scale's colour is not sourced", "confidence": "estimated"},
 	"panel_edge": {"basis": "Dark edge reveal between removable MDC panels", "confidence": "estimated"},
 	"fastener": {"basis": "Dull stainless panel fasteners", "confidence": "estimated"},
+<<<<<<< HEAD
 <<<<<<< ours
 <<<<<<< ours
 	"window_frame": {"basis": "Aluminium window frame: NASA TN D-6721 pp. 3-4; finish and dimensions estimated", "confidence": "estimated"},
@@ -35,6 +36,10 @@ const PROVENANCE := {
 	"window_frame": {"basis": "Bare aluminium inner window retainers", "confidence": "estimated"},
 	"window_seal": {"basis": "Black pressure-window gasket and shadowed reveal", "confidence": "estimated"},
 >>>>>>> theirs
+=======
+	"window_frame": {"basis": "Bare aluminium inner window retainers", "confidence": "estimated"},
+	"window_seal": {"basis": "Black pressure-window gasket and shadowed reveal", "confidence": "estimated"},
+>>>>>>> 0e85540 (Recover cabin material and hardware realism from saved cloud diff)
 	"couch_frame": {"basis": "Tubular metal couch structure", "confidence": "estimated"},
 }
 
@@ -74,6 +79,7 @@ static func _built(role: String) -> Material:
 		"fastener":
 			return _metal(Color(0.48, 0.49, 0.48), 0.72, 0.28)
 		"window_frame":
+<<<<<<< HEAD
 <<<<<<< ours
 <<<<<<< ours
 			var m := _metal(Color(0.52, 0.53, 0.51), 0.68, 0.32)
@@ -91,6 +97,11 @@ static func _built(role: String) -> Material:
 		"window_seal":
 			return _plain(Color(0.018, 0.02, 0.021), 0.96)
 >>>>>>> theirs
+=======
+			return _metal(Color(0.52, 0.53, 0.51), 0.68, 0.32)
+		"window_seal":
+			return _plain(Color(0.018, 0.02, 0.021), 0.96)
+>>>>>>> 0e85540 (Recover cabin material and hardware realism from saved cloud diff)
 		"couch_frame":
 			return _metal(Color(0.34, 0.35, 0.34), 0.66, 0.36)
 		"lpd":

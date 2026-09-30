@@ -166,6 +166,7 @@ func _build_vessel() -> void:
 	_revolve("ForwardHatch", Vector2(TUNNEL_X, TUNNEL_R), Vector2(TUNNEL_X, 0.0), 1, bulkhead, false)
 
 
+<<<<<<< HEAD
 <<<<<<< ours
 <<<<<<< ours
 ## Recessed window assemblies (NASA TN D-6721, figures 2-6). The liner is
@@ -176,20 +177,26 @@ func _build_vessel() -> void:
 =======
 =======
 >>>>>>> theirs
+=======
+>>>>>>> 0e85540 (Recover cabin material and hardware realism from saved cloud diff)
 ## The pressure shell cannot end in a paper-thin edge at a window.  A dark
 ## gasket behind a raised aluminium retainer gives every opening thickness,
 ## a readable silhouette, and highlights as the spacecraft turns in sunlight.
 ## The rectangular retainers follow the tangent plane of the conical wall;
 ## rendezvous windows remain an approximation until dimensioned outlines are
 ## available, but their aperture and all five sourced locations are unchanged.
+<<<<<<< HEAD
 <<<<<<< ours
 >>>>>>> theirs
 =======
 >>>>>>> theirs
+=======
+>>>>>>> 0e85540 (Recover cabin material and hardware realism from saved cloud diff)
 func _build_window_reveals() -> void:
 	var frame := CabinMaterials.get_material("window_frame")
 	var seal := CabinMaterials.get_material("window_seal")
 	for window_name in WINDOWS:
+<<<<<<< HEAD
 <<<<<<< ours
 <<<<<<< ours
 		var root := Node3D.new()
@@ -278,6 +285,8 @@ func _window_fasteners(parent: Node3D, window_name: String) -> void:
 =======
 =======
 >>>>>>> theirs
+=======
+>>>>>>> 0e85540 (Recover cabin material and hardware realism from saved cloud diff)
 		var window: Dictionary = WINDOWS[window_name]
 		var ext: Vector2 = window["x"]
 		var x := (ext.x + ext.y) * 0.5
@@ -304,10 +313,13 @@ func _window_ring(parent: Node3D, centre: Vector3, axes: Basis, half_x: float, h
 	_box(parent, "Bottom", centre - axes.y * half_y, Vector3(half_x * 2.0, width, 0.014), axes, material)
 	_box(parent, "Left", centre - axes.x * half_x, Vector3(width, half_y * 2.0, 0.014), axes, material)
 	_box(parent, "Right", centre + axes.x * half_x, Vector3(width, half_y * 2.0, 0.014), axes, material)
+<<<<<<< HEAD
 <<<<<<< ours
 >>>>>>> theirs
 =======
 >>>>>>> theirs
+=======
+>>>>>>> 0e85540 (Recover cabin material and hardware realism from saved cloud diff)
 
 
 ## A surface of revolution about +X between profile points (x, r), cut

@@ -394,6 +394,7 @@ func test_the_commander_faces_the_console_inside_the_vessel() -> void:
 			"%s has four raised panel fasteners" % panel_name)
 		for edge in ["RevealTop", "RevealBottom", "RevealLeft", "RevealRight"]:
 			assert_true(mount.has_node(edge), "%s has its %s" % [panel_name, edge])
+<<<<<<< HEAD
 <<<<<<< ours
 <<<<<<< ours
 =======
@@ -406,6 +407,11 @@ func test_the_commander_faces_the_console_inside_the_vessel() -> void:
 		var retainer := cabin.get_node(window_name + "Retainer")
 		assert_eq(retainer.get_child_count(), 8, "%s has a gasket and four-piece retainer" % window_name)
 >>>>>>> theirs
+=======
+	for window_name in CmCabin.WINDOWS:
+		var retainer := cabin.get_node(window_name + "Retainer")
+		assert_eq(retainer.get_child_count(), 8, "%s has a gasket and four-piece retainer" % window_name)
+>>>>>>> 0e85540 (Recover cabin material and hardware realism from saved cloud diff)
 	assert_true(cabin.anchor.global_basis.is_equal_approx(Basis.IDENTITY),
 		"the rig looks along the render -Z, which is body +X, with the crew's up")
 	assert_almost_eq(cabin.anchor.global_position, Frames.BODY_TO_GODOT * CmCabin.EYE_CDR, Vector3.ONE * 1e-6)
