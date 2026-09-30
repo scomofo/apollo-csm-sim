@@ -21,6 +21,8 @@ extends DesktopTest
 ## after them (data/lm_malfunctions.json) are tests/unit/test_failures.gd's.
 const FLOWN := ["Undocking and DOI (P30 / P40)", "Powered descent (P63 to P68)",
 	"Lunar surface and liftoff (P12)", "Rendezvous and docking (P20, P32 to P35)"]
+## The DEDA's keys by the letters AgsCrew.keys() uses.
+const DEDA_KEYS := {"C": "CLR", "R": "READOUT", "E": "ENTR", "H": "HOLD"}
 ## The braking gates, as test_rendezvous.gd flies them: the closing rate
 ## the commander allows from each range in, m and m/s, and a stop 40 m out.
 const GATES := [[1852.0, 9.14], [914.0, 6.1], [457.0, 3.05], [152.0, 1.52], [40.0, 0.0]]
@@ -201,15 +203,16 @@ func _check_lpd() -> void:
 
 
 ## From the ascent PAD in, down the surface checklist to insertion: P57
-## half an hour before the liftoff (_fly_p57()), P12 twenty minutes before
-## it, ABORT STAGE and ENG ARM ASC at V99, PRO, and after insertion P00 and
-## free drift.
+## half an hour before the liftoff (_fly_p57()), the AGS brought up on it
+## (_fly_ags_init()), P12 twenty minutes before the liftoff, ABORT STAGE
+## and ENG ARM ASC at V99, PRO, and after insertion P00 and free drift.
 func _fly_liftoff() -> void:
 	var lgc := rt.lgc()
 	var tig := lgc.tig_load
 	var p57 := await _fly_p57(tig)
 	gut.p("P57 from %s: N05 %.3f, N93 %s" % [_from(), p57["sad"], p57["torque"]])
 	assert_lt(rad_to_deg(lgc.imu.misalignment().length()), 0.02, "the platform aligned for the ascent")
+	await _fly_ags_init()
 	await expect_step("V37E 12E")
 	await fly(tig - 1200.0 - SimClock.get_seconds, 3600.0)
 	await type("V37E12E")
@@ -243,6 +246,76 @@ func _fly_liftoff() -> void:
 	await expect_step("LGC MODE - FREE: drift to CSI")
 	await set_switch("ctl.lm.mode", 0)
 	await expect_complete(FLOWN[2])
+
+
+## Key [param seq] into the AGS's DEDA, AgsCrew.keys() style ("C400+30000E":
+## C CLR, R READOUT, E ENTR, H HOLD): on the HUD's, G opening it and the
+## keyboard keying in (READOUT and HOLD clicked), then G closing it again,
+## so the keyboard types into the DSKY once more; or on the cabin DEDA's
+## keys. Keying takes a moment of flight, a fixed step.
+func _deda(seq: String) -> void:
+	if in_cabin:
+		var d: CabinDeda = cabin().items["P6_DEDA"]
+		for ch in seq:
+			var key: ControlBase = d.keys[DEDA_KEYS.get(ch, ch)]
+			await let_go(key)
+			await rig_click(key, 0, 0.0, false)
+	else:
+		press(KEY_G)
+		assert_true(hud.deda_open(), "G opens the DEDA")
+		for ch in seq:
+			match ch:
+				"R", "H":
+					hud.deda_panel.press(DEDA_KEYS[ch])
+				"C", "E", "+", "-":
+					press(DSKY_KEYS[ch])
+				_:
+					press((KEY_0 + int(ch)) as Key)
+		press(KEY_G)
+	run(SimClock.FIXED_DT, false)
+
+
+## The AGS brought up after the P57 (slice 11e), down the checklist: AGS
+## STATUS to OPERATE; on the DEDA the surface flag (413+10000) and the
+## align to the platform (400+30000); V47, the AGS's clock zeroed at
+## V06N16 (377+00000, its ENTR with V32E); PRO, 414+10000 on the downlist;
+## PRO at V50N16. In the cabin the LM pilot's station, panel 6's.
+func _fly_ags_init() -> void:
+	var lgc := rt.lgc()
+	var ags: Ags = rt.systems["ags"]
+	if in_cabin:
+		cabin().set_seat("LMP")
+		await wait_physics_frames(1)
+	await expect_step("AGS STATUS - OPERATE")
+	await click("AGS STATUS" if in_cabin else "AGS")
+	run(1.0, false)
+	await expect_step("DEDA (G on the HUD)")
+	await _deda("C413+10000E")
+	await _deda("C400+30000E")
+	run(AgsFp6.CYCLE + 0.1, false)
+	await expect_step("V47E - R47")
+	await type("V47E")
+	assert_eq(_vn(), ["06", "16"], "R47 asks for the AGS's clock zero")
+	await _deda("C377+00000")
+	await _deda("E")
+	await type("V32E")
+	await type("P")
+	await expect_step("While V06N16 shows")
+	await _deda("C414+10000E")
+	run(AgsFp6.CYCLE + 0.1, false)
+	await expect_step("V50N16: PRO")
+	assert_true(await fly_until(func() -> bool: return lgc.r47.phase == "done", 30.0, 1.0, false), "V50N16 after 20 s")
+	await type("P")
+	var m := ags.frame.transposed()
+	var truth := LgcR47._sm(m, rt.dynamics.lm.traj.s, 0, 1.0 / Units.FT)
+	var off := Vector3(ags.fp6.r[0] - float(truth[0]), ags.fp6.r[1] - float(truth[1]), ags.fp6.r[2] - float(truth[2]))
+	gut.p("The AGS initialized from %s: %.0f ft from where Eagle is" % [_from(), off.length()])
+	# Its alignment's error: the CDUs' angles, 40 arcsec a count (up to
+	# some 950 ft at the Moon's radius), and the platform's own.
+	assert_lt(off.length(), 1500.0, "the AGS has Eagle within its alignment's error")
+	if in_cabin:
+		cabin().set_seat("CDR")
+		await wait_physics_frames(1)
 
 
 func _fly_lunar_surface_to_orbit() -> void:

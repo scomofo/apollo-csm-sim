@@ -34,9 +34,11 @@ func _move(node: Node3D, p: int) -> void:
 		node.call("actuate", 1)
 
 
-func _key(d: CabinDsky, key: String) -> void:
-	d.keys[key].call("actuate", 0)
-	d.keys[key].call("release")
+## A key on a cabin DSKY or DEDA [param d], pressed and let go.
+func _key(d: Node3D, key: String) -> void:
+	var keys: Dictionary = d.get("keys")
+	keys[key].call("actuate", 0)
+	keys[key].call("release")
 
 
 func test_the_shipped_layouts_validate() -> void:
@@ -167,6 +169,14 @@ func _round_trip(p_layout: CockpitLayout, cabin: Cabin) -> void:
 					assert_true(d.lamps[lamp].get("lit"), "%s lights %s" % [id, lamp])
 				Bus.set_value(ch + ".comp_acty", true)
 				assert_true(d.comp_acty, "%s shows COMP ACTY" % id)
+			"deda":
+				var dd := node as CabinDeda
+				Bus.set_value(ch + ".addr", "377")
+				Bus.set_value(ch + ".data", "+00012")
+				assert_eq([dd.fields["addr"].text, dd.fields["data"].text], ["377", "+00012"], "%s shows its windows" % id)
+				Bus.set_value(ch + ".opr_err", true)
+				assert_true(dd.opr_err.get("lit"), "%s lights OPR ERR" % id)
+				Bus.set_value(ch + ".opr_err", false)
 			"optics":
 				# The eyepieces show the optics' view, rendered off the panel.
 				var view: OpticsView = node.get("view")
@@ -286,12 +296,51 @@ func test_eagles_dsky_types_into_the_lgc_with_its_alt_and_vel_lamps() -> void:
 	assert_lt(d.lamps["uplink_acty"].position.y + 0.010 * lowest.scale.y, CabinDsky.SIZE.y * 0.5, "on the case")
 
 
+func test_the_dedas_keys_key_into_the_ags_and_it_shows_on_panel_6() -> void:
+	build("lunar_ascent")
+	var cabin := LmCabin.create()
+	add_child_autofree(cabin)
+	cabin.connect_runtime(rt)
+	var d: CabinDeda = cabin.items["P6_DEDA"]
+	assert_eq(d.ags, rt.systems["ags"], "panel 6's DEDA is the AGS's")
+	var names: Array = Deda.KEYS.duplicate()
+	names.sort()
+	var have: Array = d.keys.keys()
+	have.sort()
+	assert_eq(have, names, "the DEDA's 16 keys")
+	Bus.set_value("ctl.lm.ags", true)
+	run(1.0, false)
+	for k in ["CLR", "4", "1", "0", "+", "3", "0", "0", "0", "0", "ENTR"]:
+		_key(d, k)
+	assert_eq(rt.systems["ags"].fp6.s10, 3, "410+30000: TPI search")
+	for k in ["CLR", "4", "1", "0", "READOUT"]:
+		_key(d, k)
+	run(0.6, false)
+	assert_eq([d.fields["addr"].text, d.fields["data"].text], ["410", "+30000"], "read out on panel 6")
+	_key(d, "5")
+	assert_true(d.opr_err.get("lit"), "a key during a readout: OPR ERR")
+	_key(d, "CLR")
+	assert_false(d.opr_err.get("lit"), "CLR")
+	# The HUD's DEDA keys into the same AGS.
+	var panel := DedaPanel.new()
+	panel.setup(rt.systems["ags"], ThemeDB.fallback_font)
+	add_child_autofree(panel)
+	var buttons := {}
+	for b: Button in panel.find_children("*", "Button", true, false):
+		buttons[b.text.replace("\n", "")] = b
+	assert_eq(buttons.size(), 16, "the HUD's DEDA has its 16 keys")
+	for k in ["CLR", "4", "1", "0", "READOUT"]:
+		buttons[k].pressed.emit()
+	assert_eq(Bus.get_value("lm.deda.data"), "+30000", "and reads out on the HUD's")
+
+
 func test_the_desktop_rig_can_click_every_control_from_its_station() -> void:
 	# Columbia's console from the commander's couch; the optics' switches
 	# and the second DSKY from the lower equipment bay. Eagle's from the
-	# commander's station, the AOT's overhead among them.
+	# commander's station, the AOT's overhead among them, and panel 6's
+	# DEDA and AGS STATUS from the LM pilot's.
 	await _click_every_control(CmCabin.new(), layout, 37 + 19 + 6 + 19)
-	await _click_every_control(LmCabin.new(), CockpitLayout.load_lm(), 20 + 5 + 19)
+	await _click_every_control(LmCabin.new(), CockpitLayout.load_lm(), 21 + 5 + 19 + 16)
 
 
 ## Build [param p_layout] onto [param cabin] in a viewport and point the
@@ -318,15 +367,15 @@ func _click_every_control(cabin: Cabin, p_layout: CockpitLayout, expect: int) ->
 		if cabin.items[id] is ControlBase:
 			controls.append(cabin.items[id])
 			panels.append(panel)
-		elif cabin.items[id] is CabinDsky:
+		elif cabin.items[id] is CabinDsky or cabin.items[id] is CabinDeda:
 			for k in cabin.items[id].keys:
 				controls.append(cabin.items[id].keys[k])
 				panels.append(panel)
-	assert_eq(controls.size(), expect, "%s: the switches, buttons and DSKY keys" % cabin.name)
+	assert_eq(controls.size(), expect, "%s: the switches, buttons and DSKY and DEDA keys" % cabin.name)
 	var home: String = cabin.seats().keys()[0]
 	for i in controls.size():
 		var c := controls[i]
-		var station := "LEB" if panels[i] == "LEB122" else home
+		var station := {"LEB122": "LEB", "P6": "LMP"}.get(panels[i], home)
 		if cabin.seat != station:
 			cabin.set_seat(station)
 			await wait_physics_frames(1)

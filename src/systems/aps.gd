@@ -3,8 +3,9 @@
 ## The engine fires only while the ascent stage flies free (after
 ## staging, on the surface too), the ENGINE ARM switch is at ASC,
 ## propellant remains, ENGINE STOP isn't pressed, and the LGC commands it
-## (lm.guid.aps_on) or the crew started it (ENGINE START, which holds
-## until ENGINE STOP or disarming). Thrust follows first-order start and
+## (lm.guid.aps_on, with the guidance control switch at PGNS), or the AGS
+## does (lm.ags.engine_on, at AGS; slice 11e), or the crew started it
+## (ENGINE START, which holds until ENGINE STOP or disarming). Thrust follows first-order start and
 ## shutdown transients. [simplified: the thrust acts through the centre of
 ## mass.]
 ##
@@ -18,6 +19,7 @@
 ##
 ## Reads:  ctl.lm.engine_arm (0 OFF, 1 ASC, 2 DES), ctl.lm.eng_start,
 ##         ctl.lm.eng_stop, ctl.lm.stage (ABORT STAGE), lm.guid.aps_on,
+##         ctl.lm.guid_cont, lm.ags.engine_on,
 ##         lm.sys.powered, lm.dyn.config, dock.state
 ## Writes: lm.aps.thrust_n, lm.aps.prop_kg, lm.aps.chamber_pct,
 ##         lm.aps.ignitions, lm.aps.burn_time_s, lm.aps.on,
@@ -67,7 +69,9 @@ func commanded() -> bool:
 	elif start and not _start_was:
 		manual = true
 	_start_was = start
-	return armed and (bool(Bus.get_value("lm.guid.aps_on", false)) or manual) and not bool(Bus.get_value("ctl.lm.eng_stop", false)) \
+	var pgns := int(Bus.get_value("ctl.lm.guid_cont", 0)) == 0
+	var guided := bool(Bus.get_value("lm.guid.aps_on" if pgns else "lm.ags.engine_on", false))
+	return armed and (guided or manual) and not bool(Bus.get_value("ctl.lm.eng_stop", false)) \
 		and prop_kg > 0.0 and bool(Bus.get_value("lm.sys.powered", true)) \
 		and str(Bus.get_value("dock.state", "")) == "free" and str(Bus.get_value("lm.dyn.config", "")) == "lm_ascent"
 

@@ -751,6 +751,43 @@ V50N25 00201: ENTER, for 00205. Slew the antenna onto Columbia on the
 SLEW switch (HI 7°/s, LO 1.33°/s) until SIGNAL STRENGTH peaks, go to AUTO
 TRACK, and once NO TRACK is out, to LGC; PRO when NO TRACK is out again.
 
+**The AGS.** Eagle's abort guidance section runs FP6, Apollo 11's and
+12's flight program: it navigates on its own accelerometers every two
+seconds and works out its own guidance, and the crew talk to it through
+the DEDA. AGS STATUS on panel 6 (AGS on the HUD) powers it, and **G**
+opens the HUD's DEDA; while it's open, the digits, + and −, Enter (ENTR)
+and Backspace (CLR) key into it. On the DEDA, CLR and an address's three
+octal digits, then READOUT, show the word there, twice a second, until
+HOLD or CLR; the address, a sign, five digits and ENTR enter one. A key
+out of order lights OPR ERR until CLR. The FP6 operating manual lists
+the words (11176-6033-T000). After the P57 on the surface the surface
+checklist brings it up:
+- 413+10000 (the surface flag), and 400+30000: the AGS aligns to the
+  platform through its gimbal angles, for two seconds.
+- `V47E`, R47, the AGS initialization. At V06N16 key 377+00000 on the
+  DEDA and its ENTR with `V32E`, zeroing the AGS's clock with the LGC's.
+  PRO puts Eagle's and Columbia's state vectors on the AGS's downlist for
+  20 s, where 414+10000 takes them; PRO at V50N16.
+
+Before each rendezvous burn V47 and 414+10000 update it again (PRO at
+V06N16 keeps its clock), and its guidance routine (410) gives its own
+solution:
+- CSI (+10000): CSI's time in 373 and TPI's in 275, in AGS minutes to
+  the tenth; 605 the cotangent of TPI's line of sight (+00777, 26.6°);
+  416+10000 for CDH half an orbit on. 450 is the ΔV, 402 the ΔH.
+- CDH (+20000): its time in 373. 450 and 452 are the ΔV along and up.
+- TPI: search (+30000), 310 the time to go and 303 the line of sight;
+  execute (+40000), its time in 373, and 267 the ΔV.
+- External ΔV (+50000), to fly one of these.
+
+With GUID CONT at AGS the AGS flies Eagle: 400+10000 steers to its
+guidance, 400+00000 holds the attitude. For an abort from the surface on
+it, select orbit insertion (410+00000) and guidance steering, GUID CONT to
+AGS and LGC MODE to AUTO, and at the liftoff ENG ARM to ASC and ABORT
+STAGE: the AGS lights the ascent engine, holds the attitude 2.5 s as the
+stages part, rises vertically to 50 ft/s, steers for 60,000 ft and 19.5
+ft/s up above the site's radius, and cuts the engine off.
+
 **Mission Control's timeline.** From undocking to the entry, Mission
 Control keeps Apollo 11's timeline (mission.json "lunar_timeline"):
 - **Undocking and DOI.** CAPCOM gives GO for undocking at 100:00. The DOI
@@ -783,7 +820,7 @@ and P47, and ENGINE START lifts a landed ascent stage off by hand.
 **Flying Eagle.** You move to Eagle as it undocks, as its commander, and
 back to Columbia when the two dock or Eagle is jettisoned. While Eagle
 flies free, **L** changes vehicles. The HUD becomes Eagle's:
-- The LGC's DSKY, which the keys type into.
+- The LGC's DSKY, which the keys type into, and on G the AGS's DEDA.
 - Eagle's switches: LGC MODE, ENG ARM (ASC or DES), ABORT and ABORT
   STAGE, ENG START and STOP, RCS SYS A and B, MASTER ALARM, ROD UP and
   DOWN for P66, and the rendezvous radar's mode, RNDZ RADAR (LGC, AUTO
@@ -803,7 +840,7 @@ ground below Eagle is drawn from the same height maps its gear lands on.
 
 **Eagle's cabin.** C's third view, and the only view in a headset, puts
 you standing at the commander's station in Eagle's cabin
-(`src/cabin/lm_cabin.gd`), at its window. Panels 1 to 5 carry every
+(`src/cabin/lm_cabin.gd`), at its window. Panels 1 to 6 carry every
 switch of Eagle's HUD and its displays (`data/cockpit/lm_controls.csv`):
 - Panel 1, to your right: the mission timer, the rendezvous radar's range
   and range rate, the descent engine's thrust, the FDAI, LUNAR CONTACT,
@@ -818,6 +855,8 @@ switch of Eagle's HUD and its displays (`data/cockpit/lm_controls.csv`):
 - Panel 4, below it: the LGC's DSKY, with its ALT and VEL lamps.
 - Panel 5, by your left hand: ENGINE STOP and START and DES RATE, the
   rate of descent switch. Scroll it up for +1 FPS and down for −1 FPS.
+- Panel 6, by the LM pilot's right hand: the AGS's DEDA and AGS STATUS.
+  SEAT on the wrist menu takes you to the LM pilot's station.
 
 The landing point designator's scale is on your window: a mark every 5°
 down to 65°. In P64 the landing point sits on the mark N64 gives. The
@@ -1017,12 +1056,14 @@ A flown Apollo 11 profile in the simulator reproduces these values:
 | The Sun at touchdown | 10.7° up | 10.8° up |
 | Eagle's P57s on the surface | 103:47 on Rigel and Navi, which R59 finds in the left-rear and right-rear detents: N05 0.001°; 122:17 on gravity and Capella, in the right rear: N93 −0.692, +0.704, −0.620° | 103:47 on the same stars through the same detents: N05 0.09°; 122:17 on Capella through the right rear: N93 −0.699, +0.695, −0.628° |
 | Ascent, liftoff to cutoff | GET 124:22:23, 7 min 8 s, then 59,641 ft and 29.8 ft/s up (the LGC's 60,034 ft and 32.0 ft/s, its platform 0.050° off after the P57 at 123:49), 9.1 × 45.3 nmi | 124:22:00, 7 min 17 s, then 60,666 ft and 32.8 ft/s up, 9.5 × 47.3 nmi |
-| CSI | 51.0 ft/s, 50 min 59 s after insertion (the LGC's solution 50.1, the PAD's 50.0) | 51.5 ft/s, 50 min 18 s after insertion |
+| The AGS's orbit after the ascent (its DEDA's 315 and 403) | 44.6 × 9.1 nmi, the truth's 45.2 × 9.1 | 46.6 × 9.5 nmi, the PGNS's 47.3 × 9.5 |
+| CSI | 50.9 ft/s, 50 min 59 s after insertion (the LGC's solution 50.1, the PAD's 50.0) | 51.5 ft/s, 50 min 18 s after insertion |
+| The AGS's CSI, from the LGC's state vectors | 50.0 ft/s, ΔH 16.4 nmi (the LGC's 50.1) | 51.3 ft/s, ΔH 15.5 nmi at 124:39 (the PGNS's 51.5) |
 | CDH, with Columbia's orbit out of round | 8.6 ft/s | 19.9 ft/s |
-| TPI | 28.6 ft/s, 2 h 33 min 41 s after insertion, 54 s before the plan's time | ~25 ft/s, 2 h 34 min 35 s after insertion, 6 min 39 s after the plan's |
-| Midcourse corrections | 3.9 and 2.4 ft/s | 0.98 and 1.30 ft/s |
-| Braking, then station-keeping | 11 min 1 s, station-keeping 45 min after TPI | 15 min 8 s, station-keeping 48 min after TPI |
-| Docking | GET 127:53:38, 50 min after TPI | 128:03:00, 59 min after TPI |
+| TPI | 28.3 ft/s, 2 h 33 min 24 s after insertion, 71 s before the plan's time | ~25 ft/s, 2 h 34 min 35 s after insertion, 6 min 39 s after the plan's |
+| Midcourse corrections | 3.0 and 0.9 ft/s | 0.98 and 1.30 ft/s |
+| Braking, then station-keeping | 11 min 2 s, station-keeping 46 min after TPI | 15 min 8 s, station-keeping 48 min after TPI |
+| Docking | GET 127:53:32, 51 min after TPI | 128:03:00, 59 min after TPI |
 | Entry interface | 195:03:05, 36,194 ft/s, 6.53° down, 3.23° S 171.88° E | 195:03:05.7, 36,194 ft/s, 6.48° down, 3.19° S 171.96° E |
 | Entry: 0.05 g, and the two peak loads | 195:03:34; 6.5 and 6.1 g | about 195:03:34; 6.5 and 6.0 g |
 | Drogues | 195:12:39 | 195:12:07 |
@@ -1440,6 +1481,15 @@ ones:
   as much, where Luminary's DAP held it within the deadband the crew had
   chosen. SIGNAL STRENGTH is a number from 0 to 1, from the beam's loss
   and the range's.
+- **The AGS.** Its sensor assembly is ideal, its gyros and accelerometers
+  exact, and its clock keeps time. Its frame is the platform's through
+  the CDUs' angles, 40 arcsec a count, so it starts some 500 ft and 0.5
+  ft/s off, as the real one was off by its alignment. The ascent engine
+  thrusts along +X, so the AGS's cant terms (4K7 and 4K8) are 0. One LGC
+  MODE switch serves both guidance systems. The lunar align, the
+  calibrations, the self test and the telemetry are left out (412 reads
+  passed), the DEDA's words go in and read out at once rather than on
+  the half second, and only V32 sets R47's clock zero.
 - **Docking.** Capture docks the vehicles hard at once, without a soft
   dock and probe retraction. Only the probe can touch the LM: the
   vehicles' bodies pass through each other. The docking geometry, the
@@ -1595,8 +1645,8 @@ ones:
   - The LM's batteries are one store of ampere-hours with a load for each
     state the crew put it in; the CM's entry batteries charge at a fixed
     current from the LM.
-  - The AGS holds an attitude and counts the ΔV along the LM's X axis:
-    none of its guidance. The ground's docked alignment, its fine align
+  - The crew use the AGS as Aquarius's did, to hold an attitude and count
+    the ΔV along the LM's X axis; its guidance (slice 11e) isn't flown. The ground's docked alignment, its fine align
     torquing and its REFSMMAT, comes up at once, and the PGNS comes back
     at 133:30 on the ground's angles, without the crew's Sun and Moon
     P52.
@@ -1837,6 +1887,14 @@ The unit tests cover:
   a 1.5 km error in the ground's state vector for Columbia down to 23 m;
   R23's lock-on by hand; and alarm 00503 when Columbia isn't where the
   state vectors put it
+- The AGS's equations (`tests/unit/test_ags_fp6.gd`, slice 11e): FP6's
+  ellipse predictor against a two-body integration 10 and 30 min on and
+  15 min back; a transfer along the LM's own orbit needing nothing; CDH
+  between coelliptic circular orbits nothing; CSI at an 8° phase, 54.7
+  ft/s, with CDH then 4.2 ft/s at 11.9 nmi and the line of sight 27.0°
+  at TPI (26.6° targeted); orbit insertion from the surface on a point
+  mass to 60,049 ft and 19.8 ft/s up, cut off as the 40-ms logic does;
+  and the radar filter taking 3,000 ft of error to 16 ft
 - DSKY key logic, with V01 showing R1 alone
 - CMC programs, and Colossus's velocity to be gained for an External ΔV
   (`tests/unit/test_agc.gd`): the ΔV's size and its part out of the
@@ -1911,10 +1969,12 @@ The unit tests cover:
   direction P40 holds in a burn's last seconds, the CMC's entry guidance
   and the CM's roll rate, the master alarm circuit, the LGC's throttle
   schedule for P40, and whether N69 has moved its landing site (schema
-  17). Older checkpoints are rejected
+  17). Older checkpoints are rejected. The AGS comes back from one taken
+  mid-initialization, R47 at V06N16 and the DEDA mid-entry (schema 30)
 - The main scene, and in Eagle from `lunar_descent`: its HUD, the keys on
-  its LGC, its two views, its checklist for the phase, and L between the
-  vehicles; and the mission it's given, Apollo 8's with its own checklists
+  its LGC or, with G, its DEDA, its two views, its checklist for the
+  phase, and L between the vehicles; and the mission it's given, Apollo
+  8's with its own checklists
 - The hand controllers, from the keys and from the XR thumbsticks, with
   the thumbstick deadzone, and in Eagle its ACA and TTCA about its own
   axes, as its FDAI reads them
@@ -1943,8 +2003,8 @@ The unit tests cover:
   - Each panel faces the crew member who works it, inside the shell.
   - The bulkheads are whole but for the windows and the way aft.
   - The LPD marks are where the commander looks at their angles.
-  - The DSKY is within reach of both stations, and SEAT goes between
-    them.
+  - The DSKY is within reach of both stations, panel 6 of the LM
+    pilot's, and SEAT goes between them.
   - The cabin stays about the centre of mass as Eagle stages
 - The cabin controls and instruments, the XR and desktop rigs and the
   OpenXR action map taken from gemini-capsule
@@ -1953,8 +2013,9 @@ The unit tests cover:
   and the Bus, a toggle's through its values. Every switch on Columbia's
   and Eagle's HUDs has a cabin control but SPS THRUST ON, the HUD's
   manual backup, which in the cabin is a lamp; each cabin DSKY types into
-  its computer (Eagle's with its ALT and VEL lamps), and the desktop rig
-  can click every control from the commander's couch or station
+  its computer (Eagle's with its ALT and VEL lamps), panel 6's DEDA and
+  the HUD's key into the AGS, and the desktop rig can click every control
+  from the commander's couch or station, panel 6's from the LM pilot's
 - What the cabin shows and sets on the Bus: the DSKY display, the FDAI
   attitude, and switches that follow the HUD and checkpoints
 - The checklists in the cabin: one book shared by the HUD and the card,
@@ -2180,25 +2241,37 @@ The scenario tests fly real segments through the crew interface:
     50.0 ft/s (Apollo 11: 51.5), 16.3 nmi below Columbia's out-of-round
     orbit, and TPI at 26.8 ft/s.
   - The crew realign the platform with P52 on Rigel and Acrux, as
-    Armstrong and Aldrin did after insertion: N05 0.002° (theirs 0.00)
-    and N93 −0.029, +0.028 and −0.014° (theirs −0.006, +0.064 and
+    Armstrong and Aldrin did after insertion: N05 0.003° (theirs 0.00)
+    and N93 −0.032, +0.031 and −0.007° (theirs −0.006, +0.064 and
     +0.137).
   - P20 starts as the G mission's procedures had it (slice 11d). The
-    radar locks on 41 s after the P52, 246 nmi from Columbia, and in 12
+    radar locks on 40 s after the P52, 246 nmi from Columbia, and in 12
     minutes its 11 marks take the relative error from the ground's 1,112
     m (Columbia's state vector as MSFN tracked it, and Eagle's own from
-    the ascent) to 233 m and 0.16 m/s. N99 shows 8,238 ft, 6.81 ft/s and
+    the ascent) to 282 m and 0.28 m/s. N99 shows 8,234 ft, 6.80 ft/s and
     0.0065 rad; the radar's boresight biases, drawn for this flight at
-    −0.022 and −0.094°, are estimated at −0.055 and −0.083°.
-  - The LGC flies the sequence. By CSI its 28 marks have Columbia 266 m
-    and 0.36 m/s off, within the filter's own RSS of 504 m, and its CSI
+    −0.022 and −0.094°, are estimated at −0.070 and −0.111°. N78 shows
+    the radar's range, which less this flight's range bias is within its
+    noise and count of the truth.
+  - The LGC flies the sequence. By CSI its 28 marks have Columbia 264 m
+    and 0.44 m/s off, within the filter's own RSS of 506 m, and its CSI
     is 50.1 ft/s against the PAD's 50.0 (Apollo 11's four solutions
-    agreed within 0.2 ft/s). CSI 51.0 ft/s; CDH 8.6 ft/s onto 16.2 nmi
-    below (Apollo 11's took 19.9 ft/s for Columbia's orbit); TPI 28.6
-    ft/s 54 s before the plan's time (Apollo 11's came 6 min 39 s
-    after); and midcourse corrections of 3.9 and 2.4 ft/s (Apollo 11's
+    agreed within 0.2 ft/s). CSI 50.9 ft/s; CDH 8.6 ft/s onto 16.3 nmi
+    below (Apollo 11's took 19.9 ft/s for Columbia's orbit); TPI 28.3
+    ft/s 71 s before the plan's time (Apollo 11's came 6 min 39 s
+    after); and midcourse corrections of 3.0 and 0.9 ft/s (Apollo 11's
     LGC: 0.98 and 1.30), each burned where Eagle is with its +Z on
     Columbia, as Apollo 11's crew burned them.
+  - The AGS, brought up on the surface a quarter of an hour before the
+    liftoff (slice 11e), navigates the ascent on its accelerometers: 44.6
+    × 9.1 nmi after it by its DEDA, against the truth's 45.2 × 9.1
+    (Apollo 11's AGS had 46.6 × 9.5 to the PGNS's 47.3 × 9.5). Updated
+    from the LGC before each burn (V47), its own solutions match the
+    LGC's within the checks' 1 ft/s (2 for TPI): CSI 50.0 ft/s and ΔH
+    16.4 nmi (the LGC's 50.1; Apollo 11's AGS had 51.3 and 15.5 nmi to
+    the PGNS's 51.5); CDH 4.1 ft/s back and 7.3 up (the LGC's 4.0 and
+    7.3); TPI 27.8 ft/s (27.9), the line of sight 26.61° at the LGC's
+    TIG.
   - The platform drifts some 0.1°/h, as Eagle's did, and by the midcourse
     corrections has turned the radar's line of sight 0.25° across the
     range, some 200 m at 40 km, which the filter's bias states take in
@@ -2206,14 +2279,28 @@ The scenario tests fly real segments through the crew interface:
     midcourse corrections come to 0.6 and 0.2 ft/s, and the three other
     draws of its errors tried gave 1.1, 3.1 and 1.1 ft/s together. The
     checks hold TPI within 1 m/s of the PAD's and the two within 2.5 m/s.
-  - The commander brakes by the gates in 11 min 1 s and stops 40 m out,
-    and Collins docks at 0.33 ft/s at 127:53:38. Eagle's ΔV, 131.4 ft/s,
-    is 9 % over the RTCC's plan (the check allows 20 %), the braking
+  - The commander brakes by the gates in 11 min 2 s and stops 40 m out,
+    and Collins docks at 0.33 ft/s at 127:53:32. Eagle's ΔV, 128.9 ft/s,
+    is 7 % over the RTCC's plan (the check allows 20 %), the braking
     about 37 ft/s of it against the plan's 33.8: P20 kept +Z and the
     radar on Columbia, where after 11c's burns Eagle was left 44° off
     the line of sight and the braking took 42.3 ft/s.
   - GO for jettison comes 2 h 5 min after docking. After LM JETT, the TEI
     PAD plans TEI at 135:23:41, Apollo 11's
+- The AGS's abort insertion (`tests/scenarios/test_ags.gd`), slice 11e's
+  check. From `lunar_ascent` the AGS is brought up on the surface, its
+  orbit insertion (410+00000) and guidance steering (400+10000) keyed on
+  the DEDA, GUID CONT at AGS and LGC MODE in AUTO. At the PAD's TIG,
+  ABORT STAGE with ENG ARM at ASC: the AGS lights the ascent engine 0.04
+  s on, holds the attitude as the stages part, rises vertically to 50
+  ft/s in 10.2 s, steers to 60,515 ft above the site's radius and 20.1
+  ft/s up (LM-5's targets: 60,032 ft and 19.5 ft/s or more), and cuts
+  the engine off after 432 s, into 41.9 × 8.5 nmi. Its own navigation is
+  then 456 ft and 0.20 ft/s off, the CDUs' angles it aligned through.
+  A checkpoint taken 200 s into the burn flies on to the same cutoff. On
+  the DEDA, each of the manual's operator errors lights OPR ERR until
+  CLR, a readout runs on (the AGS's clock) until HOLD, an address outside
+  026 to 704 blanks the windows, and an octal word reads back as keyed
 - Mission Control's timeline (`tests/scenarios/test_lunar_timeline.gd`),
   slice 3f. From `lunar_orbit`: GO for undocking at 100:00, the DOI PAD
   8 min 29 s after Eagle undocks, and GO for DOI 18 min 21 s before the
@@ -2234,10 +2321,12 @@ The scenario tests fly real segments through the crew interface:
   works it: the DSKY on the keys through the scene's input, the HUD's
   buttons clicked where they show and its switches set, and the braking
   and the docking on the hand controllers' keys. In the cabin the rig
-  clicks each control, the DSKY is typed on panel 4's keys, the steps are
-  read off the card and the checklists turned with the wrist menu. At
-  the AOT the P52s' marks are taken on the reticle's lines and the P57's
-  with its counter (slice 11b). Each of Eagle's four checklists is flown
+  clicks each control, the DSKY is typed on panel 4's keys and the DEDA on
+  panel 6's, from the LM pilot's station; on the HUD G opens the DEDA and
+  the keys type into it. The steps are read off the card and the
+  checklists turned with the wrist menu. At the AOT the P52s' marks are
+  taken on the reticle's lines and the P57's with its counter (slice
+  11b). Each of Eagle's four checklists is flown
   from its phase's start until the HUD, or the card, shows it complete,
   with the same numbers from both:
   - From `lunar_orbit`: UNDOCK in Columbia at GO for undocking, the P52
@@ -2249,16 +2338,19 @@ The scenario tests fly real segments through the crew interface:
     shows 34.
   - From `lunar_surface`: STAY for T3, the ascent PAD, the P57 33 min
     before the liftoff (option 4, gravity and a star; N93 −0.642,
-    +0.803 and −0.866° after the day's drift since the start), and P12
-    to a 9.1 × 45.3 nmi orbit.
-  - From `lunar_ascent`: the P57 and the liftoff, the P52 after
-    insertion on Rigel and Acrux (N05 0.009°), then P20 as the G
+    +0.803 and −0.866° after the day's drift since the start), the AGS
+    brought up after it (slice 11e: AGS STATUS, the DEDA's surface flag
+    and its align to the platform, V47 with the AGS's clock zeroed, and
+    414+10000; the AGS then 864 ft from where Eagle is), and P12 to a
+    9.1 × 45.3 nmi orbit.
+  - From `lunar_ascent`: the P57, the AGS (57 ft off) and the liftoff,
+    the P52 after insertion on Rigel and Acrux (N05 0.001°), then P20 as the G
     mission's procedures had it (RNDZ RADAR to LGC, V95, V67's loads, the
-    lock-on, V80), P32 and its recycles, CSI (50.3 ft/s), P33 and CDH
-    (8.9 ft/s), P34 and TPI (28.3 ft/s against the PAD's 26.8), P35 from
-    each burn on and the two midcourse corrections on P41 (2.5 and 3.5
+    lock-on, V80), P32 and its recycles, CSI (50.6 ft/s), P33 and CDH
+    (8.3 ft/s), P34 and TPI (27.3 ft/s against the PAD's 26.8), P35 from
+    each burn on and the two midcourse corrections on P41 (1.3 and 0.4
     ft/s), V56 inside 18,000 ft, braking by the gates on the TTCA's keys
-    in 11 min 1 s, and, after L, Columbia flown into the drogue on the
+    in 11 min 8 s, and, after L, Columbia flown into the drogue on the
     THC's keys, capturing at 0.33 ft/s.
 
   The desktop scenarios share `tests/desktop_test.gd`
@@ -2491,5 +2583,7 @@ LGC steers its burns and turns the LM as Luminary did (slice 11c). The
 rendezvous radar has the flight's noise and biases, its gimbals'
 coverage and a lock-on by hand, and P20 is Luminary's, its filter
 weighing each mark in and learning the radar's boresight biases, flown
-by the G mission's procedures (slice 11d). The AGS's guidance comes next,
-and Apollo 14 to 17 after it.
+by the G mission's procedures (slice 11d). The AGS flies FP6, its own
+navigation from the LGC's V47 downlist, its abort insertion and its
+CSI, CDH and TPI solutions, keyed on the DEDA (slice 11e). That finishes
+the LM's navigation; Apollo 14 to 17 come next.

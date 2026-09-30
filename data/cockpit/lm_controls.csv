@@ -23,7 +23,10 @@
 # and for Apollo 13's lifeboat the LM's power, PGNS and AGS
 # switches, the AGS's align and the DEDA's address 470; panel 4 the LGC's
 # DSKY; panel 5 ENGINE START and
-# STOP and the rate of descent switch (DES RATE); overhead between the
+# STOP and the rate of descent switch (DES RATE); panel 6, by the LM
+# pilot's right hand, the AGS's DEDA and its AGS STATUS switch (slice 11e;
+# LM/AGS Operating Manual, FP6, 11176-6033-T000 rev. 1, section 3, and its
+# drawing of panel 6); overhead between the
 # crew the alignment optical telescope (slice 11a): its eyepiece, its
 # detent selector knob, its reticle knob (slice 11b) and, on its guard, the
 # computer control and reticle dimmer assembly's MARK X, MARK Y and REJECT
@@ -35,7 +38,9 @@
 # a momentary pushbutton for a guarded or latching one; a system's switch
 # for its valves; a number for a tape meter; LM PWR for the battery feeds
 # and bus ties of the activation, PGNS and AGS for their breakers, AGS
-# ALIGN and DEDA 470 for the DEDA's keys and readout; a screen for the
+# ALIGN and DEDA 470 for the DEDA's keys and readout, kept beside the
+# DEDA for the lifeboat's checklists; AGS STATUS's OFF and OPERATE for
+# its three positions, STANDBY left out; a screen for the
 # AOT's eyepiece; a spring-loaded rocker for its reticle knob).
 id,panel,type,label,x_mm,y_mm,rot_deg,channel,params,source,confidence,status,role
 P1_MISSION_TIMER,P1,clock,MISSION TIMER,-40,160,0,time.get_s,,estimated,D,implemented,historical
@@ -77,6 +82,8 @@ P4_DSKY,P4,dsky,DSKY,0,0,0,lm.dsky,lamp_set=lgc,estimated,D,implemented,historic
 P5_ENGINE_STOP,P5,pushbutton,ENGINE STOP,-75,35,0,ctl.lm.eng_stop,,estimated,D,implemented,proxy
 P5_ENGINE_START,P5,pushbutton,ENGINE START,-15,35,0,ctl.lm.eng_start,,estimated,D,implemented,historical
 P5_DES_RATE,P5,toggle,DES RATE,65,-5,0,ctl.lm.rod,positions=3;labels=-1 FPS||+1 FPS;values=-1|0|1;rest_position=1;momentary_positions=0|2,estimated,D,implemented,historical
+P6_DEDA,P6,deda,DEDA,20,10,0,lm.deda,,FP6 Operating Manual section 3,D,implemented,historical
+P6_AGS_STATUS,P6,toggle,AGS STATUS,-95,-70,0,ctl.lm.ags,labels=OFF|OPERATE,FP6 Operating Manual section 3,D,implemented,proxy
 AOT_EYEPIECE,AOT,aot,AOT,0,40,0,lm.aot,,estimated,D,implemented,proxy
 AOT_DETENT,AOT,rotary,DETENT,-130,-60,0,ctl.lm.aot.detent,positions=6;labels=LF|F|RF|RR|CL|LR;values=1|2|3|4|5|6;start_angle_deg=-75;detent_deg=30,ALSJ AOT,D,implemented,historical
 AOT_MARK_X,AOT,pushbutton,MARK X,130,60,0,ctl.lm.aot.mark_x,,ALSJ AOT (CCRD),D,implemented,historical

@@ -60,7 +60,9 @@ extends RefCounted
 ##    the LGC's burns on its External ΔV steering.
 ## 29: the rendezvous radar and Luminary's P20 (slice 11d): the antenna,
 ##    its lock and its errors, and P20's filter, flags and marks.
-const SCHEMA_VERSION := 29
+## 30: the AGS's flight program (slice 11e): FP6's memory, the DEDA, the
+##    AGS's frame and its 40-ms logic, and the LGC's R47.
+const SCHEMA_VERSION := 30
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],

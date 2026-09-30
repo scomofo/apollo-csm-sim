@@ -216,7 +216,7 @@ func test_every_eagle_step_names_one_of_its_controls_or_one_writes_its_check() -
 				assert_ne(id, "", "%s: a control in Eagle's cabin writes %s" % [s["text"], channel])
 			if id != "":
 				framed += 1
-	assert_eq(framed, 86, "86 of Eagle's steps point at a control in its cabin, 7 of them the malfunction procedures'")
+	assert_eq(framed, 91, "91 of Eagle's steps point at a control in its cabin, 7 of them the malfunction procedures'")
 
 
 func test_the_highlight_follows_the_player_into_eagle() -> void:

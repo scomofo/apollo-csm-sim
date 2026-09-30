@@ -21,6 +21,14 @@
 ## moving Eagle's state vector (V80) and learning the radar's boresight
 ## biases, which take in the platform's drift since the P52; the crew fly
 ## the G mission's procedures (lm_coelliptic()), each burn where Eagle is.
+##
+## Slice 11e's check: the AGS, the rendezvous's backup. Aldrin brings it up
+## a quarter of an hour before liftoff (AgsCrew.initialize(): the surface
+## flag, the align to the platform, V47's state vectors), and it navigates
+## the ascent on its own accelerometers. Before each of CSI, CDH and TPI
+## the crew update it from the LGC (V47) and key its solution (the FP6
+## operating manual's sections 23 to 25), as Apollo 11's crew did: the
+## AGS's own targeting from the same state vectors, set against the LGC's.
 extends SimTest
 
 var _inserted := ""
@@ -29,6 +37,8 @@ var _inserted := ""
 func before_all() -> void:
 	build("lunar_ascent")
 	var lgc := rt.lgc()
+	run(float(rt.sequencer.plan["liftoff_tig"]) - 900.0 - SimClock.get_seconds)
+	AgsCrew.initialize(self, true)
 	keys("V37E12E", lgc)
 	keys("PP", lgc)
 	Bus.set_value("ctl.lm.mode", 2)
@@ -70,6 +80,27 @@ func _p52() -> Dictionary:
 	assert_lt(float(p52["sad"]), 0.01, "N05: the stars' angle as marked")
 	assert_lt(rad_to_deg(rt.lgc().imu.misalignment().length()), 0.01, "the platform on the REFSMMAT")
 	return p52
+
+
+## The AGS's solution for [param name] (CSI, CDH or TPI) at the LGC's
+## final computation: the AGS updated from the LGC (V47), then its routine
+## keyed (AgsCrew). Returns AgsCrew's solution checks, and the LGC's ΔV
+## ("lgc", LVLH, ft/s).
+func _ags_solution(name: String, pad: Dictionary) -> Dictionary:
+	var lgc := rt.lgc()
+	var tig := lgc.maneuver_tig
+	var dv := lgc.dv_lvlh_load / Units.FT
+	AgsCrew.update(self)
+	var out := {}
+	match name:
+		"CSI":
+			out = AgsCrew.csi(self, tig, float(pad["tpi_get"]))
+		"CDH":
+			out = AgsCrew.cdh(self, tig)
+		"TPI":
+			out = AgsCrew.tpi(self, tig)
+	out["lgc"] = dv
+	return out
 
 
 ## P20's filter's own RSS of the position error it holds, m (V06N99's R1).
@@ -118,8 +149,13 @@ func test_the_ground_plans_csi_and_p20_takes_out_the_tracking_error() -> void:
 	var n54: Array = lgc.noun_values(54)
 	var rel := Rendezvous.rel_pos(rt.dynamics.lm.traj, rt.dynamics.traj)
 	assert_almost_eq(float(n54[0]), rel.length(), 300.0, "N54: the range, from the state vectors")
+	# N78: the radar's range, less this flight's bias (its limit, 500 ft
+	# or 0.05 % of the range, as 3 sigma), within its noise (37 ft) and its
+	# count (75 ft).
 	var n78: Array = lgc.noun_values(78)
-	assert_almost_eq(float(n78[0]), rel.length(), 50.0, "N78: the radar's range")
+	var rr: RendezvousRadar = rt.systems["rr"]
+	var limit := maxf(500.0 * Units.FT, 0.0005 * rel.length())
+	assert_almost_eq(float(n78[0]) - rr.bias_range_k * limit / 3.0, rel.length(), 50.0, "N78: the radar's range")
 	assert_true(start > 0.0)
 
 
@@ -127,8 +163,20 @@ func test_from_insertion_to_docking() -> void:
 	var pad := _csi_pad()
 	var lgc := rt.lgc()
 	var lm0 := rt.dynamics.lm.dv_total
+	# The AGS's orbit after its ascent against the truth's, both above the
+	# landing site's radius (its 5J).
+	var ags: Ags = rt.systems["ags"]
+	var c := rt.dynamics.lm.traj.conic()
+	var site_r := ags.fp6.j5 * Units.FT
+	var orbit_ags := Vector2(AgsCrew.tenths(self, "315"), AgsCrew.tenths(self, "403"))
+	var orbit := Vector2(float(c["ra"]) - site_r, float(c["rp"]) - site_r) / Units.NMI
 	_p52()
-	var got := lm_coelliptic(pad)
+	var ags_dv := {}
+	var fly := func(name: String) -> float:
+		if name in ["CSI", "CDH", "TPI"]:
+			ags_dv[name] = _ags_solution(name, pad)
+		return fly_lm_pad(41, 0, Callable(), false, 900.0 if name.begins_with("TPM") else 600.0, true)
+	var got := lm_coelliptic(pad, fly)
 	var burns := {"CSI": got["CSI"], "CDH": got["CDH"], "TPI": got["TPI"], "TPM3": got["TPM1"], "TPM4": got["TPM2"]}
 	var err_csi := float(got["err_csi"])
 	var errv_csi := float(got["errv_csi"])
@@ -147,15 +195,25 @@ func test_from_insertion_to_docking() -> void:
 		float(pad["dv"]) / Units.FT, burns["CDH"] / Units.FT, dh / Units.NMI, Units.hms(tpi_tig),
 		Units.hms(float(pad["tpi_get"])), burns["TPI"] / Units.FT, burns["TPM3"] / Units.FT, burns["TPM4"] / Units.FT,
 		t_stop - t_brake, Units.hms(t_stop), lm_dv / Units.FT, float(pad["total_dv"]) / Units.FT])
+	var csi_ags: Dictionary = ags_dv["CSI"]
+	var cdh_ags: Dictionary = ags_dv["CDH"]
+	var tpi_ags: Dictionary = ags_dv["TPI"]
+	var csi_pgns: Vector3 = csi_ags["lgc"]
+	var cdh_pgns: Vector3 = cdh_ags["lgc"]
+	var tpi_pgns: Vector3 = tpi_ags["lgc"]
+	var los := rad_to_deg(atan(1.0 / ags.fp6.j2))
+	gut.p("The AGS: %.1f by %.1f nmi after the ascent (truth %.1f by %.1f); CSI %.1f ft/s (LGC %.1f), dH %.1f nmi; CDH %.1f and %.1f ft/s along and up (LGC %.1f and %.1f); TPI %.1f ft/s (LGC %.1f), the line of sight %.2f deg at the LGC's TIG (%.2f)" % [
+		orbit_ags.x, orbit_ags.y, orbit.x, orbit.y, csi_ags["dv"], csi_pgns.x, csi_ags["dh"], cdh_ags["dv"],
+		-float(cdh_ags["radial"]), cdh_pgns.x, -cdh_pgns.z, tpi_ags["dv"], tpi_pgns.length(), tpi_ags["angle"], los])
 	# Collins docks: Eagle turns its docking port to Columbia, and Columbia
 	# its probe to Eagle.
 	face_x(true, func() -> Vector3: return Rendezvous.rel_pos(rt.dynamics.lm.traj, rt.dynamics.traj).normalized())
 	face_x(false, func() -> Vector3: return Rendezvous.rel_pos(rt.dynamics.traj, rt.dynamics.lm.traj).normalized())
 	csm_move_to(Vector3(10.0, 0.0, 0.0), 60.0)
 	assert_true(csm_approach(0.1), "the probe met the drogue")
-	var c := dock_contact()
-	gut.p("Docked at %s: %s" % [Units.hms(SimClock.get_seconds), Docking.describe(c)])
-	assert_true(c["captured"], "within the capture limits")
+	var contact := dock_contact()
+	gut.p("Docked at %s: %s" % [Units.hms(SimClock.get_seconds), Docking.describe(contact)])
+	assert_true(contact["captured"], "within the capture limits")
 	assert_eq(str(Bus.get_value("dock.state")), "docked")
 	assert_eq(rt.sequencer.phase, "lunar_orbit", "docked again")
 	# The timeline's last calls: GO for jettison two hours after docking
@@ -198,3 +256,15 @@ func test_from_insertion_to_docking() -> void:
 	assert_lt(burns["TPM3"] + burns["TPM4"], 2.5, "midcourse corrections within 2.5 m/s together")
 	assert_between(lm_dv, float(pad["total_dv"]), 1.2 * float(pad["total_dv"]), "the LM's ΔV within 20 % of the plan")
 	assert_true(Bus.has_channel("mission.event.docking"))
+	# Slice 11e's: the AGS's orbit and solutions against the LGC's, from the
+	# same state vectors (V47). Apollo 11's AGS had 46.6 by 9.5 nmi to the
+	# PGNS's 47.3 by 9.5 after the ascent, and CSI 51.3 ft/s and ΔH 15.5 nmi
+	# to the PGNS's 51.5 ft/s [the Apollo Flight Journal, 124:31:14 and
+	# 124:39:24]. The AGS's own navigation carries its alignment's error, the
+	# CDUs' angles (40 arcsec) off the platform: some 500 ft and 0.5 ft/s.
+	assert_almost_eq(orbit_ags, orbit, Vector2(1.0, 0.5), "the AGS's orbit after the ascent")
+	assert_almost_eq(float(csi_ags["dv"]), csi_pgns.x, 1.0, "the AGS's CSI within 1 ft/s of the LGC's")
+	assert_almost_eq(Vector2(cdh_ags["dv"], cdh_ags["radial"]), Vector2(cdh_pgns.x, cdh_pgns.z), Vector2.ONE,
+		"the AGS's CDH within 1 ft/s of the LGC's")
+	assert_almost_eq(float(tpi_ags["dv"]), tpi_pgns.length(), 2.0, "the AGS's TPI within 2 ft/s of the LGC's")
+	assert_almost_eq(float(tpi_ags["angle"]), los, 0.5, "the AGS's line of sight at the LGC's TPI")

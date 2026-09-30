@@ -122,6 +122,10 @@ lm.contact_light,bool,,dynamics,LUNAR CONTACT: a landing probe touches the surfa
 lm.dps.throttle_pct,float,%,dps,Descent engine thrust
 lm.ags.dv_x_mps,float,m/s,ags,The AGS's ΔV along the LM's X axis since its body-axis align (the DEDA's address 470)
 lm.ags.on,bool,,ags,The AGS is running
+lm.deda,group,,ags,The DEDA's windows and light below (slice 11e)
+lm.deda.addr,string,,ags,The DEDA's address window: up to three octal digits
+lm.deda.data,string,,ags,The DEDA's data window: a sign and up to five digits
+lm.deda.opr_err,bool,,ags,The DEDA's OPR ERR light: a key out of order; lit until CLR
 lm.eps.batt_ah,float,A-h,lm_eps,The LM's batteries' charge
 lm.rr.range_m,float,m,rr,Rendezvous radar range to Columbia
 lm.rr.range_rate_mps,float,m/s,rr,Rendezvous radar range rate (positive opening)

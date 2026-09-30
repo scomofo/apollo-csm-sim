@@ -161,6 +161,10 @@
 ## the guidance control switch at AGS (ctl.lm.guid_cont) the AGS flies
 ## the LM (src/systems/ags.gd) and the DAP follows the attitude.
 ##
+## V47 (slice 11e, LgcR47) is Luminary's AGS initialization, R47: the
+## state vectors to the AGS over the downlink (lm.lgc.ags_downlink), and
+## the GET of the AEA clock's zero in N16.
+##
 ## Reads:  the core's, lm.dyn.landed, ctl.lm.rod (the ROD switch: +1 up,
 ##         -1 down, momentary), ctl.lm.rr_mode (the rendezvous radar's
 ##         mode switch: 0 LGC, 1 AUTO TRACK, 2 SLEW), the landing radar's
@@ -168,6 +172,9 @@
 ## Writes: the core's channels under lm. (lm.guid.*, lm.dsky.*),
 ##         lm.guid.dps_on, lm.guid.dps_throttle, lm.guid.aps_on (P12, P42),
 ##         lm.guid.lr_antenna (1 in P63, 2 from P64), lm.guid.delta_h_m,
+##         lm.lgc.ags_downlink (V47's AGS downlist: the LM's and CSM's
+##         state vectors in stable member axes, ft and ft/s), lm.guid.r47
+##         (R47's phase: "", "k", "send", "done"),
 ##         lm.guid.lr_update (V57 given), lm.guid.ls_corrected (N69 loaded
 ##         since the site's uplink), lm.guid.rr_nav (P20 running), P20's
 ##         lm.guid.rr_designating, lm.guid.rr_designate (the radar's shaft
@@ -209,6 +216,7 @@ const FRCS4_N := 1779.3
 const KALCMANU_RATE := 0.0349066
 ## The nouns the LGC adds, or means otherwise than the CMC does.
 const LGC_NOUNS := {
+	16: {"name": "AGS CLOCK ZERO", "c": [["HRS", "hms_h", 1.0], ["MIN", "hms_m", 1.0], ["SEC", "hms_s", 1.0]]},
 	22: {"name": "NEW ICDU ANGLES", "c": [["OG", "d2", 1.0], ["IG", "d2", 1.0], ["MG", "d2", 1.0]]},
 	43: {"name": "LAT/LONG/ALT", "c": [["LAT", "d2", 1.0], ["LONG", "d2", 1.0], ["ALT", "d1", 1.0 / Dsky.NMI]]},
 	60: {"name": "VH/HDOT/H", "c": [["VH", "d1", 1.0 / Dsky.FT], ["HDOT", "d1", 1.0 / Dsky.FT], ["H", "i", 1.0 / Dsky.FT]]},
@@ -296,6 +304,8 @@ var abort_tpi: float = -1.0
 ## P20 running (slice 11d: p20).
 var rr_nav: bool = false
 var p20: LgcRendezvousNav
+## The AGS's initialization, V47 (slice 11e: LgcR47).
+var r47 := LgcR47.new()
 ## The rendezvous: CSI, CDH and TPI's TIGs (GET s, N11, N13, N37), the TPI
 ## elevation and the transfer angle (radians, N55), the meeting TPI aims at
 ## (GET), and what P32 to P35 last worked out: ΔH (m), the ΔV of TPI and
@@ -358,6 +368,7 @@ func _init() -> void:
 	align = LgcAlign.new(self)
 	surface = LgcSurfaceAlign.new(self)
 	p20 = LgcRendezvousNav.new(self)
+	r47.lgc = self
 	dsky.nouns = Dsky.NOUNS.merged(LGC_NOUNS, true)
 	var r := SpacecraftData.section("rendezvous_guidance")
 	rdv_elev = deg_to_rad(float(r["tpi_elevation_deg"]))
@@ -808,12 +819,20 @@ func verb_noun(v: int, n: int) -> bool:
 		# Permit landing radar updates.
 		lr_update = true
 		return true
-	if _p20_verb(v):
+	if _r47_verb(v) or _p20_verb(v):
 		return true
 	if v == 32 and program in RENDEZVOUS and step_name == "n45":
 		_recycle_rendezvous()
 		return true
 	return super.verb_noun(v, n)
+
+
+## R47's verbs: V47 starts it, and V32 and V34 answer its display.
+## Returns whether [param v] was one of them.
+func _r47_verb(v: int) -> bool:
+	if v == 47:
+		return r47.start()
+	return v in [32, 34] and r47.answer({32: "v32", 34: "v34"}[v])
 
 
 ## P20's verbs: V67, V80, V81, V93 and V95 (LgcRendezvousNav.verb()); at
@@ -932,9 +951,11 @@ static func pdi_time(tr: Trajectory, site_mf: Vector3, pdi_range: float) -> floa
 
 
 func proceed() -> void:
-	if p20.priority != "" or program in RENDEZVOUS:
-		# PRO answers P20's priority display first.
-		if p20.priority != "":
+	if r47.phase != "" or p20.priority != "" or program in RENDEZVOUS:
+		# PRO answers R47's display, then P20's priority display.
+		if r47.phase != "":
+			r47.answer("pro")
+		elif p20.priority != "":
 			p20.answer("pro")
 		else:
 			_proceed_rendezvous()
@@ -1018,6 +1039,7 @@ func extra_step() -> void:
 	align.step()
 	surface.step()
 	p20.step()
+	r47.tick(_now())
 	rr_nav = p20.running()
 	_executive(step_dt, now)
 	_abort_discretes()
@@ -1678,6 +1700,8 @@ func noun_values(n: int) -> Variant:
 		11, 13, 37:
 			var t: float = {11: rdv_csi_tig, 13: rdv_cdh_tig, 37: rdv_tpi_tig}[n]
 			v = [t, t, t]
+		16:
+			v = [r47.agsk, r47.agsk, r47.agsk]
 		45, 49, 72, 78, 99:
 			v = p20.noun_values(n)
 		54:
@@ -1764,7 +1788,7 @@ func snapshot() -> Dictionary:
 	if csm_nav != null:
 		d["csm_nav"] = {"primary": csm_nav.primary, "t": csm_nav.t, "s": Array(csm_nav.s), "field": csm_nav.field_snapshot()}
 	d["rendezvous"] = {
-		"rr_nav": rr_nav, "p20": p20.snapshot(),
+		"rr_nav": rr_nav, "p20": p20.snapshot(), "r47": r47.snapshot(),
 		"csi_tig": rdv_csi_tig, "cdh_tig": rdv_cdh_tig, "tpi_tig": rdv_tpi_tig, "elev": rdv_elev, "wt": rdv_wt,
 		"intercept_get": rdv_intercept_get, "dh": rdv_dh, "tpi_dv": rdv_tpi_dv, "tpf_dv": rdv_tpf_dv, "hp": rdv_hp,
 	}
@@ -1833,6 +1857,7 @@ func restore(d: Dictionary) -> void:
 	var r := SpacecraftData.section("rendezvous_guidance")
 	rr_nav = bool(rd.get("rr_nav", false))
 	p20.restore(rd.get("p20", {}))
+	r47.restore(rd.get("r47", {}))
 	rdv_csi_tig = float(rd.get("csi_tig", 0.0))
 	rdv_cdh_tig = float(rd.get("cdh_tig", 0.0))
 	rdv_tpi_tig = float(rd.get("tpi_tig", 0.0))
@@ -1848,6 +1873,7 @@ func restore(d: Dictionary) -> void:
 	elif program in RENDEZVOUS and step_name != "":
 		dsky.show(6, int(step_name.substr(1)), true)
 	p20.show_priority()
+	r47.show_display()
 	if not dd.is_empty():
 		lr_update = bool(dd.get("lr_update", false))
 		ls_corrected = bool(dd.get("ls_corrected", false))

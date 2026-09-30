@@ -91,11 +91,13 @@ func next_seat() -> void:
 	set_seat(names[(names.find(seat) + 1) % names.size()])
 
 
-## Hand the cabin DSKY its computer's keyboard.
+## Hand the cabin DSKY its computer's keyboard, and the DEDA the AGS.
 func connect_runtime(rt: SimRuntime) -> void:
 	for id in items:
 		if items[id] is CabinDsky:
 			(items[id] as CabinDsky).dsky = computer(rt).dsky
+		elif items[id] is CabinDeda:
+			(items[id] as CabinDeda).ags = rt.systems["ags"]
 
 
 ## The attachment frame of a panel face: x/y are panel coordinates (m) and

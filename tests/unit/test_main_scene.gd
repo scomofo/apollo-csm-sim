@@ -150,6 +150,12 @@ func test_the_lm_phases_start_in_the_lm_and_l_changes_vehicles() -> void:
 	assert_eq(main.rt.lgc().dsky.verb, "16", "the keys reach the LGC")
 	assert_eq(main.rt.lgc().dsky.noun, "68")
 	assert_ne(main.rt.agc().dsky.noun, "68", "not the CMC")
+	# G: the AGS's DEDA, which the digits, CLR and ENTR key into while open.
+	_press(main, [KEY_G])
+	assert_true(main.hud.deda_open(), "G opens the DEDA")
+	_press(main, [KEY_BACKSPACE, KEY_4, KEY_1, KEY_0])
+	assert_eq(main.rt.systems["ags"].deda.addr_text, "410", "the digits reach the DEDA")
+	assert_eq(main.rt.lgc().dsky.noun, "68", "not the LGC")
 	for mode in [1, 2, 0]:
 		_press(main, [KEY_C])
 		assert_eq(main.view.view_mode, mode, "C: the LM's window, chase and cabin views")
@@ -162,6 +168,7 @@ func test_the_lm_phases_start_in_the_lm_and_l_changes_vehicles() -> void:
 	assert_eq(main.view.vehicle, "csm")
 	assert_true(main.hud.dsky_panel.visible, "the CMC's DSKY")
 	assert_false(main.hud.lgc_panel.visible)
+	assert_false(main.hud.deda_open(), "the DEDA is Eagle's")
 	assert_eq(main.hud.book, main.book, "Columbia's checklists")
 	await wait_process_frames(1)
 	assert_string_contains(main.hud._top.text, "COLUMBIA")

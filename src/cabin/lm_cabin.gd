@@ -63,6 +63,7 @@ const PANELS := {
 	"P3": {"centre": Vector3(-2.05, 0.0, 1.50), "size": Vector2(0.58, 0.16), "yaw": 0.0, "tilt": 35.0},
 	"P4": {"centre": Vector3(-2.30, 0.0, 1.40), "size": Vector2(0.30, 0.34), "yaw": 0.0, "tilt": 45.0},
 	"P5": {"centre": Vector3(-2.02, -0.80, 1.52), "size": Vector2(0.24, 0.22), "yaw": 35.0, "tilt": 15.0},
+	"P6": {"centre": Vector3(-2.02, 0.80, 1.52), "size": Vector2(0.24, 0.22), "yaw": -35.0, "tilt": 15.0},
 	"AOT": {"centre": Vector3(-1.15, 0.0, 1.45), "size": Vector2(0.32, 0.30), "yaw": 0.0, "tilt": -60.0},
 }
 ## The forward windows in the front bulkhead, square to +Z: (Y, X) corners

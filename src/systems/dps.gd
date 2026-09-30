@@ -4,10 +4,12 @@
 ## descent stage on (flying free, or docked once its crew has powered it
 ## up, when it pushes the stack), the ENGINE ARM switch is at DES,
 ## propellant remains, ENGINE STOP isn't pressed, and the LGC commands it
-## (lm.guid.dps_on, with the PGNS in control) or the crew started it
-## (ENGINE START, which holds until ENGINE STOP or disarming). The LGC sets
-## the throttle (lm.guid.dps_throttle, a fraction of full thrust); started
-## by hand, the TTCA's throttle does (ctl.lm.throttle; its minimum, as
+## (lm.guid.dps_on, with the PGNS in control), or the AGS does
+## (lm.ags.engine_on, with the AGS in control; slice 11e), or the crew
+## started it (ENGINE START, which holds until ENGINE STOP or disarming).
+## The LGC sets the throttle (lm.guid.dps_throttle, a fraction of full
+## thrust); started by hand or under the AGS, the TTCA's throttle does
+## (ctl.lm.throttle; its minimum, as
 ## Apollo 13's manual burn had it). The engine throttles between
 ## throttle_min and throttle_max, and a command above that range runs it
 ## at full thrust [simplified: the real engine's full-throttle position was
@@ -29,7 +31,8 @@
 ##
 ## Reads:  ctl.lm.engine_arm (0 OFF, 1 ASC, 2 DES), ctl.lm.eng_start,
 ##         ctl.lm.eng_stop, ctl.lm.throttle, ctl.lm.guid_cont, ctl.lm.abort,
-##         lm.guid.dps_on, lm.guid.dps_throttle, lm.sys.powered,
+##         lm.guid.dps_on, lm.guid.dps_throttle, lm.ags.engine_on,
+##         lm.sys.powered,
 ##         lm.dyn.config, dock.state
 ## Writes: lm.dps.thrust_n, lm.dps.prop_kg, lm.dps.throttle_pct,
 ##         lm.dps.ignitions, lm.dps.burn_time_s, lm.dps.on, lm.dps.he_psia,
@@ -88,10 +91,16 @@ func commanded() -> bool:
 	elif start and not _start_was:
 		manual = true
 	_start_was = start
-	var guided := bool(Bus.get_value("lm.guid.dps_on", false)) and int(Bus.get_value("ctl.lm.guid_cont", 0)) == 0
+	var guided := bool(Bus.get_value("lm.guid.dps_on" if _pgns() else "lm.ags.engine_on", false))
 	return armed and (guided or manual) and not bool(Bus.get_value("ctl.lm.eng_stop", false)) \
 		and prop_kg > 0.0 and bool(Bus.get_value("lm.sys.powered", false)) \
 		and str(Bus.get_value("dock.state", "")) in ["free", "docked"] and str(Bus.get_value("lm.dyn.config", "")) == "lm"
+
+
+## The PGNS commands the engine (the guidance control switch at PGNS);
+## else the AGS does, and the TTCA throttles it.
+static func _pgns() -> bool:
+	return int(Bus.get_value("ctl.lm.guid_cont", 0)) == 0
 
 
 ## P40's throttle schedule, [s1, throttle1, s2, throttle2, ..., throttle]:
@@ -159,7 +168,7 @@ func tick(dt: float) -> void:
 		ignitions += 1
 	_was_on = on
 	var d := SpacecraftData.section("dps")
-	var cmd := float(Bus.get_value("ctl.lm.throttle" if manual else "lm.guid.dps_throttle", 0.0))
+	var cmd := float(Bus.get_value("lm.guid.dps_throttle" if _pgns() and not manual else "ctl.lm.throttle", 0.0))
 	var target := throttle_target(cmd) if on else 0.0
 	var tau := float(d["tau_on_s"]) if target > level else float(d["tau_off_s"])
 	level += (target - level) * (1.0 - exp(-dt / tau)) if dt > 0.0 else 0.0

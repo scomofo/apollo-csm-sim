@@ -6,7 +6,7 @@
 ## LM's switches (the LGC's mode, ENGINE ARM, ABORT STAGE, ENGINE START and
 ## STOP, the RCS systems and the ROD switch), its flight data and systems,
 ## its checklists, and the FDAI on its attitude [simplified: an overlay,
-## not the LM's panels].
+## not the LM's panels]; G opens the AGS's DEDA (slice 11e).
 class_name Hud
 extends CanvasLayer
 
@@ -27,6 +27,8 @@ O             the optics (sextant and telescope): W/S A/D move them,
               X MARK, Y MARK REJECT; flying the LM, the AOT: the LM
               turns on the ACA, X MARK X, Y MARK Y, Z REJECT,
               , . turn the reticle (Shift slowly)
+G             flying the LM, the AGS's DEDA: while it's open the
+              digits, + -, Enter and Bksp key into it (ENTR, CLR)
 F5 / F9       quick save / back to it (the flight menu's SAVES lists it)
 F1            the flight menu: another mission or start phase, saved flights
 H             this help"""
@@ -49,6 +51,8 @@ var lm_book: ChecklistBook
 ## LM), in its panel with its detent, the CCRD's MARK X, MARK Y and REJECT
 ## and the reticle knob.
 var aot_view: AotView
+## The AGS's DEDA (toggle_deda() flying the LM).
+var deda_panel: DedaPanel
 var _flight: Label
 var _systems: Label
 var _top: Label
@@ -152,6 +156,21 @@ func setup(p_rt: SimRuntime, p_book: ChecklistBook = null, p_lm_book: ChecklistB
 	_aot.offset_top = 34
 	_aot.visible = false
 	root.add_child(_aot)
+	# The DEDA, below the AOT's place, above the CAPCOM strip.
+	deda_panel = DedaPanel.new()
+	_style(deda_panel)
+	deda_panel.setup(rt.systems["ags"], mono)
+	deda_panel.anchor_left = 0.5
+	deda_panel.anchor_right = 0.5
+	deda_panel.anchor_top = 1.0
+	deda_panel.anchor_bottom = 1.0
+	deda_panel.offset_left = -135
+	deda_panel.offset_right = 135
+	deda_panel.offset_top = -380
+	deda_panel.offset_bottom = -100
+	deda_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	deda_panel.visible = false
+	root.add_child(deda_panel)
 	# CAPCOM strip along the bottom.
 	var cp := PanelContainer.new()
 	_style(cp)
@@ -215,6 +234,16 @@ func toggle_optics(on: Variant = null) -> void:
 
 func optics_open() -> bool:
 	return _optics.visible
+
+
+## Open or close the DEDA, flying the LM: while it's open the keyboard's
+## digits key into it (main.gd).
+func toggle_deda(on: Variant = null) -> void:
+	deda_panel.visible = vehicle == "lm" and ((not deda_panel.visible) if on == null else bool(on))
+
+
+func deda_open() -> bool:
+	return deda_panel.visible
 
 
 func aot_open() -> bool:
@@ -328,6 +357,8 @@ func _show_panels() -> void:
 	if not lm and _aot.visible:
 		_aot.visible = false
 		Bus.set_value("player.aot", false)
+	if not lm:
+		deda_panel.visible = false
 
 
 func _style(p: PanelContainer) -> void:

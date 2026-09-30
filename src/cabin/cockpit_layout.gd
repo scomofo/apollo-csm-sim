@@ -39,6 +39,7 @@ const TYPES := {
 	"dsky": {"scene": "res://scenes/instruments/cabin_dsky.tscn", "control": false, "takes": ["group"], "half_mm": Vector2(100, 120)},
 	"optics": {"scene": "res://scenes/instruments/optics_eyepiece.tscn", "control": false, "takes": ["group"], "half_mm": Vector2(180, 105)},
 	"aot": {"scene": "res://scenes/instruments/aot_eyepiece.tscn", "control": false, "takes": ["group"], "half_mm": Vector2(100, 110)},
+	"deda": {"scene": "res://scenes/instruments/cabin_deda.tscn", "control": false, "takes": ["group"], "half_mm": Vector2(75, 85)},
 }
 ## Printed lettering, capital height (m) [estimated].
 const CAPTION_HEIGHT := 0.0055
@@ -191,6 +192,10 @@ func _validate_row(r: Dictionary, where: String, seen: Dictionary) -> void:
 		for c in CabinDsky.channels_read(ch, lamp_set):
 			if channel_type(c) == "":
 				errors.append("%s: the DSKY reads %s, which channels.csv doesn't list" % [where, c])
+	if type == "deda" and ctype == "group":
+		for c in CabinDeda.channels_read(ch):
+			if channel_type(c) == "":
+				errors.append("%s: the DEDA reads %s, which channels.csv doesn't list" % [where, c])
 	for c in ["x_mm", "y_mm", "rot_deg"]:
 		if not str(r.get(c, "")).is_valid_float():
 			errors.append("%s: %s must be a number" % [where, c])
@@ -366,8 +371,8 @@ func _letter(panel: Node3D, node: Node3D, r: Dictionary) -> void:
 	var at := node.position
 	var mm := 0.001
 	match r["type"]:
-		"dsky":
-			return # The DSKY carries its own legends.
+		"dsky", "deda":
+			return # The DSKY and the DEDA carry their own legends.
 		"lamp":
 			# The legend is on the lens.
 			var lens := _text(node, "Legend", r["label"].replace(" ", "\n"), Vector3(0, 0, 0.0095), LEGEND_HEIGHT, Color(0.1, 0.08, 0.06))

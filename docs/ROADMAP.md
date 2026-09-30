@@ -2058,13 +2058,13 @@ Apollo 12's and 13's launches fly their troubles as they came.
 
 ## 11. The LM's navigation
 
-**Status: 11a to 11d done.** Milestone 4 gave the CSM its crew's
-navigation; the LM's is still simpler. Its IMU is real since 11a, its
-crews align it with P52 in flight and P57 on the surface since 11b, it
-steers its burns and turns as Luminary did since 11c, and since 11d its
-rendezvous radar has the flight's errors and P20 is Luminary's; but the
-AGS holds an attitude and counts ΔV, with none of its guidance. This
-milestone gives the LM what the CSM has.
+**Status: done.** Milestone 4 gave the CSM its crew's navigation, and
+this milestone gives the LM what the CSM has. Its IMU is real since 11a,
+its crews align it with P52 in flight and P57 on the surface since 11b,
+it steers its burns and turns as Luminary did since 11c, since 11d its
+rendezvous radar has the flight's errors and P20 is Luminary's, and
+since 11e the AGS flies FP6, its own navigation and guidance keyed on the
+DEDA.
 
 | Slice | Work | Check |
 |---|---|---|
@@ -2072,7 +2072,7 @@ milestone gives the LM what the CSM has.
 | 11b (done) P57 on the surface | The lunar surface alignment, from the gravity the accelerometers sense and the AOT's stars, as Apollo 11 did before its liftoff; Eagle's checklists gain their P52s after undocking and after insertion, and their P57s | Test: P57's alignment within set limits, and the ascent reaches its insertion on it |
 | 11c (done) Luminary's steering | P40 to P42 steered as Luminary's did, in place of the LVLH hold, as 5e gave the CMC; and KALCMANU's auto maneuvers, about a single axis, re-planned only where the turn would take the middle gimbal past 60°, where 11a routes every turn thrust axis first | Test: DOI comes nearer its PAD than on the LVLH hold, a burn of an insertion's size on the ascent engine comes out as it did, and a turn clear of the lock zone is flown about a single axis |
 | 11d (done) The rendezvous radar | Its noise and biases, its gimbal limits and coverage, its lock-on by hand, P20's tracking attitude (R61) keeping the LM's +Z axis on the CSM, and Luminary's P20 filter, updating the LM's state vector or the CSM's | Test: Apollo 11's rendezvous on the noisy radar docks, the LGC's estimate of Columbia at CSI within set limits, and CDH's ΔH, TPI and the midcourse corrections on 11a's drifting platform back within the limits they held on an ideal one |
-| 11e The AGS's guidance | Its own navigation from the PGNS's state vectors, its abort insertion, and CSI, CDH and TPI targeting as the rendezvous's backup through the DEDA | Test: the AGS's solutions for Apollo 11's CSI, CDH and TPI within set limits of the LGC's, and an insertion flown on the AGS reaches orbit |
+| 11e (done) The AGS's guidance | Its own navigation from the PGNS's state vectors, its abort insertion, and CSI, CDH and TPI targeting as the rendezvous's backup through the DEDA | Test: the AGS's solutions for Apollo 11's CSI, CDH and TPI within set limits of the LGC's, and an insertion flown on the AGS reaches orbit |
 
 **Done when** the README's simplifications of the LM's IMU, steering,
 radar and AGS are gone, or measured against the flights.
@@ -2264,6 +2264,51 @@ radar and AGS are gone, or measured against the flights.
   cabin gain the radar's SLEW RATE, SLEW switch, NO TRACK and SIGNAL
   STRENGTH. Checkpoints are schema 29: the radar's lock and biases,
   P20's state and its filter.
+- **The AGS's guidance.** Done in 11e. The AGS (`src/systems/ags.gd`)
+  runs FP6, Apollo 11's and 12's flight program, from its Programmed
+  Equations Document (TRW 11176-6041-T0-00), its operating manual
+  (11176-6033-T000 rev. 1) and LM-5's mission constants. Every two
+  seconds (`src/systems/ags_fp6.gd`) it navigates the LM on its own
+  accelerometers and a sphere's gravity, carries the CSM on its conic,
+  weighs in radar marks, and solves the routine the DEDA's 410 selects:
+  orbit insertion, CSI, CDH, TPI's search and execute, or external ΔV.
+  Every step its 40-ms logic works out the attitude errors of attitude
+  hold, guidance steering or Z-axis steering, limited to 15°, and the
+  engine command under its full control; with GUID CONT at AGS they fly
+  the LM and its engines. The DEDA (`src/systems/deda.gd`) keeps FP6's
+  words, their scalings and the manual's operator errors, on panel 6 of
+  Eagle's cabin and on the HUD (G). The LGC gains R47, V47
+  (`src/systems/lgc_r47.gd`): the AGS's clock zero in N16 (V32 sets it
+  as the crew key 377+00000's ENTR) and the LM's and CSM's state vectors
+  on the AGS's downlist for 20 s, which 414+10000 takes. Aligned to the
+  platform through the CDUs' angles, 40 arcsec a count, the AGS starts
+  some 500 ft and 0.5 ft/s off, as the real one was off by its
+  alignment, and holds that through the ascent. From Apollo 11's
+  rendezvous (`tests/scenarios/test_rendezvous.gd`), brought up on the
+  surface, it has 44.6 × 9.1 nmi after the ascent against the truth's
+  45.2 × 9.1 (Apollo 11's AGS had 46.6 × 9.5 to the PGNS's 47.3 × 9.5).
+  Updated from the LGC before each burn, its CSI is 50.0 ft/s and ΔH
+  16.4 nmi (the LGC's 50.1; Apollo 11's AGS had 51.3 and 15.5 to the
+  PGNS's 51.5), its CDH 4.1 ft/s back and 7.3 up (the LGC's 4.0 and
+  7.3), and its TPI 27.8 ft/s (27.9), the line of sight 26.61° at the
+  LGC's TIG. Flying Eagle off the surface (`tests/scenarios/test_ags.gd`)
+  it lights the ascent engine at ABORT STAGE, holds the attitude 2.5 s,
+  rises vertically to 50 ft/s, and cuts off at 60,515 ft and 20.1 ft/s
+  up (LM-5's targets 60,032 ft and 19.5 ft/s) into 41.9 × 8.5 nmi.
+  Apollo 11's surface checklist brings the AGS up after the P57, flown
+  from the HUD and in the cabin. Three things turned up. The AGS read
+  the dynamics' ΔV before each step, and a restored checkpoint has no
+  step before it, so the first step's ΔV was lost and the flights parted;
+  it senses after the dynamics now, as the LGC does. On the surface the
+  accelerometers sensed nothing, and between the ascent engine's start and
+  the liftoff, some 0.6 s, the AGS saw Eagle fall; they sense the
+  ground's push now. And a coasting step's sensed ΔV went all to the first
+  of the two-second cycles it spans; it is shared among them by time.
+  The rendezvous's N78 check, the radar's range within 50 m of the truth,
+  had passed on its noise's draw: the flight's range bias allows 186 m at
+  that range, so the check now takes the bias out. Checkpoints are schema
+  30: FP6's memory, the DEDA, the AGS's frame and its 40-ms logic, and
+  R47.
 
 ### Order
 
