@@ -7,7 +7,13 @@
 # https://apollo11guide.com/Apollo11ManualFree/LunarLander/Lunar_Module_Control_Panel_1.htm):
 # panel 1 the commander's flight displays (mission timer, range and range
 # rate, thrust, FDAI), a LUNAR CONTACT light, ENG ARM, ABORT, ABORT STAGE
-# and the guidance control switch; panel 2 the LM pilot's, with the RCS
+# and the guidance control switch, and a place to tap the panel (TAP,
+# slice 12a: Apollo 14's crew tapped it around ABORT to clear their
+# switch's short; here at the panel's top right, clear of the other
+# controls' reach) and at its left edge the TTCA's
+# throttle at its minimum or full, the lever standing in for the
+# controller beside it (THROTTLE, slice 12a: Apollo 14's manual
+# throttle-up); panel 2 the LM pilot's, with the RCS
 # main shutoff valves and the batteries' charge; on both a MASTER ALARM,
 # and the caution and warning lights the modelled systems light (slice
 # 9e; LM Apollo Operations Handbook, LMA790-3-LM, sections 2.3 and 2.9.4:
@@ -53,6 +59,8 @@ P1_ENG_ARM,P1,toggle,ENG ARM,-85,-120,0,ctl.lm.engine_arm,positions=3;labels=DES
 P1_ABORT_STAGE,P1,pushbutton,ABORT STAGE,55,-115,0,ctl.lm.stage,,estimated,D,implemented,proxy
 P1_GUID_CONT,P1,toggle,GUID CONT,-10,-120,0,ctl.lm.guid_cont,labels=PGNS|AGS,estimated,D,implemented,historical
 P1_ABORT,P1,pushbutton,ABORT,110,-115,0,ctl.lm.abort,,LM AOH 2.1,D,implemented,proxy
+P1_TAP,P1,pushbutton,TAP,130,110,0,ctl.lm.panel_tap,,MSC-04112 sec. 14.2.2,D,implemented,proxy
+P1_THROTTLE,P1,toggle,THROTTLE,-120,-45,0,ctl.lm.throttle,labels=MIN|MAX;float_values=0.1|1.0,MSC-04112 p. 8-10,D,implemented,proxy
 P1_MASTER_ALARM,P1,pushbutton,MASTER ALARM,-120,55,0,ctl.lm.cw.master_alarm,lamp_channel=lm.cw.master_alarm;lamp_colour=ff2a1a,LM AOH C&W 2.9.4,D,implemented,historical
 P1_LGC,P1,lamp,LGC,115,75,0,lm.cw.lgc,colour=ff2a1a,LM AOH C&W 2.9.4,D,implemented,historical
 P1_ISS,P1,lamp,ISS,115,50,0,lm.cw.iss,colour=ff2a1a,LM AOH C&W 2.9.4,D,implemented,historical

@@ -182,7 +182,7 @@ func _r61(then: String) -> void:
 		_resume()
 		return
 	var att := lgc._att()
-	r61_target = _tracking_attitude(att, los)
+	r61_target = _clear_of_lock(_tracking_attitude(att, los), los)
 	if rad_to_deg((Basis(att) * Vector3.BACK).angle_to(los)) > R61_DEG:
 		phase = "r61"
 		_show("r61", 50, 18)
@@ -207,6 +207,29 @@ func _resume() -> void:
 static func _tracking_attitude(att: Quaternion, los: Vector3) -> Quaternion:
 	var z := Basis(att) * Vector3.BACK
 	return (Imu.arc(z, los.normalized()) * att).normalized()
+
+
+## [param q], +Z along [param los], rolled about the line of sight the
+## least way that brings its middle gimbal inside LOCK_LAMP_DEG less 10°,
+## where it is past the GIMBAL LOCK light's: turning there would take the
+## platform into gimbal lock and cage it, and the radar needs +Z alone on
+## the line of sight [simplified: Luminary's VECPOINT left the roll as it
+## was, and the crew flew clear of gimbal lock on the FDAI].
+func _clear_of_lock(q: Quaternion, los: Vector3) -> Quaternion:
+	if lgc.imu.ideal or _middle_deg(q) <= Imu.LOCK_LAMP_DEG:
+		return q
+	var u := los.normalized()
+	for k in range(1, 37):
+		for sgn: float in [1.0, -1.0]:
+			var r := (Quaternion(u, sgn * deg_to_rad(5.0 * k)) * q).normalized()
+			if _middle_deg(r) <= Imu.LOCK_LAMP_DEG - 10.0:
+				return r
+	return q
+
+
+## Attitude [param q]'s middle gimbal angle, deg from zero.
+func _middle_deg(q: Quaternion) -> float:
+	return absf(wrapf(lgc.gimbal_angles_of(q).z, -180.0, 180.0))
 
 
 ## The DAP holds [param q] in AUTO.
@@ -471,7 +494,7 @@ func _r65(now: float) -> void:
 		var r := Rendezvous.rel_pos(lgc.nav, lgc.csm_nav)
 		var w := r.cross(Rendezvous.rel_vel(lgc.nav, lgc.csm_nav))
 		var lead := los.rotated(w.normalized(), deg_to_rad(R65_DEG)) if w.length() > 0.0 else los
-		_hold(_tracking_attitude(att, lead))
+		_hold(_clear_of_lock(_tracking_attitude(att, lead), lead))
 		lgc._plan_via()
 
 

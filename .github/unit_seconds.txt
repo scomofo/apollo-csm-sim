@@ -3,12 +3,12 @@
 # the scenario files: the longer of each file's two runs in slice 11e's CI
 # (00593ec's, on its push and its pull request). A file not listed counts
 # 10 s. Add a new file's time once CI has run it, and measure again when
-# the parts drift apart. Slice 12a's test_apollo_14_starts.gd and
-# test_lgc_r47.gd carry estimates, their local times times 0.75, and
-# test_checkpoint.gd its 11e time and its new test's so.
+# the parts drift apart. Slice 12a's test_apollo_14_starts.gd,
+# test_lgc_r47.gd and test_checkpoint.gd carry the longer of their two runs
+# in 25b98e2's CI.
 test_agc.gd 30
 test_ags_fp6.gd 1
-test_apollo_14_starts.gd 14
+test_apollo_14_starts.gd 21
 test_ascent_guidance.gd 1
 test_audio_director.gd 10
 test_bus.gd 1
@@ -37,7 +37,7 @@ test_launch_escape.gd 37
 test_launch_models.gd 1
 test_lgc_executive.gd 1
 test_lgc_p20.gd 13
-test_lgc_r47.gd 18
+test_lgc_r47.gd 19
 test_lifeboat.gd 33
 test_lightning.gd 18
 test_lm_abort_buttons.gd 47

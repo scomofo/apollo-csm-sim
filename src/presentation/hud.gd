@@ -75,6 +75,9 @@ var _aot: PanelContainer
 var _aot_detent: OptionButton
 var _in_cabin: bool = false
 var _toggles: Dictionary = {}
+## The values an option sets its channel to, where they aren't its items'
+## indices: channel -> [value, ...].
+var _option_values: Dictionary = {}
 var _options: Dictionary = {}
 var _capcom_lines: PackedStringArray = []
 
@@ -478,7 +481,9 @@ func _momentary(parent: Node, text: String, ch: String, on: Variant = true,
 ## and the guidance control switch (Apollo 13's lifeboat); the rendezvous
 ## radar's mode select (Apollo 11's program alarms) and its SLEW RATE and
 ## SLEW switch, to lock on by hand (slice 11d); ABORT and the master alarm
-## (the LM's aborts).
+## (the LM's aborts); a tap on the panel beside ABORT, and the TTCA's
+## throttle at its minimum or its maximum (Apollo 14's short and its
+## workaround, slice 12a).
 func _lm_switch_panel() -> PanelContainer:
 	var p := PanelContainer.new()
 	_style(p)
@@ -496,7 +501,7 @@ func _lm_switch_panel() -> PanelContainer:
 	_momentary(g, "MASTER ALARM", "ctl.lm.cw.master_alarm")
 	_momentary(g, "ROD UP", "ctl.lm.rod", 1, 0)
 	_momentary(g, "ROD DOWN", "ctl.lm.rod", -1, 0)
-	g.add_child(Control.new())
+	_momentary(g, "TAP PANEL", "ctl.lm.panel_tap")
 	_toggle(g, "LM PWR", "ctl.lm.power")
 	_toggle(g, "PGNS", "ctl.lm.pgns")
 	_toggle(g, "AGS", "ctl.lm.ags")
@@ -508,10 +513,13 @@ func _lm_switch_panel() -> PanelContainer:
 	_momentary(g, "SLEW DOWN", "ctl.lm.rr_slew_shaft", -1, 0)
 	_momentary(g, "SLEW LEFT", "ctl.lm.rr_slew_trunnion", 1, 0)
 	_momentary(g, "SLEW RIGHT", "ctl.lm.rr_slew_trunnion", -1, 0)
+	_option(g, "THROTTLE", "ctl.lm.throttle", ["MIN", "MAX"], [0.1, 1.0])
 	return p
 
 
-func _option(parent: Node, text: String, ch: String, items: Array) -> void:
+## [param values], where given, are what each item sets the channel to,
+## in place of its index.
+func _option(parent: Node, text: String, ch: String, items: Array, values: Array = []) -> void:
 	var box := HBoxContainer.new()
 	var l := Label.new()
 	l.text = text
@@ -521,11 +529,26 @@ func _option(parent: Node, text: String, ch: String, items: Array) -> void:
 	o.focus_mode = Control.FOCUS_NONE
 	for it in items:
 		o.add_item(it)
-	o.selected = int(Bus.get_value(ch, 0))
-	o.item_selected.connect(func(i: int) -> void: Bus.set_value(ch, i))
+	o.selected = _option_index(ch, values)
+	o.item_selected.connect(func(i: int) -> void: Bus.set_value(ch, values[i] if not values.is_empty() else i))
 	box.add_child(o)
 	parent.add_child(box)
 	_options[ch] = o
+	if not values.is_empty():
+		_option_values[ch] = values
+
+
+## The item channel [param ch] selects: its value, or the nearest of
+## [param values].
+static func _option_index(ch: String, values: Array) -> int:
+	if values.is_empty():
+		return int(Bus.get_value(ch, 0))
+	var v := float(Bus.get_value(ch, values[0]))
+	var best := 0
+	for i in values.size():
+		if absf(float(values[i]) - v) < absf(float(values[best]) - v):
+			best = i
+	return best
 
 
 ## Mission Control's PAD requests, [param pads] [[label, kind], ...].
@@ -841,7 +864,7 @@ func _sync_controls() -> void:
 		if _toggles[ch].button_pressed != want:
 			_toggles[ch].set_pressed_no_signal(want)
 	for ch in _options:
-		var want := int(Bus.get_value(ch, 0))
+		var want := _option_index(ch, _option_values.get(ch, []))
 		if _options[ch].selected != want:
 			_options[ch].selected = want
 	var detent := int(Bus.get_value("ctl.lm.aot.detent", 2)) - 1

@@ -13,8 +13,11 @@
 ## the verb/noun flash that means "the computer is asking", and the caution
 ## and status lamps. Registers are formatted per noun (see NOUNS); V01 shows
 ## the noun's first component alone, in R1, and V05 a noun whose registers
-## are octal (N09, the alarm codes). RSET clears the computer's alarm
-## registers with the lamps (agc.error_reset(), where it has one).
+## are octal (N09, the alarm codes). V11 monitors the first alone; with N10,
+## the channel to be specified, it asks for the channel first, in R3. A
+## load of N01, a machine address, asks for the address first, in R3, then
+## the word (slice 12a). RSET clears the computer's alarm registers with
+## the lamps (agc.error_reset(), where it has one).
 class_name Dsky
 extends RefCounted
 
@@ -69,6 +72,8 @@ var _buffer: String = ""
 ## Register load bookkeeping.
 var _load_regs: Array[int] = []
 var _load_values: Array[float] = []
+## The registers the load takes, in the order the crew key them.
+var _load_order: Array[int] = []
 var _load_noun: int = 0
 ## Verb/noun the crew is monitoring (V16) - refreshed by refresh().
 var monitor_verb: int = 0
@@ -179,7 +184,7 @@ func _fill_registers(n: int) -> void:
 	if vals == null:
 		return
 	var comps: Array = nouns[n]["c"]
-	for i in (1 if verb == "01" else 3):
+	for i in (1 if verb in ["01", "11"] else 3):
 		if i < comps.size() and i < vals.size():
 			r[i] = format_value(float(vals[i]), comps[i][1], comps[i][2])
 
@@ -354,12 +359,14 @@ func _enter() -> void:
 			if _load_regs.is_empty():
 				mode = ""
 				var ok := true
-				var idx := _load_indices(int(verb))
-				for i in idx.size():
-					ok = agc.noun_load(_load_noun, idx[i], _load_values[i]) and ok
+				for i in _load_order.size():
+					ok = agc.noun_load(_load_noun, _load_order[i], _load_values[i]) and ok
 				if not ok:
 					_opr_err()
-				if not _program_display.is_empty():
+				if verb == "11":
+					# The channel given: V11 monitors it.
+					show(11, _load_noun, false, false)
+				elif not _program_display.is_empty():
 					lamps["key_rel"] = false
 					restore_program_display()
 				else:
@@ -419,20 +426,25 @@ func _execute(v: int, n: int) -> void:
 				_opr_err()
 				return
 			show(v, n, false, false)
+		11:
+			# Monitor octal, in R1: N10 asks for its channel first.
+			if n < 0 or not nouns.has(n) or agc.noun_values(n) == null:
+				_opr_err()
+				return
+			if n == 10:
+				var r3: Array[int] = [2]
+				_start_load(v, n, r3)
+			else:
+				show(v, n, false, false)
 		21, 22, 23, 24, 25:
 			if n < 0 or not nouns.has(n):
 				_opr_err()
 				return
-			_load_noun = n
-			_load_regs = _load_indices(v)
-			_load_values = []
-			verb = "%02d" % v
-			_fill_registers(n)
-			for i in _load_regs:
-				r[i] = ""
-			mode = "data"
-			noun = "%02d" % n
-			flashing = true
+			var regs := _load_indices(v)
+			if n == 1:
+				# A machine address: the address first, in R3.
+				regs.push_front(2)
+			_start_load(v, n, regs)
 		35:
 			if agc.has_method("lamp_test"):
 				agc.lamp_test()
@@ -452,6 +464,22 @@ func _execute(v: int, n: int) -> void:
 				_opr_err()
 			elif answer and verb == "%02d" % v:
 				restore_program_display()
+
+
+## Ask for registers [param regs] of noun [param n] under verb [param v],
+## in that order: the display flashes, and each ENTR takes one.
+func _start_load(v: int, n: int, regs: Array[int]) -> void:
+	_load_noun = n
+	_load_regs = regs
+	_load_order = regs.duplicate()
+	_load_values = []
+	verb = "%02d" % v
+	_fill_registers(n)
+	for i in _load_regs:
+		r[i] = ""
+	mode = "data"
+	noun = "%02d" % n
+	flashing = true
 
 
 ## Noun [param n]'s registers are all octal.

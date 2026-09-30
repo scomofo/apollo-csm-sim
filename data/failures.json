@@ -111,6 +111,11 @@
      "caution": "iss", "light": "ISS",
      "effect": "The LGC's platform fails and is caged: NO ATT on the DSKY; with GUID CONT at AGS the AGS holds the LM and the light goes out",
      "expect": {"channel": "lm.imu.mode", "op": "eq", "value": "caged"}, "procedure": "Malfunction: LGC or ISS",
-     "_comment": "ISS lights for a failure in the inertial subsystem, unless GUID CONT is at AGS [published]"}
+     "_comment": "ISS lights for a failure in the inertial subsystem, unless GUID CONT is at AGS [published]"},
+    {"id": "lm_abort_switch", "title": "The ABORT pushbutton's contacts to the LGC", "vehicle": "lm", "system": "lgc", "part": "abort_switch",
+     "light": "",
+     "effect": "A particle in the switch shorts its contacts to the LGC: channel 30 shows ABORT set with the pushbutton out, and once the descent engine is lit P70 aborts the landing. A tap on the panel beside it, or the pushbutton's press, clears it; it comes back. No light: Houston sees it on the downlink",
+     "expect": {"channel": "lm.lgc.abort_bit", "op": "eq", "value": true}, "procedure": "Malfunction: ABORT switch",
+     "_comment": "Apollo 14's: a command to abort on the descent engine detected at the LGC's input channel, not at the AGS or the descent engine's control assembly, at 104:16:07 and three more times, each removed by tapping on the panel near the switch; most probably metallic contamination in its hermetically sealed case, solder or stud slivers up to 0.030 in (MSC-04112, section 14.2.2) [published]. The mission's timeline has it at the flown times (Failures.recur())."}
   ]
 }

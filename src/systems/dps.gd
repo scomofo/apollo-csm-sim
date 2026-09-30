@@ -10,7 +10,12 @@
 ## The LGC sets the throttle (lm.guid.dps_throttle, a fraction of full
 ## thrust); started by hand or under the AGS, the TTCA's throttle does
 ## (ctl.lm.throttle; its minimum, as
-## Apollo 13's manual burn had it). The engine throttles between
+## Apollo 13's manual burn had it). Under the LGC the commander can throttle
+## up past its command, as Apollo 14's did at ZOOM with the LGC's
+## throttle-up locked out (slice 12a) [published: MSC-04112, p. 8-10;
+## simplified: the DECA sums the two and the LGC's throttle loop takes the
+## TTCA's share out of its own; here the larger of the two]. The engine
+## throttles between
 ## throttle_min and throttle_max, and a command above that range runs it
 ## at full thrust [simplified: the real engine's full-throttle position was
 ## 92.5 % of its rated thrust]. Thrust follows first-order start, throttle
@@ -168,7 +173,8 @@ func tick(dt: float) -> void:
 		ignitions += 1
 	_was_on = on
 	var d := SpacecraftData.section("dps")
-	var cmd := float(Bus.get_value("lm.guid.dps_throttle" if _pgns() and not manual else "ctl.lm.throttle", 0.0))
+	var ttca := float(Bus.get_value("ctl.lm.throttle", 0.0))
+	var cmd := maxf(float(Bus.get_value("lm.guid.dps_throttle", 0.0)), ttca) if _pgns() and not manual else ttca
 	var target := throttle_target(cmd) if on else 0.0
 	var tau := float(d["tau_on_s"]) if target > level else float(d["tau_off_s"])
 	level += (target - level) * (1.0 - exp(-dt / tau)) if dt > 0.0 else 0.0

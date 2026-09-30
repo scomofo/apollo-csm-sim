@@ -60,8 +60,12 @@
 ##        Only on the surface
 ##   P63  Braking: the ignition algorithm finds TIG, 470 km (ground range)
 ##        before the landing site, then V50N18 auto maneuver, V99 at TIG-5 s,
-##        26 s at 10 % throttle, and Klumpp's quadratic guidance at full
-##        thrust until the throttle comes back into its range; V06N63 (the
+##        26 s at 10 % throttle holding the attitude, and at ZOOM, with
+##        MODREG at 63, Klumpp's quadratic guidance steering at full
+##        thrust until the throttle comes back into its range (ZOOMFLAG:
+##        without it the guidance neither steers nor throttles; slice
+##        12a) [published: Luminary 178's P63ZOOM; Eyles, "Tales from the
+##        Lunar Module Guidance Computer", 2004]; V06N63 (the
 ##        speed, altitude rate and altitude) from ignition, as Luminary
 ##        099's, and V16N68 (the slant range to the site, the time to go in
 ##        braking and ΔH) when the crew asks for it. The
@@ -94,9 +98,12 @@
 ##        Luminary 099's P70-P71, and Bennett, NASA TM X-58040]
 ##   P71  APS abort, at ABORT STAGE, from P63 to P66 or from P70: staged,
 ##        the ascent engine flies the same guidance, its targets worked out
-##        afresh. Luminary reads the pushbuttons only while its aborts are
-##        enabled (LETABORT); here from the descent's ignition to the
-##        touchdown. [simplified: selected only by the pushbuttons]
+##        afresh. Luminary's abort monitor reads the pushbuttons on channel
+##        30 while its aborts are enabled (LETABORT, from 0.2 s after P63's
+##        ignition to the touchdown or P71), skipping them all with MODREG
+##        at 71 and ABORT with it at 70 (slice 12a) [published: Luminary
+##        178's P70-P71, routine 10,11; simplified: every step, not every
+##        0.25 s, and selected only by the pushbuttons]
 ##
 ## The descent's guidance runs in a frame fixed at the landing site (x up,
 ## y crossrange, z downrange along the ground track), turning with the
@@ -165,7 +172,15 @@
 ## state vectors to the AGS over the downlink (lm.lgc.ags_downlink), and
 ## the GET of the AEA clock's zero in N16.
 ##
-## Reads:  the core's, lm.dyn.landed, ctl.lm.rod (the ROD switch: +1 up,
+## The crew reach its erasable memory (slice 12a, LgcErasable): V21N01
+## loads a word at an address, V25N07 sets or resets a flagword's bits,
+## and V11N10 monitors a channel, all in octal, as Apollo 14's crew keyed
+## the workaround for their ABORT switch's short (fail("abort_switch"):
+## its contacts to the LGC closed until a tap on the panel beside it or
+## the pushbutton's press opens them).
+##
+## Reads:  the core's, lm.dyn.landed, ctl.lm.panel_tap (a tap on the panel
+##         beside ABORT, momentary), ctl.lm.rod (the ROD switch: +1 up,
 ##         -1 down, momentary), ctl.lm.rr_mode (the rendezvous radar's
 ##         mode switch: 0 LGC, 1 AUTO TRACK, 2 SLEW), the landing radar's
 ##         lm.lr.*, the rendezvous radar's lm.rr.*
@@ -184,7 +199,9 @@
 ##         time), lm.guid.rr_counting (the radar's CDUs counting),
 ##         lm.guid.restarts (software restarts this flight),
 ##         lm.guid.restart_get and lm.guid.restart_alarm (the last's GET
-##         and alarm), lm.dsky.lamp.alt, lm.dsky.lamp.vel
+##         and alarm), lm.dsky.lamp.alt, lm.dsky.lamp.vel, lm.lgc.abort_bit
+##         (channel 30's ABORT bit present, the switch's short's too),
+##         lm.lgc.modreg, lm.lgc.letabort and lm.lgc.zoomflag
 class_name Lgc
 extends AgcCore
 
@@ -252,6 +269,10 @@ const LGC_NOUNS := {
 	79: {"name": "CURSOR/SPIRAL/POS", "c": [["CURSOR", "d2", 1.0], ["SPIRAL", "d2", 1.0], ["POS", "i", 1.0]]},
 	89: {"name": "LANDING SITE", "c": [["LAT", "d3", 1.0], ["LONG/2", "d3", 1.0], ["ALT", "d2", 1.0 / Dsky.NMI]]},
 	93: {"name": "TORQUING ANGLES", "c": [["X", "d3", 1.0], ["Y", "d3", 1.0], ["Z", "d3", 1.0]]},
+	# The machine address nouns (LgcErasable), octal.
+	1: {"name": "SPECIFY ADDRESS", "c": [["WORD", "o", 1.0], ["", "blank", 1.0], ["ADDRESS", "o", 1.0]]},
+	7: {"name": "FLAG BITS", "c": [["ECADR", "o", 1.0], ["BITS", "o", 1.0], ["SET", "o", 1.0]]},
+	10: {"name": "CHANNEL", "c": [["WORD", "o", 1.0], ["", "blank", 1.0], ["CHANNEL", "o", 1.0]]},
 }
 
 ## The landing site in the Moon-fixed frame (uplinked with the DOI PAD),
@@ -307,6 +328,13 @@ var rr_nav: bool = false
 var p20: LgcRendezvousNav
 ## The AGS's initialization, V47 (slice 11e: LgcR47).
 var r47 := LgcR47.new()
+## The mode register and the flagwords the crew can load (slice 12a:
+## LgcErasable).
+var erasable := LgcErasable.new()
+## The ABORT pushbutton's contacts to the LGC shorted: Apollo 14's switch,
+## metallic contamination in it (fail("abort_switch")) [published: Apollo
+## 14 Mission Report, MSC-04112, section 14.2.2].
+var abort_short: bool = false
 ## The rendezvous: CSI, CDH and TPI's TIGs (GET s, N11, N13, N37), the TPI
 ## elevation and the transfer angle (radians, N55), the meeting TPI aims at
 ## (GET), and what P32 to P35 last worked out: ΔH (m), the ΔV of TPI and
@@ -353,6 +381,11 @@ var _restoring: bool = false
 ## selected by the pushbuttons (change_program() takes only those).
 var _abort_was: bool = false
 var _abort_request: bool = false
+var _tap_was: bool = false
+## When P63's ignition routine sets LETABORT (0.2 s after it) and ZOOM
+## comes (the trim's end), GET s; -1 once done.
+var _letabort_get: float = -1.0
+var _zoom_get: float = -1.0
 # What the descent displays show: slant range to the site (m), speed over
 # the surface, horizontal and vertical (m/s), footpads' height (m) and the
 # landing point's angle from the LM's +Z axis (°).
@@ -370,6 +403,7 @@ func _init() -> void:
 	surface = LgcSurfaceAlign.new(self)
 	p20 = LgcRendezvousNav.new(self)
 	r47.lgc = self
+	erasable.lgc = self
 	dsky.nouns = Dsky.NOUNS.merged(LGC_NOUNS, true)
 	var r := SpacecraftData.section("rendezvous_guidance")
 	rdv_elev = deg_to_rad(float(r["tpi_elevation_deg"]))
@@ -881,7 +915,10 @@ func change_program(p: int) -> bool:
 		# A new program after an Average-G one: P20's marks count again
 		# [published: GSOP R-567 section 4, P20's assumption 6].
 		p20.marks = 0
-	return super.change_program(p)
+	var ok := super.change_program(p)
+	if ok:
+		erasable.modreg = program
+	return ok
 
 
 ## Whether the LGC refuses program [param p] (alarm 1520): P63 without the
@@ -1086,25 +1123,34 @@ func _p63_step(st: Dictionary, now: float, dt: float) -> void:
 				step_name = "wait"
 				dsky.show(16, 68)
 			if now >= pdi_tig - 5.0:
-				step_name = "v99"
-				dsky.show(99, 68, true)
+				_tig_minus_5()
 		"wait":
 			if now >= pdi_tig - 5.0:
-				step_name = "v99"
-				dsky.show(99, 68, true)
+				_tig_minus_5()
 		"ignition":
 			if now >= pdi_tig - 1e-6:
 				_drop_maneuver()
 				step_name = "braking"
 				engine_on = true
 				ignition_get = now
+				_letabort_get = now + 0.2
+				_zoom_get = now + float(d["trim_s"])
 				tgo = float(d["braking"]["tgo0_s"])
 		"braking":
-			var thr := _steer_to(_klumpp(d["braking"], st, dt), st)
-			if now - ignition_get < float(d["trim_s"]):
-				descent_throttle = float(d["trim_throttle"])
-			else:
-				descent_throttle = _throttle_for(thr)
+			if _letabort_get >= 0.0 and now >= _letabort_get - 1e-6:
+				# P63IGN: "SET FLAG FOR P70-P71".
+				_letabort_get = -1.0
+				erasable.letabort = true
+			if _zoom_get >= 0.0 and now >= _zoom_get - 1e-6:
+				# ZOOM: P63ZOOM's throttle-up and guidance only with MODREG
+				# at 63.
+				_zoom_get = -1.0
+				if erasable.modreg == 63:
+					erasable.zoomflag = true
+			var acmd := _klumpp(d["braking"], st, dt)
+			# Before ZOOMFLAG the attitude holds and the throttle stays at
+			# the trim's.
+			descent_throttle = _throttle_for(_steer_to(acmd, st)) if erasable.zoomflag else float(d["trim_throttle"])
 			if tgo <= float(d["braking"]["tend_s"]):
 				_descent_phase(64)
 	# Coast landing points before ignition: TIG-60 s, then TIG-5 s.
@@ -1112,6 +1158,13 @@ func _p63_step(st: Dictionary, now: float, dt: float) -> void:
 	if step_name in ["tig", "v50n18", "maneuver", "wait"]:
 		next = pdi_tig - 60.0 if now < pdi_tig - 60.0 else pdi_tig - 5.0
 	Bus.set_value(_ch("guid.next_event_get_s"), next)
+
+
+## TIG-5: V99 asks for the go to light the engine, and ZOOMFLAG is reset.
+func _tig_minus_5() -> void:
+	step_name = "v99"
+	erasable.zoomflag = false
+	dsky.show(99, 68, true)
 
 
 ## The throttle for a guidance command [param thr]: full thrust above the
@@ -1157,7 +1210,10 @@ func _p66_step(st: Dictionary) -> void:
 func _descent_phase(p: int) -> void:
 	program = p
 	step_name = ""
-	dsky.set_prog(p)
+	erasable.modreg = p
+	if p == 68:
+		# LANDJUNK: the aborts end at the touchdown.
+		erasable.letabort = false
 	match p:
 		64:
 			tgo = float(SpacecraftData.section("descent_guidance")["approach"]["tgo0_s"])
@@ -1331,20 +1387,66 @@ func _start_p12() -> void:
 
 # --- the aborts (slice 9e) ----------------------------------------------------------
 
-## The ABORT and ABORT STAGE pushbuttons, read while the aborts are enabled:
-## from the descent's ignition to the touchdown, and in P70. ABORT STAGE
-## has staged the LM (Dynamics.stage_lm()): P71; ABORT, before staging:
-## P70.
+## Luminary's abort monitor on channel 30, while its landing displays run
+## (P63 to P66, P70 and P71): with the aborts enabled (LETABORT) and MODREG
+## not 71, ABORT STAGE, which has staged the LM (Dynamics.stage_lm()),
+## starts P71; with MODREG not 70 either, ABORT starts P70. ABORT's bit is
+## the pushbutton's contacts to the LGC, which the switch's short closes;
+## a tap on the panel beside it, or the pushbutton's press, opens them
+## again [published: MSC-04112, section 14.2.2, "removed by tapping on the
+## panel near the abort switch"; MSC-04330, Appendix A, reset "by pressing
+## the switch twice"].
 func _abort_discretes() -> void:
 	var abort := bool(Bus.get_value("ctl.lm.abort", false))
-	var click := abort and not _abort_was
+	var tap := bool(Bus.get_value("ctl.lm.panel_tap", false))
+	if abort_short and (tap and not _tap_was or abort and not _abort_was):
+		abort_short = false
+	_tap_was = tap
 	_abort_was = abort
-	if not ((program in DESCENT_BURN and engine_on) or program == 70):
+	Bus.set_value("lm.lgc.abort_bit", abort or abort_short)
+	Bus.set_value("lm.lgc.modreg", erasable.modreg)
+	Bus.set_value("lm.lgc.letabort", erasable.letabort)
+	Bus.set_value("lm.lgc.zoomflag", erasable.zoomflag)
+	if not erasable.letabort or erasable.modreg == 71 or not (program in DESCENT_BURN or program in ABORTS):
 		return
 	if str(Bus.get_value("lm.dyn.config", "lm")) == "lm_ascent":
 		_abort(71)
-	elif click and program != 70:
+	elif erasable.modreg != 70 and (abort or abort_short):
 		_abort(70)
+
+
+## Channel [param n]'s word as the LGC reads it: channel 30's input
+## discretes, each bit 0 while its signal is present, as Luminary's abort
+## monitor complements it [published: Luminary 178's
+## INPUT_OUTPUT_CHANNEL_BIT_DESCRIPTIONS and P70-P71]: bit 1 ABORT, 3 the
+## engine armed, 4 ABORT STAGE, 5 the LGC throttling the descent engine,
+## 9 the IMU operating, 10 the LGC in control, 15 the stable member's
+## temperature in limits [simplified: the other bits read absent, bits 5
+## and 10 follow GUID CONT, with no THR CONT switch, and the other
+## channels read 0].
+func channel(n: int) -> int:
+	if n != 30:
+		return 0
+	var pgns := int(Bus.get_value("ctl.lm.guid_cont", 0)) == 0
+	var present := {
+		1: bool(Bus.get_value("ctl.lm.abort", false)) or abort_short,
+		3: int(Bus.get_value("ctl.lm.engine_arm", 0)) != 0 or bool(Bus.get_value("lm.dps.abort_armed", false)),
+		4: str(Bus.get_value("lm.dyn.config", "lm")) == "lm_ascent",
+		5: pgns, 9: imu.operating(), 10: pgns, 15: is_powered(),
+	}
+	var w := 32767
+	for b: int in present:
+		if present[b]:
+			w &= ~(1 << (b - 1))
+	return w
+
+
+## The ABORT switch's short (Apollo 14's), or the core's failures.
+func fail(part: String) -> void:
+	if part == "abort_switch":
+		abort_short = true
+		return
+	super.fail(part)
 
 
 func _abort(p: int) -> void:
@@ -1376,6 +1478,8 @@ func _start_abort(p: int) -> void:
 	var rise := tr.radial_rate() < float(d["vertical_rise_hdot_mps"]) \
 		and tr.radius() - ascent_base < float(d["abort_vertical_alt_m"])
 	step_name = "vertical" if rise else "ascent"
+	if p == 71:
+		erasable.letabort = false
 	tgo = 0.0
 	engine_enabled = true
 	engine_on = true
@@ -1672,6 +1776,8 @@ static func _v3(a: Array) -> Vector3:
 
 func noun_values(n: int) -> Variant:
 	var v: Variant = null
+	if n in [1, 7, 10]:
+		return erasable.noun_values(n, channel)
 	if program == 57 and n in [4, 5, 6, 22, 25, 34, 70, 71, 79, 89, 93]:
 		return surface.noun_values(n)
 	if n == 25 and p20.priority in ["n25", "manual"]:
@@ -1731,9 +1837,9 @@ func noun_values(n: int) -> Variant:
 ## V24N76: the crew load P12's horizontal velocity and climb targets.
 ## V21N69 (or V22 to V25) in P63 or P64: the landing site correction, m.
 func noun_load(n: int, idx: int, value: float) -> bool:
-	if n == 99 or (program == 52 and n in [6, 34, 70, 71]) or (program == 57 and n in [6, 34, 70, 71, 79]):
-		# V67's W (P20), or P52's and P57's.
-		var by: Object = p20 if n == 99 else (align if program == 52 else surface)
+	if n in [1, 7, 10, 99] or (program == 52 and n in [6, 34, 70, 71]) or (program == 57 and n in [6, 34, 70, 71, 79]):
+		# The machine address nouns, V67's W (P20), or P52's and P57's.
+		var by: Object = erasable if n in [1, 7, 10] else (p20 if n == 99 else (align if program == 52 else surface))
 		return by.noun_load(n, idx, value)
 	if n == 69:
 		var ok := program in [63, 64] and landing_site != Vector3.ZERO
@@ -1780,7 +1886,7 @@ func snapshot() -> Dictionary:
 		"frame": [gf.x.x, gf.x.y, gf.x.z, gf.y.x, gf.y.y, gf.y.z, gf.z.x, gf.z.y, gf.z.z],
 		"pdi_tig": pdi_tig, "tgo": tgo, "throttle": descent_throttle, "rod_cmd": rod_cmd, "guide_get": _guide_get,
 		"lr_update": lr_update, "delta_h": delta_h, "lr_timer": _lr_timer, "ls_corrected": ls_corrected,
-		"step_get": _step_get, "restart_hold": _restart_hold,
+		"step_get": _step_get, "restart_hold": _restart_hold, "letabort_get": _letabort_get, "zoom_get": _zoom_get,
 	}
 	d["executive"] = executive.snapshot()
 	d["align"] = align.snapshot()
@@ -1794,7 +1900,8 @@ func snapshot() -> Dictionary:
 	d["ascent"] = {"targets": ascent_targets.duplicate(), "base": ascent_base,
 		"plane": [ascent_plane.x, ascent_plane.y, ascent_plane.z]}
 	d["abort"] = {"tpi_early": abort_tpi_early, "tpi_late": abort_tpi_late, "split": abort_split_get, "tpi": abort_tpi,
-		"abort_was": _abort_was}
+		"abort_was": _abort_was, "short": abort_short, "tap_was": _tap_was}
+	d["erasable"] = erasable.snapshot()
 	if csm_nav != null:
 		d["csm_nav"] = {"primary": csm_nav.primary, "t": csm_nav.t, "s": Array(csm_nav.s), "field": csm_nav.field_snapshot()}
 	d["rendezvous"] = {
@@ -1853,6 +1960,8 @@ func restore(d: Dictionary) -> void:
 	abort_split_get = float(ab.get("split", -1.0))
 	abort_tpi = float(ab.get("tpi", -1.0))
 	_abort_was = bool(ab.get("abort_was", false))
+	abort_short = bool(ab.get("short", false))
+	_tap_was = bool(ab.get("tap_was", false))
 	if program in ABORTS:
 		dsky.show(16, 85 if step_name == "post" else 94, step_name == "post")
 	elif program == ASCENT:
@@ -1896,6 +2005,8 @@ func restore(d: Dictionary) -> void:
 		_guide_get = float(dd["guide_get"])
 		_step_get = float(dd.get("step_get", _guide_get))
 		_restart_hold = float(dd.get("restart_hold", -1.0))
+		_letabort_get = float(dd.get("letabort_get", -1.0))
+		_zoom_get = float(dd.get("zoom_get", -1.0))
 		# The display the restored step shows.
 		if program == 63:
 			var shows := {"tig": [6, 33, true], "v50n18": [50, 18, true], "maneuver": [6, 18, false], "wait": [16, 68, false],
@@ -1905,3 +2016,5 @@ func restore(d: Dictionary) -> void:
 		elif program in DESCENT:
 			dsky.set_prog(program)
 			dsky.show(6 if program == 68 else 16, {64: 64, 65: 60, 66: 60, 68: 43}[program], program == 68)
+	# MODREG last: PROG shows what the crew may have loaded.
+	erasable.restore(d.get("erasable", {"modreg": program}))

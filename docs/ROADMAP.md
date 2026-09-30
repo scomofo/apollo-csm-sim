@@ -2331,7 +2331,7 @@ attempts (12a-4).
 
 | Slice | Work | Check |
 |---|---|---|
-| 12a Apollo 14 (in progress: its flight) | Kitty Hawk's probe failing to capture Antares until the sixth try (a soft dock, and its latches); the CSM's DOI with the LM docked; the abort switch's short, and the keyed workaround that had the LGC ignore it; the landing radar's late lock-on, until its breaker was cycled; the direct rendezvous, TPI in the first revolution after the insertion, without CSI and CDH; Fra Mauro's terrain | Test: as 7a, Antares landing within a set limit of where it came down |
+| 12a Apollo 14 (in progress: its flight, the ABORT switch) | Kitty Hawk's probe failing to capture Antares until the sixth try (a soft dock, and its latches); the CSM's DOI with the LM docked; the abort switch's short, and the keyed workaround that had the LGC ignore it; the landing radar's late lock-on, until its breaker was cycled; the direct rendezvous, TPI in the first revolution after the insertion, without CSI and CDH; Fra Mauro's terrain | Test: as 7a, Antares landing within a set limit of where it came down |
 | 12b Apollo 15 | The J mission's LM, its descent stage heavier and its stay three days; the steep descent past the Apennines; Endeavour's plane changes; Worden's EVA on the way home, the CM depressurised, as an event; the splashdown on two main parachutes, the third having failed | Test: as 7a, Falcon landing within a set limit of Hadley, and the CM coming down on two parachutes at the flown speed |
 | 12c Apollo 16 | Casper's SPS, its secondary yaw gimbal servo oscillating before the circularization, and the landing waved off for about six hours; the flight a day shorter | Test: as 7a, Orion landing about six hours late within a set limit of its site |
 | 12d Apollo 17 | The night launch, Taurus-Littrow's terrain, and the longest stay | Test: as 7a, Challenger landing within a set limit of its site |
@@ -2371,6 +2371,31 @@ own troubles.
   the last one on the AGS's list for the rest of its 20 s. R47 keeps the
   downlist now, and takes it off at V34 and V47. Checkpoints are schema
   31.
+- **The ABORT switch.** Done in 12a's second part. The failure catalog's
+  lm_abort_switch shorts the pushbutton's contacts to the LGC, which sees
+  ABORT with the pushbutton out, and no light shows it; a tap on the
+  panel by the switch, or the pushbutton's press, clears it, and on
+  Apollo 14's timeline it comes back at the flown times, each called by
+  Houston (`Failures.recur()`). The LGC's abort monitor is Luminary's:
+  on channel 30, while its aborts are enabled (LETABORT, from 0.2 s
+  after P63's ignition to the touchdown or P71), passing both by with
+  the mode register at 71 and ABORT with it at 70. P63 holds its
+  attitude at 10 % until ZOOM, which throttles up and lets the guidance
+  steer (ZOOMFLAG) only with the mode register at 63. The crew reach the
+  LGC's erasable words from the DSKY as Apollo 14's did
+  (`src/systems/lgc_erasable.gd`): V21N01 loads a word at an address,
+  V25N07 sets or resets a flagword's bits, V11N10 monitors a channel, in
+  octal. Under the LGC the TTCA's throttle, a lever on panel 1 and the
+  HUD's THROTTLE, throttles the descent engine up past its command.
+  Houston's workaround flies as keyed: MODREG 71 before PDI, the
+  throttle-up by hand at 27 s, ZOOMFLAG at 44.5 s, LETABORT reset at
+  66.5 s, MODREG 63 at 80.5 s and the throttle back at 85 s. Checkpoints
+  are schema 32. P20's tracking attitude (R61 and R65) rolls about the
+  line of sight, the least way, where it would take the middle gimbal
+  past GIMBAL LOCK's light [simplified: Luminary's VECPOINT kept the
+  roll, and the crew flew clear of gimbal lock]: after an abort from P63,
+  its attitude held to ZOOM, the least turn onto the line of sight ended
+  at 89° and caged the platform.
 
 ## Later, not scheduled
 

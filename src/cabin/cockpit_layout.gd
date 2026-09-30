@@ -29,7 +29,7 @@ const CONFIDENCE := ["A", "B", "C", "D"]
 ## and its footprint's half size on the panel (mm): a control's touch
 ## volume, a display's face.
 const TYPES := {
-	"toggle": {"scene": "res://scenes/controls/toggle_switch.tscn", "control": true, "takes": ["bool", "int"], "half_mm": Vector2(15, 30)},
+	"toggle": {"scene": "res://scenes/controls/toggle_switch.tscn", "control": true, "takes": ["bool", "int", "float"], "half_mm": Vector2(15, 30)},
 	"rotary": {"scene": "res://scenes/controls/rotary_switch.tscn", "control": true, "takes": ["int"], "half_mm": Vector2(15, 25)},
 	"pushbutton": {"scene": "res://scenes/controls/pushbutton.tscn", "control": true, "takes": ["bool"], "half_mm": Vector2(15, 25)},
 	"lamp": {"scene": "res://scenes/instruments/lamp.tscn", "control": false, "takes": ["bool", "float"], "half_mm": Vector2(15, 10)},
@@ -248,6 +248,8 @@ func _validate_params(r: Dictionary, where: String, type: String, ctype: String)
 			errors.append("%s: a rotary needs its position labels" % where)
 		if ctype == "bool" and n != 2:
 			errors.append("%s: a %d-position switch can't publish a bool" % [where, n])
+		if type == "toggle" and ctype == "float" and (probe.get("float_values") as PackedFloat64Array).size() != n:
+			errors.append("%s: a switch on a float channel must give all %d positions a float_values value" % [where, n])
 		if params.has("values"):
 			var vals: PackedInt32Array = probe.get("values")
 			var seen := {}
@@ -332,6 +334,11 @@ static func coerce(node: Object, prop: String, text: String) -> Variant:
 			for s in text.split("|", false):
 				a.append(int(s))
 			return a
+		TYPE_PACKED_FLOAT64_ARRAY:
+			var f := PackedFloat64Array()
+			for s in text.split("|", false):
+				f.append(float(s))
+			return f
 		TYPE_COLOR: return Color(text)
 	return text
 
