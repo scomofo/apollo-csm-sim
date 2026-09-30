@@ -1512,7 +1512,8 @@ Slice 5e gives P40 and P41 Colossus's steering, from its listing (Comanche
   P37's first correction is 4.7 m/s, where it was 5.8.
 - **The LGC** still holds the ΔV's LVLH direction [simplified]:
   Luminary's External ΔV steered as Colossus's did, but the LM's burns
-  are short, DOI's 30 s the longest.
+  are short, DOI's 30 s the longest. (It steers as Luminary's did since
+  11c.)
 - **Checkpoints** are schema 13: the thrust direction P40 holds in a
   burn's last seconds.
 
@@ -2057,11 +2058,10 @@ Apollo 12's and 13's launches fly their troubles as they came.
 
 ## 11. The LM's navigation
 
-**Status: 11a and 11b done.** Milestone 4 gave the CSM its crew's
-navigation; the LM's is still simpler. Its IMU is real since 11a, and
-its crews align it with P52 in flight and P57 on the surface since 11b,
-but its P40 to P42 hold the ΔV's direction in the rotating LVLH frame,
-and its auto maneuvers turn the thrust axis first every time; the
+**Status: 11a, 11b and 11c done.** Milestone 4 gave the CSM its crew's
+navigation; the LM's is still simpler. Its IMU is real since 11a, its
+crews align it with P52 in flight and P57 on the surface since 11b, and
+it steers its burns and turns as Luminary did since 11c; but the
 rendezvous radar is noise-free and finds the CSM wherever it is; P20
 weights each mark by fixed gains; and the AGS holds an attitude and
 counts ΔV, with none of its guidance. This milestone gives the LM what
@@ -2071,8 +2071,8 @@ the CSM has.
 |---|---|---|
 | 11a (done) The LGC's platform and P52 | The LGC's IMU real whenever it runs: drift, coarse align, gimbal lock; the alignment optical telescope (AOT) with its detents, reticle and view; P52 on its marks in orbit; REFSMMAT uplinks to the LGC | Test: from Apollo 11's undocking, P52 on the AOT's stars aligns the LGC within set limits, and the landing and the ascent fly on it |
 | 11b (done) P57 on the surface | The lunar surface alignment, from the gravity the accelerometers sense and the AOT's stars, as Apollo 11 did before its liftoff; Eagle's checklists gain their P52s after undocking and after insertion, and their P57s | Test: P57's alignment within set limits, and the ascent reaches its insertion on it |
-| 11c Luminary's steering | P40 to P42 steered as Luminary's did, in place of the LVLH hold, as 5e gave the CMC; and KALCMANU's auto maneuvers, about a single axis, re-planned only where the turn would take the middle gimbal past 60°, where 11a routes every turn thrust axis first | Test: DOI and the insertion come nearer their targets than on the LVLH hold, short burns come out as they did, and a turn clear of the lock zone is flown about a single axis |
-| 11d The rendezvous radar | Its noise and biases, its gimbal limits and coverage, its lock-on by hand, and Luminary's P20 filter, updating the LM's state vector or the CSM's | Test: Apollo 11's rendezvous on the noisy radar docks, the LGC's estimate of Columbia at CSI within set limits, and CDH's ΔH, TPI and the midcourse corrections on 11a's drifting platform back within the limits they held on an ideal one |
+| 11c (done) Luminary's steering | P40 to P42 steered as Luminary's did, in place of the LVLH hold, as 5e gave the CMC; and KALCMANU's auto maneuvers, about a single axis, re-planned only where the turn would take the middle gimbal past 60°, where 11a routes every turn thrust axis first | Test: DOI comes nearer its PAD than on the LVLH hold, a burn of an insertion's size on the ascent engine comes out as it did, and a turn clear of the lock zone is flown about a single axis |
+| 11d The rendezvous radar | Its noise and biases, its gimbal limits and coverage, its lock-on by hand, P20's tracking attitude (R61) keeping the LM's +Z axis on the CSM, and Luminary's P20 filter, updating the LM's state vector or the CSM's | Test: Apollo 11's rendezvous on the noisy radar docks, the LGC's estimate of Columbia at CSI within set limits, and CDH's ΔH, TPI and the midcourse corrections on 11a's drifting platform back within the limits they held on an ideal one |
 | 11e The AGS's guidance | Its own navigation from the PGNS's state vectors, its abort insertion, and CSI, CDH and TPI targeting as the rendezvous's backup through the DEDA | Test: the AGS's solutions for Apollo 11's CSI, CDH and TPI within set limits of the LGC's, and an insertion flown on the AGS reaches orbit |
 
 **Done when** the README's simplifications of the LM's IMU, steering,
@@ -2163,6 +2163,42 @@ radar and AGS are gone, or measured against the flights.
   report's Table 8.6-I has them. At Surveyor crater the GRAIL field leans
   the plumb line 0.017° off the site's radius, which P57 takes for the
   vertical.
+- **Luminary's steering.** Done in 11c, from Luminary 099's listing and
+  its GSOP (R-567). P40 to P42 steer as Luminary's did: S40.1 turns the
+  External ΔV through half the burn's arc on Luminary's own thrusts
+  (FDPS, the DPS's 9,817.5 lbf for the whole burn, its 10 % start left
+  out; FRCS4, the four +X jets' 400 lbf, for P41; the ascent engine's
+  for P42), the sensed ΔV draws it down (S40.8), and the thrust is
+  steered onto it until the last 4 s with the LM's roll left alone, as
+  FINDCDUW commanded no roll in P40 and P42. The RTCC plans the LM's
+  burns on the same law: DOI, the start phases', Apollo 13's lifeboat's
+  and a new ascent-engine model. DOI, whose 10 % start S40.1 leaves out,
+  now meets its PAD's pericynthion to 1 m, where the LVLH hold misses
+  it by 18 m; a burn of an insertion's size on the ascent engine's
+  steady thrust comes out as it did, within 0.3 km on its apsides.
+  KALCMANU turns the LM about a single axis at the rate the crew
+  loaded with V48, 2°/s in each of Apollo 11's LM loads, docked too, its
+  reference stepped along the turn and the DAP flying its rate as well
+  as its correction, within a degree of it. (Docked at the program
+  notes' 0.5°/s, Aquarius's turn to MCC-2's attitude outlasted the
+  crew's five minutes, and a burn begun 28° off the velocity to be
+  gained turned it away faster than the stack could follow.) Luminary
+  099 had no re-planning round gimbal lock: the skirting of the lock
+  zone in KALCMANU's header is left out of the listing (LOCSKIRT EQUALS
+  NOGIMLOC), and the crews turned clear by hand, as Apollo 11's yawed
+  round to windows down before P63. After DOI, P63's
+  turn to the ignition attitude is 180°, and about a single axis it went
+  through 85° of middle gimbal and caged the IMU; so a turn whose single
+  axis would take the middle gimbal past 60° is routed as the CMC's are,
+  in place of the crew's hand maneuvers [adapted]. The faster turns
+  bring the P52s' marks and the burns' attitudes minutes sooner. The
+  rendezvous's braking costs Eagle 42.3 ft/s where it cost 36.5.
+  Steered on a velocity to be gained fixed in inertial space, Eagle
+  ends each burn fixed there too, and is 44° off the line of sight when
+  the commander brakes on the TTCA's axes; the LVLH hold left it
+  turning with the orbit, 17° off. P20's tracking attitude (R61), which
+  kept Eagle's +Z axis and the radar on Columbia, is 11d's. Checkpoints
+  are schema 28: KALCMANU's turn in progress.
 
 ### Order
 

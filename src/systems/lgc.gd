@@ -34,7 +34,12 @@
 ##        40 % for 21 s and then full [simplified: the crew throttled up by
 ##        hand, as the PAD said]
 ##   P41  RCS thrusting: +X translation on the LM RCS
-##   P42  APS thrusting (the ascent stage, after staging)
+##   P42  APS thrusting (the ascent stage, after staging). P40 to P42 steer
+##        as Luminary 099's did (slice 11c): the velocity to be gained at
+##        TIG, turned through half the burn's arc on Luminary's thrusts
+##        (vg_thrust()), drawn down by the sensed ΔV, the thrust steered
+##        onto it with the LM's roll left alone, as FINDCDUW steered it
+##        (steer_attitude())
 ##   P47  Thrust monitor (manual burns): V16N83 body ΔV
 ##   P52  IMU realign on the alignment optical telescope's marks (slice
 ##        11a): options 1 to 4 on V04N06, the stars on V01N70 and V01N71,
@@ -183,6 +188,21 @@ const ABORTS := [70, 71]
 const RENDEZVOUS := [32, 33, 34, 35]
 ## The DSKY's time registers the rendezvous programs show and load.
 const TIME_NOUNS := [11, 13, 37]
+## The thrusts (N) Luminary 099's S40.1 turns an External ΔV through half
+## the burn's arc on: FDPS, the DPS's 9,817.5 lbf, for the whole burn (its
+## start at 10 % left out), and FRCS4, the four +X jets' 400 lbf, for P41
+## [published: Luminary 099, CONTROLLED_CONSTANTS; R-567, section 5.3,
+## p. 5.3-23]. P42 takes the ascent engine's own.
+const FDPS_N := 43670.0
+const FRCS4_N := 1779.3
+## KALCMANU's rate, rad/s: the crew loads it with V48 (N46 R1's last digit:
+## 0.2, 0.5, 2 or 10 °/s), and each of Apollo 11's LM loads had 2 °/s,
+## docked, undocked, on the surface and after insertion (the LM Systems
+## Activation Checklist, ACT-47 and ACT-66; the Lunar Surface Checklist,
+## SUR-58; the Flight Plan, p. 3-90), docked too, where the program notes
+## advised no more than 0.5 °/s (Luminary 1A program notes, 1.7.5)
+## [published].
+const KALCMANU_RATE := 0.0349066
 ## The nouns the LGC adds, or means otherwise than the CMC does.
 const LGC_NOUNS := {
 	22: {"name": "NEW ICDU ANGLES", "c": [["OG", "d2", 1.0], ["IG", "d2", 1.0], ["MG", "d2", 1.0]]},
@@ -287,6 +307,14 @@ var rdv_tpf_dv: float = 0.0
 var rdv_hp: float = 0.0
 ## The Executive, running the powered descent's jobs (LgcExecutive).
 var executive := LgcExecutive.new()
+## KALCMANU's turn (_plan_via()): from attitude kal_from about the inertial
+## axis kal_axis through kal_angle (rad) at kal_rate (rad/s), begun at GET
+## kal_t0; none while kal_t0 is negative.
+var kal_from: Quaternion = Quaternion.IDENTITY
+var kal_axis: Vector3 = Vector3.RIGHT
+var kal_angle: float = 0.0
+var kal_rate: float = KALCMANU_RATE
+var kal_t0: float = -1.0
 ## Luminary zeroes the rendezvous radar's CDUs while the radar's mode
 ## switch is away from LGC, as Luminary 1B did from Apollo 12; Apollo 11's
 ## Luminary 1A counted their pulses (mission.json "lgc").
@@ -362,9 +390,32 @@ func thrusting_programs() -> Array:
 
 
 func engine_thrust(p: int) -> float:
+	if p == 41:
+		return Rtcc.lm_rcs_x_thrust()
 	if _on_aps(p):
 		return float(SpacecraftData.section("aps")["thrust_n"])
 	return float(SpacecraftData.section("dps")["thrust_n"]) * Dps.throttle_target(throttle())
+
+
+## The thrust S40.1 takes for program [param p]'s burn: FDPS in P40, FRCS4
+## in P41, the ascent engine's in P42.
+func vg_thrust(p: int) -> float:
+	if p == 41:
+		return FRCS4_N
+	if _on_aps(p):
+		return float(SpacecraftData.section("aps")["thrust_n"])
+	return FDPS_N
+
+
+## FINDCDUW's steering: the thrust axis turned the shortest way onto
+## [param dir] from the attitude the steering held last, the LM's roll about
+## it left alone, as in P40 and P42 it commanded no change of it [published:
+## Luminary 099, FINDCDUW--GUIDAP_INTERFACE; Luminary Memo 27]
+## [simplified: the thrust taken along +X, where FINDCDUW put its filtered
+## measure of the thrust's direction on the velocity to be gained].
+func steer_attitude(dir: Vector3) -> Quaternion:
+	var x := Basis(auto_target) * Vector3.RIGHT
+	return (Imu.arc(x, dir.normalized()) * auto_target).normalized()
 
 
 func engine_tau_off(p: int) -> float:
@@ -430,7 +481,76 @@ func auto_rate() -> float:
 		return deg_to_rad(float(SpacecraftData.section("descent_guidance")["auto_rate_dps"]))
 	if program == ASCENT or program in ABORTS:
 		return deg_to_rad(float(SpacecraftData.section("ascent_guidance")["auto_rate_dps"]))
-	return RATE_AUTO
+	return kalcmanu_rate()
+
+
+## KALCMANU's rate: the crew's V48 load's (KALCMANU_RATE).
+func kalcmanu_rate() -> float:
+	return KALCMANU_RATE
+
+
+## The auto maneuver to auto_target as Luminary 099's KALCMANU flew it (R60,
+## ATTITUDE MANEUVER ROUTINE): one turn about a single axis at the rate the
+## crew loaded (kalcmanu_rate()), its reference attitude stepped along the
+## turn for the DAP to follow at that rate (_maneuver_target(),
+## _maneuver_rate()), and at the turn's end the attitude held; a turn under
+## 0.25° none. A thrusting program refuses a final attitude past 70° of
+## middle gimbal (00401) [published: Luminary 099,
+## ATTITUDE_MANEUVER_ROUTINE and KALCMANU_STEERING; R-567, section 3.7.4].
+## 099 had no re-planning round gimbal lock (its skirting of the lock zone
+## is in the listing but left out: LOCSKIRT EQUALS NOGIMLOC): its crews
+## watched the FDAI and turned clear by hand, as Apollo 11's yawed round
+## before P63. Where the single axis would take the middle gimbal past
+## LOCK_MANEUVER_DEG, the LGC routes the turn as the CMC does instead
+## (AgcCore._plan_via()) [adapted: the crew's hand maneuvers, left to it].
+func _plan_via() -> void:
+	_drop_maneuver()
+	var now := _att()
+	var d := (auto_target * now.inverse()).normalized()
+	if d.w < 0.0:
+		d = -d
+	var angle := 2.0 * acos(clampf(d.w, 0.0, 1.0))
+	if angle < deg_to_rad(0.25):
+		return
+	var axis := Vector3(d.x, d.y, d.z).normalized()
+	var peak := 0.0
+	for i in 33:
+		var q := (Quaternion(axis, angle * i / 32.0) * now).normalized()
+		peak = maxf(peak, absf(wrapf(gimbal_angles_of(q).z, -180.0, 180.0)))
+	if peak > LOCK_MANEUVER_DEG:
+		super()
+		return
+	kal_axis = axis
+	kal_angle = angle
+	kal_from = now
+	kal_rate = kalcmanu_rate()
+	kal_t0 = _now()
+
+
+func _drop_maneuver() -> void:
+	super()
+	kal_t0 = -1.0
+
+
+## KALCMANU is still turning its reference.
+func kal_turning() -> bool:
+	return kal_t0 >= 0.0 and _now() < kal_t0 + kal_angle / kal_rate
+
+
+## KALCMANU's reference attitude now, on its way from kal_from.
+func _kal_ref() -> Quaternion:
+	return (Quaternion(kal_axis, minf(kal_rate * (_now() - kal_t0), kal_angle)) * kal_from).normalized()
+
+
+func _maneuver_target() -> Quaternion:
+	return _kal_ref() if kal_turning() else super()
+
+
+## KALCMANU's rate about its axis, in body axes, while it turns.
+func _maneuver_rate() -> Vector3:
+	if not kal_turning():
+		return Vector3.ZERO
+	return Basis(_att()).inverse() * (kal_axis * kal_rate)
 
 
 ## The DAP takes up the attitude the LM has as its hold, and the LGC the
@@ -823,10 +943,10 @@ func proceed() -> void:
 				step_name = "v50n18"
 				dsky.show(50, 18, true)
 			"v50n18":
-				# Clear of gimbal lock on the way, as Luminary's KALCMANU
-				# took it: from DOI's attitude, a roll about +Z onto the
-				# windows-up one would take the thrust axis across the
-				# stable member's Y.
+				# KALCMANU's turn from the attitude DOI left [simplified: to
+				# the whole ignition attitude, where Luminary's R60 pointed
+				# the thrust axis alone (VECPOINT) and Apollo 11's crew had
+				# yawed round to windows down by hand first].
 				_plan_via()
 				step_name = "maneuver"
 				auto_active = true
@@ -843,6 +963,10 @@ func proceed() -> void:
 
 
 func extra_step() -> void:
+	# KALCMANU gives up its turn once the mode switch leaves AUTO, or the
+	# auto maneuver is off.
+	if kal_t0 >= 0.0 and (mode() != 2 or not auto_active):
+		kal_t0 = -1.0
 	var rod := int(Bus.get_value("ctl.lm.rod", 0))
 	var click := rod if rod != 0 and _rod_was == 0 else 0
 	_rod_was = rod
@@ -913,6 +1037,7 @@ func _p63_step(st: Dictionary, now: float, dt: float) -> void:
 				dsky.show(99, 68, true)
 		"ignition":
 			if now >= pdi_tig - 1e-6:
+				_drop_maneuver()
 				step_name = "braking"
 				engine_on = true
 				ignition_get = now
@@ -1196,6 +1321,7 @@ func _start_abort(p: int) -> void:
 	engine_enabled = true
 	engine_on = true
 	ignition_get = now
+	_drop_maneuver()
 	auto_active = true
 	dsky.show(16, 94)
 
@@ -1590,6 +1716,8 @@ func snapshot() -> Dictionary:
 	d["restarts"] = {"count": restarts, "get": restart_get, "alarm": restart_alarm}
 	d["nav_landed_mf"] = [nav_landed_mf.x, nav_landed_mf.y, nav_landed_mf.z]
 	d["p40_schedule"] = p40_schedule.duplicate()
+	d["kalcmanu"] = {"from": [kal_from.x, kal_from.y, kal_from.z, kal_from.w],
+		"axis": [kal_axis.x, kal_axis.y, kal_axis.z], "angle": kal_angle, "rate": kal_rate, "t0": kal_t0}
 	d["ascent"] = {"targets": ascent_targets.duplicate(), "base": ascent_base,
 		"plane": [ascent_plane.x, ascent_plane.y, ascent_plane.z]}
 	d["abort"] = {"tpi_early": abort_tpi_early, "tpi_late": abort_tpi_late, "split": abort_split_get, "tpi": abort_tpi,
@@ -1629,6 +1757,14 @@ func restore(d: Dictionary) -> void:
 	restart_alarm = int(rs.get("alarm", 0))
 	_publish_executive()
 	p40_schedule = Dps.p40_schedule(d.get("p40_schedule", []))
+	var kd: Dictionary = d.get("kalcmanu", {})
+	if kd.has("t0"):
+		var kf: Array = kd["from"]
+		kal_from = Quaternion(kf[0], kf[1], kf[2], kf[3])
+		kal_axis = _v3(kd["axis"])
+		kal_angle = float(kd["angle"])
+		kal_rate = float(kd["rate"])
+		kal_t0 = float(kd["t0"])
 	csm_nav = null
 	var cd: Dictionary = d.get("csm_nav", {})
 	if not cd.is_empty():

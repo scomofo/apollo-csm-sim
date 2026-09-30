@@ -64,26 +64,29 @@ static func simulate_sps_burn(traj: Trajectory, mass: float, dv_lvlh: Vector3, d
 	return m
 
 
-## Fly an LGC P40 burn on the DPS on [param traj]: thrust held along the
-## [param dv_lvlh] direction in the moving LVLH frame, on the throttle
-## schedule [param schedule] (Dps.p40_schedule(): spacecraft.json's when
-## empty), until its magnitude has been gained (the law the LGC flies).
-## Returns the mass after.
+## Fly an LGC P40 burn on the DPS on [param traj], from its TIG, as the LGC
+## flies it (slice 11c): the DPS's thrust held along the velocity to be
+## gained Luminary sets at ignition (AgcCore.external_dv_vg() on its FDPS,
+## Lgc.FDPS_N: the [param dv_lvlh] ΔV turned through half the burn's arc),
+## fixed in inertial space, on the throttle schedule [param schedule]
+## (Dps.p40_schedule(): spacecraft.json's when empty), until its magnitude
+## has been gained. Returns the mass after.
 static func simulate_dps_burn(traj: Trajectory, mass: float, dv_lvlh: Vector3, dt: float = 0.5,
 		schedule: Array = []) -> float:
 	var d := SpacecraftData.section("dps")
 	var f := float(d["thrust_n"])
 	var mdot := f / (float(d["isp_s"]) * Units.G0)
 	var sch := Dps.p40_schedule(schedule)
-	var u := dv_lvlh.normalized()
-	var left := dv_lvlh.length()
+	var g := AgcCore.external_dv_vg(traj.pos(), traj.vel(), lvlh_to_inertial(traj, dv_lvlh), mass, Lgc.FDPS_N)
+	var u := g.normalized()
+	var left := g.length()
 	var m := mass
 	var t := 0.0
 	while left > 1e-4:
 		var k := Dps.throttle_target(Dps.schedule_throttle(sch, t))
 		var acc := f * k / m
 		var h := minf(minf(dt, left / acc), Dps.schedule_next(sch, t) - t)
-		var a := lvlh_to_inertial(traj, u) * acc
+		var a := u * acc
 		traj.step(h, PackedFloat64Array([a.x, a.y, a.z]))
 		left -= acc * h
 		m -= mdot * k * h
@@ -118,28 +121,41 @@ static func dps_burn_time(mass: float, dv: float, schedule: Array = []) -> float
 ## as its computer flies it: {"engine": "sps"} (the default) the CMC's P40
 ## (simulate_sps_burn()); "dps" the LGC's P40 on the DPS on its throttle
 ## schedule ("throttle", Dps.p40_schedule()); "lm_rcs" the LGC's P41, the
-## LM's four +X jets, held along the ΔV's LVLH direction as the LGC holds
-## it. Returns the mass after.
+## LM's four +X jets, and "aps" its P42 on the ascent engine, each held
+## along the velocity to be gained as the LGC steers them (S40.1 on
+## Luminary's FRCS4, Lgc.FRCS4_N, and on the ascent engine's thrust).
+## Returns the mass after.
 static func simulate_burn(engine: Dictionary, traj: Trajectory, mass: float, dv_lvlh: Vector3) -> float:
 	match str(engine.get("engine", "sps")):
 		"dps":
 			return simulate_dps_burn(traj, mass, dv_lvlh, 0.5, engine.get("throttle", []))
 		"lm_rcs":
 			var d := SpacecraftData.section("lm_rcs")
-			var f := lm_rcs_x_thrust()
-			var mdot := f / (float(d["isp_s"]) * Units.G0)
-			var u := dv_lvlh.normalized()
-			var left := dv_lvlh.length()
-			var m := mass
-			while left > 1e-4:
-				var acc := f / m
-				var h := minf(0.5, left / acc)
-				var a := lvlh_to_inertial(traj, u) * acc
-				traj.step(h, PackedFloat64Array([a.x, a.y, a.z]))
-				left -= acc * h
-				m -= mdot * h
-			return m
+			return _simulate_held(traj, mass, dv_lvlh, lm_rcs_x_thrust(), float(d["isp_s"]), Lgc.FRCS4_N)
+		"aps":
+			var d := SpacecraftData.section("aps")
+			return _simulate_held(traj, mass, dv_lvlh, float(d["thrust_n"]), float(d["isp_s"]), float(d["thrust_n"]))
 	return simulate_sps_burn(traj, mass, dv_lvlh)
+
+
+## A burn at [param f] N and [param isp] s held along the velocity to be
+## gained that S40.1 sets at ignition for the [param dv_lvlh] ΔV on
+## [param vg_f] N (AgcCore.external_dv_vg()), fixed in inertial space,
+## until its magnitude has been gained. Returns the mass after.
+static func _simulate_held(traj: Trajectory, mass: float, dv_lvlh: Vector3, f: float, isp: float, vg_f: float) -> float:
+	var mdot := f / (isp * Units.G0)
+	var g := AgcCore.external_dv_vg(traj.pos(), traj.vel(), lvlh_to_inertial(traj, dv_lvlh), mass, vg_f)
+	var u := g.normalized()
+	var left := g.length()
+	var m := mass
+	while left > 1e-4:
+		var acc := f / m
+		var h := minf(0.5, left / acc)
+		var a := u * acc
+		traj.step(h, PackedFloat64Array([a.x, a.y, a.z]))
+		left -= acc * h
+		m -= mdot * h
+	return m
 
 
 ## How long a burn of [param dv] on [param engine] (simulate_burn()) lasts
@@ -150,6 +166,10 @@ static func burn_seconds(engine: Dictionary, mass: float, dv: float) -> float:
 			return dps_burn_time(mass, dv, engine.get("throttle", []))
 		"lm_rcs":
 			return mass * absf(dv) / lm_rcs_x_thrust()
+		"aps":
+			var d := SpacecraftData.section("aps")
+			var ve := float(d["isp_s"]) * Units.G0
+			return mass * (1.0 - exp(-absf(dv) / ve)) * ve / float(d["thrust_n"])
 	return burn_time(mass, dv)
 
 

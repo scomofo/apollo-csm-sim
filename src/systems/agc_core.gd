@@ -15,13 +15,12 @@
 ##        predicted apsides and ΔV (N42), then stores the maneuver
 ##   Thrusting programs: V50N18 auto maneuver to burn attitude, V16N40
 ##        countdown, V99N40 engine-on enable at TIG-5 s, cutoff on velocity
-##        to be gained, V16N85 residuals. The CMC steers as Colossus did
-##        (cross_product()): the velocity to be gained is the N81 ΔV set
-##        inertially at TIG and turned through half the burn's arc
-##        (external_dv_vg()), drawn down by the sensed ΔV, and the thrust
-##        is steered onto it until the last STEER_OFF_S. The LGC holds the
-##        N81 direction in the rotating LVLH frame [simplified: Luminary's
-##        External ΔV steered as Colossus's]. An RCS program (P41) burns +X
+##        to be gained, V16N85 residuals. Both computers steer as Colossus
+##        and Luminary did (cross_product()): the velocity to be gained is
+##        the N81 ΔV set inertially at TIG and turned through half the
+##        burn's arc (external_dv_vg(), on vg_thrust()), drawn down by the
+##        sensed ΔV, and the thrust is steered onto it until the last
+##        STEER_OFF_S. An RCS program (P41) burns +X
 ##        translation instead of an engine; or, ENTER at V50N18 (R60's "no
 ##        maneuver"), where the vehicle is, V16N85's residuals nulled by
 ##        translation along each body axis, as the LM's crews burned their
@@ -51,9 +50,10 @@
 ## DAP only damps the rates. A thrusting program needs the IMU's
 ## orientation known (alarm 00220), and won't maneuver to a burn attitude
 ## past lock_alarm_deg() of middle gimbal (alarm 00401): P52 to the
-## preferred orientation first. Each auto maneuver is planned clear of
-## gimbal lock on the way (_plan_via()). Both computers' IMUs are real
-## (real_imu()).
+## preferred orientation first. The CMC plans each auto maneuver clear of
+## gimbal lock on the way (_plan_via()); the LGC turns about a single axis,
+## as Luminary's KALCMANU did (Lgc._plan_via()). Both computers' IMUs are
+## real (real_imu()).
 ##
 ## Digital autopilot, from the computer's mode switch:
 ##   0 FREE  hand controller commands acceleration, no hold
@@ -142,6 +142,10 @@ var auto_active: bool = false
 ## (_plan_via()): the DAP steers to the first until it is inside the
 ## deadband.
 var maneuver_vias: Array[Quaternion] = []
+## The thrusting programs steer as Colossus's and Luminary's did
+## (cross_product()); false holds the ΔV's LVLH direction instead, as the
+## simulator did before, to compare.
+var cross_product_steering: bool = true
 var _rhc_was_active: bool = false
 var _last_source: int = -1
 var desired_q: Quaternion = Quaternion.IDENTITY
@@ -203,11 +207,18 @@ func thrusting_programs() -> Array:
 	return [41]
 
 
-## The computer steers its External ΔV burns as Colossus's P40 and P41 do,
-## by cross-product steering on an inertial velocity to be gained; else it
-## holds the ΔV's direction in the rotating LVLH frame.
+## The computer steers its External ΔV burns as Colossus's P40 and P41 and
+## Luminary's P40 to P42 did, by cross-product steering on an inertial
+## velocity to be gained; else it holds the ΔV's direction in the rotating
+## LVLH frame.
 func cross_product() -> bool:
-	return false
+	return cross_product_steering
+
+
+## The thrust (N) the computer takes for program [param p]'s burn when it
+## turns the ΔV through half the burn's arc (external_dv_vg()): its engine's.
+func vg_thrust(p: int) -> float:
+	return engine_thrust(p)
 
 
 ## Colossus's velocity to be gained at ignition for an External ΔV
@@ -479,15 +490,16 @@ func _locks_gimbals(q: Quaternion) -> bool:
 
 
 ## Plan the auto maneuver to auto_target clear of gimbal lock, on a real
-## IMU, as Luminary's KALCMANU planned the LM's: the X axis aligned first,
-## then "a final yaw about X" [adapted: Luminary 099's ATTITUDE MANEUVER
-## ROUTINE re-plans only a turn that would cross the gimbal lock zone, to
-## skim it; this routes every turn]. The thrust axis (body X) turns the
-## shortest way onto the target's, then the vehicle turns about it, which
-## turns the outer gimbal alone. Where the first leg would take the middle gimbal
-## past LOCK_MANEUVER_DEG, the gimbals turn one at a time instead: the
-## inner (about the stable member's Y), the middle, then the outer. The
-## middle gimbal then runs only between its two ends' angles.
+## IMU: the X axis aligned first, then "a final yaw about X", as the
+## header of KALCMANU's listing describes its skirting of the lock zone
+## [adapted: the CMC routes every turn so; the LGC turns about a single
+## axis instead, and routes only a turn that would take the middle gimbal
+## past LOCK_MANEUVER_DEG (Lgc._plan_via())]. The thrust axis (body X)
+## turns the shortest way onto the target's, then the vehicle turns about
+## it, which turns the outer gimbal alone. Where the first leg would take
+## the middle gimbal past LOCK_MANEUVER_DEG, the gimbals turn one at a time
+## instead: the inner (about the stable member's Y), the middle, then the
+## outer. The middle gimbal then runs only between its two ends' angles.
 func _plan_via() -> void:
 	maneuver_vias.clear()
 	if imu.ideal:
@@ -530,6 +542,19 @@ static func _angle_between(a: Quaternion, b: Quaternion) -> float:
 ## Where the auto maneuver steers now: its next leg's end, or auto_target.
 func _maneuver_target() -> Quaternion:
 	return maneuver_vias[0] if not maneuver_vias.is_empty() else auto_target
+
+
+## The rate the auto maneuver's reference turns at (body axes, rad/s), which
+## the DAP flies along with its correction: none here, where it steers to
+## each leg's end.
+func _maneuver_rate() -> Vector3:
+	return Vector3.ZERO
+
+
+## Drop the auto maneuver's plan (its legs), as a new program, a new
+## reference or a burn in place does.
+func _drop_maneuver() -> void:
+	maneuver_vias.clear()
 
 
 # --- DSKY interface ---------------------------------------------------------
@@ -606,7 +631,7 @@ func verb_noun(v: int, n: int) -> bool:
 		# No maneuver: burn where the vehicle is, holding it there.
 		burn_in_place = true
 		auto_active = false
-		maneuver_vias.clear()
+		_drop_maneuver()
 		hold_q = _att()
 		step_name = "wait"
 		dsky.show(16, 85)
@@ -671,7 +696,7 @@ func reference_changed() -> void:
 	hold_q = _att()
 	desired_q = hold_q
 	auto_active = false
-	maneuver_vias.clear()
+	_drop_maneuver()
 
 
 ## An uplink came in: UPLINK ACTY for a couple of seconds, and in P00 the
@@ -710,7 +735,7 @@ func change_program(p: int) -> bool:
 	rcs_burn = false
 	burn_in_place = false
 	ignition_get = -1.0
-	maneuver_vias.clear()
+	_drop_maneuver()
 	dsky.set_prog(p)
 	match p:
 		0:
@@ -779,7 +804,7 @@ func _store_maneuver() -> void:
 	if preferred_valid:
 		var ut := maneuver_dv_inertial
 		if cross_product():
-			ut = external_dv_vg(p.pos(), p.vel(), ut, float(Bus.get_value(_ch("dyn.mass_kg"), 30000.0)), engine_thrust(40))
+			ut = external_dv_vg(p.pos(), p.vel(), ut, float(Bus.get_value(_ch("dyn.mass_kg"), 30000.0)), vg_thrust(40))
 		preferred_refsmmat = Imu.preferred(ut, p.pos())
 	_publish_imu()
 
@@ -800,7 +825,7 @@ func _start_thrusting() -> void:
 	var g := maneuver_dv_inertial
 	var p := predict(maneuver_tig)
 	if cross_product():
-		g = external_dv_vg(p.pos(), p.vel(), g, float(Bus.get_value(_ch("dyn.mass_kg"), 30000.0)), engine_thrust(program))
+		g = external_dv_vg(p.pos(), p.vel(), g, float(Bus.get_value(_ch("dyn.mass_kg"), 30000.0)), vg_thrust(program))
 	vg = PackedFloat64Array([g.x, g.y, g.z])
 	vg_left = maneuver_dv_lvlh.length()
 	dv_accum = 0.0
@@ -844,8 +869,14 @@ func _steer() -> void:
 	else:
 		var tr := current_traj()
 		burn_dir = (Trajectory.lvlh_basis(tr.pos(), tr.vel()) * maneuver_dv_lvlh).normalized()
-	auto_target = burn_attitude(burn_dir)
+	auto_target = steer_attitude(burn_dir)
 	desired_q = auto_target
+
+
+## The attitude the steering holds with the thrust along [param dir]:
+## burn_attitude()'s, its roll set for the local vertical.
+func steer_attitude(dir: Vector3) -> Quaternion:
+	return burn_attitude(dir)
 
 
 ## The translation that nulls VG where the vehicle is: along VG in body
@@ -993,7 +1024,7 @@ func _program_step() -> void:
 				dsky.show(99, 40, true)
 		"ignition":
 			if now >= maneuver_tig - 1e-6:
-				maneuver_vias.clear()
+				_drop_maneuver()
 				step_name = "burn"
 				engine_on = not _rcs_program()
 				rcs_burn = _rcs_program()
@@ -1087,10 +1118,12 @@ func _dap(_dt: float) -> void:
 	else:
 		var target := hold_q
 		var max_rate := RATE_HOLD
+		var ff := Vector3.ZERO
 		if m == 2 and auto_active:
 			if not maneuver_vias.is_empty() and _error_vector(maneuver_vias[0]).length() < ATT_DEADBAND:
 				maneuver_vias.pop_front()
 			target = _maneuver_target()
+			ff = _maneuver_rate()
 			max_rate = auto_rate()
 		if _rhc_was_active:
 			hold_q = _att()
@@ -1111,7 +1144,9 @@ func _dap(_dt: float) -> void:
 				# Rate that can still be braked to zero over the error, capped.
 				var brake := sqrt(2.0 * alpha[i] * 0.5 * absf(ei))
 				w_des[i] = signf(ei) * minf(minf(absf(ei) * 0.4, brake), max_rate)
-		if e.length() < ATT_DEADBAND * 0.1 and w.length() < 5e-5:
+		# A turning reference: its rate, and the correction onto it.
+		w_des += ff
+		if ff == Vector3.ZERO and e.length() < ATT_DEADBAND * 0.1 and w.length() < 5e-5:
 			# At rest: null what rate is left, then leave the jets off (a
 			# coast step needs them off). Resting only inside 0.05°, half
 			# the 0.1° past which the DAP is busy, keeps a drifting
@@ -1255,7 +1290,7 @@ func restore(d: Dictionary) -> void:
 	var dq: Array = d.get("desired_q", [])
 	if dq.size() == 4:
 		desired_q = Quaternion(dq[0], dq[1], dq[2], dq[3])
-	maneuver_vias.clear()
+	_drop_maneuver()
 	for v in d.get("vias", []):
 		maneuver_vias.append(Quaternion(v[0], v[1], v[2], v[3]))
 	nav = null

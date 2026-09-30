@@ -56,7 +56,9 @@ extends RefCounted
 ## 27: P57 on the surface (slice 11b): its option, technique, gravity
 ##    vectors and stored attitude, R59's star and the surface marks, and
 ##    the AOT's reticle.
-const SCHEMA_VERSION := 27
+## 28: Luminary's steering (slice 11c): KALCMANU's turn in progress, and
+##    the LGC's burns on its External ΔV steering.
+const SCHEMA_VERSION := 28
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],

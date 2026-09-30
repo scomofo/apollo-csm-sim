@@ -198,9 +198,6 @@ var entry_lat: float = 0.0
 var entry_lng: float = 0.0
 var entry_headsup: int = -1
 var entry_pred: Dictionary = {}
-## P40 and P41 steer as Colossus's did (cross_product()); false holds the
-## ΔV's LVLH direction instead, as the simulator did before, to compare.
-var cross_product_steering: bool = true
 ## P51 and P52: the option (P52's), the orientation a coarse align goes
 ## to, the two stars (codes), the marks taken (each star's direction as
 ## measured, stable member axes), the star angle difference (deg), the
@@ -265,10 +262,6 @@ func engine_thrust(p: int) -> float:
 	if p == 41:
 		return 4.0 * float(SpacecraftData.section("sm_rcs")["jet_thrust_n"])
 	return float(SpacecraftData.section("sps")["thrust_n"])
-
-
-func cross_product() -> bool:
-	return cross_product_steering
 
 
 func engine_tau_off(_p: int) -> float:
