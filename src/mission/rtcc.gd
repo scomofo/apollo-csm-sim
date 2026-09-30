@@ -1039,6 +1039,68 @@ static func plan_doi(traj: Trajectory, mass: float, pericynthion_alt: float, sit
 		"burn_s": tb2, "hp": float(res["hp"]) - site_h, "hp_get": res["hp_get"], "land_get": t_l}
 
 
+## Descent orbit insertion flown by the CSM on the SPS with the LM docked
+## (slice 12a: Apollo 14's, the first), a day of revolutions before powered
+## descent: a retrograde burn at the pericynthion of the stack's orbit
+## [param traj] ([param mass]) nearest GET [param tig_near], which becomes
+## the descent orbit's apocynthion, sized so the orbit passes the PDI point,
+## [param pdi_range] (ground range) before the site [param site_mf]
+## (Moon-fixed), [param pdi_alt] above the site on the pass nearest the
+## PDI time [param t_pdi]. The Moon's field works on the low orbit all
+## that day: the RTCC flies the orbit through it and moves the burn's size
+## until the pass is at that height [simplified: the ΔV's radial part, the
+## PAD's 3.6 ft/s, left out]. Returns a PAD with the pass's time ("hp_get",
+## where powered descent begins), its height there above the site ("hp"),
+## and the landing time it plans for ("land_get", a descent of
+## [param t_descent] on).
+static func plan_doi_docked(traj: Trajectory, mass: float, tig_near: float, pdi_alt: float, site_mf: Vector3,
+		t_pdi: float, pdi_range: float, t_descent: float) -> Dictionary:
+	if traj.primary != "moon":
+		return {}
+	var site_r := site_mf.length()
+	# The pericynthion nearest tig_near, from half a revolution before it.
+	var at := traj.clone()
+	var period := float(at.conic()["period"])
+	if at.t < tig_near - 0.5 * period:
+		at.coast_to(tig_near - 0.5 * period, 60.0, FRAC)
+	next_periapsis_alt(at)
+	var t_peri := at.t
+	var dv := 62.0
+	var tb := burn_time(mass, dv)
+	at = traj.clone()
+	at.coast_to(t_peri - tb / 2.0, 60.0, FRAC)
+	# The pass over the PDI point after the burn of dvm (m/s): {"t", "alt"}.
+	var pass_of := func(dvm: float) -> Dictionary:
+		var t2 := at.clone()
+		simulate_sps_burn(t2, mass, Vector3(-dvm, 0.0, 0.0))
+		var p2 := float(t2.conic()["period"])
+		t2.coast_to(t_pdi - 0.6 * p2, 60.0, FRAC)
+		var h := t2.pos().cross(t2.vel()).normalized()
+		var s := site_at(site_mf, t_pdi)
+		var sp := (s - h * s.dot(h)).normalized()
+		var t := time_at_direction(t2, sp.rotated(h, -pdi_range / Bodies.R_MOON), t2.t)
+		return {"t": t, "alt": t2.radius() - site_r}
+	var x0 := dv
+	var r0: Dictionary = pass_of.call(x0)
+	var x1 := dv + 1.0
+	var r1: Dictionary = pass_of.call(x1)
+	for _i in 8:
+		var slope := (float(r1["alt"]) - float(r0["alt"])) / (x1 - x0)
+		if absf(slope) < 1e-9:
+			break
+		var x2 := x1 - (float(r1["alt"]) - pdi_alt) / slope
+		x0 = x1
+		r0 = r1
+		x1 = x2
+		r1 = pass_of.call(x1)
+		if absf(float(r1["alt"]) - pdi_alt) < 5.0:
+			break
+	dv = x1
+	tb = burn_time(mass, dv)
+	return {"name": "DOI", "tig": t_peri - tb / 2.0, "dv_lvlh": Vector3(-dv, 0, 0), "dv": dv, "burn_s": tb,
+		"hp": float(r1["alt"]), "hp_get": float(r1["t"]), "land_get": float(r1["t"]) + t_descent}
+
+
 # --- lunar liftoff -----------------------------------------------------------------
 
 ## Fly the LGC's P12 on [param tr] (modified): the ascent stage sitting on
@@ -1166,7 +1228,116 @@ static func plan_liftoff(site_mf: Vector3, mass: float, csm: Trajectory, phase_d
 	return {"name": "ASCENT", "tig": tig, "insertion_get": ins.t, "phase_deg": rad_to_deg(float(res["phase"])),
 		"vh": tg["vh"], "hdot": tg["rdot"], "xrng": p0.dot(plane), "ha": float(c["ra"]) - site_r,
 		"hp": float(c["rp"]) - site_r, "burn_s": float(res["cutoff"]) - tig, "dv": ve * log(mass / float(res["mass"])),
-		"prop_kg": mass - float(res["mass"])}
+		"prop_kg": mass - float(res["mass"]), "lm": ins}
+
+
+## The lunar liftoff for a direct rendezvous (slice 12a: Apollo 14's, the
+## first): TPI in the first revolution, [param tpi_after_s] after the
+## insertion, with the CSM ([param csm]) standing [param e_tpi] (radians)
+## above the LM then, no CSI or CDH between [published: the Apollo 14 press
+## kit, TPI 38 min after insertion; the ascent PAD's TPI time, 143:10:54 on
+## the updated clock, 37 min 57 s after the insertion at 141:52:54]. The
+## insertion orbit is the same whenever the LM lifts off, so one ascent,
+## flown at a first guess, gives the phase at insertion that brings that
+## elevation (the CSM slid along its orbit against it: its arc in the
+## seconds a later liftoff gives it), and plan_liftoff() times the liftoff
+## for that phase. The elevation falls as the CSM leads the LM farther at
+## TPI, from straight overhead to below the LM's horizon 20 deg ahead: the
+## solve bisects between those. Returns plan_liftoff()'s PAD with
+## "tpi_get", TPI's GET.
+static func plan_liftoff_direct(site_mf: Vector3, mass: float, csm: Trajectory, tpi_after_s: float, e_tpi: float,
+		earliest: float) -> Dictionary:
+	var pad := plan_liftoff(site_mf, mass, csm, 30.0, earliest)
+	if pad.is_empty():
+		return {}
+	var lm: Trajectory = pad["lm"]
+	var t_ins := float(pad["insertion_get"])
+	var t_tpi := t_ins + tpi_after_s
+	var at_tpi := lm.clone()
+	at_tpi.coast_to(t_tpi, 20.0, FRAC)
+	var plane := csm.pos().cross(csm.vel()).normalized()
+	var rate := csm.speed() / csm.radius()
+	# The CSM straight over the LM at TPI dt0 later along its orbit than
+	# at this liftoff's insertion; every state after an hour before the
+	# insertion, which coasting only forward reaches.
+	var base := csm.clone()
+	base.coast_to(t_ins - 3600.0, 60.0, FRAC)
+	var over := base.clone()
+	over.coast_to(t_tpi, 20.0, FRAC)
+	var l := at_tpi.pos().normalized()
+	var dt0 := -atan2(l.cross(over.pos().normalized()).dot(plane), l.dot(over.pos().normalized())) / rate
+	over = base.clone()
+	over.coast_to(t_tpi + dt0, 20.0, FRAC)
+	var elevation := func(dt: float) -> float:
+		var c := over.clone()
+		c.coast_to(t_tpi + dt0 + dt, 20.0, FRAC)
+		return Rendezvous.elevation(at_tpi, c) - e_tpi
+	var lo := 0.0
+	var hi := deg_to_rad(20.0) / rate
+	if float(elevation.call(lo)) < 0.0 or float(elevation.call(hi)) > 0.0:
+		return {}
+	for _i in 30:
+		var mid := (lo + hi) / 2.0
+		if float(elevation.call(mid)) > 0.0:
+			lo = mid
+		else:
+			hi = mid
+		if hi - lo < 0.05:
+			break
+	var c_ins := base.clone()
+	c_ins.coast_to(t_ins + dt0 + (lo + hi) / 2.0, 20.0, FRAC)
+	var li := lm.pos().normalized()
+	var k := c_ins.pos().normalized()
+	pad = plan_liftoff(site_mf, mass, csm, rad_to_deg(atan2(li.cross(k).dot(plane), li.dot(k))), earliest)
+	if not pad.is_empty():
+		pad["tpi_get"] = float(pad["insertion_get"]) + tpi_after_s
+	return pad
+
+
+## The vernier adjustment after a direct rendezvous's insertion (the
+## tweak): the in-plane ΔV at GET [param tig] that has the LM
+## [param dh] (m) below the CSM, and the CSM [param e_tpi] (radians) above
+## it, at TPI's GET [param t_tpi] [published: the tweak targeted TPI's
+## nominal 15 nmi below and 26.6 deg elevation, making up for the
+## liftoff's time and the insertion's dispersions (MSC-04330, Appendix B);
+## Apollo 14's, 10.3 ft/s on the RCS 4 min after the insertion (MSC-04112,
+## Table 6-V)]. Newton on the two, flown on the propagator. Returns a PAD:
+## {"name": "TWEAK", "tig", "dv_lvlh", "dv", "burn_s" (on the LM RCS's +X
+## jets)}, or {} if it finds none.
+static func plan_tweak(lm: Trajectory, csm: Trajectory, mass: float, tig: float, t_tpi: float, e_tpi: float,
+		dh: float) -> Dictionary:
+	if lm.primary != "moon" or csm.primary != "moon" or tig >= t_tpi:
+		return {}
+	var l := lm.clone()
+	l.coast_to(tig, 20.0, FRAC)
+	var c := csm.clone()
+	c.coast_to(t_tpi, 20.0, FRAC)
+	var miss := func(x: Vector2) -> Vector2:
+		var t2 := l.clone()
+		var dv := lvlh_to_inertial(t2, Vector3(x.x, 0.0, x.y))
+		for i in 3:
+			t2.s[3 + i] += dv[i]
+		t2.coast_to(t_tpi, 20.0, FRAC)
+		return Vector2(Rendezvous.elevation(t2, c) - e_tpi, c.radius() - t2.radius() - dh)
+	var x := Vector2.ZERO
+	var m: Vector2 = miss.call(x)
+	for _i in 8:
+		var step := 0.1
+		var mx: Vector2 = (miss.call(x + Vector2(step, 0.0)) - m) / step
+		var mz: Vector2 = (miss.call(x + Vector2(0.0, step)) - m) / step
+		var det := mx.x * mz.y - mz.x * mx.y
+		if absf(det) < 1e-18:
+			return {}
+		x -= Vector2(mz.y * m.x - mz.x * m.y, -mx.y * m.x + mx.x * m.y) / det
+		m = miss.call(x)
+		if absf(m.x) < 1e-5 and absf(m.y) < 1.0:
+			break
+	if absf(m.x) > 1e-3 or absf(m.y) > 50.0:
+		return {}
+	var dv_lvlh := Vector3(x.x, 0.0, x.y)
+	var d := SpacecraftData.section("lm_rcs")
+	var accel := 2.0 * float(d["x_jets"]) * float(d["jet_thrust_n"]) / mass
+	return {"name": "TWEAK", "tig": tig, "dv_lvlh": dv_lvlh, "dv": dv_lvlh.length(), "burn_s": dv_lvlh.length() / accel}
 
 
 # --- rendezvous --------------------------------------------------------------------

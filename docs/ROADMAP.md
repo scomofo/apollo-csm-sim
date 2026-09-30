@@ -41,8 +41,8 @@ picture).
 - **Start phases stay consistent.** A new `--phase` is built the way the
   existing ones are, from the RTCC's own solutions, so it continues the
   mission it claims to.
-- **CI stays fast.** The suite runs in thirteen jobs side by side: the
-  unit tests in two parts and the scenario tests in eleven, each dealt out
+- **CI stays fast.** The suite runs in fourteen jobs side by side: the
+  unit tests in two parts and the scenario tests in twelve, each dealt out
   by each file's time on the runners (`.github/unit_seconds.txt`,
   `.github/scenario_seconds.txt`). Keep each job under ten minutes:
   start a long scenario from a phase or checkpoint instead of flying the
@@ -2319,22 +2319,58 @@ radar and AGS are gone, or measured against the flights.
 
 ## 12. The last lunar missions
 
-**Status: not started.** Milestone 7's pattern, for Apollo 14 to 17:
+**Status: 12a in progress.** Milestone 7's pattern, for Apollo 14 to 17:
 each mission is data, and each slice brings what its flight needed that
 the simulator can't do yet. The J missions' surfaces stay out, the EVAs,
 the rover and the experiments, and so does the SIM bay's science: the
 stays on the surface pass as time, as the other missions' do. After
-milestone 10 each flies from its pad.
+milestone 10 each flies from its pad. Apollo 14 flies from its data
+alone, in four parts: its flight (12a-1), the ABORT switch's short
+(12a-2), the landing radar's scale (12a-3), and the docking's six
+attempts (12a-4).
 
 | Slice | Work | Check |
 |---|---|---|
-| 12a Apollo 14 | Kitty Hawk's probe failing to capture Antares until the sixth try (a soft dock, and its latches); the CSM's DOI with the LM docked; the abort switch's short, and the keyed workaround that had the LGC ignore it; the landing radar's late lock-on, until its breaker was cycled; the direct rendezvous, TPI in the first revolution after the insertion, without CSI and CDH; Fra Mauro's terrain | Test: as 7a, Antares landing within a set limit of where it came down |
+| 12a Apollo 14 (in progress: its flight) | Kitty Hawk's probe failing to capture Antares until the sixth try (a soft dock, and its latches); the CSM's DOI with the LM docked; the abort switch's short, and the keyed workaround that had the LGC ignore it; the landing radar's late lock-on, until its breaker was cycled; the direct rendezvous, TPI in the first revolution after the insertion, without CSI and CDH; Fra Mauro's terrain | Test: as 7a, Antares landing within a set limit of where it came down |
 | 12b Apollo 15 | The J mission's LM, its descent stage heavier and its stay three days; the steep descent past the Apennines; Endeavour's plane changes; Worden's EVA on the way home, the CM depressurised, as an event; the splashdown on two main parachutes, the third having failed | Test: as 7a, Falcon landing within a set limit of Hadley, and the CM coming down on two parachutes at the flown speed |
 | 12c Apollo 16 | Casper's SPS, its secondary yaw gimbal servo oscillating before the circularization, and the landing waved off for about six hours; the flight a day shorter | Test: as 7a, Orion landing about six hours late within a set limit of its site |
 | 12d Apollo 17 | The night launch, Taurus-Littrow's terrain, and the longest stay | Test: as 7a, Challenger landing within a set limit of its site |
 
 **Done when** Apollo 14 to 17 fly from their data alone, each with its
 own troubles.
+
+- **Apollo 14's flight.** Done in 12a's first part. Its data
+  (`data/missions/apollo_14/`): AS-509's vehicles and launch, JPL's
+  ephemeris for its dates, the timeline's calls and PADs taken back to
+  range zero where the flight moved its clocks 40 min 3 s, its
+  checklists, and Fra Mauro's terrain from the LROC NAC model of the site
+  (`tools/terrain/build_terrain.py`). It flies from the pad: AS-509's
+  S-IC at the stage thrust its report's Figure 5-3 plots, as Apollo 13's,
+  its vacuum Isp and the S-II's flow tuned for the flown cutoffs. DOI is
+  Kitty Hawk's with Antares docked (`Rtcc.plan_doi_docked()`), sized for
+  the PDI point's height on the landing pass a day later, flown through
+  the Moon's field; the LM start phases begin on that descent orbit, and
+  Kitty Hawk's CIRC after the undocking comes with them. The PDI PAD,
+  two hours ahead, looks for the pass the plan has PDI on. LOI is
+  centred on the pericynthion: at the flight's TIG the plane through the
+  burn's end and the site came out 2.5° steep. A plane change's `near`
+  looks a quarter revolution back, since it has a node each half. The
+  direct rendezvous (`Rtcc.plan_liftoff_direct()`, `plan_tweak()`) times
+  the liftoff for TPI 38 min after the insertion with Kitty Hawk 26.6° up,
+  bisecting between it straight overhead and 20° ahead; the tweak's PAD
+  four minutes after the insertion aims Antares 15 nmi below at TPI; and
+  P34 keeps N37's TIG with N55's elevation loaded as zero, as Luminary's
+  did ("TIG(TPI) given E, or E given TIG(TPI)"), since near the LM's
+  apocynthion the elevation peaks at about 26.6° and a search for it is
+  ill-conditioned. The tests' crew fly it as `RendezvousCrew.direct()`,
+  TPI on P42, and the commander flies P66 from 360 ft to the spot, level
+  most of the way (`fly_by_hand()`'s `level_beyond_m`), as Shepard flew
+  2,000 ft of it. A review of 11e found two things in R47: a checkpoint
+  restored while it sent had lost the downlist, the restore having
+  cleared the Bus, so the AGS waited for it; and V34, or a new V47, left
+  the last one on the AGS's list for the rest of its 20 s. R47 keeps the
+  downlist now, and takes it off at V34 and V47. Checkpoints are schema
+  31.
 
 ## Later, not scheduled
 

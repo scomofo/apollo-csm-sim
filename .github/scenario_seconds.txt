@@ -10,7 +10,8 @@
 # part, sets that part's time.
 # A file not listed counts 60 s.
 # Add a new file's time once CI has run it, and measure again when the
-# parts drift apart.
+# parts drift apart. Slice 12a's three Apollo 14 files carry estimates,
+# their local times times 0.75, and the parts went to twelve with them.
 test_ags.gd 74
 test_apollo_10.gd 370
 test_apollo_10_launch.gd 42
@@ -18,6 +19,9 @@ test_apollo_12.gd 543
 test_apollo_12_launch.gd 45
 test_apollo_13.gd 165
 test_apollo_13_launch.gd 76
+test_apollo_14.gd 171
+test_apollo_14_launch.gd 45
+test_apollo_14_return.gd 330
 test_apollo_8.gd 190
 test_apollo_8_launch.gd 41
 test_ascent.gd 78

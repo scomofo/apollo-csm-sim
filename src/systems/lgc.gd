@@ -173,7 +173,8 @@
 ##         lm.guid.dps_on, lm.guid.dps_throttle, lm.guid.aps_on (P12, P42),
 ##         lm.guid.lr_antenna (1 in P63, 2 from P64), lm.guid.delta_h_m,
 ##         lm.lgc.ags_downlink (V47's AGS downlist: the LM's and CSM's
-##         state vectors in stable member axes, ft and ft/s), lm.guid.r47
+##         state vectors in stable member axes, ft and ft/s; {} when R47
+##         isn't sending), lm.guid.r47
 ##         (R47's phase: "", "k", "send", "done"),
 ##         lm.guid.lr_update (V57 given), lm.guid.ls_corrected (N69 loaded
 ##         since the site's uplink), lm.guid.rr_nav (P20 running), P20's
@@ -1608,9 +1609,18 @@ func _target_cdh() -> bool:
 
 
 ## P34: TPI's TIG, when the CSM comes up to the TPI elevation within the
-## next three hours.
+## next three hours; with the elevation loaded as zero (N55), N37's TIG as
+## it stands [published: P34 computes "TIG(TPI) given E, or E given
+## TIG(TPI)" (GSOP R-567, section 4, P34); Apollo 14's direct rendezvous
+## had TPI a set 38 min after the insertion (MSC-04330), the ascent PAD's
+## N37].
 func _find_tpi_tig() -> bool:
 	var now := maxf(_now(), nav.t)
+	if is_zero_approx(rdv_elev):
+		if rdv_tpi_tig <= now:
+			_alarm(611)
+			return false
+		return true
 	var t := Rendezvous.tpi_time(nav, csm_nav, rdv_elev, now + 60.0, now + 3.0 * 3600.0)
 	if t < 0.0:
 		_alarm(611)

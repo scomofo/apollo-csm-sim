@@ -701,8 +701,10 @@ func rod_click(dir: int) -> void:
 ## tenth of its distance a second, 5 m/s at most. ROD clicks keep the
 ## descent at a metre a second for every 20 m of height over the ground,
 ## between 0.6 and 3 m/s, and at half that while the spot is more than
-## 30 m off.
-func fly_by_hand(lgc: Lgc, spot_mf: Vector3 = Vector3.ZERO) -> void:
+## 30 m off; they hold the height while it is farther than
+## [param level_beyond_m] (Apollo 14's commander flew some 2,000 ft in P66,
+## about 50 s of it level).
+func fly_by_hand(lgc: Lgc, spot_mf: Vector3 = Vector3.ZERO, level_beyond_m: float = INF) -> void:
 	var r: Array = Bus.get_value("lm.dyn.r_m")
 	var v: Array = Bus.get_value("lm.dyn.v_mps")
 	var pos := Vector3(r[0], r[1], r[2])
@@ -710,12 +712,9 @@ func fly_by_hand(lgc: Lgc, spot_mf: Vector3 = Vector3.ZERO) -> void:
 	var up := pos.normalized()
 	var h := lm_agl() - Dynamics.lm_cm_height("lm")
 	var g := Bodies.MU_MOON / pos.length_squared()
-	var want := Vector3.ZERO
-	if spot_mf != Vector3.ZERO:
-		var to := Bodies.moon_fixed(SimClock.get_seconds) * spot_mf - pos
-		want = (to - up * to.dot(up)) / 10.0
-		if want.length() > 5.0:
-			want = want.normalized() * 5.0
+	var to := Bodies.moon_fixed(SimClock.get_seconds) * spot_mf - pos if spot_mf != Vector3.ZERO else Vector3.ZERO
+	var across := to - up * to.dot(up)
+	var want := across / 10.0 if across.length() <= 50.0 else across.normalized() * 5.0
 	var ah := (want - (rel - up * rel.dot(up))) / 4.0
 	var ah_max := g * tan(deg_to_rad(15.0))
 	if ah.length() > ah_max:
@@ -724,9 +723,7 @@ func fly_by_hand(lgc: Lgc, spot_mf: Vector3 = Vector3.ZERO) -> void:
 	var err := Basis(att).inverse() * (Basis(att) * Vector3.RIGHT).cross((up * g + ah).normalized())
 	var rhc := (Vector3(0.0, err.y, err.z) / AgcCore.RATE_HOLD).clamp(-Vector3.ONE, Vector3.ONE)
 	Bus.set_value("ctl.lm.rhc", rhc if rhc.length() >= 0.06 else Vector3.ZERO)
-	var target := -clampf(h / 20.0, 0.6, 3.0)
-	if want.length() > 3.0:
-		target /= 2.0
+	var target := 0.0 if across.length() > level_beyond_m else -clampf(h / 20.0, 0.6, 3.0) / (2.0 if want.length() > 3.0 else 1.0)
 	if lgc.rod_cmd < target - 0.2:
 		rod_click(1)
 	elif lgc.rod_cmd > target + 0.2:

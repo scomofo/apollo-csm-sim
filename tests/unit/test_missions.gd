@@ -8,7 +8,10 @@
 ## flies the rendezvous: tests/scenarios/test_apollo_10.gd. Apollo 12's
 ## (slice 7c) lands beside Surveyor III: tests/scenarios/test_apollo_12.gd.
 ## Apollo 13's (slice 7d) is the lifeboat that brings its crew home after
-## the SM's oxygen tank failed: tests/scenarios/test_apollo_13.gd.
+## the SM's oxygen tank failed: tests/scenarios/test_apollo_13.gd. Apollo
+## 14's CSM (slice 12a) flies DOI with the LM docked, and its LM lands at
+## Fra Mauro and flies the direct rendezvous: tests/scenarios/
+## test_apollo_14.gd and test_apollo_14_return.gd.
 extends SimTest
 
 const LB := 0.45359237
@@ -19,13 +22,14 @@ func after_all() -> void:
 	Mission.load_default()
 
 
-func test_the_missions_are_apollo_8_10_11_12_and_13() -> void:
+func test_the_missions_are_apollo_8_and_10_to_14() -> void:
 	var ids := Mission.ids()
 	assert_true("apollo_11" in ids, "Apollo 11")
 	assert_true("apollo_10" in ids, "Apollo 10")
 	assert_true("apollo_8" in ids, "Apollo 8")
 	assert_true("apollo_12" in ids, "Apollo 12")
 	assert_true("apollo_13" in ids, "Apollo 13")
+	assert_true("apollo_14" in ids, "Apollo 14")
 	for id in ids:
 		var m := Mission.load_file(Mission.path_of(id))
 		assert_eq(m.id(), id, "%s's file names it" % id)
@@ -126,6 +130,33 @@ func test_apollo_13_flies_its_own_vehicles() -> void:
 	assert_almost_eq(SpacecraftData.lm_mass(), 15103.0, 1.0, "and Eagle again")
 
 
+func test_apollo_14_flies_its_own_vehicles() -> void:
+	Mission.load_file(Mission.path_of("apollo_14"))
+	assert_true(SpacecraftData.carries_lm(), "Apollo 14 carries Antares")
+	var sps := float(SpacecraftData.section("sps")["propellant_kg"])
+	var sm := 4.0 * float(SpacecraftData.section("sm_rcs")["quad_propellant_kg"])
+	var cm := 2.0 * float(SpacecraftData.section("cm_rcs")["ring_propellant_kg"])
+	var sivb := float(SpacecraftData.section("sivb")["propellant_kg"])
+	var f := SpacecraftData.lm_full_loads()
+	# The stack at the S-IVB's second ignition (MPR-SAT-FE-71-1, Table
+	# 16-9), the CSM at transposition and docking, the CM after CM/SM SEP,
+	# Antares at its separation, lunar lift-off and landing (MSC-04112,
+	# Table A-II) [published].
+	assert_almost_eq(SpacecraftData.total_mass("stack", sps, sm, cm, sivb), 136121.0, 1.0, "136,121 kg at TLI's ignition")
+	assert_almost_eq(SpacecraftData.total_mass("csm", sps, sm, cm, 0.0), 64388.0 * LB, 1.0, "64,388.0 lb at docking")
+	assert_almost_eq(SpacecraftData.total_mass("cm", sps, sm, cm, 0.0), 12715.1 * LB, 1.0, "12,715.1 lb for the entry")
+	assert_almost_eq(SpacecraftData.lm_mass(), 34125.9 * LB, 1.0, "Antares, 34,125.9 lb at its separation")
+	var rcs := 479.5 * LB
+	assert_almost_eq(SpacecraftData.lm_total_mass("lm_ascent", 0.0, f[1], rcs), 10779.8 * LB, 1.0,
+		"10,779.8 lb at lift-off, a full ascent load and the RCS's 479.5 lb")
+	assert_almost_eq(SpacecraftData.lm_total_mass("lm", 794.0 * LB, f[1], rcs), 16371.7 * LB, 30.0 * LB,
+		"16,371.7 lb on the surface, the descent engine's 794 lb left")
+	assert_almost_eq(float(SpacecraftData.section("ascent_guidance")["insertion_hdot_mps"]) / Units.FT, 31.3, 0.01,
+		"insertion climbing at the PAD's 31.3 ft/s")
+	Mission.load_default()
+	assert_almost_eq(SpacecraftData.lm_mass(), 15103.0, 1.0, "and Eagle again")
+
+
 func test_capcom_calls_each_vehicle_by_its_call_sign() -> void:
 	var a8 := Mission.load_file(Mission.path_of("apollo_8"))
 	assert_eq(a8.words("{csm}, Houston. Welcome home, {mission}."), "Apollo 8, Houston. Welcome home, Apollo 8.")
@@ -138,6 +169,9 @@ func test_capcom_calls_each_vehicle_by_its_call_sign() -> void:
 	var a13 := Mission.load_file(Mission.path_of("apollo_13"))
 	assert_eq(a13.words("{csm} and {lm} are docked. Welcome home, {mission}."),
 		"Odyssey and Aquarius are docked. Welcome home, Apollo 13.")
+	var a14 := Mission.load_file(Mission.path_of("apollo_14"))
+	assert_eq(a14.words("{csm} and {lm} are docked. {lm_landed}, Houston."),
+		"Kitty Hawk and Antares are docked. Antares, Houston.")
 	var a11 := Mission.load_default()
 	assert_eq(a11.words("{csm} and {lm} are docked. {lm_landed}, Houston."),
 		"Columbia and Eagle are docked. Tranquility Base, Houston.")
@@ -286,6 +320,47 @@ func test_apollo_13_has_its_own_checklists_for_the_lifeboat() -> void:
 				if ch.begins_with("mission.event.timeline_"):
 					assert_true(timeline.any(func(e: Dictionary) -> bool: return "timeline_" + str(e["id"]) == ch.trim_prefix("mission.event.")),
 						"%s: %s is on the timeline" % [c.title, ch])
+	Mission.load_default()
+
+
+## Slice 12a: Apollo 14's books. Kitty Hawk flies DOI with Antares docked
+## and circularizes after the undocking; Antares's rendezvous is the direct
+## one, the tweak after insertion and TPI on the ascent engine, with no CSI
+## or CDH, and each of its steps checks itself off.
+func test_apollo_14_has_its_own_checklists_for_the_direct_rendezvous() -> void:
+	var csm := ChecklistBook.load_default("apollo_14")
+	var titles := _flight_titles(csm)
+	assert_eq(titles, ["Launch", "Parking orbit and TLI", "SPS burn (P30 / P40)", "RCS burn (P30 / P41)",
+		"Lunar orbit, Antares's landing and TEI", "Entry", "IMU realign (P52)"])
+	for phase in ["launch", "parking_orbit", "translunar_coast", "lunar_orbit", "lunar_descent", "lunar_surface", "lunar_ascent",
+			"transearth_coast", "entry"]:
+		csm.select_for_phase(phase)
+		assert_true(csm.list().phases.has(phase), "Kitty Hawk's for %s" % phase)
+	var lm := ChecklistBook.load_lm("apollo_14")
+	var lm_for := {"lunar_orbit": "Undocking and the P52 after it", "lunar_descent": "Powered descent (P63 to P68)",
+		"lunar_surface": "Lunar surface and liftoff (P12)",
+		"lunar_ascent": "Direct rendezvous and docking (P41, P20, P34 and P42, P35)"}
+	assert_eq(lm.lists.size(), 7, "Antares's four, and the LM's three malfunction procedures")
+	for phase in lm_for:
+		lm.select_for_phase(phase)
+		assert_eq(lm.list().title, lm_for[phase], "Antares's for %s" % phase)
+	var timeline: Array = Mission.load_file(Mission.path_of("apollo_14")).section("timeline")["entries"]
+	var programs := []
+	for book in [csm, lm]:
+		for c in book.lists:
+			for step in c.steps:
+				for other in ["Eagle", "Columbia", "Intrepid", "Yankee Clipper"]:
+					assert_false(str(step["text"]).contains(other), "%s: Apollo 14's" % c.title)
+				if book == lm and c in _flight_lists(lm):
+					assert_true(step.has("check"), "%s: \"%s\" has a check" % [c.title, step["text"]])
+					assert_false(str(step["text"]).contains("P32") or str(step["text"]).contains("P33"), "%s: no CSI or CDH" % c.title)
+				var ch := str(step.get("check", {}).get("channel", ""))
+				if ch == "lm.guid.program":
+					programs.append(int(step["check"]["value"]))
+				if ch.begins_with("mission.event.timeline_"):
+					assert_true(timeline.any(func(e: Dictionary) -> bool: return "timeline_" + str(e["id"]) == ch.trim_prefix("mission.event.")),
+						"%s: %s is on the timeline" % [c.title, ch])
+	assert_has(programs, 42, "TPI on the ascent engine")
 	Mission.load_default()
 
 

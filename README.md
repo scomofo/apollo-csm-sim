@@ -473,6 +473,44 @@ the docked alignment, the descent engine's burns docked, MCC-5 on the
 AGS, and the PGNS again for MCC-7 and SM SEP. Odyssey's open on the
 failure at `tank_failure`, and on the power-up and entry after the Moon.
 
+**Apollo 14.** With `-- --mission=apollo_14` the flight is Apollo 14's,
+from the pad, its parking orbit or any start phase after them. From the
+pad it's the launch above on AS-509 at 21:03:02 UTC on 31 January 1971,
+40 min late for the overcast, on the 75.6° azimuth the later hour gave.
+The timeline's calls and PADs come at the flown times, taken back to
+range zero where the flight moved its clocks 40 min 3 s at 54:54:
+- GO for TLI (2:27); MCC-2 (30:36), which takes the stack off the free
+  return onto the hybrid, and MCC-4 (76:58) if the tracking has the
+  approach off;
+- LOI (81:57), centred on the pericynthion the corrections put in the
+  plane over Fra Mauro;
+- DOI (86:13), Kitty Hawk's with Antares docked, down to 9 nmi at the
+  low point: the RTCC sizes it for the landing pass a day later, its PAD
+  at 84:52 and GO at 85:39;
+- the separation PAD, docked (101:52), for 0.8 ft/s radially down after
+  the undocking at 103:47, and Kitty Hawk's CIRC PAD (104:35), back up to
+  60 nmi at 105:12;
+- the PDI PAD and its state vector (105:53), two hours before PDI
+  (108:02); GO for Fra Mauro, and noun 69 after throttle-up, keyed as
+  Apollo 12's;
+- STAY for T1, T2 and T3; Kitty Hawk's plane change (117:30), which puts
+  its orbit over Antares for the liftoff;
+- the ascent PAD (139:57) for the direct rendezvous, with TPI's TIG for
+  N37, GO for liftoff (141:29) and the liftoff (141:44);
+- the tweak's PAD after the insertion: a few ft/s on the jets, P30 and
+  P41 where Antares is; GO for the APS TPI, and TPI on the ascent engine
+  in P42 at N37's time, with N55's elevation loaded as zero (V25N55E,
+  +00001E, +00000E, +13000E); P35's midcourse corrections; GO for Pyro
+  Arm two hours after docking;
+- TEI (148:36), MCC-5 (165:35) and the entry PAD (211:06).
+
+The automatic guidance takes Antares some 1,350 ft short of where it came
+down, as it took the flight's: take over with the ROD switch at a few
+hundred feet and fly the rest, as Shepard flew 2,000 ft of it in P66.
+Antares's checklists follow its flight: the P52 after the undocking, the
+descent with noun 69, the surface and the liftoff, and the direct
+rendezvous; Kitty Hawk's have DOI and CIRC.
+
 **State vectors.** The CMC flies on its own state vector. Its
 accelerometers feed it only in P40, P41, P47 and entry, and during TLI. In
 coast the SM's vents and the attitude jets' imbalance slowly move the CSM
@@ -767,7 +805,8 @@ checklist brings it up:
 - `V47E`, R47, the AGS initialization. At V06N16 key 377+00000 on the
   DEDA and its ENTR with `V32E`, zeroing the AGS's clock with the LGC's.
   PRO puts Eagle's and Columbia's state vectors on the AGS's downlist for
-  20 s, where 414+10000 takes them; PRO at V50N16.
+  20 s, where 414+10000 takes them; PRO at V50N16. V34 ends R47 and takes
+  them off the downlist, as a new V47 does.
 
 Before each rendezvous burn V47 and 414+10000 update it again (PRO at
 V06N16 keeps its clock), and its guidance routine (410) gives its own
@@ -1283,6 +1322,66 @@ The table takes these from the flight's figures:
 - The simulator's MCC-5 leaves the entry 0.08° shallower than the
   flight's, and MCC-7 has less to do.
 
+Apollo 14 flown from its data alone, from the pad into its parking orbit
+and on through TLI (`tests/scenarios/test_apollo_14_launch.gd`), from its
+parking orbit to the landing at Fra Mauro
+(`tests/scenarios/test_apollo_14.gd`) and from the surface to the
+splashdown (`tests/scenarios/test_apollo_14_return.gd`), each holding its
+rows within set limits of the flight's figures, against the Apollo 14
+Mission Report (MSC-04112), its trajectory reconstruction (MSC-04330),
+the AS-509 flight evaluation report (MPR-SAT-FE-71-1), the Apollo Flight
+Journal and the Apollo Lunar Surface Journal:
+
+| Quantity | Simulator | Apollo 14 |
+|---|---|---|
+| Launch: Mach 1, maximum dynamic pressure | 1:08.1; 33.0 kPa at 1:20.4 | 1:08.0; 31.4 kPa at 1:21.0 |
+| Launch: the S-IC's centre and outboard engines' cutoffs | 2:15.16 at 1,931 m/s and 22.65° up, 2:44.10 at 2,739 m/s and 18.65° | 2:15.14 at 1,915 m/s and 23.55°, 2:44.10 at 2,735 m/s and 19.58° |
+| Launch: the S-II's centre and outboard engines' cutoffs | 7:43.08 at 5,651 m/s, 9:19.04 at 6,966 m/s | 7:43.09 at 5,655 m/s, 9:19.05 at 6,982 m/s |
+| Launch: the S-IVB's cutoff, and insertion | 11:45.10, 11:54.90 at 7,793.0 m/s | 11:40.56, 11:50.56 at 7,790.6 m/s |
+| Parking orbit, and the S-IVB's propellant for TLI | 100.1 × 99.9 nmi, 31.120°; 73,766 kg | 100.1 × 98.9 nmi, 31.120°; 74,453 kg at its second ignition |
+| TLI, and the pericynthion after it | GET 2:28:32, 10,391 ft/s in 353.2 s, C3 −1,668,228 m²/s²; 1,979.3 nmi at 82:15:18 | 2:28:32, 10,366.5 ft/s in 350.8 s, C3 −1,678,092 m²/s²; 1,979 nmi at 82:15:19 |
+| MCC-2, off the free return | 67.4 ft/s at 30:36:07, N81 −23.6, +7.7, +62.7 | 71.4 ft/s at 30:36:07, N81 −25.9, +4.4, +66.4 |
+| MCC-4, and the pericynthion after it | 2.2 ft/s; 59.1 nmi at 82:00:30 | 3.8 ft/s; 60.7 nmi at 82:00:33 |
+| LOI | 81:57:20, N81 −2,816.1, −1,190.2, +87.9; 3,059 ft/s in 393.0 s; 169.7 × 58.4 nmi, 13.8° to the lunar equator | 81:56:40, N81 −2,804.9, −1,103.5, −227.0; 3,022.4 ft/s in 370.8 s; 169.0 × 58.1 nmi |
+| DOI, Kitty Hawk with Antares docked | 86:13:30, 208.0 ft/s in 24.0 s; 58.5 × 9.1 nmi; PDI planned for 108:01:06 | 86:10:52, N81 −206.4, 0, −3.6; 20.6 s; 58.8 × 10.4 nmi as the crew read it |
+| The separation, and CIRC | 0.8 ft/s radially down; CIRC 105:11:45, 73.4 ft/s into 63.2 × 55.4 nmi | 0.8 ft/s; 105:11:45, 76.2 ft/s on the PAD, into 63.9 × 56.0 nmi |
+| Antares's first P52, on stars 22 and 16 | 104:45:38: N05 0.005°, N93 +0.098, +0.056, −0.017° | 104:46:37: 0.04°; +0.097, +0.062, −0.013° |
+| PDI | the PAD at 105:52:04; 108:00:49, 46,240 ft over the site | the PAD at 105:53:23; 108:02:25, 47,355 ft (the PGNCS's) |
+| Noun 69 | +2,600 ft 113 s after PDI | +2,800 ft, 112 s after PDI |
+| P64 | 108:09:03 at 8,075 ft, aiming 1,326 ft short of where Antares came down | 108:11:09 at 8,190 ft, aiming 1,350 ft short of the target |
+| The landing | P66 at 108:11:17 at 359 ft, 1,643 ft short; touchdown 108:13:38 on the spot; 911 lb of the DPS's propellant left | P66 at 108:13:09 at 360 ft, about 2,200 ft short; 108:15:09; 794 lb |
+| The plane change (LOPC-1) | 117:32:40, N81 −12.1, +359.5, 0; 359.7 ft/s; 62.0 × 56.3 nmi | 117:29:32, N81 −12.9, +370.7, −5.5; 370.8 ft/s; 62.1 × 57.2 nmi on the PAD |
+| The ascent | liftoff 141:43:53, N76 5,542.9 and 31.3 ft/s, −0.12 nmi crossrange, TPI's TIG 142:29:15; 442 s on the APS into 52.6 × 9.2 nmi | 141:45:40, N76 5,542.9 and 31.3 ft/s, −0.3 nmi, TPI 142:30:51; 432.1 s into 51.7 × 8.5 nmi |
+| The tweak | 141:55:13, 9.2 ft/s on the RCS | 141:56:49, 10.3 ft/s |
+| TPI on the APS | 142:29:15, 98.5 ft/s; Kitty Hawk 26.6° up, Antares 15.0 nmi below | 142:30:51, 88.5 ft/s; 26.6°, 15 nmi below |
+| Midcourse corrections, and docking | 0.3 ft/s together; 143:24:18 | 1.1 and 1.6 ft/s; 143:32:51 |
+| TEI | 148:36:01, N81 +2,955.0, +1,711.9, −958.8; 3,547 ft/s in 162.3 s | 148:36:01, N81 +3,013.3, +1,667.4, −340.3; 3,460.6 ft/s in 149.2 s |
+| MCC-5 | 0.3 ft/s | 0.5 ft/s (the PAD's 0.7) |
+| Entry interface | 215:48:01, 36,150 ft/s, 6.70° down, 36.36° S 164.96° E | 215:47:45, 36,170.2 ft/s, 6.37° down, 36.36° S 165.80° E |
+| The entry, and splashdown | P61 to P64, then P67; 7.32 g at the peak; 216:03:02, 27.01° S 172.65° W, 0.9 nmi from the target | P61 to P67; 6.2 g on the PAD; 216:01:58, 27.01° S 172.65° W, 0.62 nmi from it |
+
+The table takes these from the flight's figures:
+- The launch: AS-509's F-1s give 7,940 kN each in vacuum, the stage's
+  39.7 MN on five before the centre engine's cutoff in the report's
+  Figure 5-3 [a plot reading], as Apollo 13's did; the peak acceleration
+  at the outboard cutoff gives 7,838 kN, which flew the S-IC a second
+  long and 1.3° flat. The S-IC's vacuum Isp (305.15 s) and the S-II's
+  flow at the high ratio (1,237.5 kg/s) are tuned for the flown cutoffs
+  [estimated]. The S-IC still leaves the stack 0.9° flatter than AS-509,
+  on SA-504's pitch polynomial [estimated for AS-509], and the S-IVB's
+  burn runs 4.5 s long.
+- LOI is centred on the pericynthion, where the midcourse corrections
+  put the plane over the site: at the flight's TIG the simulator's burn,
+  longer on the larger plane change, ran 3 min past that node, and the
+  plane through its end and the site came out 2.5° steeper.
+- DOI's TIG is the pericynthion the simulator's LOI left, 2 min 38 s
+  after the flight's, and the landing pass comes round 1 min 18 s early.
+- The TPI geometry is the tweak's target: 26.6° and 15 nmi below at
+  N37's time (MSC-04330, Appendix B).
+- TEI is solved at the flight's TIG for the flown return's inclination,
+  entry interface time and corridor; the simulator's Kitty Hawk needs
+  more of it up there.
+
 Deliberate simplifications are tagged `[simplified]` in the code. The main
 ones:
 
@@ -1665,9 +1764,9 @@ godot --headless --path . -s addons/gut/gut_cmdln.gd -gexit
 That runs the whole suite, which takes over an hour and a half, nearly
 all of it in the scenario tests. Add `-gdir=res://tests/unit/` to run
 only the unit tests, in about ten minutes, or `-gselect=<name>` to run only the
-scripts whose file names contain `<name>`. CI runs the suite in thirteen
+scripts whose file names contain `<name>`. CI runs the suite in fourteen
 parts side by side (`.github/workflows/ci.yml`): the unit tests dealt
-out over two jobs and the scenario tests over eleven, by each file's time
+out over two jobs and the scenario tests over twelve, by each file's time
 on the runners (`.github/unit_seconds.txt`,
 `.github/scenario_seconds.txt`). Beside them, its build job
 exports the PC VR presets with Godot 4.4.1's templates and flies a
@@ -1895,6 +1994,9 @@ The unit tests cover:
   at TPI (26.6° targeted); orbit insertion from the surface on a point
   mass to 60,049 ft and 19.8 ft/s up, cut off as the 40-ms logic does;
   and the radar filter taking 3,000 ft of error to 16 ft
+- The LGC's R47 (`tests/unit/test_lgc_r47.gd`, slice 11e): V34, or a new
+  V47, taking the downlist off at once, so that the AGS waits for the
+  next
 - DSKY key logic, with V01 showing R1 alone
 - CMC programs, and Colossus's velocity to be gained for an External ΔV
   (`tests/unit/test_agc.gd`): the ΔV's size and its part out of the
@@ -1970,7 +2072,8 @@ The unit tests cover:
   and the CM's roll rate, the master alarm circuit, the LGC's throttle
   schedule for P40, and whether N69 has moved its landing site (schema
   17). Older checkpoints are rejected. The AGS comes back from one taken
-  mid-initialization, R47 at V06N16 and the DEDA mid-entry (schema 30)
+  mid-initialization, R47 at V06N16 and the DEDA mid-entry (schema 30),
+  and R47's downlist from one taken while it is on (schema 31)
 - The main scene, and in Eagle from `lunar_descent`: its HUD, the keys on
   its LGC or, with G, its DEDA, its two views, its checklist for the
   phase, and L between the vehicles; and the mission it's given, Apollo
@@ -2436,6 +2539,20 @@ The scenario tests fly real segments through the crew interface:
     beside it as the report has it against the prediction: the shift 33.0
     s later (32.2), the S-II's burn 33.0 s longer (34.93), the S-IVB's
     10.8 s (9.3), insertion 43.8 s later (44.07)
+- Apollo 14's launch (`tests/scenarios/test_apollo_14_launch.gd`), slice
+  12a's check. From LC-39A, AS-509 flies Apollo 14 into its parking orbit
+  on the 75.558° azimuth, and the flight goes on through TLI as the
+  parking-orbit start flies it:
+  - each of the S-IC's and S-II's cutoffs within 0.02 s of the flight
+    evaluation report's, and the S-IVB's 4.5 s late; the velocities
+    within 20 m/s and the flight path angles within 1°;
+  - Houston's marks of the abort modes at the flown times, One Bravo at
+    0:42 to mode IV at 9:12;
+  - the orbit 100.1 × 99.9 nmi at 31.120°, 0.003° from the flown plane,
+    and the S-IVB's propellant, 73,766 kg, within 2 t of the
+    parking-orbit start's;
+  - TLI at 2:28:34 for 351.4 s, onto the free return past the Moon 1,979.4
+    nmi up at 82:15:18 (1,979 nmi at 82:15:19 flown)
 - Apollo 8's launch (`tests/scenarios/test_apollo_8_launch.gd`), slice
   10a's check. From the pad, AS-503 flies Apollo 8 into its parking
   orbit, and the flight goes on through TLI as the parking-orbit start
@@ -2481,6 +2598,17 @@ The scenario tests fly real segments through the crew interface:
   MCC-5 by hand on the AGS; the LM charging the entry batteries; the
   PGNS again for MCC-7 on the LM's jets; SM SEP, the CM's power-up and
   alignment, LM JETT and the entry on P61 to P67. Each row of Apollo 13's
+  Fidelity table (above) is held within limits of the flight's figures
+- Apollo 14 (`tests/scenarios/test_apollo_14.gd` and
+  `test_apollo_14_return.gd`), slice 12a's check. It flies from its data
+  alone, from the parking orbit to the landing at Fra Mauro: TLI, MCC-2
+  onto the hybrid, LOI into the plane over the site, DOI by Kitty Hawk
+  with Antares docked, the undocking and CIRC, Antares's P52 after it,
+  and powered descent with noun 69, P66 flown from 360 ft to the spot
+  Antares came down on; then from the surface to the splashdown: Kitty
+  Hawk's plane change, the P57 before the liftoff, the direct
+  rendezvous's liftoff, tweak and TPI on the ascent engine, docking, LM
+  JETT, TEI, MCC-5 and the entry on P61 to P67. Each row of Apollo 14's
   Fidelity table (above) is held within limits of the flight's figures
 
 `tools/screenshot.tscn` renders the images above (`--view=0` window,
@@ -2586,4 +2714,9 @@ weighing each mark in and learning the radar's boresight biases, flown
 by the G mission's procedures (slice 11d). The AGS flies FP6, its own
 navigation from the LGC's V47 downlist, its abort insertion and its
 CSI, CDH and TPI solutions, keyed on the DEDA (slice 11e). That finishes
-the LM's navigation; Apollo 14 to 17 come next.
+the LM's navigation. Of Apollo 14 to 17 (milestone 12), Apollo 14 flies
+from its data alone (slice 12a): AS-509 from the pad, DOI by Kitty Hawk
+with Antares docked, the landing at Fra Mauro, and the first direct
+rendezvous, TPI on the ascent engine in the first revolution; its
+failures, the ABORT switch's short and the landing radar's scale, and
+the docking's six attempts are still to come.
