@@ -241,7 +241,7 @@ func test_apollo_10_has_its_own_checklists_for_a_flight_without_a_landing() -> v
 	var lm := ChecklistBook.load_lm("apollo_10")
 	var lm_for := {"lunar_orbit": "Undocking and DOI (P30 / P40)", "lunar_descent": "The low pass, phasing and staging (P30 / P40)",
 		"lunar_ascent": "Insertion and rendezvous (P42, P20, P32 to P35)"}
-	assert_eq(lm.lists.size(), 7, "Snoopy's three, and the LM's four malfunction procedures")
+	assert_eq(lm.lists.size(), 8, "Snoopy's three, and the LM's five malfunction procedures")
 	for phase in lm_for:
 		lm.select_for_phase(phase)
 		assert_eq(lm.list().title, lm_for[phase], "Snoopy's for %s" % phase)
@@ -269,7 +269,7 @@ func test_apollo_12_has_its_own_checklists_with_the_landing_site_update() -> voi
 	var lm := ChecklistBook.load_lm("apollo_12")
 	var lm_for := {"lunar_orbit": "Undocking and DOI (P30 / P40)", "lunar_descent": "Powered descent (P63 to P68)",
 		"lunar_surface": "Lunar surface and liftoff (P12)", "lunar_ascent": "Rendezvous and docking (P20, P32 to P35)"}
-	assert_eq(lm.lists.size(), 8, "Intrepid's four, and the LM's four malfunction procedures")
+	assert_eq(lm.lists.size(), 9, "Intrepid's four, and the LM's five malfunction procedures")
 	for phase in lm_for:
 		lm.select_for_phase(phase)
 		assert_eq(lm.list().title, lm_for[phase], "Intrepid's for %s" % phase)
@@ -306,7 +306,7 @@ func test_apollo_13_has_its_own_checklists_for_the_lifeboat() -> void:
 	var lm := ChecklistBook.load_lm("apollo_13")
 	var lm_for := {"tank_failure": "Activation and the docked alignment",
 		"translunar_coast": "Activation and the docked alignment", "transearth_coast": "Transearth: MCC-5 on the AGS"}
-	assert_eq(lm.lists.size(), 8, "Aquarius's four, and the LM's four malfunction procedures")
+	assert_eq(lm.lists.size(), 9, "Aquarius's four, and the LM's five malfunction procedures")
 	for phase in lm_for:
 		lm.select_for_phase(phase)
 		assert_eq(lm.list().title, lm_for[phase], "Aquarius's for %s" % phase)
@@ -342,7 +342,7 @@ func test_apollo_14_has_its_own_checklists_for_the_direct_rendezvous() -> void:
 	var lm_for := {"lunar_orbit": "Undocking and the P52 after it", "lunar_descent": "Powered descent (P63 to P68)",
 		"lunar_surface": "Lunar surface and liftoff (P12)",
 		"lunar_ascent": "Direct rendezvous and docking (P41, P20, P34 and P42, P35)"}
-	assert_eq(lm.lists.size(), 8, "Antares's four, and the LM's four malfunction procedures")
+	assert_eq(lm.lists.size(), 9, "Antares's four, and the LM's five malfunction procedures")
 	for phase in lm_for:
 		lm.select_for_phase(phase)
 		assert_eq(lm.list().title, lm_for[phase], "Antares's for %s" % phase)

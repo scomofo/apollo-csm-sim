@@ -120,7 +120,14 @@
     "max_incidence_deg": 70.0,
     "update_s": 2.0,
     "alt_weight": 0.3,
-    "vel_weight": 0.3
+    "vel_weight": 0.3,
+    "_scale": "The range scale: low below a slant range of 2,500 ft, high again above 2,800 ft, switched on the range the radar measures (LMA790-3-LM, p. 2.2-18) [published]. In low scale the trackers acquire ranging signals only within a slant range of 3,500 ft and velocity signals within about 4,600 ft of altitude (MSC-04112, p. 8-5) [published]. Powered up, in high scale, the velocity's data came good 20 s after Apollo 14's breaker cycle and the range's 22 s (MSC-04112, Table 8-V) [published]",
+    "low_scale_below_m": 762.0,
+    "high_scale_above_m": 853.44,
+    "low_scale_alt_range_m": 1066.8,
+    "low_scale_vel_height_m": 1402.08,
+    "acquire_vel_s": 20.0,
+    "acquire_alt_s": 22.0
   },
   "ascent_guidance": {
     "_source": "The LGC's powered ascent (P12). Insertion 60,000 ft above the landing site's radius, climbing at 32 ft/s [published: Apollo 11 shut down at 60,666 ft and 32.8 ft/s], with the horizontal velocity (about 5,535 ft/s) that puts apolune 45 nmi above the site, a 9 x 45 nmi orbit [estimated: Apollo 11 planned about 45 nmi and reached 47.3 by 9.5]. The vertical rise lasts until the LM climbs at 40 ft/s, the steering is held for the last 2 s, and the pitchover's rate is 10 deg/s [estimated]",

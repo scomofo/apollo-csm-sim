@@ -205,7 +205,7 @@ func test_every_hud_switch_has_a_cabin_control() -> void:
 	# SPS THRUST ON is the HUD's manual backup: the cabin's is a lamp.
 	assert_eq(_hud_switches_without_a_control("_switch_panel", layout, 37), ["ctl.sps.thrust_on"], "Columbia's")
 	assert_eq(_hud_switches_without_a_control("_optics_panel", layout, 5), [], "the optics'")
-	assert_eq(_hud_switches_without_a_control("_lm_switch_panel", CockpitLayout.load_lm(), 21), [], "Eagle's")
+	assert_eq(_hud_switches_without_a_control("_lm_switch_panel", CockpitLayout.load_lm(), 22), [], "Eagle's")
 	assert_eq(_hud_switches_without_a_control("_aot_panel", CockpitLayout.load_lm(), 5), [], "the AOT's")
 
 
@@ -341,7 +341,7 @@ func test_the_desktop_rig_can_click_every_control_from_its_station() -> void:
 	# commander's station, the AOT's overhead among them, and panel 6's
 	# DEDA and AGS STATUS from the LM pilot's.
 	await _click_every_control(CmCabin.new(), layout, 37 + 19 + 6 + 19)
-	await _click_every_control(LmCabin.new(), CockpitLayout.load_lm(), 23 + 5 + 19 + 16)
+	await _click_every_control(LmCabin.new(), CockpitLayout.load_lm(), 24 + 5 + 19 + 16)
 
 
 ## Build [param p_layout] onto [param cabin] in a viewport and point the

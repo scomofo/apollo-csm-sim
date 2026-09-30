@@ -23,6 +23,12 @@
       {"text": "V11N10E 30E: channel 30 in R1, its last digit even while the LGC sees ABORT (each bit 0 while its signal is present)", "control": "P4_DSKY"},
       {"text": "Tap the panel beside ABORT (TAP PANEL): the bit clears", "control": "P1_TAP", "check": {"channel": "lm.lgc.abort_bit", "op": "eq", "value": false}},
       {"text": "It comes back: before PDI, the workaround in the powered descent checklist locks P70 and P71 out, and any abort is flown on the AGS"}
+    ]},
+    {"title": "Malfunction: landing radar", "phases": [], "steps": [
+      {"text": "ALT and VEL still on in the braking phase below 30,000 ft: the radar's range scale is low, and with nothing measured it stays there. No light of its own; without the radar by 10,000 ft the landing is aborted"},
+      {"text": "PGNS: LDG RDR circuit breaker (panel 11) open (LDG RDR): the radar off", "control": "P3_LDG_RDR", "check": {"channel": "lm.lr.powered", "op": "eq", "value": false}},
+      {"text": "LDG RDR closed: the radar comes back on in high scale", "control": "P3_LDG_RDR", "check": {"channel": "lm.lr.low_scale", "op": "eq", "value": false}},
+      {"text": "VEL out some 20 s on, and ALT: V57E, and PRO once Houston accepts the radar's altitude", "control": "P4_DSKY"}
     ]}
   ]
 }

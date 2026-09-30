@@ -11,7 +11,9 @@
 # A file not listed counts 60 s.
 # Add a new file's time once CI has run it, and measure again when the
 # parts drift apart. Slice 12a's three Apollo 14 files carry the longer of
-# their two runs in 25b98e2's CI, and the parts went to twelve with them.
+# their two runs in 25b98e2's CI, and the parts went to twelve with them;
+# test_apollo_14_abort_switch.gd the longer of its two in bfae1f4's, and
+# test_apollo_14_landing_radar.gd the longer of its two in 7cde781's.
 test_ags.gd 74
 test_apollo_10.gd 370
 test_apollo_10_launch.gd 42
@@ -20,6 +22,8 @@ test_apollo_12_launch.gd 45
 test_apollo_13.gd 165
 test_apollo_13_launch.gd 76
 test_apollo_14.gd 170
+test_apollo_14_abort_switch.gd 35
+test_apollo_14_landing_radar.gd 43
 test_apollo_14_launch.gd 42
 test_apollo_14_return.gd 346
 test_apollo_8.gd 190

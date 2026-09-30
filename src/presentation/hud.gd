@@ -483,7 +483,8 @@ func _momentary(parent: Node, text: String, ch: String, on: Variant = true,
 ## SLEW switch, to lock on by hand (slice 11d); ABORT and the master alarm
 ## (the LM's aborts); a tap on the panel beside ABORT, and the TTCA's
 ## throttle at its minimum or its maximum (Apollo 14's short and its
-## workaround, slice 12a).
+## workaround, slice 12a); the landing radar's breaker, LDG RDR (Apollo
+## 14's radar, slice 12a).
 func _lm_switch_panel() -> PanelContainer:
 	var p := PanelContainer.new()
 	_style(p)
@@ -514,6 +515,7 @@ func _lm_switch_panel() -> PanelContainer:
 	_momentary(g, "SLEW LEFT", "ctl.lm.rr_slew_trunnion", 1, 0)
 	_momentary(g, "SLEW RIGHT", "ctl.lm.rr_slew_trunnion", -1, 0)
 	_option(g, "THROTTLE", "ctl.lm.throttle", ["MIN", "MAX"], [0.1, 1.0])
+	_toggle(g, "LDG RDR CB", "ctl.lm.cb_ldg_rdr")
 	return p
 
 

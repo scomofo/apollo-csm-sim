@@ -178,7 +178,7 @@ func test_every_apollo_10_step_names_a_control_or_one_writes_its_check() -> void
 					assert_ne(id, "", "%s: a cabin control writes %s" % [s["text"], channel])
 				if id != "":
 					framed[1 if lm else 0] += 1
-	assert_eq(framed, [65, 85], "Charlie Brown's and Snoopy's steps that point at a cabin control (14 and 9 of them the malfunction procedures')")
+	assert_eq(framed, [65, 88], "Charlie Brown's and Snoopy's steps that point at a cabin control (14 and 12 of them the malfunction procedures')")
 
 
 func test_every_apollo_12_step_names_a_control_or_one_writes_its_check() -> void:
@@ -199,7 +199,7 @@ func test_every_apollo_12_step_names_a_control_or_one_writes_its_check() -> void
 					assert_ne(id, "", "%s: a cabin control writes %s" % [s["text"], channel])
 				if id != "":
 					framed[1 if lm else 0] += 1
-	assert_eq(framed, [65, 89], "Yankee Clipper's and Intrepid's steps that point at a cabin control (14 and 9 of them the malfunction procedures')")
+	assert_eq(framed, [65, 92], "Yankee Clipper's and Intrepid's steps that point at a cabin control (14 and 12 of them the malfunction procedures')")
 
 
 func test_every_apollo_14_step_names_a_control_or_one_writes_its_check() -> void:
@@ -220,7 +220,7 @@ func test_every_apollo_14_step_names_a_control_or_one_writes_its_check() -> void
 					assert_ne(id, "", "%s: a cabin control writes %s" % [s["text"], channel])
 				if id != "":
 					framed[1 if lm else 0] += 1
-	assert_eq(framed, [65, 76], "Kitty Hawk's and Antares's steps that point at a cabin control (14 and 9 of them the malfunction procedures')")
+	assert_eq(framed, [65, 79], "Kitty Hawk's and Antares's steps that point at a cabin control (14 and 12 of them the malfunction procedures')")
 
 
 func test_every_eagle_step_names_one_of_its_controls_or_one_writes_its_check() -> void:
@@ -237,7 +237,7 @@ func test_every_eagle_step_names_one_of_its_controls_or_one_writes_its_check() -
 				assert_ne(id, "", "%s: a control in Eagle's cabin writes %s" % [s["text"], channel])
 			if id != "":
 				framed += 1
-	assert_eq(framed, 93, "93 of Eagle's steps point at a control in its cabin, 9 of them the malfunction procedures'")
+	assert_eq(framed, 96, "96 of Eagle's steps point at a control in its cabin, 12 of them the malfunction procedures'")
 
 
 func test_the_highlight_follows_the_player_into_eagle() -> void:

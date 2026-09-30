@@ -442,7 +442,7 @@
   "_comment": "The Manned Space Flight Network's tracking error in the CSM state vector the RTCC plans the CSM's PADs from and uplinks with them (P27): standard deviations in LVLH (X along track, Y right, Z down), by the body the CSM's orbit is about, Apollo 11's [estimated]"
  },
  "timeline": {
-  "_comment": "Mission Control from TLI to the entry. Each entry happens once: at its GET ('get'), or 's' seconds 'after' a mission event or a planned time, or 'before' a planned time (the sequencer's plan), if its condition ('when', a flight phase or one of the sequencer's) holds then; CAPCOM makes the call ('say'), a failure that comes and goes comes again ('fail', Failures.recur()) and the ground uplinks the PAD ('pad'): the RTCC's solution, a midcourse correction's at its TIG ('tig'), a plane change's or TEI's at the opportunity nearest 'near', or a maneuver the flight plan fixed ('n81_ft_s', LVLH) at 'tig'. The times, calls and PADs are Apollo 14's, taken back to range zero where the flight's clocks had moved (Apollo Flight Journal and Lunar Surface Journal) [published]: GO for TLI 2:26:39; the MCC-2 PAD 29:12:22; the MCC-4 PAD 75:25:49.1; the final LOI PAD 80:31:06.1; GO for LOI 81:32:35.1; the DOI PAD, the CSM's, docked, 84:52:17.1; GO for DOI 85:39:14.1; the separation PAD 101:51:59.1, its TIG 103:47:28.1, 0.8 ft/s radially (MSC-04112, Table 6-V; the PAD's N81 wasn't read up: down, as Apollo 12's [estimated]); GO for undocking 103:44:58.1; the CSM's circularization PAD 104:34:35.1 and GO for it 104:43:36.1; the PDI PAD 105:53:23.1, 2 h 9 min before its TIG, 108:02:24.61; GO for PDI (\"Go for Fra Mauro\") 214 s before it; noun 69, plus 2,800 ft, 112 s after ignition, and GO for its Enter 143 s after; GO for landing 108:11:37; STAY for T1, T2 and the next 78, 359 and 4,403 s after the landing at 108:15:09.3; the plane change's PAD 116:17:48.1, TIG 117:29:32.27, GO 117:25:32.1; the ascent PAD 139:56:38, TIG 141:45:39.10; GO for liftoff, the direct rendezvous, 985 s before it; the tweak PAD 123 s after the insertion's cutoff (141:52:54) and GO for the APS TPI 317 s after it; GO for Pyro Arm for the LM's jettison 145:30:07.1, 7,037 s after docking at 143:32:50.5; the TEI-34 PAD 146:59:36.1; the MCC-5 PAD 164:39:55.1, TIG 165:34:55.64; the entry PAD 211:05:31.1; GO for Pyro Arm 214:46:31.1]. MCC-1 and MCC-3 weren't flown; MCC-2 took the stack off the free return. undocking_get: the flown undocking, to which the LM's start phases fly docked [estimated: between GO for undocking and the separation burn at 103:47:41.6] Antares's ABORT switch shorted at 104:16:07 and four times more, each cleared by a tap on the panel beside it, and CAPCOM read up the workaround from 107:33:49 to 107:38:48; the calls are the flight's, condensed where marked in their entries (Apollo Lunar Surface Journal, Apollo 14's landing) [published].",
+  "_comment": "Mission Control from TLI to the entry. Each entry happens once: at its GET ('get'), or 's' seconds 'after' a mission event or a planned time, or 'before' a planned time (the sequencer's plan), if its condition ('when', a flight phase or one of the sequencer's) holds then; CAPCOM makes the call ('say'), a failure that comes and goes comes again ('fail', Failures.recur()) and the ground uplinks the PAD ('pad'): the RTCC's solution, a midcourse correction's at its TIG ('tig'), a plane change's or TEI's at the opportunity nearest 'near', or a maneuver the flight plan fixed ('n81_ft_s', LVLH) at 'tig'. The times, calls and PADs are Apollo 14's, taken back to range zero where the flight's clocks had moved (Apollo Flight Journal and Lunar Surface Journal) [published]: GO for TLI 2:26:39; the MCC-2 PAD 29:12:22; the MCC-4 PAD 75:25:49.1; the final LOI PAD 80:31:06.1; GO for LOI 81:32:35.1; the DOI PAD, the CSM's, docked, 84:52:17.1; GO for DOI 85:39:14.1; the separation PAD 101:51:59.1, its TIG 103:47:28.1, 0.8 ft/s radially (MSC-04112, Table 6-V; the PAD's N81 wasn't read up: down, as Apollo 12's [estimated]); GO for undocking 103:44:58.1; the CSM's circularization PAD 104:34:35.1 and GO for it 104:43:36.1; the PDI PAD 105:53:23.1, 2 h 9 min before its TIG, 108:02:24.61; GO for PDI (\"Go for Fra Mauro\") 214 s before it; noun 69, plus 2,800 ft, 112 s after ignition, and GO for its Enter 143 s after; GO for landing 108:11:37; STAY for T1, T2 and the next 78, 359 and 4,403 s after the landing at 108:15:09.3; the plane change's PAD 116:17:48.1, TIG 117:29:32.27, GO 117:25:32.1; the ascent PAD 139:56:38, TIG 141:45:39.10; GO for liftoff, the direct rendezvous, 985 s before it; the tweak PAD 123 s after the insertion's cutoff (141:52:54) and GO for the APS TPI 317 s after it; GO for Pyro Arm for the LM's jettison 145:30:07.1, 7,037 s after docking at 143:32:50.5; the TEI-34 PAD 146:59:36.1; the MCC-5 PAD 164:39:55.1, TIG 165:34:55.64; the entry PAD 211:05:31.1; GO for Pyro Arm 214:46:31.1]. MCC-1 and MCC-3 weren't flown; MCC-2 took the stack off the free return. undocking_get: the flown undocking, to which the LM's start phases fly docked [estimated: between GO for undocking and the separation burn at 103:47:41.6] Antares's ABORT switch shorted at 104:16:07 and four times more, each cleared by a tap on the panel beside it, and CAPCOM read up the workaround from 107:33:49 to 107:38:48; the calls are the flight's, condensed where marked in their entries (Apollo Lunar Surface Journal, Apollo 14's landing) [published]. The landing radar's range scale went to low 4 min 52 s before PDI, and CAPCOM called for its breaker's cycle 6 min 16 s after ignition and accepted its data at 108:09:29 (MSC-04112, Table 8-V; Apollo Lunar Surface Journal) [published].",
   "undocking_get": "103:47:00",
   "entries": [
    {
@@ -548,6 +548,14 @@
     "say": "Antares, Houston. Your PDI PAD and state vector are coming up."
    },
    {
+    "id": "lr_low_scale",
+    "before": "pdi_tig",
+    "s": 292,
+    "when": "lm_free",
+    "fail": "lm_lr_scale",
+    "_comment": "The landing radar's range scale to low at 107:57:34.66, 4 min 51.86 s before the flown ignition, where it stayed until the breaker's cycle (MSC-04112, Table 8-V)."
+   },
+   {
     "id": "go_pdi",
     "before": "pdi_tig",
     "s": 214,
@@ -567,6 +575,22 @@
     "s": 143,
     "when": "lm_descent",
     "say": "Okay; go for Enter."
+   },
+   {
+    "id": "lr_breaker",
+    "after": "pdi_tig",
+    "s": 376,
+    "when": "lm_descent",
+    "say": "Antares, Houston. We'd like you to cycle the Landing Radar breaker.",
+    "_comment": "Haise at 108:08:42, 6 min 16 s after the ignition; Shepard pulled the breaker and pushed it back in, \"Been cycled\" at 108:08:52 (Apollo Lunar Surface Journal)."
+   },
+   {
+    "id": "lr_accept",
+    "after": "pdi_tig",
+    "s": 423,
+    "when": "lm_descent",
+    "say": "Okay. We'd like to Accept the radar.",
+    "_comment": "108:09:29, after the crew's V57 at 108:09:14 (Apollo Lunar Surface Journal)."
    },
    {
     "id": "go_landing",
@@ -699,7 +723,9 @@
     "get": "164:39:55.1",
     "when": "earth_return",
     "pad": "mcc",
-    "tig": "165:34:55.64"
+    "tig": "165:34:55.64",
+    "tolerance_km": 2.0,
+    "_comment": "Flown as a trim, 0.5 ft/s (the PAD's 0.7; MSC-04112, Table 6-V): the ground held the corridor closer than the 5 km of perigee the RTCC takes otherwise, as Apollo 13's MCC-7 [estimated]."
    },
    {
     "id": "entry_pad",

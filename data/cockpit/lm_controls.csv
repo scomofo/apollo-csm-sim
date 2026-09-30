@@ -43,7 +43,9 @@
 # LM hardware (LGC MODE for the PGNS mode control's OFF, ATT HOLD and AUTO;
 # a momentary pushbutton for a guarded or latching one; a system's switch
 # for its valves; a number for a tape meter; LM PWR for the battery feeds
-# and bus ties of the activation, PGNS and AGS for their breakers, AGS
+# and bus ties of the activation, PGNS and AGS for their breakers, LDG RDR
+# for panel 11's PGNS: LDG RDR breaker (slice 12a: Apollo 14's crew
+# cycled it to bring their landing radar back; LMA790-3-LM, p. 2.2-26), AGS
 # ALIGN and DEDA 470 for the DEDA's keys and readout, kept beside the
 # DEDA for the lifeboat's checklists; AGS STATUS's OFF and OPERATE for
 # its three positions, STANDBY left out; a screen for the
@@ -86,6 +88,7 @@ P3_DEDA,P3,numeric,DEDA 470 FT/S,60,0,0,lm.ags.dv_x_mps,converter=mps_to_fps;for
 P3_LM_POWER,P3,toggle,LM PWR,150,-15,0,ctl.lm.power,labels=OFF|ON,estimated,D,implemented,proxy
 P3_PGNS,P3,toggle,PGNS,210,-15,0,ctl.lm.pgns,labels=OFF|ON,estimated,D,implemented,proxy
 P3_AGS,P3,toggle,AGS,270,-15,0,ctl.lm.ags,labels=OFF|ON,estimated,D,implemented,proxy
+P3_LDG_RDR,P3,toggle,LDG RDR,240,45,0,ctl.lm.cb_ldg_rdr,labels=OPEN|CLOSED,LMA790-3-LM p. 2.2-26 (panel 11),D,implemented,proxy
 P4_DSKY,P4,dsky,DSKY,0,0,0,lm.dsky,lamp_set=lgc,estimated,D,implemented,historical
 P5_ENGINE_STOP,P5,pushbutton,ENGINE STOP,-75,35,0,ctl.lm.eng_stop,,estimated,D,implemented,proxy
 P5_ENGINE_START,P5,pushbutton,ENGINE START,-15,35,0,ctl.lm.eng_start,,estimated,D,implemented,historical
