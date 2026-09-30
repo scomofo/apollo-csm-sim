@@ -62,7 +62,9 @@ extends RefCounted
 ##    its lock and its errors, and P20's filter, flags and marks.
 ## 30: the AGS's flight program (slice 11e): FP6's memory, the DEDA, the
 ##    AGS's frame and its 40-ms logic, and the LGC's R47.
-const SCHEMA_VERSION := 30
+## 31: R47's downlist (slice 12a): the state vectors on the AGS's list while
+##    R47 sends them.
+const SCHEMA_VERSION := 31
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],

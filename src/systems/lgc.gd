@@ -173,7 +173,8 @@
 ##         lm.guid.dps_on, lm.guid.dps_throttle, lm.guid.aps_on (P12, P42),
 ##         lm.guid.lr_antenna (1 in P63, 2 from P64), lm.guid.delta_h_m,
 ##         lm.lgc.ags_downlink (V47's AGS downlist: the LM's and CSM's
-##         state vectors in stable member axes, ft and ft/s), lm.guid.r47
+##         state vectors in stable member axes, ft and ft/s; {} when R47
+##         isn't sending), lm.guid.r47
 ##         (R47's phase: "", "k", "send", "done"),
 ##         lm.guid.lr_update (V57 given), lm.guid.ls_corrected (N69 loaded
 ##         since the site's uplink), lm.guid.rr_nav (P20 running), P20's

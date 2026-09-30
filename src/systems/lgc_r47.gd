@@ -8,9 +8,9 @@
 ## present, turns them into stable member coordinates by REFSMMAT, in feet
 ## and feet per second, and times them from AGSK, and holds them on the
 ## AGS downlist for 20 s (V06N16), in which the crew's 414+10000 on the DEDA
-## takes them; then V50N16 until PRO [simplified: the ICDU and AEA gimbal
-## angle counters' zeroing after the downlist is left out, and a new AGSK
-## is set by V32 only, not V25].
+## takes them; then V50N16 until PRO. V34, or a new V47, takes the downlist
+## off [simplified: the ICDU and AEA gimbal angle counters' zeroing after
+## the downlist is left out, and a new AGSK is set by V32 only, not V25].
 class_name LgcR47
 extends RefCounted
 
@@ -27,6 +27,12 @@ var phase: String = "":
 		phase = p
 		Bus.set_value("lm.guid.r47", p)
 var send_until: float = 0.0
+## The downlist while R47 sends it ({} otherwise), on the Bus as
+## lm.lgc.ags_downlink.
+var downlink: Dictionary = {}:
+	set(d):
+		downlink = d
+		Bus.set_value("lm.lgc.ags_downlink", d)
 ## The program's display R47 covers.
 var covered: Dictionary = {}
 
@@ -38,6 +44,7 @@ func start() -> bool:
 		return true
 	if phase == "":
 		covered = lgc.dsky.program_display().duplicate()
+	downlink = {}
 	phase = "k"
 	lgc.dsky.show(6, 16, true)
 	return true
@@ -75,9 +82,9 @@ func _send() -> void:
 	csm = csm.clone()
 	csm.coast_to(now)
 	var m: Basis = lgc.imu.refsmmat
-	Bus.set_value("lm.lgc.ags_downlink", {"until": now + SEND_S, "t": now - agsk,
+	downlink = {"until": now + SEND_S, "t": now - agsk,
 		"lm_r": _sm(m, lm.s, 0, 1.0 / Units.FT), "lm_v": _sm(m, lm.s, 3, 1.0 / Units.FT),
-		"csm_r": _sm(m, csm.s, 0, 1.0 / Units.FT), "csm_v": _sm(m, csm.s, 3, 1.0 / Units.FT)})
+		"csm_r": _sm(m, csm.s, 0, 1.0 / Units.FT), "csm_v": _sm(m, csm.s, 3, 1.0 / Units.FT)}
 	phase = "send"
 	send_until = now + SEND_S
 	lgc.dsky.show(6, 16, false)
@@ -96,6 +103,7 @@ static func _sm(m: Basis, s: PackedFloat64Array, i: int, k: float) -> Array:
 ## The downlist's 20 s over: V50N16 until PRO.
 func tick(now: float) -> void:
 	if phase == "send" and now >= send_until:
+		downlink = {}
 		phase = "done"
 		lgc.dsky.show(50, 16, true)
 
@@ -103,6 +111,7 @@ func tick(now: float) -> void:
 func stop() -> void:
 	if phase == "":
 		return
+	downlink = {}
 	phase = ""
 	if not covered.is_empty():
 		lgc.dsky.show(int(covered["v"]), int(covered["n"]), bool(covered["flash"]))
@@ -112,7 +121,7 @@ func stop() -> void:
 
 
 func snapshot() -> Dictionary:
-	return {"agsk": agsk, "phase": phase, "send_until": send_until, "covered": covered}
+	return {"agsk": agsk, "phase": phase, "send_until": send_until, "covered": covered, "downlink": downlink}
 
 
 func restore(d: Dictionary) -> void:
@@ -120,6 +129,8 @@ func restore(d: Dictionary) -> void:
 	phase = str(d.get("phase", ""))
 	send_until = float(d.get("send_until", 0.0))
 	covered = d.get("covered", {})
+	# Back on the Bus, which the restore cleared.
+	downlink = d.get("downlink", {})
 
 
 ## The display back up over the program's after the LGC's restore.

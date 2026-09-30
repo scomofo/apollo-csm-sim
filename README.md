@@ -805,7 +805,8 @@ checklist brings it up:
 - `V47E`, R47, the AGS initialization. At V06N16 key 377+00000 on the
   DEDA and its ENTR with `V32E`, zeroing the AGS's clock with the LGC's.
   PRO puts Eagle's and Columbia's state vectors on the AGS's downlist for
-  20 s, where 414+10000 takes them; PRO at V50N16.
+  20 s, where 414+10000 takes them; PRO at V50N16. V34 ends R47 and takes
+  them off the downlist, as a new V47 does.
 
 Before each rendezvous burn V47 and 414+10000 update it again (PRO at
 V06N16 keeps its clock), and its guidance routine (410) gives its own
@@ -1993,6 +1994,9 @@ The unit tests cover:
   at TPI (26.6° targeted); orbit insertion from the surface on a point
   mass to 60,049 ft and 19.8 ft/s up, cut off as the 40-ms logic does;
   and the radar filter taking 3,000 ft of error to 16 ft
+- The LGC's R47 (`tests/unit/test_lgc_r47.gd`, slice 11e): V34, or a new
+  V47, taking the downlist off at once, so that the AGS waits for the
+  next
 - DSKY key logic, with V01 showing R1 alone
 - CMC programs, and Colossus's velocity to be gained for an External ΔV
   (`tests/unit/test_agc.gd`): the ΔV's size and its part out of the
@@ -2068,7 +2072,8 @@ The unit tests cover:
   and the CM's roll rate, the master alarm circuit, the LGC's throttle
   schedule for P40, and whether N69 has moved its landing site (schema
   17). Older checkpoints are rejected. The AGS comes back from one taken
-  mid-initialization, R47 at V06N16 and the DEDA mid-entry (schema 30)
+  mid-initialization, R47 at V06N16 and the DEDA mid-entry (schema 30),
+  and R47's downlist from one taken while it is on (schema 31)
 - The main scene, and in Eagle from `lunar_descent`: its HUD, the keys on
   its LGC or, with G, its DEDA, its two views, its checklist for the
   phase, and L between the vehicles; and the mission it's given, Apollo

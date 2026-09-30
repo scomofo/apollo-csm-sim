@@ -2365,7 +2365,12 @@ own troubles.
   ill-conditioned. The tests' crew fly it as `RendezvousCrew.direct()`,
   TPI on P42, and the commander flies P66 from 360 ft to the spot, level
   most of the way (`fly_by_hand()`'s `level_beyond_m`), as Shepard flew
-  2,000 ft of it.
+  2,000 ft of it. A review of 11e found two things in R47: a checkpoint
+  restored while it sent had lost the downlist, the restore having
+  cleared the Bus, so the AGS waited for it; and V34, or a new V47, left
+  the last one on the AGS's list for the rest of its 20 s. R47 keeps the
+  downlist now, and takes it off at V34 and V47. Checkpoints are schema
+  31.
 
 ## Later, not scheduled
 
