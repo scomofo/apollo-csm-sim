@@ -8,7 +8,8 @@
 # in 25b98e2's CI, and test_lgc_erasable.gd and test_checkpoint.gd, with its
 # new test, the longer of theirs in bfae1f4's; test_failures.gd, with
 # the catalog's new failures, the longer of its two in 7cde781's;
-# test_lgc_executive.gd the longer of its two in 403d71c's.
+# test_lgc_executive.gd the longer of its two in 403d71c's, and
+# test_checkpoint.gd, with its new test, the longer of its two in a4abcc4's.
 test_agc.gd 30
 test_ags_fp6.gd 1
 test_apollo_14_starts.gd 21
@@ -19,7 +20,7 @@ test_cabin_bus.gd 1
 test_cabin_instruments.gd 1
 test_checklist_books.gd 16
 test_checklist_card.gd 3
-test_checkpoint.gd 177
+test_checkpoint.gd 190
 test_cockpit_layout.gd 35
 test_control_library.gd 1
 test_desktop_inspection.gd 1

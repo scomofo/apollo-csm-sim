@@ -18,6 +18,9 @@
 # CI a part dealt at 488 s took 10 min 38 s on a runner 1.2 times as slow
 # as the table, test_apollo_10.gd's share 456 s; the files that ran
 # longer there than listed carry the longer of their two runs.
+# test_apollo_14_docking.gd and test_docking.gd, with its new tests, carry
+# the longer of their two runs in a4abcc4's CI, and test_apollo_14.gd,
+# which ran longer there than listed, the longer of its two.
 test_ags.gd 74
 test_apollo_10.gd 456
 test_apollo_10_launch.gd 50
@@ -25,8 +28,9 @@ test_apollo_12.gd 543
 test_apollo_12_launch.gd 45
 test_apollo_13.gd 165
 test_apollo_13_launch.gd 91
-test_apollo_14.gd 170
+test_apollo_14.gd 197
 test_apollo_14_abort_switch.gd 35
+test_apollo_14_docking.gd 35
 test_apollo_14_landing_radar.gd 43
 test_apollo_14_launch.gd 48
 test_apollo_14_return.gd 367
@@ -37,7 +41,7 @@ test_backups.gd 122
 test_cabin_checklists.gd 238
 test_cabin_mcc.gd 7
 test_cabin_wrist_menu.gd 5
-test_docking.gd 25
+test_docking.gd 28
 test_doi.gd 68
 test_entry.gd 150
 test_flight_menu.gd 10
