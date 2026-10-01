@@ -14,6 +14,10 @@
 ## test_apollo_14.gd and test_apollo_14_return.gd. Apollo 15's (slice 12b),
 ## the J mission's, stays three days at Hadley: tests/scenarios/
 ## test_apollo_15.gd, test_apollo_15_return.gd and test_apollo_15_entry.gd.
+## Apollo 16's (slice 12c) lands at Descartes six hours late, its CSM's
+## circularization held and the landing waved off for three revolutions:
+## tests/scenarios/test_apollo_16.gd, test_apollo_16_return.gd and
+## test_apollo_16_entry.gd.
 extends SimTest
 
 const LB := 0.45359237
@@ -24,7 +28,7 @@ func after_all() -> void:
 	Mission.load_default()
 
 
-func test_the_missions_are_apollo_8_and_10_to_15() -> void:
+func test_the_missions_are_apollo_8_and_10_to_16() -> void:
 	var ids := Mission.ids()
 	assert_true("apollo_11" in ids, "Apollo 11")
 	assert_true("apollo_10" in ids, "Apollo 10")
@@ -33,6 +37,7 @@ func test_the_missions_are_apollo_8_and_10_to_15() -> void:
 	assert_true("apollo_13" in ids, "Apollo 13")
 	assert_true("apollo_14" in ids, "Apollo 14")
 	assert_true("apollo_15" in ids, "Apollo 15")
+	assert_true("apollo_16" in ids, "Apollo 16")
 	for id in ids:
 		var m := Mission.load_file(Mission.path_of(id))
 		assert_eq(m.id(), id, "%s's file names it" % id)
@@ -201,6 +206,11 @@ func test_every_timeline_entry_is_one_mission_control_can_make() -> void:
 				"%s: a call, a PAD, a failure or the cabin's pressure" % what)
 			if e.has("cabin"):
 				assert_true(str(e["cabin"]) in ["vented", "pressurized"], "%s: the cabin %s" % [what, e["cabin"]])
+			if e.has("flown"):
+				assert_true(e.has("pad") and typeof(e["flown"]) == TYPE_BOOL, "%s: a PAD the crew flew or held" % what)
+			if e.has("wave_off_revs"):
+				var revs: Variant = e["wave_off_revs"]
+				assert_true(float(revs) >= 1.0 and float(revs) == floorf(float(revs)), "%s: waved off whole revolutions" % what)
 			if e.has("fail"):
 				assert_false(Failures.entry(str(e["fail"])).is_empty(), "%s: fails %s, in the catalog" % [what, e["fail"]])
 			if e.has("pad"):

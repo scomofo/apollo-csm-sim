@@ -11,11 +11,15 @@
 # test_lgc_executive.gd the longer of its two in 403d71c's, and
 # test_checkpoint.gd, with its new test, the longer of its two in a4abcc4's.
 # The unit parts went to three with slice 12b's test_apollo_15_mission.gd,
-# which carries the longer of its two runs in 47bfc06's CI.
+# which carries the longer of its two runs in 47bfc06's CI; it,
+# test_checkpoint.gd and test_failures.gd, with slice 12b's second part's
+# tests, the longer of their two in f0c672f's. Slice 12c's
+# test_apollo_16_mission.gd counts 1.2 times its seconds on a local run.
 test_agc.gd 30
 test_ags_fp6.gd 1
 test_apollo_14_starts.gd 21
-test_apollo_15_mission.gd 28
+test_apollo_15_mission.gd 57
+test_apollo_16_mission.gd 203
 test_ascent_guidance.gd 1
 test_audio_director.gd 10
 test_bus.gd 1
@@ -23,14 +27,14 @@ test_cabin_bus.gd 1
 test_cabin_instruments.gd 1
 test_checklist_books.gd 16
 test_checklist_card.gd 3
-test_checkpoint.gd 190
+test_checkpoint.gd 163
 test_cockpit_layout.gd 35
 test_control_library.gd 1
 test_desktop_inspection.gd 1
 test_dsky.gd 1
 test_entry_guidance.gd 1
 test_ephemeris.gd 1
-test_failures.gd 192
+test_failures.gd 196
 test_fdai.gd 1
 test_flight_menu.gd 10
 test_gauge_linear_face.gd 1

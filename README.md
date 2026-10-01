@@ -107,7 +107,9 @@ shuts down), `parking_orbit` (the default), `translunar_coast` and
 flies Apollo 14: Kitty Hawk's DOI with Antares docked, the landing at Fra
 Mauro and the direct rendezvous; `-- --mission=apollo_15` flies Apollo
 15, the first J mission: Falcon three days at Hadley, past the Apennine
-front. Their start phases are Apollo 12's, `lunar_orbit` on the descent
+front; `-- --mission=apollo_16` flies Apollo 16: Orion's landing at
+Descartes waved off for six hours, and the flight a day short. Their
+start phases are Apollo 12's, `lunar_orbit` on the descent
 orbit with the LM docked. Each mission is data under
 `data/missions/<id>/`: its dates and the JPL ephemeris for them, its
 vehicles, its orbits, Mission Control's timeline, the call signs, the
@@ -612,6 +614,59 @@ hand controller in P64, as Scott did, and take over at 400 ft. Falcon's
 checklists follow its flight: the P52 after the undocking, the descent
 with noun 69, the surface and the liftoff, and the direct rendezvous
 with no tweak; Endeavour's have DOI, CIRC and the shaping burn.
+
+**Apollo 16.** With `-- --mission=apollo_16` the flight is Apollo 16's,
+from the pad, its parking orbit or any start phase after them. From the
+pad it's the launch above on AS-511 at 17:54:00 UTC on 16 April 1972, on
+time, on the 72.0° azimuth. The timeline's calls and PADs come at the
+flown times, taken back to range zero where the flight moved its clocks,
+11 min 48 s at 118:07 and 24 h 46 min in all at 202:18:
+- GO for TLI (2:28), onto a trajectory past the Moon 147 nmi up; MCC-2
+  (30:39), the one midcourse correction on the way out, which brings the
+  pericynthion down to 72 nmi in the plane over Descartes;
+- LOI (74:28), into the orbit 9° to the lunar equator;
+- DOI (78:34), Casper's with Orion docked, down to 11 nmi at the low
+  point: the RTCC sizes it for the planned landing pass on rev 13, its
+  PAD at 77:40 and GO at 78:10;
+- the separation PAD, docked (95:14), GO for undocking (95:25), the
+  undocking at 96:14 and the separation after it; Orion's PDI PAD for rev
+  13 (96:43) and Casper's CIRC PAD (96:52);
+- CIRC held: before it the gimbal checks find the SPS's secondary yaw
+  servo loop oscillating, and the flight rules want all four servo loops
+  for the burn. Houston waves the landing off for three revolutions
+  (98:14), PDI and the landing 5 h 43 min later, and asks for
+  station-keeping (99:03; the CSM-active rendezvous isn't flown);
+- GO for another try on rev 16 (102:01) and Houston's word on the servo
+  loop, an open circuit in its rate feedback, a limit cycle the engine can
+  fly with; the PDI PAD for rev 16 (102:08), the second separation PAD
+  (102:10) and CIRC PAD (102:11), GO for the separation (102:26) and for
+  CIRC (103:02), which Casper burns at 103:22 on the primary loops;
+- GO for PDI, Go at each minute of the descent, noun 69 after
+  throttle-up, Houston's word to accept the radar's data, and GO for
+  landing;
+- STAY for T-1, T-2 and T-3; Houston's word that TEI will come a day
+  early (129:42), the second plane change and the shaping burn dropped to
+  spare the SPS; Casper's one plane change (169:06), which puts its orbit
+  over Orion for the liftoff;
+- the ascent PAD (173:55) for the direct rendezvous, with TPI's TIG for
+  N37, and GO for liftoff (175:24);
+- the tweak PAD after the insertion and GO for the APS TPI; Orion kept
+  docked through the night, GO for Pyro Arm and for LM JETT the next day
+  (194:55);
+- TEI (200:22), a day early; MCC-5 (214:35); Mattingly's EVA, the cabin
+  vented from 218:40 to 220:03; MCC-7 (262:37) and the entry PAD (264:46).
+
+Orion's descent is Luminary 210's, on its e-load's own targets for
+Apollo 16: Falcon's 25° approach, the highlands' profile in its terrain
+model. Orion coasts three revolutions more on its descent orbit after the
+wave-off, and PDI and the landing come about six hours late. The
+automatic guidance takes Orion some 600 ft north of where it came down,
+and on past it: redesignate the landing point south and uprange with the
+hand controller in P64, as Young did, and take over at about 250 ft.
+Orion's checklists follow its flight: the P52 after the undocking, the
+wave-off, the descent with noun 69, the surface and the liftoff, and the
+direct rendezvous with the tweak; Casper's have DOI, the CIRC held and
+flown after the wave-off, and the plane change.
 
 **State vectors.** The CMC flies on its own state vector. Its
 accelerometers feed it only in P40, P41, P47 and entry, and during TLI. In
@@ -1538,8 +1593,8 @@ Lunar Surface Journal:
 | Noun 69 | +3,000 ft 77 s after PDI | 2,800 ft downrange, 76.5 s after PDI (voiced −02800) |
 | The landing radar and the terrain model | the altitude good 299 s after PDI, ΔH +3,508 ft; the LGC's altitude taken 3,550 ft above the truth, 16 ft above it at P64 | 3:29 after PDI, ΔH +3,400 ft; taken up 4,800 ft, converged over the Apennine foothills |
 | Throttle-down | 426 s after PDI | 7:21.7 |
-| P64, the 25° approach | 104:42:56, 568 s after PDI, at 7,106 ft, aiming 1,987 ft from where Falcon came down; 27 LPD clicks | 104:39:32, 9:22.8 after PDI, at 7,000 ft; 18 redesignations |
-| The landing | P66 at 104:44:33 at 391 ft, 651 ft off; touchdown 104:45:53, 745 s after PDI, on the spot; 1,460 lb of the DPS's propellant left | P66 at 104:41:08 at 400 ft; 104:42:29, 740 s after PDI; 1,188 lb |
+| P64, the 25° approach | 104:42:56, 568 s after PDI, at 7,106 ft, aiming 1,987 ft from where Falcon came down; 29 LPD clicks | 104:39:32, 9:22.8 after PDI, at 7,000 ft; 18 redesignations |
+| The landing | P66 at 104:44:33 at 391 ft, 650 ft off; touchdown 104:45:45, 737 s after PDI, on the spot; 1,537 lb of the DPS's propellant left | P66 at 104:41:08 at 400 ft; 104:42:29, 740 s after PDI; 1,188 lb |
 | The plane change (LOPC-1) | 165:15:49, N81 −9.5, +317.6, 0; 317.6 ft/s in 20.0 s; 66.1 × 52.5 nmi | 165:11:32, N81 −9.2, +330.3, +18.4; 330.6 ft/s in 18.3 s; 64.5 × 53.6 nmi |
 | The ascent | liftoff 171:39:54, N76 5,530.4 and 32.0 ft/s, +0.70 nmi crossrange, TPI's TIG 172:32:23; 444 s on the APS into 42.7 × 9.0 nmi | 171:37:23, N76 5,530.4 and 32.0 ft/s, −0.4 nmi, TPI 172:29:39; 431 s into 42.5 × 9.0 nmi |
 | TPI on the APS, no tweak | 172:32:23, 78.7 ft/s; Endeavour 25.5° up, Falcon 11.9 nmi below | 172:29:40, 72.7 ft/s |
@@ -1598,6 +1653,91 @@ The table takes these from the flight's figures:
   and the CM 44 s longer from there to 10,000 ft, 32 s of it below
   90,000 ft, where its drag is held at the hypersonic trim's
   [simplified].
+
+Apollo 16 flown from its data alone, from the pad into its parking orbit
+and on through TLI (`tests/scenarios/test_apollo_16_launch.gd`), from its
+parking orbit through the wave-off to the landing at Descartes
+(`tests/scenarios/test_apollo_16.gd`), from the surface to TEI
+(`tests/scenarios/test_apollo_16_return.gd`) and from the transearth
+coast to the splashdown (`tests/scenarios/test_apollo_16_entry.gd`), each
+holding its rows within set limits of the flight's figures, against the
+Apollo 16 Mission Report (MSC-07230), the AS-511 flight evaluation report
+(MPR-SAT-FE-72-1), the spacecraft operational trajectory (MSC-06016), the
+Apollo Flight Journal and the Apollo Lunar Surface Journal:
+
+| Quantity | Simulator | Apollo 16 |
+|---|---|---|
+| Launch: Mach 1, maximum dynamic pressure | 1:06.5; 32.5 kPa at 1:17.7 | 1:07.5; 34.8 kPa at 1:26.0 |
+| Launch: the S-IC's centre and outboard engines' cutoffs | 2:17.86 at 2,037 m/s and 23.18° up, 2:41.84 at 2,744 m/s and 19.83° | 2:17.85 at 2,028 m/s and 23.11°, 2:41.78 at 2,732 m/s and 19.90° |
+| Launch: the S-II's centre and outboard engines' cutoffs | 7:41.80 at 5,603 m/s, 9:19.60 at 6,986 m/s | 7:41.77 at 5,597 m/s, 9:19.54 at 6,967 m/s |
+| Launch: the S-IVB's cutoff, and insertion | 11:45.42 at 7,803.7 m/s, 11:55.42 | 11:46.21 at 7,802.7 m/s, 11:56.21 |
+| Parking orbit, and the S-IVB's propellant for TLI | 90.3 × 90.3 nmi, 32.540°; 75,721 kg | 90.7 × 90.0 nmi, 32.540°; 75,317 kg at its second ignition |
+| TLI, and the pericynthion after it | 2:33:38, 10,412 ft/s in 342.3 s, C3 −1,571,812 m²/s²; 146.6 nmi at 74:32:19 | 2:33:37, 10,389.6 ft/s in 341.9 s, C3 −1,574,297 m²/s²; 146.7 nmi at 74:32:22 |
+| MCC-2 | 4.9 ft/s at 30:39:00, N81 +0.3, +3.6, +3.3; then 77.2 nmi at 74:32:05 | 12.5 ft/s at 30:39:01, N81 +8.9, −1.1, +8.9; then 71.7 nmi at 74:32:07 |
+| LOI | 74:28:55, N81 −2,795.0, −226.0, −51.3; 2,805 ft/s in 386.2 s; 169.5 × 58.0 nmi, 9.00° to the lunar equator | 74:28:28, N81 −2,781.6, −219.6, −256.2; 2,802.0 ft/s in 374.9 s; 170.3 × 58.1 nmi |
+| DOI, Casper with Orion docked | 78:33:10, N81 −206.6, 0, 0; 206.5 ft/s in 26.0 s; 58.0 × 10.2 nmi; PDI planned for 98:31:27 | 78:33:45, N81 −205.3, 0, −45.5; 209.5 ft/s in 24.4 s; 58.5 × 10.9 nmi; PDI 98:34:41 |
+| The separations | 1.0 ft/s on P41 at 96:13:50 and again at 102:30:00, radially down | 1.0 ft/s right after the undocking at 96:13:33, and 1 ft/s about 102:30 |
+| Orion's first P52, on stars 26 and 33 | 96:58:01: N05 0.003°, N93 −0.060, +0.141, −0.025° | 96:58: 0.05°; −0.060, +0.139, −0.018° |
+| The wave-off | PDI's TIG moved from 98:32:08 to 104:14:49, three revolutions of 114.2 min | called at 98:13:35; PDI's TIG from 98:35:05 to 104:17:23 |
+| CIRC, held, then flown | the first PAD's N81 +73.4, 0, −44.0 at 97:34:52, held; the second's +72.7, 0, −44.5 at 103:17:04, 84.9 ft/s into 68.0 × 52.9 nmi | +68.1, 0, −58.0 at 97:40:17, held; +69.1, 0, −43.5 at 103:21:42, 81.6 ft/s into 68.0 × 53.1 nmi |
+| PDI | the PAD at 102:08:14; 104:13:46, 53,636 ft over the site, the site 3.2 nmi out of plane | the PAD at 102:08:14; 104:17:25, 66,500 ft (the plan's 52,707), 3.56 nmi out of plane |
+| Noun 69 | +600 ft, keyed in 101 s after PDI | +800 ft downrange, voiced 1:40 after PDI and entered at 1:51 |
+| The landing radar and the terrain model | the altitude good 309 s after PDI, ΔH −1,353 ft; the LGC's altitude off the truth by 2,706 ft at most, −14 ft at P64 | range data good 3:59 after PDI, at 48,700 ft of slant range |
+| Throttle-down | 419 s after PDI | 7:29 |
+| P64 | 104:23:18, 572 s after PDI, at 8,471 ft, aiming 1,228 ft from where Orion came down; 18 LPD clicks | 104:26:52, 9:27 after PDI, at 7,200 ft; about ten redesignations, south |
+| The landing | P66 at 104:25:13 at 245 ft, 194 ft off; touchdown 104:26:10, 744 s after PDI, on the spot, 5:39:28 after the plan's; 1,474 lb of the DPS's propellant left | P66 at 104:28:42 at about 250 ft; 104:29:35, 730 s after PDI, 5:42:53 after the plan's 98:46:42; 1,128 lb usable |
+| The plane change (LOPC-1) | 169:03:17, N81 −1.4, −123.9, 0; 123.8 ft/s in 9.2 s; 66.9 × 53.1 nmi | 169:05:52, N81 −1.5, −124.7, 0; 124.0 ft/s in 7.1 s; 64.6 × 55.0 nmi |
+| The ascent | liftoff 175:29:00, N76 5,526.0 and 32.0 ft/s, −0.71 nmi crossrange, TPI's TIG 176:23:31; 442 s on the APS into 41.6 × 8.9 nmi | 175:31:48, N76 5,525.2 and 32.0 ft/s, +0.2 nmi, TPI 176:26:04; 427.7 s into 40.2 × 7.9 nmi |
+| The tweak, and TPI on the APS | 175:39:44, 7.6 ft/s on the RCS; 176:23:31, 83.1 ft/s, Casper 26.6° up, Orion 15.0 nmi below | 175:42:18, 10.2 ft/s, the insertion 33,000 ft further downrange than desired; 176:26:05, 78.0 ft/s |
+| Midcourse corrections, and docking | 0.8 ft/s together; 177:13:16 | 1.0 and 0.9 ft/s; braking done at 177:08:42, docked at 177:41:18 after the inspections |
+| TEI, a day early, and the return it left | 200:16:42, N81 +3,257.1, +852.4, −0.2; 3,367 ft/s in 172.4 s; entry interface at 265:38:09, 7.44° down | 200:21:33, N81 +3,264.4, +809.9, −225.7; 3,370.9 ft/s in 162.3 s, 21 h 59 min before the plan's; 265:36:52, 7.44° down |
+| MCC-5, and MCC-7 | none needed from the transearth coast's start; 2.4 ft/s | 3.4 ft/s at 214:35:03; 1.4 ft/s at 262:37:21, both on the SM RCS |
+| Mattingly's EVA | the cabin vented from 218:39:46 to 220:03:28 | 218:39:46 to 220:03:28 |
+| Entry interface | 265:37:19, 36,192 ft/s, 6.56° down, 19.75° S 162.15° W, 1,197 nmi from the target | 265:37:31, 36,196 ft/s, 6.55° down, 19.87° S 162.13° W, 1,204 nmi |
+| The entry, and splashdown | P61 to P64, then P67; 6.81 g at the peak; 265:51:00, 821 s after entry interface, 0.72° S 156.20° W, 1.6 nmi from the target | P61 to P67; 7.1 g on the PAD; 265:51:05, 814 s after it (the PAD's 801), 0.70° S 156.21° W, 2.1 nmi from it |
+
+The table takes these from the flight's figures:
+- The flight moved its clocks, 11 min 48 s at 118:07 and 24 h 46 min in
+  all at 202:18: every time here is from range zero, the voiced times
+  after them taken back [simplified: the simulator's clocks never move].
+- The launch: the S-IC's vacuum Isp (307.4 s) and the S-II's flow at the
+  high ratio (1,232 kg/s) are tuned for the flown cutoffs [estimated].
+  The flight's maximum dynamic pressure came 4 s after the prediction,
+  in winds aloft of 41 knots; on the standard atmosphere, without winds,
+  the simulator's comes 8 s before the flight's and 2.3 kPa lower.
+- MCC-2 is the RTCC's on MSFN's tracked state: the pericynthion comes
+  out 5.5 nmi above the flight's, with no MCC-4 to trim it, as the
+  flight had none.
+- DOI: the RTCC sizes it through the field the stack flies, for PDI on
+  rev 13 at the plan's height, without the flight's radial part; its
+  descent orbit's revolutions run short, and from there the simulator's
+  orbit runs 3 to 5 min ahead of the flight's.
+- The separations are flown on P41, the first 17 s after the undocking.
+- The wave-off is Houston's call at its flown time: PDI and the landing
+  move three of Orion's revolutions on, and the CIRC PAD the crew held
+  isn't flown; the gimbal checks before it aren't flown here, and nor is
+  Casper's rendezvous to station-keeping, 99:44 to 101:08 [simplified].
+- CIRC: the RTCC burns each PAD at the flown burn's place in the orbit,
+  48 s past the apolune, where the simulator's Casper comes minutes
+  before the flight's.
+- PDI: the flight's PDI point rose 13,800 ft in the three revolutions of
+  the wave-off; the simulator's field raises it 900 ft, and Orion starts
+  its descent 12,900 ft lower than the flight's [simplified].
+- The redesignations: the LGC's site, moved by the ground's state
+  vector, lies 189 m downrange and 194 m north of where Orion came down,
+  as far as Young moved the landing point back in P64 (620 ft uprange and
+  635 ft south) [derived]; the test's commander clicks the LPD once a
+  second while a click brings it nearer the spot.
+- The ascent comes at the RTCC's time for the simulator's Casper, 2 min
+  48 s before the flight's, and Casper docks with no station-keeping,
+  where the flight's crews inspected each other's craft for half an
+  hour first.
+- TEI: the RTCC moves the ignition to where the burn needs no part up or
+  down, within 10 min of the flown TEI's; its burn leaves the entry
+  7.44° steep, as the flight's did. The transearth coast's start begins
+  on the return MCC-5 brought the flight to, and needs none.
+- Mattingly's EVA passes as time, the cabin vented from its start to its
+  end [simplified].
 
 Deliberate simplifications are tagged `[simplified]` in the code. The main
 ones:
@@ -1981,9 +2121,9 @@ godot --headless --path . -s addons/gut/gut_cmdln.gd -gexit
 That runs the whole suite, which takes over an hour and a half, nearly
 all of it in the scenario tests. Add `-gdir=res://tests/unit/` to run
 only the unit tests, in about ten minutes, or `-gselect=<name>` to run only the
-scripts whose file names contain `<name>`. CI runs the suite in eighteen
-parts side by side (`.github/workflows/ci.yml`): the unit tests dealt
-out over three jobs and the scenario tests over fifteen, by each file's time
+scripts whose file names contain `<name>`. CI runs the suite in
+twenty-one parts side by side (`.github/workflows/ci.yml`): the unit tests
+dealt out over three jobs and the scenario tests over eighteen, by each file's time
 on the runners (`.github/unit_seconds.txt`,
 `.github/scenario_seconds.txt`). Beside them, its build job
 exports the PC VR presets with Godot 4.4.1's templates and flies a
@@ -2905,6 +3045,39 @@ The scenario tests fly real segments through the crew interface:
   mains failed 99 s after they came out and the CM down on two at their
   rate. Each row of Apollo 15's Fidelity table (above) is held within
   limits of the flight's figures
+- Apollo 16's launch (`tests/scenarios/test_apollo_16_launch.gd`), slice
+  12c's check. From LC-39A, AS-511 flies Apollo 16 on time into its
+  90 nmi parking orbit on the 72.034° azimuth, and the flight goes on
+  through TLI as the parking-orbit start flies it:
+  - each of the S-IC's and S-II's cutoffs within 0.1 s of the flight
+    evaluation report's, and the S-IVB's 0.8 s early; the velocities
+    within 20 m/s and the flight path angles within 0.7°;
+  - Houston's marks of the abort modes at the flown times, One Bravo at
+    1:02 to mode IV at 9:20;
+  - the orbit 90.3 × 90.3 nmi at 32.540°, 0.003° from the flown plane,
+    and the S-IVB's propellant, 75,721 kg, within 2 t of the
+    parking-orbit start's;
+  - TLI at 2:33:37 for 343.3 s, onto a trajectory past the Moon 146.8 nmi
+    up at 74:32:21.
+- Apollo 16 (`tests/scenarios/test_apollo_16.gd`,
+  `test_apollo_16_return.gd` and `test_apollo_16_entry.gd`), slice 12c's
+  check. It flies from its data alone, from the parking orbit to the
+  landing at Descartes: TLI, MCC-2, LOI into the plane over the site,
+  DOI by Casper with Orion docked, the undocking and the separation,
+  Orion's P52, the CIRC PAD held and the landing waved off for three
+  revolutions, the second separation and CIRC, and powered descent on
+  rev 16 on Luminary 210's targets for Apollo 16, from higher than
+  planned, with noun 69, the landing radar's ΔH through the LGC's
+  terrain model, the commander's redesignations south and uprange in
+  P64 and P66 from 250 ft to the spot Orion came down on, about six
+  hours late; from the surface to TEI: the word that TEI comes a day
+  early, Casper's one plane change, the P57 before the liftoff, the
+  direct rendezvous with the tweak, TPI on the ascent engine, docking,
+  LM JETT the next day and TEI; and from the transearth coast home:
+  Mattingly's EVA, the cabin vented at the flown times, MCC-7, the entry
+  PAD and the entry on P61 to P67, down a day earlier than planned. Each
+  row of Apollo 16's Fidelity table (above) is held within limits of the
+  flight's figures
 
 `tools/screenshot.tscn` renders the images above (`--view=0` window,
 `1` chase, `2` cabin; `--hud=0` leaves the HUD out, `--menu=1` shows the
@@ -3023,3 +3196,7 @@ steep past the Apennine front on Luminary 210's targets and the LGC's
 terrain model, Endeavour's plane change and its orbit shaped for the
 subsatellite, and the way home: Worden's EVA, the cabin vented, and the
 splashdown on two main parachutes, the third failed.
+Apollo 16 flies from its data too (slice 12c's first part): AS-511 from
+the pad, the CIRC PAD held and the landing waved off for three
+revolutions, Orion's descent on rev 16 to Descartes about six hours
+late, and the way home a day early, Mattingly's EVA on it.

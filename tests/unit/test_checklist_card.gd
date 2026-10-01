@@ -244,6 +244,27 @@ func test_every_apollo_15_step_names_a_control_or_one_writes_its_check() -> void
 	assert_eq(framed, [66, 71], "Endeavour's and Falcon's steps that point at a cabin control (15 and 12 of them the malfunction procedures')")
 
 
+func test_every_apollo_16_step_names_a_control_or_one_writes_its_check() -> void:
+	var cabin := _cabin()
+	var lm_cabin := LmCabin.create()
+	add_child_autofree(lm_cabin)
+	var framed := [0, 0]
+	for book in [ChecklistBook.load_default("apollo_16"), ChecklistBook.load_lm("apollo_16")]:
+		var lm: bool = book.lists[0].title.begins_with("Undocking")
+		var cab: Node = lm_cabin if lm else cabin
+		for c in book.lists:
+			for s in c.steps:
+				if s.has("control"):
+					assert_true(cab.items.has(s["control"]), "%s: control %s is in its cabin" % [s["text"], s["control"]])
+				var channel := str(s.get("check", {}).get("channel", ""))
+				var id := ChecklistHighlight.resolve(cab, {"control": str(s.get("control", "")), "channel": channel})
+				if channel.begins_with("ctl."):
+					assert_ne(id, "", "%s: a cabin control writes %s" % [s["text"], channel])
+				if id != "":
+					framed[1 if lm else 0] += 1
+	assert_eq(framed, [66, 73], "Casper's and Orion's steps that point at a cabin control (15 and 12 of them the malfunction procedures')")
+
+
 func test_every_eagle_step_names_one_of_its_controls_or_one_writes_its_check() -> void:
 	var cabin := LmCabin.create()
 	add_child_autofree(cabin)

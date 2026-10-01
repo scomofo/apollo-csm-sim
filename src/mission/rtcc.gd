@@ -822,6 +822,22 @@ static func next_periapsis_alt(traj: Trajectory) -> float:
 	return float(traj.conic()["rp"]) - Bodies.radius_of(traj.primary)
 
 
+## The GET of [param traj]'s apoapsis nearest GET [param t]: the first
+## after half a revolution before it.
+static func apoapsis_near(traj: Trajectory, t: float) -> float:
+	var tr := traj.clone()
+	var period := float(tr.conic()["period"])
+	tr.coast_to(maxf(t - 0.5 * period, tr.t), 60.0, FRAC)
+	var box := {"prev": tr.radial_rate()}
+	var apo := func(t2: Trajectory) -> bool:
+		var rr := t2.radial_rate()
+		var hit: bool = box["prev"] > 0.0 and rr <= 0.0
+		box["prev"] = rr
+		return hit
+	tr.coast_until(apo, tr.t + 1.5 * period, 20.0, 0.002)
+	return tr.t
+
+
 # --- the landing site ------------------------------------------------------------
 
 ## The landing site, [param site_mf] in the Moon-fixed frame, relative to
