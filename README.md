@@ -37,6 +37,14 @@ from gemini-capsule to build, run or test.
 
 ## Running
 
+For guided procedures, press **F2** or click **Walkthrough**, then choose a
+flight checklist or **Cockpit tour**. The guide shows the current instruction,
+live control setting, progress, PAD and latest CAPCOM call. **F3** acknowledges
+reading steps; checked steps wait for the actual condition. **Find control**
+aims and magnifies on desktop. The wrist menu offers **WALKTHRU**, **FIND CTRL**
+and **CABIN TOUR**, including a reading card in VR. See
+[Flying with the walkthrough](docs/WALKTHROUGH.md) for both vehicles and controls.
+
 From the repository root, `godot --path .` opens on the flight menu, in
 the cabin: every mission under `data/missions/`, in the order they flew,
 each start phase and a line on where it starts. `< MISSION`, `MISSION >`,

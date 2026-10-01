@@ -6,8 +6,9 @@
 ## on the desktop it rides on the camera and M shows it. A status line
 ## gives GET, the time rate, the worst recent frame time and the seat.
 ## Adapted from gemini-capsule's src/presentation/wrist_menu.gd at 40e449c
-## (README.md lists the port): its guide button stays behind, its
-## new-flight button is the FLIGHT page below, SEAT is new, the main scene
+## (README.md lists the port): its new-flight button is the FLIGHT page
+## below; WALKTHRU, FIND CTRL and CABIN TOUR use Apollo's shared checklists.
+## SEAT is new, the main scene
 ## keeps the settings it changes (slice 8b), and the PAD buttons
 ## write ctl.ground.pad_request, the channel the HUD's Mission Control
 ## buttons write. They ask for the PADs of the vehicle flown (set_vehicle):
@@ -48,6 +49,8 @@ signal save_requested
 signal resume_requested(path: String)
 ## A setting's button changed a setting.
 signal setting_changed
+## Read-only checklist guidance actions for the main scene.
+signal guide_requested(action: String)
 
 const PUSHBUTTON := preload("res://scenes/controls/pushbutton.tscn")
 const HEIGHT_STEP := 0.01
@@ -59,7 +62,7 @@ const BUTTONS := [
 	["eye_up", "EYE +1cm"], ["eye_down", "EYE -1cm"], ["seat", "SEAT"], ["hide", "HIDE"],
 	["checklist", "CHECKLIST"], ["next", "NEXT STEP"], ["highlight", "HILITE"], ["vignette", "VIGNETTE"],
 	["horizon", "HORIZON"], ["authentic", "AUTHENTIC"], ["sound_down", "SOUND -"], ["sound_up", "SOUND +"],
-	["flight", "FLIGHT"],
+	["flight", "FLIGHT"], ["walkthrough", "WALKTHRU"], ["find_control", "FIND CTRL"], ["tour", "CABIN TOUR"],
 ]
 ## The flight page's buttons, in layout order, under the choice's lines.
 const FLIGHT_BUTTONS := [
@@ -131,6 +134,9 @@ var failure_index: int = 0
 ## The page showing: "main", "flight", "saves" or "failures".
 var page: String = "main"
 var status_label: Label3D
+## Desktop guide panel to keep clear of; never used for a controller-mounted menu.
+var guide_panel: Control
+var _guide_fitted := false
 ## The flight page's lines: the mission, the start phase and its note.
 var choice_label: Label3D
 var _buttons: Dictionary = {}
@@ -258,6 +264,7 @@ func setup(rig_node: Node3D, head_node: Node3D, hand_node: Node3D, p_book: Check
 
 
 func _process(_delta: float) -> void:
+	_fit_beside_guide()
 	if hand and head:
 		var palm: Vector3 = hand.global_transform.basis * palm_axis
 		var to_head: Vector3 = (head.global_position - hand.global_position).normalized()
@@ -273,6 +280,30 @@ func _process(_delta: float) -> void:
 		status_label.text = "GET %s   x%d%s   %.1f ms   %s" % [SimClock.get_display(), int(SimClock.rate),
 			"   PAUSED" if SimClock.paused else "", float(Bus.get_value("perf.frame_ms_max", 0.0)),
 			cabin.seat if cabin != null else ""]
+
+
+## Keep desktop buttons reachable beside the guide at any inspection FOV.
+## Project a screen rectangle onto the menu plane; headset geometry is untouched.
+func _fit_beside_guide() -> void:
+	if hand or not head is Camera3D:
+		return
+	if not is_instance_valid(guide_panel) or not guide_panel.is_visible_in_tree():
+		if _guide_fitted:
+			transform = Transform3D(Basis.looking_at(DESKTOP_POSITION, Vector3.UP), DESKTOP_POSITION)
+			_guide_fitted = false
+		return
+	var camera := head as Camera3D
+	var size := get_viewport().get_visible_rect().size
+	var available := Rect2(16, size.y * 0.50, maxf(1, guide_panel.global_position.x - 32), size.y * 0.47)
+	var depth := 0.28
+	var top_left := camera.project_position(available.position, depth)
+	var width := top_left.distance_to(camera.project_position(available.position + Vector2(available.size.x, 0), depth))
+	var height := top_left.distance_to(camera.project_position(available.position + Vector2(0, available.size.y), depth))
+	# Include legends, status and touch volumes, not just the backing plate.
+	var extent := Vector2(PITCH.x * COLS + 0.03, PITCH.y * ceili(BUTTONS.size() / float(COLS)) + 0.065)
+	var factor := minf(width / extent.x, height / extent.y) * 0.85
+	transform = Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * factor), camera.to_local(camera.project_position(available.get_center(), depth)))
+	_guide_fitted = true
 
 
 ## The controller's menu button shows and hides the menu whatever the palm does.
@@ -460,6 +491,8 @@ func _on_button(id: String) -> void:
 		"checklist":
 			if book:
 				book.cycle()
+		"walkthrough", "find_control", "tour":
+			guide_requested.emit(id)
 		"next":
 			if book:
 				book.next()

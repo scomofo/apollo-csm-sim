@@ -93,7 +93,7 @@ func reset_zoom() -> void:
 
 ## Checklist Find uses the installed touch centre and never moves the head,
 ## the control, or the simulation. Repeated Finds retain the first view.
-func focus_control(control: ControlBase) -> bool:
+func focus_control(control: Node3D) -> bool:
 	if not is_instance_valid(control) or not control.is_inside_tree() \
 			or control.get_viewport() != get_viewport():
 		return false

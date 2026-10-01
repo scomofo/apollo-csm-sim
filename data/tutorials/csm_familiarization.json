@@ -1,0 +1,17 @@
+{
+  "checklists": [{
+    "title": "CM cockpit walkthrough",
+    "steps": [
+      {"text": "Welcome aboard. This walkthrough teaches the cabin, stations and DSKY. Pause with P or wrist PAUSE while reading. Continue acknowledges a note; a step with a live check waits for your action."},
+      {"text": "Read the commander's FDAI. Find control aims and magnifies on desktop; Esc returns the view. In a headset, Find shows the control's location without turning your head.", "control": "P1_FDAI"},
+      {"text": "Open the wrist menu with M, or the left controller's menu button. It has time controls, SEAT, PAD requests and WALKTHRU.", "check": {"channel": "present.menu.visible", "value": true}},
+      {"text": "Use SEAT on the wrist menu to move to CMP, the centre couch. Its DSKY is within reach. M hides the menu on desktop.", "check": {"channel": "player.seat", "value": "CMP"}},
+      {"text": "On the DSKY, press VERB 1 6 NOUN 2 0 ENTR to monitor the IMU angles. Keyboard: V16N20 then Enter. Verify VERB 16 and NOUN 20 below, then Continue. This changes the display, not the flight program.", "control": "P2_DSKY"},
+      {"text": "The DSKY's VERB says what to do and NOUN says which data. PRO is Space on desktop; Enter is ENTR. Read the current flight checklist before entering a new program.", "control": "P2_DSKY"},
+      {"text": "Use wrist SEAT to move to LEB, the lower equipment bay, where the navigator works the optics and second DSKY.", "check": {"channel": "player.seat", "value": "LEB"}},
+      {"text": "Find the optics MODE switch. Read its current setting and available positions below. The IMU realign (P52) checklist explains its flight use; leave its setting as it is for this tour.", "control": "LEB_OPTICS_MODE"},
+      {"text": "Use wrist SEAT to return to CDR, the commander's couch.", "check": {"channel": "player.seat", "value": "CDR"}},
+      {"text": "Choose a flight checklist from the list. The current action, live state and nearby steps stay shared with the cabin card and HUD. F1 chooses a mission/start phase; F5 saves and F9 resumes. P unpauses when you are ready."}
+    ]
+  }]
+}

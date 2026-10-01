@@ -1,0 +1,15 @@
+{
+  "checklists": [{
+    "title": "LM cockpit walkthrough",
+    "steps": [
+      {"text": "Welcome to the lunar module. The crew stand at their stations. Pause with P or wrist PAUSE while reading. Continue acknowledges notes; checked steps wait for the actual condition."},
+      {"text": "Find the LGC DSKY on panel 4. The flight checklist gives the verb/noun sequence for each operation. Find magnifies on desktop; in a headset it only identifies the panel.", "control": "P4_DSKY"},
+      {"text": "Open the wrist menu with M or the left controller's menu button. Its PAD requests now serve the lunar module: DOI, PDI, ASCENT and CSI.", "check": {"channel": "present.menu.visible", "value": true}},
+      {"text": "Use wrist SEAT to move to LMP, the lunar module pilot's station.", "check": {"channel": "player.seat", "value": "LMP"}},
+      {"text": "Find the DEDA on panel 6. It is the abort guidance system's display and keyboard. The flight checklists provide its address/data entries; leave it unchanged during this tour.", "control": "P6_DEDA"},
+      {"text": "Use wrist SEAT to return to CDR. M hides the menu on desktop.", "check": {"channel": "player.seat", "value": "CDR"}},
+      {"text": "Find ENG ARM and read its current position. OFF, ASC and DES select the engine arming mode. Operate it only when the flight checklist calls for it.", "control": "P1_ENG_ARM"},
+      {"text": "Choose the checklist for your next maneuver. Find identifies the control, but only your actions operate it. F2 opens this walkthrough panel, F3 acknowledges a note, and Esc restores a desktop inspection view. P unpauses."}
+    ]
+  }]
+}

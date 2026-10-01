@@ -82,6 +82,16 @@ func cycle() -> void:
 	select(current + 1)
 
 
+## Optional cockpit orientation lesson, added by the interactive scene.
+## Flight/procedure loaders keep their existing order and contents.
+func add_walkthrough(vehicle: String) -> void:
+	if lists.is_empty():
+		return
+	for c in Checklist.load_all("res://data/tutorials/" + vehicle + "_familiarization.json"):
+		if not lists.any(func(existing: Checklist) -> bool: return existing.title == c.title):
+			lists.append(c)
+
+
 ## Acknowledge the current step if it has no check.
 func next() -> void:
 	if list() != null:
