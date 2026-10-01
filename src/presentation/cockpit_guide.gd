@@ -6,8 +6,11 @@ extends Node
 
 signal cabin_view_requested
 signal shown_changed(shown: bool)
+signal flight_checklist_requested
 
 const ACCENT := Color(0.50, 0.91, 0.74)
+const PAPER := Color(0.89, 0.88, 0.82)
+const INK := Color(0.12, 0.18, 0.16)
 var book: ChecklistBook
 var cabin: Cabin
 var rig: Node3D
@@ -17,11 +20,16 @@ var selector: OptionButton
 var current_label: Label
 var state_label: Label
 var progress_label: Label
+var mode_label: Label
+var progress_bar: ProgressBar
 var nearby_label: Label
 var mission_label: Label
 var continue_button: Button
 var find_button: Button
 var reopen_button: Button
+var flight_button: Button
+var resume_button: Button
+var tour_button: Button
 var xr_card: Node3D
 var xr_text: Label3D
 var _layer: CanvasLayer
@@ -31,6 +39,7 @@ var _last_shown := false
 var _elapsed := 0.0
 var _scroll: ScrollContainer
 var _shown_step := ""
+var _tour_returns: Dictionary = {}
 
 
 func setup(c: Cabin, b: ChecklistBook, player: Node3D, headset: bool) -> void:
@@ -101,6 +110,8 @@ func next_guide() -> void:
 func tour() -> void:
 	for i in book.lists.size():
 		if book.lists[i].title.ends_with("cockpit walkthrough"):
+			if book.list() and not book.list().title.ends_with("cockpit walkthrough"):
+				_tour_returns[book] = book.current
 			_shown = true
 			select(i)
 			cabin_view_requested.emit()
@@ -112,6 +123,23 @@ func tour() -> void:
 func restart() -> void:
 	if book.list():
 		book.list().index = 0
+	refresh()
+
+
+func return_to_flight() -> void:
+	flight_checklist_requested.emit()
+	# Some flight phases have no checklist for the vehicle currently aboard.
+	# Return to the page left open before the tour rather than a dead button.
+	if book.list() and book.list().title.ends_with("cockpit walkthrough"):
+		book.current = int(_tour_returns.get(book, 0))
+	refresh()
+
+
+func resume_flight() -> void:
+	if SimClock.controls_locked():
+		SimClock.rate = 1.0
+	if SimClock.paused:
+		SimClock.paused = false
 	refresh()
 
 
@@ -191,7 +219,23 @@ func status_text() -> String:
 			{"eq": "=", "ne": "not", "gt": ">", "ge": ">=", "lt": "<", "le": "<="}.get(check.get("op", "eq"), "="), str(check["value"])]
 	if SimClock.controls_locked():
 		text += "\nReduce time rate with [ or wrist RATE - to operate controls."
+	elif SimClock.paused and not channel.begins_with("present.") and not channel.begins_with("player."):
+		text += "\nFlight paused. Resume for time-dependent checks."
 	return text
+
+
+## Describe the existing step contract; never infer completion from its wording.
+func step_mode() -> String:
+	var c := book.list()
+	if c == null:
+		return "NO CHECKLIST"
+	if c.done():
+		return "CHECKLIST COMPLETE"
+	if not c.current().has("check"):
+		return "READ & CONTINUE"
+	if str(c.current()["check"]["channel"]).begins_with("ctl."):
+		return "CONTROLS LOCKED" if SimClock.controls_locked() else "SET & VERIFY"
+	return "MONITOR / VERIFY"
 
 
 func _process(delta: float) -> void:
@@ -231,18 +275,32 @@ func refresh() -> void:
 			_shown_step = step_key
 		selector.select(book.current)
 		progress_label.text = progress
+		mode_label.text = step_mode()
+		progress_bar.max_value = maxi(1, c.steps.size())
+		progress_bar.value = mini(c.index, c.steps.size())
 		current_label.text = instruction
 		state_label.text = state
 		mission_label.text = "PAD\n" + str(Bus.get_value("mission.pad_text", "None uplinked.")) + "\n\nCAPCOM\n" + str(Bus.get_value("mission.capcom", "No call yet."))
 		continue_button.disabled = c.done() or c.current().has("check")
+		continue_button.visible = not c.done()
+		continue_button.text = "Continue [F3]" if not c.current().has("check") else "Verifying…"
 		find_button.disabled = target() == null
+		find_button.visible = not c.done()
 		find_button.text = "Find control" if target() == null or station_for(target()) == cabin.seat else "Go to " + station_for(target()) + " + Find"
+		flight_button.visible = c.title.ends_with("cockpit walkthrough")
+		tour_button.visible = not flight_button.visible
+		var check_channel := str(c.current().get("check", {}).get("channel", ""))
+		resume_button.visible = not c.done() and ((SimClock.controls_locked() and check_channel.begins_with("ctl.")) or (SimClock.paused and not check_channel.is_empty() and not check_channel.begins_with("present.") and not check_channel.begins_with("player.")))
+		resume_button.text = "Resume at 1×" if SimClock.controls_locked() else "Resume flight"
+		continue_button.visible = not c.done() and not resume_button.visible
 		var lines := PackedStringArray()
 		for s in book.window(1, 5):
 			lines.append(("✓ " if s["state"] == "done" else ("› " if s["state"] == "current" else "  ")) + str(s["text"]))
 		nearby_label.text = "NEARBY STEPS\n\n" + "\n\n".join(lines)
 	else:
-		xr_text.text = c.title + "\n" + progress + "\n\n" + instruction + "\n\n" + state + "\n\nWrist: NEXT STEP · CHECKLIST · FIND CTRL\nWALKTHRU hides this guide for PAD / CAPCOM."
+		xr_text.text = c.title + "\n" + progress + "\n\n" + step_mode() + "\n" + instruction + "\n\n" + state + "\n\nWrist: NEXT STEP · CHECKLIST · FIND CTRL\nWALKTHRU hides this guide for PAD / CAPCOM."
+		if c.done() and c.title.ends_with("cockpit walkthrough"):
+			xr_text.text += "\nCHECKLIST selects a flight procedure."
 		# Fit long flight instructions onto the card without clipping.
 		xr_text.pixel_size = 0.00011
 		var height := xr_text.font.get_multiline_string_size(xr_text.text, HORIZONTAL_ALIGNMENT_LEFT, xr_text.width, xr_text.font_size).y
@@ -276,6 +334,12 @@ func _build_desktop() -> void:
 	add_child(_layer)
 	panel = PanelContainer.new()
 	panel.name = "WalkthroughPanel"
+	# Distance-field text stays sharp when compensating for HUD stretching.
+	var reading_theme := Theme.new()
+	var reading_font := ThemeDB.fallback_font.duplicate() as FontFile
+	reading_font.multichannel_signed_distance_field = true
+	reading_theme.default_font = reading_font
+	panel.theme = reading_theme
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	panel.mouse_force_pass_scroll_events = false
 	var style := StyleBoxFlat.new()
@@ -304,9 +368,25 @@ func _build_desktop() -> void:
 	body.add_child(selector)
 	var choices := HBoxContainer.new()
 	body.add_child(choices)
-	_button(choices, "Cockpit tour", tour)
+	tour_button = _button(choices, "Cockpit tour", tour)
+	flight_button = _button(choices, "Flight checklist", return_to_flight)
+	flight_button.tooltip_text = "Return to the checklist for this flight phase."
+	flight_button.name = "ReturnToFlight"
 	_button(choices, "Restart checklist", restart)
 	progress_label = _label(body, 14, ACCENT)
+	progress_bar = ProgressBar.new()
+	progress_bar.name = "ChecklistProgress"
+	progress_bar.show_percentage = false
+	progress_bar.custom_minimum_size.y = 5
+	progress_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var track := StyleBoxFlat.new()
+	track.bg_color = Color(0.15, 0.22, 0.24)
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = ACCENT
+	progress_bar.add_theme_stylebox_override("background", track)
+	progress_bar.add_theme_stylebox_override("fill", fill)
+	body.add_child(progress_bar)
+	mode_label = _label(body, 14, Color(1.0, 0.79, 0.45))
 	var scroll := ScrollContainer.new()
 	_scroll = scroll
 	scroll.name = "StepsScroll"
@@ -319,28 +399,54 @@ func _build_desktop() -> void:
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	content.add_theme_constant_override("separation", 14)
 	scroll.add_child(content)
-	_label(content, 13, ACCENT).text = "CURRENT STEP"
-	current_label = _label(content, 21)
-	state_label = _label(content, 16)
+	var current_card := PanelContainer.new()
+	current_card.name = "CurrentStepCard"
+	var paper := StyleBoxFlat.new()
+	paper.bg_color = PAPER
+	paper.border_color = Color(0.33, 0.46, 0.40)
+	paper.border_width_top = 4
+	paper.set_content_margin_all(14)
+	current_card.add_theme_stylebox_override("panel", paper)
+	content.add_child(current_card)
+	var current_body := VBoxContainer.new()
+	current_body.add_theme_constant_override("separation", 12)
+	current_card.add_child(current_body)
+	_label(current_body, 12, Color(0.27, 0.37, 0.31)).text = "FLIGHT DATA FILE · CURRENT STEP"
+	current_label = _label(current_body, 21, INK)
+	state_label = _label(current_body, 16, INK)
 	mission_label = _label(content, 14, Color(0.78, 0.85, 0.87))
 	nearby_label = _label(content, 14, Color(0.65, 0.73, 0.78))
 	var actions := HBoxContainer.new()
 	body.add_child(actions)
 	continue_button = _button(actions, "Continue [F3]", acknowledge)
 	find_button = _button(actions, "Find control", find_control)
-	_label(body, 13, Color(0.65, 0.73, 0.78)).text = "P pause · F1 flights · Shift+F2 next guide\nEsc restores inspection · Z / Shift+wheel zoom"
+	resume_button = _button(actions, "Resume flight", resume_flight)
+	resume_button.name = "ResumeFlight"
+	_label(body, 13, Color(0.65, 0.73, 0.78)).text = "Left-click / wheel operates · Esc restores view\nP pause · F1 flights · Shift+F2 next guide"
 	reopen_button = _button(_layer, "Walkthrough [F2]", toggle)
+	reopen_button.theme = reading_theme
 	get_viewport().size_changed.connect(_layout)
 	panel.minimum_size_changed.connect(_layout.call_deferred)
 	_layout()
 
 
 func _layout() -> void:
+	if not is_inside_tree():
+		return
 	var size := get_viewport().get_visible_rect().size
-	var width := minf(390.0, size.x - 24.0)
-	panel.position = Vector2(size.x - width - 12.0, 58.0)
-	panel.size = Vector2(width, maxf(280.0, minf(710.0, size.y - 74.0)))
-	reopen_button.position = Vector2(size.x - 184.0, size.y - 48.0)
+	# The project stretches a 1600px HUD canvas. Keep this adaptive reading
+	# aid at its intended pixel size in a smaller real window, while leaving
+	# the HUD and camera projection alone. Control.scale keeps its global
+	# bounds in the same logical coordinates used by cockpit ray picking.
+	var stretch := get_viewport().get_final_transform().get_scale()
+	var ui_scale := 1.0 / maxf(0.1, minf(stretch.x, stretch.y))
+	var pixels := size / ui_scale
+	var width := minf(390.0, pixels.x - 24.0)
+	panel.scale = Vector2.ONE * ui_scale
+	panel.position = Vector2(size.x - (width + 12.0) * ui_scale, 58.0 * ui_scale)
+	panel.size = Vector2(width, maxf(280.0, minf(710.0, pixels.y - 74.0)))
+	reopen_button.scale = Vector2.ONE * ui_scale
+	reopen_button.position = size - Vector2(184.0, 48.0) * ui_scale
 	reopen_button.size = Vector2(172.0, 36.0)
 
 

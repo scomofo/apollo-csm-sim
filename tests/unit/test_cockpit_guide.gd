@@ -40,12 +40,16 @@ func test_continue_waits_for_checks_and_restart_only_rewinds_the_selected_checkl
 	Bus.set_value("ctl.cmc.up_tlm", false)
 	guide.toggle()
 	assert_true(guide.continue_button.disabled)
+	assert_eq(guide.mode_label.text, "SET & VERIFY")
+	assert_eq(guide.progress_bar.value, 0.0)
 	guide.acknowledge()
 	assert_eq(book.list().index, 0)
 	Bus.set_value("ctl.cmc.up_tlm", true)
 	guide.refresh()
 	assert_eq(book.list().index, 1)
 	assert_false(guide.continue_button.disabled)
+	assert_eq(guide.mode_label.text, "READ & CONTINUE")
+	assert_eq(guide.progress_bar.value, 1.0)
 	Bus.set_value("mission.pad_text", "MCC: TIG 004:04:18")
 	Bus.set_value("mission.capcom", "Houston, uplinking MCC PAD")
 	guide.refresh()
@@ -65,6 +69,55 @@ func test_continue_waits_for_checks_and_restart_only_rewinds_the_selected_checkl
 	guide.toggle()
 	guide.acknowledge()
 	assert_eq(book.list().index, 0, "hidden guide ignores Continue")
+
+
+func test_event_steps_remain_monitored_and_completion_matches_the_book() -> void:
+	guide.tour()
+	book.list().index = 2
+	Bus.set_value("present.menu.visible", false)
+	guide.refresh()
+	assert_eq(guide.mode_label.text, "MONITOR / VERIFY")
+	guide.acknowledge()
+	assert_eq(book.list().index, 2, "reading aid cannot skip a monitored event")
+	Bus.set_value("present.menu.visible", true)
+	guide.refresh()
+	assert_eq(book.list().index, 3)
+	book.list().index = book.list().steps.size()
+	guide.refresh()
+	assert_eq(guide.mode_label.text, "CHECKLIST COMPLETE")
+	assert_eq(guide.progress_bar.value, guide.progress_bar.max_value)
+	assert_true(guide.continue_button.disabled)
+
+
+func test_pause_recovery_does_not_skip_checks_or_interrupt_station_lessons() -> void:
+	guide.tour()
+	book.list().index = 2
+	Bus.set_value("present.menu.visible", false)
+	SimClock.paused = true
+	guide.refresh()
+	assert_false(guide.resume_button.visible, "the menu lesson can finish while paused")
+	book.select_for_phase("translunar_coast")
+	Bus.set_value("ctl.cmc.up_tlm", false)
+	guide.refresh()
+	assert_true(guide.resume_button.visible)
+	assert_string_contains(guide.state_label.text, "Flight paused")
+	var time := SimClock.get_seconds
+	guide.resume_button.pressed.emit()
+	assert_false(SimClock.paused)
+	assert_eq(book.list().index, 0, "Resume does not manufacture the requested switch state")
+	assert_eq(SimClock.get_seconds, time)
+
+
+func test_tour_return_has_a_progress_preserving_fallback_without_a_phase_match() -> void:
+	book.select_for_phase("translunar_coast")
+	book.list().index = 1
+	var previous := book.list()
+	guide.flight_checklist_requested.connect(func(): book.select_for_phase("no_matching_phase"))
+	guide.tour()
+	guide.tour()
+	guide.flight_button.pressed.emit()
+	assert_same(book.list(), previous, "a repeated tour cannot overwrite its return page")
+	assert_eq(previous.index, 1, "returning cannot rewind an acknowledged note")
 
 
 func test_find_reads_live_control_and_moves_only_the_desktop_view() -> void:
@@ -188,6 +241,19 @@ func test_xr_find_never_changes_head_pose_fov_or_station_and_card_follows_vehicl
 	assert_eq(guide.xr_card.get_parent(), lm.card_mount)
 	assert_eq(guide.book, lm_book)
 	assert_string_contains(guide.xr_text.text, "LM cockpit walkthrough")
+
+
+func test_stretched_desktop_canvas_keeps_reading_aid_at_intended_pixel_size() -> void:
+	viewport.size_2d_override = Vector2i(1600, 938)
+	viewport.size_2d_override_stretch = true
+	guide.tour()
+	await wait_process_frames(4)
+	guide._layout()
+	var transform := viewport.get_final_transform()
+	var physical := transform * guide.panel.get_global_rect()
+	assert_almost_eq(physical.size.x, 390.0, 1.0, "window stretching must not shrink the guide to 250px")
+	assert_true(Rect2(Vector2.ZERO, Vector2(viewport.size)).encloses(physical))
+	assert_almost_eq(guide.panel.scale.x * transform.get_scale().x, 1.0, 0.01, "reading text retains its intended pixel size")
 
 
 func test_wrist_buttons_remain_visible_and_clickable_beside_the_guide_while_zoomed() -> void:

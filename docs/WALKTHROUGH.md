@@ -22,6 +22,16 @@ live setting and available switch positions. It also shows guard/lever-lock
 instructions where applicable. Scroll for the PAD, latest CAPCOM call and nearby
 steps. Action buttons stay at the bottom of the panel.
 
+The current instruction sits on a contrasting flight-data-file reading card.
+Above it, the progress bar counts completed steps and the status distinguishes
+**READ & CONTINUE**, **SET & VERIFY**, and **MONITOR / VERIFY**. These labels
+follow the existing checklist checks; they do not acknowledge actions for you.
+The paper treatment is a simulator reading aid, not a reproduction of a flown
+Apollo checklist. The status also appears on the headset reading card.
+The desktop card keeps its intended text size when a smaller window scales
+the rest of the HUD. Scroll within the card for longer instructions and live
+control details; its action buttons stay visible.
+
 - **Continue [F3]** acknowledges a reading or manual-verification step. The DSKY
   lesson asks you to enter V16N20 ENTR, verify the display, and Continue.
 - A checked step advances when its existing flight-checklist condition holds.
@@ -34,6 +44,11 @@ the observed and required values.
 - **Restart checklist** rewinds only the selected checklist. It does not undo
   switch settings, change the clock, start a new flight or clear other checklists.
   Conditions already satisfied still check themselves off.
+- **Flight checklist** returns from a cockpit tour to the current flight
+  phase's checklist in the vehicle you are aboard. It preserves that book's
+  progress and does not start a new flight.
+- **Resume flight** appears for paused flight checks. **Resume at 1×** releases
+  the high-rate control lock. Neither button verifies the outstanding step.
 
 ![Find the optics MODE switch and read its live setting](images/cockpit_walkthrough_find.png)
 

@@ -246,6 +246,7 @@ func _ready() -> void:
 	guide.setup(cabin, book, rig, xr)
 	menu.guide_panel = guide.panel
 	guide.cabin_view_requested.connect(func() -> void: set_view(VIEW_CABIN))
+	guide.flight_checklist_requested.connect(func() -> void: guide.book.select_for_phase(_checklist_phase()))
 	guide.shown_changed.connect(func(on: bool) -> void:
 		card.visible = not on
 		hud.set_guided_checklist(on))
