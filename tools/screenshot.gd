@@ -3,6 +3,7 @@
 ## --view: 0 window, 1 chase, 2 cabin. --yaw/--pitch (rad) turn the window
 ## view's look, the chase camera or, in the cabin, the desktop rig's head.
 ## --zoom=<factor> magnifies the desktop cabin camera for detail captures.
+## --guide=1 includes the cockpit walkthrough (normally hidden in captures).
 ## --hud=0 leaves the HUD out. --menu=1 shows the wrist menu, and
 ## --pad=<kind> (mcc, loi, circ, tei) asks Mission Control for a PAD first.
 ## --undock=<s> undocks the LM and lets it drift for that many seconds.
@@ -30,6 +31,7 @@ func _ready() -> void:
 	var yaw := 0.0
 	var pitch := 0.0
 	var zoom := 1.0
+	var walkthrough := false
 	var hud := true
 	var show_menu := false
 	var pad := ""
@@ -53,6 +55,8 @@ func _ready() -> void:
 			pitch = float(a.trim_prefix("--pitch="))
 		elif a.begins_with("--zoom="):
 			zoom = float(a.trim_prefix("--zoom="))
+		elif a == "--guide=1":
+			walkthrough = true
 		elif a == "--hud=0":
 			hud = false
 		elif a == "--menu=1":
@@ -78,6 +82,9 @@ func _ready() -> void:
 	_main.start_phase = phase
 	add_child(_main)
 	_main.set_view(view_mode)
+	_main.guide.set_capture_visible(walkthrough)
+	if walkthrough:
+		_main.guide.tour()
 	if seat != "":
 		_main.cabin.set_seat(seat)
 	if view_mode == 2:
@@ -167,6 +174,8 @@ func _p23(agc: Agc, code: int) -> void:
 func _process(_d: float) -> void:
 	_frames += 1
 	if _frames == 30:
+		# An occluded desktop window may skip drawing; capture a rendered frame.
+		RenderingServer.force_draw()
 		var img := get_viewport().get_texture().get_image()
 		var path := ProjectSettings.globalize_path(_out)
 		DirAccess.make_dir_recursive_absolute(path.get_base_dir())

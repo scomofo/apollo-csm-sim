@@ -31,6 +31,7 @@ G             flying the LM, the AGS's DEDA: while it's open the
               digits, + -, Enter and Bksp key into it (ENTR, CLR)
 F5 / F9       quick save / back to it (the flight menu's SAVES lists it)
 F1            the flight menu: another mission or start phase, saved flights
+F2 / F3       walkthrough / Continue note; Shift+F2 next checklist
 H             this help"""
 
 var rt: SimRuntime
@@ -59,6 +60,7 @@ var _top: Label
 var _capcom: RichTextLabel
 var _check_title: OptionButton
 var _check_text: RichTextLabel
+var _check_panel: PanelContainer
 var _help: Label
 var _fdai: Fdai
 var _switches: PanelContainer
@@ -109,7 +111,8 @@ func setup(p_rt: SimRuntime, p_book: ChecklistBook = null, p_lm_book: ChecklistB
 	_style(lgc_panel)
 	lgc_panel.setup(rt.lgc().dsky, mono)
 	left.add_child(lgc_panel)
-	left.add_child(_checklist_panel())
+	_check_panel = _checklist_panel()
+	left.add_child(_check_panel)
 	# Right column: flight data, FDAI, systems, switches, Mission Control.
 	var right := VBoxContainer.new()
 	right.anchor_left = 1.0
@@ -333,6 +336,10 @@ func _optics_panel() -> PanelContainer:
 func set_cabin_view(on: bool) -> void:
 	_in_cabin = on
 	_show_panels()
+
+
+func set_guided_checklist(on: bool) -> void:
+	_check_panel.visible = not on
 
 
 ## Show the panels for [param v]: "csm", or "lm" for Eagle's.
