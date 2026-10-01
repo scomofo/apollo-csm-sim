@@ -144,3 +144,25 @@ func test_the_session_paces_frames_and_the_record_covers_a_restart() -> void:
 	var md := rec.markdown()
 	assert_string_contains(md, "| S1 | OpenXR runtime detected; `--xr-mode on` starts the XR rig in the cabin | | evidence: pass (`player.rig` = xr) |")
 	assert_string_contains(md, "| S5 | Clean session end and headset removal | | evidence: pass: 2 session stops, window not closed |")
+
+
+func test_wrist_walkthrough_uses_a_world_card_without_steering_the_head() -> void:
+	var guide: CockpitGuide = _main.guide
+	var camera: Camera3D = _main.rig.get_node("XRCamera3D")
+	var pose := camera.global_transform
+	var fov := camera.fov
+	_main.menu.activate("tour")
+	assert_true(guide.is_shown())
+	assert_true(guide.xr_card.visible)
+	assert_eq(guide.xr_card.get_parent(), _main.cabin.card_mount)
+	assert_null(guide.panel)
+	assert_false(_main.card.visible)
+	guide.book.list().index = 7
+	_main.menu.activate("find_control")
+	assert_eq(camera.global_transform, pose)
+	assert_eq(camera.fov, fov)
+	assert_eq(_main.cabin.seat, "CDR", "Find never transports the headset to LEB")
+	assert_string_contains(guide.xr_text.text, "Station: LEB")
+	_main.menu.activate("walkthrough")
+	assert_false(guide.is_shown())
+	assert_true(_main.card.visible, "original PAD and CAPCOM card returns")

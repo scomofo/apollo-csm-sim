@@ -122,6 +122,7 @@ var vehicles: VehicleSwitch
 ## flown.
 var book: ChecklistBook
 var lm_book: ChecklistBook
+var guide: CockpitGuide
 var card: ChecklistCard
 var highlight: ChecklistHighlight
 var menu: WristMenu
@@ -192,6 +193,8 @@ func _ready() -> void:
 	_place_rig()
 	book = ChecklistBook.load_default(mission_id)
 	lm_book = ChecklistBook.load_lm(mission_id)
+	book.add_walkthrough("csm")
+	lm_book.add_walkthrough("lm")
 	card = ChecklistCard.new()
 	card.name = "ChecklistCard"
 	card.book = book
@@ -237,6 +240,16 @@ func _ready() -> void:
 	hud.name = "Hud"
 	add_child(hud)
 	hud.setup(rt, book, lm_book)
+	guide = CockpitGuide.new()
+	guide.name = "CockpitGuide"
+	add_child(guide)
+	guide.setup(cabin, book, rig, xr)
+	menu.guide_panel = guide.panel
+	guide.cabin_view_requested.connect(func() -> void: set_view(VIEW_CABIN))
+	guide.shown_changed.connect(func(on: bool) -> void:
+		card.visible = not on
+		hud.set_guided_checklist(on))
+	menu.guide_requested.connect(_guide_action)
 	# Both vehicles' checklists open for the phase the flight starts in, or
 	# the start phase that is none (Apollo 13's tank_failure).
 	_first_phase = str(Bus.get_value("mission.phase", start_phase))
@@ -451,6 +464,7 @@ func _on_vehicle(v: String) -> void:
 	menu.cabin = c
 	menu.book = b
 	menu.set_vehicle(v)
+	guide.follow(c, b)
 	comfort.vehicle = v
 	c.set_seat(c.seat)
 	set_view(view.view_mode)
@@ -460,6 +474,13 @@ func _on_vehicle(v: String) -> void:
 ## the one for the flight phase opens, where it stands.
 func _on_boarded(_v: String) -> void:
 	hud.select_checklist_for(_checklist_phase())
+
+
+func _guide_action(action: String) -> void:
+	match action:
+		"walkthrough": guide.toggle()
+		"find_control": guide.find_control()
+		"tour": guide.tour()
 
 
 ## A failure came (the failure catalog's, slice 9a): its malfunction
@@ -626,6 +647,17 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed and not event.echo):
 		return
 	var kc: Key = event.keycode
+	var guide_key: Key = event.physical_keycode if event.physical_keycode != 0 else event.keycode
+	if guide_key in [KEY_F2, KEY_F3] and not event.ctrl_pressed and not event.alt_pressed and not event.meta_pressed:
+		if guide_key == KEY_F2:
+			if event.shift_pressed:
+				guide.next_guide()
+			else:
+				guide.toggle()
+		elif guide.is_shown():
+			guide.acknowledge()
+		get_viewport().set_input_as_handled()
+		return
 	if DSKY_KEYS.has(kc):
 		_keypad(DSKY_KEYS[kc]).press(DSKY_KEYS[kc])
 	elif kc >= KEY_0 and kc <= KEY_9:
