@@ -50,7 +50,7 @@ const PANELS := {
 	"MDC1": {"centre": Vector3(1.35, -0.66, -0.30), "size": Vector2(0.60, 0.50)},
 	"MDC2": {"centre": Vector3(1.37, 0.0, -0.30), "size": Vector2(0.62, 0.56)},
 	"MDC3": {"centre": Vector3(1.35, 0.66, -0.30), "size": Vector2(0.60, 0.50)},
-	"LEB122": {"centre": Vector3(1.42, 0.0, 0.72), "size": Vector2(0.55, 0.45)},
+	"LEB122": {"centre": Vector3(1.05, 0.0, 1.20), "size": Vector2(0.55, 0.45)},
 }
 ## Pressure vessel: inner radius VESSEL_R0 - VESSEL_SLOPE * x between the
 ## aft bulkhead and the forward bulkhead, then the tunnel to the forward
@@ -116,7 +116,7 @@ static func create() -> CmCabin:
 func panels() -> Dictionary:
 	var out := {}
 	for p in PANELS:
-		out[p] = PANELS[p].merged({"basis": FACE_BASIS})
+		out[p] = PANELS[p].merged({"basis": LEB_BASIS if p == "LEB122" else FACE_BASIS})
 	return out
 
 
@@ -166,42 +166,98 @@ func _build_vessel() -> void:
 	_revolve("ForwardHatch", Vector2(TUNNEL_X, TUNNEL_R), Vector2(TUNNEL_X, 0.0), 1, bulkhead, false)
 
 
-## The pressure shell cannot end in a paper-thin edge at a window.  A dark
-## gasket behind a raised aluminium retainer gives every opening thickness,
-## a readable silhouette, and highlights as the spacecraft turns in sunlight.
-## The rectangular retainers follow the tangent plane of the conical wall;
-## rendezvous windows remain an approximation until dimensioned outlines are
-## available, but their aperture and all five sourced locations are unchanged.
+## Recessed window assemblies (NASA TN D-6721, figures 2-6). The liner is
+## black to suppress glare, with a pressure-frame retainer on the cabin side.
+## [simplified] These bands follow our conical shell, not the flown planar
+## panes. Apertures, 55 mm recess, frame widths and screw spacing remain
+## estimated. See docs/CABIN_FIDELITY.md for sources and limits.
 func _build_window_reveals() -> void:
 	var frame := CabinMaterials.get_material("window_frame")
 	var seal := CabinMaterials.get_material("window_seal")
 	for window_name in WINDOWS:
-		var window: Dictionary = WINDOWS[window_name]
-		var ext: Vector2 = window["x"]
-		var x := (ext.x + ext.y) * 0.5
-		var half_x := (ext.y - ext.x) * 0.5
-		var phi := deg_to_rad(float(window["phi_deg"]))
-		var r := wall_radius(x) - 0.012
-		var radial := Vector3(0.0, cos(phi), sin(phi))
-		var around := Vector3(0.0, -sin(phi), cos(phi))
-		var axial := Vector3(1.0, 0.0, 0.0)
-		var half_arc := r * deg_to_rad(float(window["half_deg"]))
-		var centre := Vector3(x, radial.y * r, radial.z * r)
-		var axes := Basis(axial, around, radial)
 		var root := Node3D.new()
 		root.name = window_name + "Retainer"
 		add_child(root)
-		# Rubber lies outboard of the metal and remains visible as a dark keyline.
-		_window_ring(root, centre - radial * 0.006, axes, half_x + 0.018, half_arc + 0.018, 0.022, seal)
-		_window_ring(root, centre - radial * 0.013, axes, half_x + 0.010, half_arc + 0.010, 0.018, frame)
+		# Each loop uses the SAME shell coordinates as the aperture. A flat
+		# box at the centre's radius used to float at one end and sink into
+		# the wall at the other (the radius changes by 18 cm over a window).
+		_window_band(root, "Gasket", window_name, Vector2(0.0, -0.004), Vector2(0.034, -0.004), seal)
+		_window_band(root, "InnerBevel", window_name, Vector2(0.0, -0.004), Vector2(0.006, -0.014), frame)
+		_window_band(root, "Retainer", window_name, Vector2(0.006, -0.014), Vector2(0.028, -0.014), frame)
+		_window_band(root, "OuterBevel", window_name, Vector2(0.028, -0.014), Vector2(0.032, -0.004), frame)
+		_window_band(root, "Recess", window_name, Vector2(0.0, -0.004), Vector2(0.0, 0.055), seal)
+		_window_band(root, "PressureSeal", window_name, Vector2(-0.006, 0.055), Vector2(0.0, 0.055), seal)
+		_window_fasteners(root, window_name)
 
 
-func _window_ring(parent: Node3D, centre: Vector3, axes: Basis, half_x: float, half_y: float,
-		width: float, material: Material) -> void:
-	_box(parent, "Top", centre + axes.y * half_y, Vector3(half_x * 2.0, width, 0.014), axes, material)
-	_box(parent, "Bottom", centre - axes.y * half_y, Vector3(half_x * 2.0, width, 0.014), axes, material)
-	_box(parent, "Left", centre - axes.x * half_x, Vector3(width, half_y * 2.0, 0.014), axes, material)
-	_box(parent, "Right", centre + axes.x * half_x, Vector3(width, half_y * 2.0, 0.014), axes, material)
+## A point on a window loop. uv runs -1..1 around the aperture, margin
+## expands it in metres, and depth is radial (positive out of the cabin).
+## The angle is deliberately not wrapped: the left side straddles +/-PI.
+static func window_point(window_name: String, uv: Vector2, margin: float = 0.0, depth: float = 0.0) -> Vector3:
+	var w: Dictionary = WINDOWS[window_name]
+	var ext: Vector2 = w["x"]
+	var centre_x := (ext.x + ext.y) * 0.5
+	var x := centre_x + uv.x * ((ext.y - ext.x) * 0.5 + margin)
+	var phi := deg_to_rad(float(w["phi_deg"])) + uv.y * (deg_to_rad(float(w["half_deg"])) + margin / wall_radius(centre_x))
+	return Vector3(x, 0, 0) + Vector3(0, cos(phi), sin(phi)) * (wall_radius(x) + depth)
+
+
+## One continuous strip between two loops (margin, depth), subdivided to
+## follow the cone. The six bands cost six surfaces per window, regardless
+## of the number of segments. No collision shapes intercept the controls.
+func _window_band(parent: Node3D, node_name: String, window_name: String, inner: Vector2, outer: Vector2, mat: Material) -> void:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var corners := [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]
+	for side in 4:
+		for step in 8:
+			var a: Vector2 = corners[side].lerp(corners[(side + 1) % 4], step / 8.0)
+			var b: Vector2 = corners[side].lerp(corners[(side + 1) % 4], (step + 1) / 8.0)
+			var q := [window_point(window_name, a, inner.x, inner.y), window_point(window_name, b, inner.x, inner.y),
+				window_point(window_name, b, outer.x, outer.y), window_point(window_name, a, outer.x, outer.y)]
+			for k in [0, 1, 2, 0, 2, 3]:
+				st.add_vertex(q[k])
+	st.generate_normals()
+	var mi := MeshInstance3D.new()
+	mi.name = node_name
+	mi.mesh = st.commit()
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED
+	parent.add_child(mi)
+
+
+## Small slotted screw heads, batched into two draws per window. Their
+## axes follow the local shell normal, including its axial slope.
+func _window_fasteners(parent: Node3D, window_name: String) -> void:
+	var head := CylinderMesh.new()
+	head.top_radius = 0.0035
+	head.bottom_radius = 0.0035
+	head.height = 0.002
+	head.radial_segments = 12
+	var slot := BoxMesh.new()
+	slot.size = Vector3(0.005, 0.0004, 0.0009)
+	var corners := [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]
+	for part in ["Heads", "Slots"]:
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = head if part == "Heads" else slot
+		mm.instance_count = 12
+		for side in 4:
+			for i in 3:
+				var uv: Vector2 = corners[side].lerp(corners[(side + 1) % 4], (i + 1) / 4.0)
+				var p := window_point(window_name, uv, 0.017, -0.015)
+				var radial := Vector3(0, p.y, p.z).normalized()
+				var along := (Vector3.RIGHT - VESSEL_SLOPE * radial).normalized()
+				var normal := -(Vector3.RIGHT * VESSEL_SLOPE + radial).normalized()
+				var axes := Basis(along, normal, along.cross(normal))
+				if part == "Slots":
+					p += normal * 0.0011
+				mm.set_instance_transform(side * 3 + i, Transform3D(axes, p))
+		var batch := MultiMeshInstance3D.new()
+		batch.name = "Fastener" + part
+		batch.multimesh = mm
+		batch.material_override = CabinMaterials.get_material("fastener" if part == "Heads" else "window_seal")
+		parent.add_child(batch)
 
 
 ## A surface of revolution about +X between profile points (x, r), cut
@@ -291,11 +347,13 @@ func _slab(parent: Node3D, node_name: String, a: Vector3, b: Vector3, width: flo
 ## the checklist card are lit; otherwise only the windows let light in.
 func _build_lights() -> void:
 	for spot in [["FloodLeft", Vector3(0.85, -0.95, -0.60)], ["FloodRight", Vector3(0.85, 0.95, -0.60)],
-			["FloodCentre", Vector3(0.9, 0.0, -0.95)]]:
+			["FloodCentre", Vector3(0.9, 0.0, -0.95)], ["FloodNavigation", Vector3(1.10, -0.33, 0.85)]]:
 		var l := OmniLight3D.new()
 		l.name = spot[0]
 		l.position = spot[1]
-		l.omni_range = 2.2
+		# [estimated] Local task lighting at the navigation station; the
+		# main console's floods do not reach its outward-facing panel.
+		l.omni_range = 0.85 if spot[0] == "FloodNavigation" else 2.2
 		l.light_energy = 0.45
 		l.light_color = Color(1.0, 0.95, 0.86)
 		l.shadow_enabled = false
