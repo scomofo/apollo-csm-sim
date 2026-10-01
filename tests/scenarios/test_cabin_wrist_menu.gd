@@ -11,6 +11,9 @@ func test_request_a_pad_from_the_wrist_menu_and_fly_on_down_the_checklist() -> v
 	build("translunar_coast")
 	# The coast starts on TLI's free return, so there is an MCC to plan.
 	await setup_cabin("translunar_coast")
+	# The checklist advances in _process, independently of the physics
+	# frames setup_cabin waits for its touch volumes.
+	await wait_process_frames(1)
 	assert_string_starts_with(current_step(), "Mission Control: request the PAD")
 	assert_false(dsky.lamps["uplink_acty"].get("lit"))
 	await press(KEY_M)

@@ -34,12 +34,20 @@
       {"text": "CMC: the computer has failed. Its DSKY is dark and its autopilot stopped"},
       {"text": "MASTER ALARM - press", "control": "P1_MASTER_ALARM", "check": {"channel": "sys.master_alarm", "op": "eq", "value": false}},
       {"text": "ATT SOURCE - SCS: the SCS holds the attitude", "control": "P1_ATT_SOURCE", "check": {"channel": "ctl.scs.att_source", "op": "eq", "value": 1}},
+      {"text": "Before an SPS burn: SPS GMBL MOTORS PITCH 1 - START, release to ON", "control": "P1_GMBL_P1", "check": {"channel": "sps.motor_p1", "op": "eq", "value": true}},
+      {"text": "Before an SPS burn: SPS GMBL MOTORS YAW 1 - START, release to ON", "control": "P1_GMBL_Y1", "check": {"channel": "sps.motor_y1", "op": "eq", "value": true}},
+      {"text": "Before an SPS burn: SPS GMBL MOTORS PITCH 2 - START, release to ON", "control": "P1_GMBL_P2", "check": {"channel": "sps.motor_p2", "op": "eq", "value": true}},
+      {"text": "Before an SPS burn: SPS GMBL MOTORS YAW 2 - START, release to ON", "control": "P1_GMBL_Y2", "check": {"channel": "sps.motor_y2", "op": "eq", "value": true}},
       {"text": "Houston's PADs from here: each burn on the SCS, turned to the PAD's R, P and Y on the FDAI's GDC angles, to the EMS's count of its DVC (EMS FUNCTION DV, THRUST ON)"}
     ]},
     {"title": "Malfunction: ISS", "phases": [], "steps": [
       {"text": "ISS: the IMU has failed. NO ATT on the DSKY: the CMC has no attitude"},
       {"text": "MASTER ALARM - press", "control": "P1_MASTER_ALARM", "check": {"channel": "sys.master_alarm", "op": "eq", "value": false}},
       {"text": "ATT SOURCE - SCS: the SCS holds the attitude", "control": "P1_ATT_SOURCE", "check": {"channel": "ctl.scs.att_source", "op": "eq", "value": 1}},
+      {"text": "Before an SPS burn: SPS GMBL MOTORS PITCH 1 - START, release to ON", "control": "P1_GMBL_P1", "check": {"channel": "sps.motor_p1", "op": "eq", "value": true}},
+      {"text": "Before an SPS burn: SPS GMBL MOTORS YAW 1 - START, release to ON", "control": "P1_GMBL_Y1", "check": {"channel": "sps.motor_y1", "op": "eq", "value": true}},
+      {"text": "Before an SPS burn: SPS GMBL MOTORS PITCH 2 - START, release to ON", "control": "P1_GMBL_P2", "check": {"channel": "sps.motor_p2", "op": "eq", "value": true}},
+      {"text": "Before an SPS burn: SPS GMBL MOTORS YAW 2 - START, release to ON", "control": "P1_GMBL_Y2", "check": {"channel": "sps.motor_y2", "op": "eq", "value": true}},
       {"text": "No coarse align, P51 or P52 brings the platform back: the burns on the SCS, to the EMS's count"}
     ]},
     {"title": "Malfunction: ISS, the platform tumbled", "phases": [], "steps": [
@@ -62,7 +70,7 @@
     ]},
     {"title": "Malfunction: SPS gimbal", "phases": [], "steps": [
       {"text": "GPI: one axis swinging about its trim on one servo loop, as Apollo 16's yaw on loop 2 did, 1 deg either way at 2.4 Hz; the axis steady on the other loop. No light: the TVC check shows it"},
-      {"text": "SPS GIMBAL MOTORS (4) - OFF, the bad loop's first", "check": {"channel": "sps.motor_y2", "op": "eq", "value": false}},
+      {"text": "SPS GIMBAL MOTORS (4) - OFF, the bad loop's first", "check": {"channel": "sps.motors_on", "op": "eq", "value": 0}},
       {"text": "The flight rules want all four servo loops for an SPS burn before the landing: no burn until Houston clears the loop. Apollo 16's was an open in its rate feedback, a limit cycle the engine can fly with, the thrust damping it; it flew its burns on the primary loops, the secondary yaw motor on only to back them up"}
     ]},
     {"title": "Malfunction: LV ENG, LV RATE or LV GUID", "phases": [], "steps": [

@@ -376,7 +376,7 @@ func _click_every_control(cabin: Cabin, p_layout: CockpitLayout, expect: int) ->
 	var home: String = cabin.seats().keys()[0]
 	for i in controls.size():
 		var c := controls[i]
-		var station := {"LEB122": "LEB", "P6": "LMP"}.get(panels[i], home)
+		var station: String = {"LEB122": "LEB", "P6": "LMP"}.get(panels[i], home)
 		if cabin.seat != station:
 			cabin.set_seat(station)
 			await wait_physics_frames(1)

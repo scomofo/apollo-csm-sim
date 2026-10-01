@@ -144,7 +144,10 @@ func driving() -> Vector2i:
 ## The gimbal as the GPI shows it, pitch and yaw, rad: the rams and the
 ## limit cycle's swing about them now.
 func position() -> Vector2:
-	return gimbal + cycle * sin(TAU * CYCLE_HZ * SimClock.get_seconds)
+	var at := gimbal + cycle * sin(TAU * CYCLE_HZ * SimClock.get_seconds)
+	# A failed servo still cannot drive through the actuator's stops.
+	return Vector2(clampf(at.x, -Scs.GIMBAL_MAX, Scs.GIMBAL_MAX),
+		clampf(at.y, -Scs.GIMBAL_MAX, Scs.GIMBAL_MAX))
 
 
 ## Fail [param part]: "<loop>_rate", a loop's rate feedback open.
@@ -177,11 +180,20 @@ func _drive(dt: float) -> void:
 	if Scs.sc_cont() == 1:
 		want = Bus.get_value("scs.gimbal_cmd", Vector2.ZERO)
 	var loops := driving()
+	var at := position()
 	var step := GIMBAL_RATE * dt
 	for a in 2:
 		if loops[a] == 0:
+			# With no motor, the engine stays at its actual deflection,
+			# including the failed loop's last swing.
+			gimbal[a] = at[a]
 			cycle[a] = 0.0
 			continue
+		if cycle[a] > 0.0 and not LOOPS[a + 2 * (loops[a] - 1)] in rate_open:
+			# A healthy loop takes over where the engine is, then returns
+			# to the command at the actuator's rate.
+			gimbal[a] = at[a]
+			cycle[a] = 0.0
 		var moving := absf(want[a] - gimbal[a]) > 1e-6 or absf(want[a] - _want_was[a]) > CYCLE_KICK
 		gimbal[a] += clampf(want[a] - gimbal[a], -step, step)
 		if not LOOPS[a + 2 * (loops[a] - 1)] in rate_open:

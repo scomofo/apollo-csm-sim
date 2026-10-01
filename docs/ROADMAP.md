@@ -7,7 +7,7 @@ What comes next for the Apollo CSM simulator, in order of value. Written
 
 | # | Milestone | Why | Size | Needs |
 |---|---|---|---|---|
-| 1 | [CI green](#1-ci-green) | Every later change should merge on a green run | No code | The owner protecting `main` |
+| 1 | [CI green](#1-ci-green) | Every later change should merge on a green run | No code | Required `test` check enabled |
 | 2 | [VR cockpit](#2-vr-cockpit) | Fly from the couch; gemini-capsule already has most of the parts | Medium, mostly porting | 1 |
 | 3 | [The LM and a lunar landing](#3-the-lm-and-a-lunar-landing) | The half of the mission the simulator leaves out | Largest | 1; 2 for the LM's own cockpit |
 | 4 | [Navigation realism](#4-navigation-realism) | The crew's work between burns, and the README's first two simplifications | Large | 1; slice 3b before 4b |
@@ -51,14 +51,17 @@ picture).
 
 ## 1. CI green
 
-**Status: CI passes on every push and pull request. What's left is
-protecting `main`.**
+**Status: done. `main` requires the aggregate `test` check and an
+up-to-date branch (verified 2026-10-01). Protection includes
+administrators; force pushes and branch deletion are disabled.**
 
-`.github/workflows/ci.yml` runs the GUT suite headless in four jobs
-side by side, each downloading Godot 4.4.1 (cached) and importing the
-project: the unit tests, and the scenario tests dealt out over three
-jobs in file-name order, so a new scenario file joins one by itself. The
-`test` job passes only when all four have. `lint` runs gdlint, advisory
+`.github/workflows/ci.yml` runs the GUT suite headless in twenty-one
+jobs side by side, each downloading Godot 4.4.1 (cached) and importing
+the project: three unit-test parts and eighteen scenario-test parts,
+balanced by the recorded times in `.github/unit_seconds.txt` and
+`.github/scenario_seconds.txt`. A new test file joins a part
+automatically. The `test` job passes only when every part has.
+`lint` runs gdlint, advisory
 for now, and checks the data files, which blocks. The suite ran as one
 job until slice 3f's cabin flights took it to 15 min 55 s of its
 20-minute limit.
@@ -72,11 +75,11 @@ of `1769a82` at 16:07 UTC
 and every run since has passed, on pull requests and on merges to `main`
 alike.
 
-The last step is the owner's: protect `main` and make the `test` job a
-required check.
+GitHub's branch protection now requires `test` on `main`. Keep this
+aggregate job as the required check when the suite's parts change.
 
 **Done when** a push to `main` and a pull request both show a green
-`test` job (done), and `main` requires it.
+`test` job (done), and `main` requires it (done).
 
 ## 2. VR cockpit
 
