@@ -1,7 +1,7 @@
 ## The surface around Tranquility Base: NASA's elevation maps
 ## (data/terrain/), blended from the Apollo 11 site's 4 m terrain model out
-## to LOLA's 1° map; around the Surveyor III site, Apollo 12's; and at Fra
-## Mauro, Apollo 14's.
+## to LOLA's 1° map; around the Surveyor III site, Apollo 12's; at Fra
+## Mauro, Apollo 14's; and at Hadley, Apollo 15's.
 extends GutTest
 
 const LM_LAT := 0.67416
@@ -85,6 +85,28 @@ func test_the_fra_mauro_site() -> void:
 	assert_eq(Terrain.source(at150.x, at150.y), "approach14", "at 474 m, 150 km along it")
 	var at45: Vector2 = back.call(45.0)
 	assert_eq(Terrain.source(at45.x, at45.y), "approach12", "Apollo 12's finer map, 45 km along it")
+
+
+## Slice 12b: the Apollo 15 site at Hadley, from its own terrain model
+## (LROC's NAC_DTM_APOLLO15) and SLDEM2015 along the approach from the
+## east, which crossed the site heading 270 deg over the Apennine front:
+## Falcon's spot, the final approach at 59 m and the approach at 474 m; and
+## the front 27 km uprange, some 3,700 m over the site, where the LGC's
+## terrain model has it 3,840 m (Lgc.terrain_height()).
+func test_the_hadley_site() -> void:
+	assert_almost_eq(Terrain.height(26.13224, 3.63400), -1925.9, 0.5, "Falcon's spot")
+	assert_eq(Terrain.source(26.13224, 3.63400), "site15")
+	var up := func(km: float) -> Vector2:
+		var a := deg_to_rad(89.585)
+		return Vector2(26.13224 + km * 1000.0 * cos(a) / M_PER_DEG,
+			3.63400 + km * 1000.0 * sin(a) / (M_PER_DEG * cos(deg_to_rad(26.13224))))
+	var at10: Vector2 = up.call(10.0)
+	assert_eq(Terrain.source(at10.x, at10.y), "near15", "SLDEM2015 at 59 m, 10 km along the approach")
+	var at100: Vector2 = up.call(100.0)
+	assert_eq(Terrain.source(at100.x, at100.y), "approach15", "at 474 m, 100 km along it")
+	var at27: Vector2 = up.call(27.2)
+	assert_almost_eq(Terrain.height(at27.x, at27.y) - Terrain.height(26.13224, 3.63400), 3656.0, 60.0,
+		"the Apennine front 27 km uprange")
 
 
 func test_heights_under_a_moon_fixed_point() -> void:

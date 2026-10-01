@@ -1,7 +1,8 @@
 ## The landing radar: slant range to the terrain along its altitude beam,
 ## its data-good ranges and its velocity over the turning surface; its
 ## range scale, and its breaker's cycle bringing Apollo 14's back from low
-## scale (slice 12a).
+## scale (slice 12a); and the LGC's terrain model, which takes Apollo 15's
+## altitude over the Apennines (slice 12b).
 extends GutTest
 
 const T := 367000.0
@@ -177,3 +178,23 @@ func test_a_breaker_cycle_brings_it_back_in_high_scale() -> void:
 	lr.tick(0.02)
 	assert_true(Bus.get_value("lm.lr.alt_good"), "and the range 22 s on")
 	assert_almost_eq(float(Bus.get_value("lm.lr.range_m")), 6000.0, 30.0, "over the Moon that turned under it")
+
+
+## Slice 12b: the LGC's terrain model (Lgc.terrain_height()), Luminary's,
+## with Apollo 15's e-load: the ground's height over the landing site where
+## the landing radar's beam meets it, along the track, from five slopes
+## back to 181 km uprange, and SLOPE4 on past the site. Apollo 11's LGC
+## has none: the ground the site's height.
+func test_the_lgcs_terrain_model_is_apollo_15s_apennines() -> void:
+	Mission.load_file(Mission.path_of("apollo_15"))
+	assert_almost_eq(Lgc.terrain_height(0.0), 0.0, 1e-6, "level at the site")
+	assert_almost_eq(Lgc.terrain_height(1000.0), 11.3, 0.05, "SLOPE4 on past it")
+	assert_almost_eq(Lgc.terrain_height(-8900.16), -100.58, 0.05, "a dip 8.9 km uprange (ABSC4)")
+	assert_almost_eq(Lgc.terrain_height(-20000.0), 2283.48, 0.05, "the Apennine front's slope")
+	assert_almost_eq(Lgc.terrain_height(-27249.12), 3840.48, 0.05, "its crest 27 km uprange (ABSC3)")
+	assert_almost_eq(Lgc.terrain_height(-32308.8), 2895.60, 0.05, "behind it (ABSC2)")
+	assert_almost_eq(Lgc.terrain_height(-59740.8), 2895.60, 0.05, "level to ABSC1")
+	assert_almost_eq(Lgc.terrain_height(-180746.4), 358.35, 0.05, "down 1.2 deg over the mare to ABSC0")
+	assert_almost_eq(Lgc.terrain_height(-250000.0), 358.35, 0.05, "and level beyond")
+	Mission.load_default()
+	assert_eq(Lgc.terrain_height(-20000.0), 0.0, "Apollo 11's LGC has none")

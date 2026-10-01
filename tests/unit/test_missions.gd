@@ -11,7 +11,9 @@
 ## the SM's oxygen tank failed: tests/scenarios/test_apollo_13.gd. Apollo
 ## 14's CSM (slice 12a) flies DOI with the LM docked, and its LM lands at
 ## Fra Mauro and flies the direct rendezvous: tests/scenarios/
-## test_apollo_14.gd and test_apollo_14_return.gd.
+## test_apollo_14.gd and test_apollo_14_return.gd. Apollo 15's (slice 12b),
+## the J mission's, stays three days at Hadley: tests/scenarios/
+## test_apollo_15.gd, test_apollo_15_return.gd and test_apollo_15_entry.gd.
 extends SimTest
 
 const LB := 0.45359237
@@ -22,7 +24,7 @@ func after_all() -> void:
 	Mission.load_default()
 
 
-func test_the_missions_are_apollo_8_and_10_to_14() -> void:
+func test_the_missions_are_apollo_8_and_10_to_15() -> void:
 	var ids := Mission.ids()
 	assert_true("apollo_11" in ids, "Apollo 11")
 	assert_true("apollo_10" in ids, "Apollo 10")
@@ -30,6 +32,7 @@ func test_the_missions_are_apollo_8_and_10_to_14() -> void:
 	assert_true("apollo_12" in ids, "Apollo 12")
 	assert_true("apollo_13" in ids, "Apollo 13")
 	assert_true("apollo_14" in ids, "Apollo 14")
+	assert_true("apollo_15" in ids, "Apollo 15")
 	for id in ids:
 		var m := Mission.load_file(Mission.path_of(id))
 		assert_eq(m.id(), id, "%s's file names it" % id)
@@ -172,6 +175,9 @@ func test_capcom_calls_each_vehicle_by_its_call_sign() -> void:
 	var a14 := Mission.load_file(Mission.path_of("apollo_14"))
 	assert_eq(a14.words("{csm} and {lm} are docked. {lm_landed}, Houston."),
 		"Kitty Hawk and Antares are docked. Antares, Houston.")
+	var a15 := Mission.load_file(Mission.path_of("apollo_15"))
+	assert_eq(a15.words("{csm} and {lm} are docked. {lm_landed}, Houston."),
+		"Endeavour and Falcon are docked. Falcon, Houston.")
 	var a11 := Mission.load_default()
 	assert_eq(a11.words("{csm} and {lm} are docked. {lm_landed}, Houston."),
 		"Columbia and Eagle are docked. Tranquility Base, Houston.")

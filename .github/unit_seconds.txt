@@ -10,9 +10,12 @@
 # the catalog's new failures, the longer of its two in 7cde781's;
 # test_lgc_executive.gd the longer of its two in 403d71c's, and
 # test_checkpoint.gd, with its new test, the longer of its two in a4abcc4's.
+# Slice 12b's test_apollo_15_mission.gd carries 1.2 times its seconds on
+# a local run until CI has run it, and the unit parts went to three.
 test_agc.gd 30
 test_ags_fp6.gd 1
 test_apollo_14_starts.gd 21
+test_apollo_15_mission.gd 40
 test_ascent_guidance.gd 1
 test_audio_director.gd 10
 test_bus.gd 1

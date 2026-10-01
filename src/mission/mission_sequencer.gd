@@ -113,8 +113,8 @@ const CONDITIONS := ["", "separated", "docked", "lm_free", "lm_descent", "lm_lan
 ## The PADs a timeline entry may bring ("pad"): request_pad()'s, and for a
 ## maneuver the entry fixes itself (maneuver_pad()) "sep", the CSM's, or
 ## the LM's "phasing" and "insertion".
-const PAD_KINDS := ["mcc", "loi", "circ", "plane", "tei", "sv", "lm_sv", "doi", "pdi", "n69", "ascent", "csi", "tweak",
-	"entry", "coarse", "refsmmat", "sep", "phasing", "insertion"]
+const PAD_KINDS := ["mcc", "loi", "circ", "plane", "shape", "tei", "sv", "lm_sv", "doi", "pdi", "n69", "ascent", "csi",
+	"tweak", "entry", "coarse", "refsmmat", "sep", "phasing", "insertion"]
 ## The CSM's fixed maneuvers from this ΔV are the SPS's (P40), smaller ones
 ## the SM RCS's (P41), m/s.
 const SPS_MIN_MPS := 10.0 * Units.FT
@@ -393,6 +393,15 @@ func start(p_phase: String) -> void:
 		tr.coast_to(float(circ["tig"]), 30.0)
 		var after := Rtcc.simulate_sps_burn(tr, mass, circ["dv_lvlh"])
 		sps_prop -= mass - after
+		# And its orbit shaped before TEI as the timeline's PADs plan it
+		# (_shape_burn()): Apollo 15's for the subsatellite.
+		for e in _timeline_entries():
+			if str(e.get("pad", "")) == "shape" and _get_s(e["tig"]) < _entry_time(_timeline_entry("tei_pad")):
+				mass = SpacecraftData.total_mass("csm", sps_prop, _sm_rcs_load(), _cm_rcs_load(), 0.0)
+				var shape := _shape_burn(tr, mass, e)
+				assert(not shape.is_empty(), "no shaping solution")
+				tr.coast_to(float(shape["tig"]), 30.0)
+				sps_prop -= mass - Rtcc.simulate_sps_burn(tr, mass, shape["dv_lvlh"])
 	if p_phase in LM_PHASES:
 		# Docked until the flown undocking.
 		tr.coast_to(_get_s(mission.section("timeline")["undocking_get"]), 60.0)
@@ -875,7 +884,8 @@ func _plan_return(tr: Trajectory, mass: float, tig: float, r: Dictionary, name: 
 
 ## Solve and uplink a maneuver PAD: "mcc", "loi", "circ", "plane" (the
 ## plane change that puts the CSM's orbit over the LM at its planned
-## liftoff, mission.json "ascent": planned_liftoff_get), "tei" for the
+## liftoff, mission.json "ascent": planned_liftoff_get), "shape" (the
+## timeline entry [param e]'s orbit shaping, _shape_burn()), "tei" for the
 ## CMC, planned from the CSM's tracked state and uplinked with it (P27;
 ## the PAD's "uplinked" says whether the CMC took them); "sv", that state
 ## alone (sv_uplink()); "lm_sv", the LM's for the LGC (lm_sv_uplink());
@@ -956,6 +966,8 @@ func request_pad(kind: String, earliest: float = -1.0, e: Dictionary = {}) -> Di
 				var lm := dynamics.lm
 				var site := lm.landed_pos if lm != null and lm.landed else landing_site()
 				pad = Rtcc.plan_plane_change(tr, mass, maxf(now + 900.0, earliest), site, _get_s(asc["planned_liftoff_get"]))
+		"shape":
+			pad = _shape_burn(tr, mass, e)
 		"tei":
 			pad = _plan_tei(tr, mass, maxf(now + 900.0, earliest), engine)
 		"mcc":
@@ -1116,6 +1128,22 @@ func _fixed_tig(e: Dictionary) -> float:
 		var t := float(plan.get(str(e["tig_after"]), -1.0))
 		return t + float(e["tig_s"]) if t >= 0.0 else -1.0
 	return _get_s(e["tig"])
+
+
+## Timeline entry [param e]'s orbit shaping (its PAD "shape"): the CSM's
+## in-plane burn at the entry's TIG onto the orbit ha_nmi by hp_nmi above
+## the landing site's radius, the new pericynthion behind the burn point
+## with "rising" (Rtcc.plan_loi2()), planned on [param tr] of [param mass]:
+## Apollo 15's for the subsatellite, flown 66.4 ft/s at the PAD's TIG into
+## the PAD's orbit, whatever the orbit was before it. Named by the entry's
+## "name".
+func _shape_burn(tr: Trajectory, mass: float, e: Dictionary) -> Dictionary:
+	var r_site := landing_site().length()
+	var pad := Rtcc.plan_loi2(tr, mass, r_site + float(e["ha_nmi"]) * Units.NMI, r_site + float(e["hp_nmi"]) * Units.NMI,
+		_get_s(e["tig"]), bool(e.get("rising", false)))
+	if not pad.is_empty():
+		pad["name"] = str(e.get("name", "SHAPING"))
+	return pad
 
 
 ## The LM's mass in [param cfg] ("lm" or "lm_ascent") with the propellant

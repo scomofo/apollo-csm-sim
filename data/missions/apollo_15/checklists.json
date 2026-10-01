@@ -1,0 +1,689 @@
+{
+  "_comment": "Condensed from Apollo 14's CSM checklists (data/missions/apollo_14/) for Apollo 15's flight: the launch into a 90 nmi orbit, transposition, docking and extraction after TLI and Falcon docked from there to the undocking, the midcourse corrections on the SPS or the RCS, DOI flown by Endeavour with Falcon docked, the separation maneuver after the undocking and Endeavour's circularization (CIRC), the plane change over Falcon on the surface, the direct rendezvous, LM JETT, the shaping burn and TEI [adapted for this simulator]. Keys: V/N/Enter = VERB/NOUN/ENTR, Space = PRO. control: the cabin control a step is done on (an id in data/cockpit/controls.csv); without it the checklist highlight finds the control that writes the step's check channel. phases: the flight phases (mission.phase) a checklist is for; it opens at the start, and as the crew comes back aboard Endeavour, in one. Falcon's are in lm_checklists.json.",
+  "checklists": [
+    {
+      "title": "Launch",
+      "phases": [
+        "launch"
+      ],
+      "steps": [
+        {
+          "text": "LIFTOFF light and the clock: the CMC in P11 (V16 N62: speed, altitude rate, altitude)",
+          "control": "P1_LIFTOFF",
+          "check": {
+            "channel": "guid.program",
+            "op": "eq",
+            "value": 11
+          }
+        },
+        {
+          "text": "Roll and pitch program: the FDAI rolls to the flight azimuth, then pitches downrange",
+          "control": "P1_FDAI",
+          "check": {
+            "channel": "lv.event.tilt",
+            "op": "gt",
+            "value": 0
+          }
+        },
+        {
+          "text": "Inboard cutoff: LV ENG 5 on",
+          "control": "P1_LV_ENG_5",
+          "check": {
+            "channel": "lv.event.sic_ceco",
+            "op": "gt",
+            "value": 0
+          }
+        },
+        {
+          "text": "Outboard cutoff, staging: S-II SEP on, the S-II's engines to thrust",
+          "control": "P1_S2_SEP",
+          "check": {
+            "channel": "lv.event.staging",
+            "op": "gt",
+            "value": 0
+          }
+        },
+        {
+          "text": "Skirt sep: S-II SEP out",
+          "control": "P1_S2_SEP",
+          "check": {
+            "channel": "lv.event.interstage_jettison",
+            "op": "gt",
+            "value": 0
+          }
+        },
+        {
+          "text": "Tower jettison",
+          "check": {
+            "channel": "lv.event.les_jettison",
+            "op": "gt",
+            "value": 0
+          }
+        },
+        {
+          "text": "Guidance initiate: the IU steers to orbit",
+          "check": {
+            "channel": "lv.event.igm",
+            "op": "gt",
+            "value": 0
+          }
+        },
+        {
+          "text": "S-II cutoff, staging, S-IVB ignition: LV ENG 1 on until its thrust",
+          "control": "P1_LV_ENG_1",
+          "check": {
+            "channel": "lv.event.s4_ignition",
+            "op": "gt",
+            "value": 0
+          }
+        },
+        {
+          "text": "S-IVB cutoff: LV ENG 1 on; insertion",
+          "control": "P1_LV_ENG_1",
+          "check": {
+            "channel": "lv.event.insertion",
+            "op": "gt",
+            "value": 0
+          }
+        },
+        {
+          "text": "V82E: the parking orbit, about 90 nmi",
+          "control": "P2_DSKY",
+          "check": {
+            "channel": "dsky.noun",
+            "op": "eq",
+            "value": "44"
+          }
+        }
+      ]
+    },
+    {
+      "title": "Parking orbit and TLI",
+      "phases": [
+        "parking_orbit",
+        "tli"
+      ],
+      "steps": [
+        {
+          "text": "Watch the S-IVB/IU: TLI is automatic at the GO-for-TLI TIG"
+        },
+        {
+          "text": "TLI ignition",
+          "check": {
+            "channel": "sivb.state",
+            "op": "eq",
+            "value": "burning"
+          }
+        },
+        {
+          "text": "TLI cutoff: verify apogee beyond the Moon (V82E)",
+          "control": "P2_DSKY",
+          "check": {
+            "channel": "sivb.state",
+            "op": "eq",
+            "value": "done"
+          }
+        },
+        {
+          "text": "CSM/LV SEP: transposition, docking and LM extraction",
+          "control": "P1_CSM_LV_SEP",
+          "check": {
+            "channel": "dyn.config",
+            "op": "eq",
+            "value": "csm_lm"
+          }
+        }
+      ]
+    },
+    {
+      "title": "SPS burn (P30 / P40)",
+      "phases": [
+        "translunar_coast"
+      ],
+      "steps": [
+        {
+          "text": "UP TLM CM - ACCEPT, in P00, for the ground's uplink",
+          "control": "P2_UP_TLM_CM",
+          "check": {
+            "channel": "ctl.cmc.up_tlm",
+            "op": "eq",
+            "value": true
+          }
+        },
+        {
+          "text": "Mission Control: the PAD (P27 takes the state vector and the P30 loads: UPLINK ACTY)"
+        },
+        {
+          "text": "UP TLM CM - BLOCK",
+          "control": "P2_UP_TLM_CM",
+          "check": {
+            "channel": "ctl.cmc.up_tlm",
+            "op": "eq",
+            "value": false
+          }
+        },
+        {
+          "text": "V37E 30E - P30 External Delta-V",
+          "control": "P2_DSKY",
+          "check": {
+            "channel": "guid.program",
+            "op": "eq",
+            "value": 30
+          }
+        },
+        {
+          "text": "Verify TIG (N33), PRO; verify N81 DV, PRO; check N42, PRO",
+          "control": "P2_DSKY",
+          "check": {
+            "channel": "guid.maneuver_valid",
+            "op": "eq",
+            "value": true
+          }
+        },
+        {
+          "text": "P52 option 1, the preferred REFSMMAT (IMU realign)",
+          "check": {
+            "channel": "imu.preferred",
+            "op": "eq",
+            "value": true
+          }
+        },
+        {
+          "text": "CMC MODE - AUTO",
+          "check": {
+            "channel": "ctl.cmc.mode",
+            "op": "eq",
+            "value": 2
+          }
+        },
+        {
+          "text": "V37E 40E - P40 SPS Thrusting",
+          "control": "P2_DSKY",
+          "check": {
+            "channel": "guid.program",
+            "op": "eq",
+            "value": 40
+          }
+        },
+        {
+          "text": "V50N18 flashing: PRO to maneuver to burn attitude",
+          "control": "P2_DSKY",
+          "check": {
+            "channel": "guid.step",
+            "op": "ne",
+            "value": "v50n18"
+          }
+        },
+        {
+          "text": "DELTA-V THRUST A - NORMAL",
+          "check": {
+            "channel": "ctl.sps.arm_a",
+            "op": "eq",
+            "value": true
+          }
+        },
+        {
+          "text": "DELTA-V THRUST B - NORMAL (both banks for LOI and TEI; bank A alone for a short burn)",
+          "check": {
+            "channel": "ctl.sps.arm_b",
+            "op": "eq",
+            "value": true
+          }
+        },
+        {
+          "text": "At TIG-5 s V99N40 flashing: PRO for engine on",
+          "control": "P2_DSKY",
+          "check": {
+            "channel": "guid.step",
+            "op": "eq",
+            "value": "burn"
+          }
+        },
+        {
+          "text": "Monitor V16N40 (TFI, VG, DV) - SPS cutoff",
+          "control": "P2_DSKY",
+          "check": {
+            "channel": "guid.step",
+            "op": "eq",
+            "value": "post"
+          }
+        },
+        {
+          "text": "DELTA-V THRUST A and B - OFF",
+          "check": {
+            "channel": "ctl.sps.arm_a",
+            "op": "eq",
+            "value": false
+          }
+        },
+        {
+          "text": "Trim N85 residuals with the THC, then PRO",
+          "control": "P2_DSKY",
+          "check": {
+            "channel": "guid.program",
+            "op": "eq",
+            "value": 0
+          }
+        }
+      ]
+    },
+    {
+      "title": "RCS burn (P30 / P41)",
+      "phases": [],
+      "steps": [
+        {
+          "text": "For the separation maneuver after the undocking and the small midcourse corrections, a few feet a second"
+        },
+        {
+          "text": "UP TLM CM - ACCEPT, in P00, for the ground's uplink",
+          "control": "P2_UP_TLM_CM",
+          "check": {
+            "channel": "ctl.cmc.up_tlm",
+            "op": "eq",
+            "value": true
+          }
+        },
+        {
+          "text": "Mission Control: the PAD (P27 takes the state vector and the P30 loads)"
+        },
+        {
+          "text": "V37E 30E - P30 External Delta-V",
+          "control": "P2_DSKY",
+          "check": {
+            "channel": "guid.program",
+            "op": "eq",
+            "value": 30
+          }
+        },
+        {
+          "text": "Verify TIG (N33), PRO; verify N81 DV, PRO; check N42, PRO",
+          "control": "P2_DSKY",
+          "check": {
+            "channel": "guid.maneuver_valid",
+            "op": "eq",
+            "value": true
+          }
+        },
+        {
+          "text": "CMC MODE - AUTO",
+          "check": {
+            "channel": "ctl.cmc.mode",
+            "op": "eq",
+            "value": 2
+          }
+        },
+        {
+          "text": "V37E 41E - P41 RCS Thrusting",
+          "control": "P2_DSKY",
+          "check": {
+            "channel": "guid.program",
+            "op": "eq",
+            "value": 41
+          }
+        },
+        {
+          "text": "V50N18 flashing: PRO to maneuver to the burn attitude, +X along the delta-V",
+          "control": "P2_DSKY",
+          "check": {
+            "channel": "guid.step",
+            "op": "ne",
+            "value": "v50n18"
+          }
+        },
+        {
+          "text": "At TIG-5 s V99 flashing: PRO; the four +X jets fire",
+          "control": "P2_DSKY",
+          "check": {
+            "channel": "guid.step",
+            "op": "eq",
+            "value": "burn"
+          }
+        },
+        {
+          "text": "Monitor V16N85 (VG) to zero",
+          "control": "P2_DSKY",
+          "check": {
+            "channel": "guid.step",
+            "op": "eq",
+            "value": "post"
+          }
+        },
+        {
+          "text": "Trim N85 residuals with the THC, then PRO",
+          "control": "P2_DSKY",
+          "check": {
+            "channel": "guid.program",
+            "op": "eq",
+            "value": 0
+          }
+        }
+      ]
+    },
+    {
+      "title": "Lunar orbit, Falcon's landing and TEI",
+      "phases": [
+        "lunar_orbit",
+        "lunar_descent",
+        "lunar_surface",
+        "lunar_ascent"
+      ],
+      "steps": [
+        {
+          "text": "LOI PAD at 77:31; fly it with the SPS burn checklist behind the Moon"
+        },
+        {
+          "text": "Lunar orbit confirmed",
+          "check": {
+            "channel": "mission.phase",
+            "op": "eq",
+            "value": "lunar_orbit"
+          }
+        },
+        {
+          "text": "DOI PAD at 81:31: Endeavour takes the docked stack down to 10 nmi at the low point; fly it with the SPS burn checklist"
+        },
+        {
+          "text": "The separation PAD, for after the undocking (UP TLM CM - ACCEPT)",
+          "check": {
+            "channel": "mission.event.pad_sep",
+            "op": "gt",
+            "value": 0
+          }
+        },
+        {
+          "text": "CMC MODE - FREE, then UNDOCK on GO for undocking",
+          "check": {
+            "channel": "dock.state",
+            "op": "eq",
+            "value": "free"
+          }
+        },
+        {
+          "text": "The separation maneuver, 1 ft/s radially down: fly it with the RCS burn checklist"
+        },
+        {
+          "text": "The CIRC PAD at 101:05, taking Endeavour back up to 60 nmi (UP TLM CM - ACCEPT)",
+          "check": {
+            "channel": "mission.event.pad_circ",
+            "op": "gt",
+            "value": 0
+          }
+        },
+        {
+          "text": "Fly CIRC with the SPS burn checklist"
+        },
+        {
+          "text": "Falcon flies powered descent to Hadley: track it",
+          "check": {
+            "channel": "mission.event.lm_landing",
+            "op": "gt",
+            "value": 0
+          }
+        },
+        {
+          "text": "The plane change's PAD (LOPC-1), putting the orbit over Falcon for the liftoff",
+          "check": {
+            "channel": "mission.event.pad_plane",
+            "op": "gt",
+            "value": 0
+          }
+        },
+        {
+          "text": "Fly LOPC-1 with the SPS burn checklist"
+        },
+        {
+          "text": "Falcon's direct rendezvous: TPI on its first revolution; it brakes 40 m out; face it with the probe and dock",
+          "check": {
+            "channel": "dock.state",
+            "op": "eq",
+            "value": "docked"
+          }
+        },
+        {
+          "text": "LM JETT on GO for Pyro Arm (the ascent stage stays behind)",
+          "control": "P1_LM_JETT",
+          "check": {
+            "channel": "dock.state",
+            "op": "eq",
+            "value": "none"
+          }
+        },
+        {
+          "text": "The shaping PAD at 220:35, raising the apolune to 76 nmi for the subsatellite; fly it with the SPS burn checklist",
+          "check": {
+            "channel": "mission.event.timeline_shaping_pad",
+            "op": "gt",
+            "value": 0
+          }
+        },
+        {
+          "text": "TEI PAD at 222:43; fly it with the SPS burn checklist"
+        },
+        {
+          "text": "Transearth coast",
+          "check": {
+            "channel": "mission.phase",
+            "op": "eq",
+            "value": "transearth_coast"
+          }
+        }
+      ]
+    },
+    {
+      "title": "Entry",
+      "phases": [
+        "transearth_coast",
+        "entry"
+      ],
+      "steps": [
+        {
+          "text": "MCC PADs to trim the entry corridor (vacuum perigee ~30 km); fly them with the RCS burn checklist"
+        },
+        {
+          "text": "V37E 61E - P61 Entry preparation: PRO at N61 (the target, HEADSUP -1 lift up), N60 and N63 (the EMS's)",
+          "control": "P2_DSKY",
+          "check": {
+            "channel": "guid.program",
+            "op": "ge",
+            "value": 62
+          }
+        },
+        {
+          "text": "P62 V50N25 00041: CM/SM SEP (15 min before entry interface)",
+          "control": "P1_CM_SM_SEP",
+          "check": {
+            "channel": "dyn.config",
+            "op": "eq",
+            "value": "cm"
+          }
+        },
+        {
+          "text": "CMC MODE - AUTO",
+          "check": {
+            "channel": "ctl.cmc.mode",
+            "op": "eq",
+            "value": 2
+          }
+        },
+        {
+          "text": "PRO, and PRO at N61: the entry attitude (N22), then P63 (N64)",
+          "control": "P2_DSKY",
+          "check": {
+            "channel": "guid.program",
+            "op": "ge",
+            "value": 63
+          }
+        },
+        {
+          "text": "SCS ATT SOURCE - CMC (the CMC rolls the lift)",
+          "check": {
+            "channel": "ctl.scs.att_source",
+            "op": "eq",
+            "value": 0
+          }
+        },
+        {
+          "text": "ELS LOGIC - ON",
+          "check": {
+            "channel": "ctl.els.logic",
+            "op": "eq",
+            "value": true
+          }
+        },
+        {
+          "text": "ELS AUTO",
+          "check": {
+            "channel": "ctl.els.auto",
+            "op": "eq",
+            "value": true
+          }
+        },
+        {
+          "text": "0.05 g: P64 entry guidance (N74: roll, velocity, drag)",
+          "check": {
+            "channel": "guid.program",
+            "op": "ge",
+            "value": 64
+          }
+        },
+        {
+          "text": "P65 up-control if the range asks for it (PRO at the flashing V16N69); P67 final phase (N66)",
+          "check": {
+            "channel": "guid.program",
+            "op": "ge",
+            "value": 67
+          }
+        },
+        {
+          "text": "1,000 ft/s: PRO at the flashing V16N67 (range to go, latitude, longitude) - P00",
+          "control": "P2_DSKY",
+          "check": {
+            "channel": "guid.program",
+            "op": "eq",
+            "value": 0
+          }
+        },
+        {
+          "text": "Drogues at 24,000 ft",
+          "check": {
+            "channel": "els.drogue",
+            "op": "eq",
+            "value": true
+          }
+        },
+        {
+          "text": "Mains at 10,000 ft",
+          "check": {
+            "channel": "els.mains",
+            "op": "eq",
+            "value": true
+          }
+        },
+        {
+          "text": "Splashdown",
+          "check": {
+            "channel": "mission.phase",
+            "op": "eq",
+            "value": "splashdown"
+          }
+        }
+      ]
+    },
+    {
+      "title": "IMU realign (P52)",
+      "phases": [],
+      "steps": [
+        {
+          "text": "At the LEB (SEAT): OPTICS ZERO - OFF, MODE - CMC",
+          "control": "LEB_OPTICS_MODE",
+          "check": {
+            "channel": "ctl.optics.mode",
+            "op": "eq",
+            "value": 1
+          }
+        },
+        {
+          "text": "V37E 52E - P52 IMU realign",
+          "control": "LEB_DSKY",
+          "check": {
+            "channel": "guid.program",
+            "op": "eq",
+            "value": 52
+          }
+        },
+        {
+          "text": "V04N06: V22E option E (1 PREF 2 NOM 3 REFS 4 LS); PRO",
+          "control": "LEB_DSKY",
+          "check": {
+            "channel": "guid.step",
+            "op": "ne",
+            "value": "option"
+          }
+        },
+        {
+          "text": "V06N22 new gimbal angles, MG under 70: PRO, coarse align",
+          "control": "LEB_DSKY",
+          "check": {
+            "channel": "guid.step",
+            "op": "ne",
+            "value": "n22"
+          }
+        },
+        {
+          "text": "V50N25 00015: PRO for two stars (00405: roll heads down)",
+          "control": "LEB_DSKY",
+          "check": {
+            "channel": "guid.align_star",
+            "op": "gt",
+            "value": 0
+          }
+        },
+        {
+          "text": "Star 1: PRO at V01N70; OPTICS MAN, centre it, MARK",
+          "control": "LEB_MARK",
+          "check": {
+            "channel": "guid.align_marks",
+            "op": "ge",
+            "value": 1
+          }
+        },
+        {
+          "text": "Star 2: OPTICS CMC, PRO at V01N70; MAN, centre, MARK",
+          "control": "LEB_MARK",
+          "check": {
+            "channel": "guid.align_marks",
+            "op": "ge",
+            "value": 2
+          }
+        },
+        {
+          "text": "V06N05 star angle difference under 0.02: PRO",
+          "control": "LEB_DSKY",
+          "check": {
+            "channel": "guid.step",
+            "op": "ne",
+            "value": "n05"
+          }
+        },
+        {
+          "text": "V06N93 torquing angles: PRO to torque the gyros",
+          "control": "LEB_DSKY",
+          "check": {
+            "channel": "guid.step",
+            "op": "eq",
+            "value": "check"
+          }
+        },
+        {
+          "text": "V50N25 00014: V37E 00E; OPTICS MODE - CMC",
+          "control": "LEB_DSKY",
+          "check": {
+            "channel": "guid.program",
+            "op": "eq",
+            "value": 0
+          }
+        }
+      ]
+    }
+  ]
+}

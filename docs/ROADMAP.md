@@ -2319,7 +2319,7 @@ radar and AGS are gone, or measured against the flights.
 
 ## 12. The last lunar missions
 
-**Status: 12a done.** Milestone 7's pattern, for Apollo 14 to 17:
+**Status: 12a done; 12b's first part done.** Milestone 7's pattern, for Apollo 14 to 17:
 each mission is data, and each slice brings what its flight needed that
 the simulator can't do yet. The J missions' surfaces stay out, the EVAs,
 the rover and the experiments, and so does the SIM bay's science: the
@@ -2327,12 +2327,13 @@ stays on the surface pass as time, as the other missions' do. After
 milestone 10 each flies from its pad. Apollo 14 flies from its data
 alone, built in four parts: its flight (12a-1), the ABORT switch's short
 (12a-2), the landing radar's scale (12a-3), and the docking's six
-attempts (12a-4).
+attempts (12a-4). Apollo 15 in two: its flight from the pad to the
+splashdown (12b-1), and Worden's EVA and the parachute's failure (12b-2).
 
 | Slice | Work | Check |
 |---|---|---|
 | 12a (done) Apollo 14 | Kitty Hawk's probe failing to capture Antares until the sixth try (its capture latches, and the probe's retraction); the CSM's DOI with the LM docked; the abort switch's short, and the keyed workaround that had the LGC ignore it; the landing radar's late lock-on, until its breaker was cycled; the direct rendezvous, TPI in the first revolution after the insertion, without CSI and CDH; Fra Mauro's terrain | Test: as 7a, Antares landing within a set limit of where it came down |
-| 12b Apollo 15 | The J mission's LM, its descent stage heavier and its stay three days; the steep descent past the Apennines; Endeavour's plane changes; Worden's EVA on the way home, the CM depressurised, as an event; the splashdown on two main parachutes, the third having failed | Test: as 7a, Falcon landing within a set limit of Hadley, and the CM coming down on two parachutes at the flown speed |
+| 12b (first part done) Apollo 15 | The J mission's LM, its descent stage heavier and its stay three days; the steep descent past the Apennines; Endeavour's plane changes; Worden's EVA on the way home, the CM depressurised, as an event; the splashdown on two main parachutes, the third having failed | Test: as 7a, Falcon landing within a set limit of Hadley, and the CM coming down on two parachutes at the flown speed |
 | 12c Apollo 16 | Casper's SPS, its secondary yaw gimbal servo oscillating before the circularization, and the landing waved off for about six hours; the flight a day shorter | Test: as 7a, Orion landing about six hours late within a set limit of its site |
 | 12d Apollo 17 | The night launch, Taurus-Littrow's terrain, and the longest stay | Test: as 7a, Challenger landing within a set limit of its site |
 
@@ -2431,6 +2432,36 @@ own troubles.
   CSM/LV SEP and has Houston's calls at the flown times after it (the
   Apollo Flight Journal). There is no soft dock: capture still latches
   the vehicles hard at once [simplified]. Checkpoints are schema 34.
+
+- **Apollo 15's flight.** Done in 12b's first part. Its data
+  (`data/missions/apollo_15/`): AS-510's vehicles and launch, on time
+  into a 90 nmi parking orbit, the S-IC's vacuum Isp and the S-II's flow
+  tuned for the flown cutoffs; JPL's ephemeris for its dates; the
+  timeline's calls and PADs at the flown times, the clocks never moved;
+  its checklists; and Hadley's terrain from the LROC NAC model of the
+  site, SLDEM2015 along the approach over the Apennine front
+  (`tools/terrain/build_terrain.py`). Falcon is the J mission's LM: the
+  descent stage heavier, its tanks longer by 1,150 lb of propellant, and
+  five descent batteries for three days. Its descent flies Luminary 210's
+  targets from its e-load (mission.json `descent_guidance` over
+  `data/spacecraft.json`'s), 25° steep past the front, from where the
+  flight's PDI came; and the LGC's terrain model, the e-load's five
+  slopes of the ground uprange of the site, goes into the landing
+  radar's ΔH (`Lgc.terrain_height()`), as Luminary's did until P66, so
+  that over the mare it takes the LGC's altitude up the slope the mare
+  didn't have, and over the foothills the radar brings it back. The
+  tests' commander clicks the LPD once a second only when a click brings
+  it nearer the spot (`lpd_pilot()`; it had clicked back and forth in
+  azimuth, 49 times on Apollo 12's descent, 15 now). Apollo 15's
+  insertion needed no tweak, and the direct rendezvous flies one only
+  where a mission has it. The shaping burn for the subsatellite is a
+  "shape" PAD, the RTCC's burn at the flown TIG onto the flown orbit
+  (`MissionSequencer._shape_burn()`), and the TEI start flies it. The
+  RTCC's DOI reaches PDI's height through the field it flies, needing no
+  trim, where the flight's perilune decayed faster than predicted: its
+  revolutions run long, and PDI comes 3 min late. CI's parts went to
+  fifteen and three for its four scenario files. Checkpoints stay schema
+  34.
 
 ## Later, not scheduled
 

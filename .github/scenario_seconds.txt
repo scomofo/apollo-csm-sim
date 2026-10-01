@@ -21,6 +21,10 @@
 # test_apollo_14_docking.gd and test_docking.gd, with its new tests, carry
 # the longer of their two runs in a4abcc4's CI, and test_apollo_14.gd,
 # which ran longer there than listed, the longer of its two.
+# Slice 12b's four Apollo 15 files carry 1.2 times their seconds on a
+# local run until CI has run them, and the parts went to fifteen with
+# them: thirteen dealt them at 540 s and more, where 4b02935's slowest
+# part took 8 min 37 s at the table's 487.
 test_ags.gd 74
 test_apollo_10.gd 456
 test_apollo_10_launch.gd 50
@@ -34,6 +38,10 @@ test_apollo_14_docking.gd 35
 test_apollo_14_landing_radar.gd 43
 test_apollo_14_launch.gd 48
 test_apollo_14_return.gd 367
+test_apollo_15.gd 260
+test_apollo_15_entry.gd 240
+test_apollo_15_launch.gd 75
+test_apollo_15_return.gd 365
 test_apollo_8.gd 190
 test_apollo_8_launch.gd 41
 test_ascent.gd 78

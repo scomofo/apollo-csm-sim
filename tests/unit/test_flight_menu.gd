@@ -24,7 +24,7 @@ func after_all() -> void:
 func test_the_choice_lists_every_mission_in_the_order_they_flew() -> void:
 	var c := FlightChoice.new()
 	var ids := c.missions.map(func(m: Mission) -> String: return m.id())
-	assert_eq(ids, ["apollo_8", "apollo_10", "apollo_11", "apollo_12", "apollo_13", "apollo_14"])
+	assert_eq(ids, ["apollo_8", "apollo_10", "apollo_11", "apollo_12", "apollo_13", "apollo_14", "apollo_15"])
 	assert_eq(c.mission_id(), "apollo_11", "Apollo 11 by default")
 	assert_eq(c.phase(), "launch", "its first start phase, on the pad")
 	for m: Mission in c.missions:
@@ -47,9 +47,12 @@ func test_it_steps_through_missions_and_their_start_phases() -> void:
 	assert_eq(c.mission_id(), "apollo_14")
 	assert_eq(c.phase(), "launch", "on the pad, as Apollo 13 was")
 	c.step_mission(1)
+	assert_eq(c.mission_id(), "apollo_15")
+	assert_eq(c.phase(), "launch", "and Apollo 15")
+	c.step_mission(1)
 	assert_eq(c.mission_id(), "apollo_8", "round to the first")
-	c.step_mission(-1)
-	c.step_mission(-1)
+	for i in 3:
+		c.step_mission(-1)
 	c.step_phase(-1)
 	assert_eq(c.phase(), "tank_failure", "back round to the last")
 	assert_eq(c.text(), "Apollo 13 - CSM Odyssey, LM Aquarius\nTANK FAILURE\n55:50 GET, five minutes before oxygen tank 2 fails")

@@ -147,7 +147,9 @@ static func coelliptic(st: Variant, pad: Dictionary, burn: Callable = Callable()
 ## revolution with no CSI or CDH [published: MSC-04112, section 6.4; the
 ## Apollo Flight Journal]: the tweak the ground's PAD brought four minutes
 ## after insertion, verified in P30 and burned where the LM is [simplified:
-## the crew burned it by hand in P47]; P20 (start_p20()); P34 25 min before
+## the crew burned it by hand in P47], where the mission has one (mission.json
+## "rendezvous": tweak_after_insertion_s; Apollo 15's insertion needed
+## none); P20 (start_p20()); P34 25 min before
 ## TPI, at the TIG
 ## the ascent PAD gave, and TPI on the ascent engine (P42); then the
 ## midcourse corrections and V56 as coelliptic()'s. Each burn flies by
@@ -167,8 +169,9 @@ static func direct(st: Variant, burn: Callable = Callable()) -> Dictionary:
 				return st.fly_lm_pad(41, 0, Callable(), true, 60.0, true)
 			return st.fly_lm_pad(41, 0, Callable(), false, 900.0, true)
 	var out := {}
-	st.assert_true(st.run_until(func() -> bool: return sq.pads.has("tweak"), 900.0, 1.0), "the tweak PAD")
-	out["TWEAK"] = fly.call("TWEAK")
+	if st.rt.mission.section("rendezvous").has("tweak_after_insertion_s"):
+		st.assert_true(st.run_until(func() -> bool: return sq.pads.has("tweak"), 900.0, 1.0), "the tweak PAD")
+		out["TWEAK"] = fly.call("TWEAK")
 	Bus.set_value("ctl.lm.mode", 2)
 	start_p20(st)
 	_tpi_on(st, fly, out, float(sq.plan["tpi_tig"]) - 1500.0, true)
