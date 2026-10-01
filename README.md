@@ -1974,7 +1974,15 @@ ones:
   main display console layout is on file in
   `reference/nasa-history-diagrams/` (the Operations Handbook's
   Figure 3-1, sheets 1-6, with its position grid). It gives control
-  identity and placement, not physical dimensions.
+  identity and placement, not physical dimensions. The CM window
+  surrounds now follow the shell with bevelled retainers, slotted
+  fasteners and recessed black liners. Their rectangular apertures,
+  radial recesses and dimensions are still simplified; the flown flat
+  panes, optical coatings and exact outlines are not modelled.
+  The lower equipment bay's navigation panel faces its station with
+  estimated local task lighting.
+  [Cabin fidelity notes](docs/CABIN_FIDELITY.md) separate the NASA
+  references from the geometry estimates and show the current detail.
 - **Sound.** Every voice is synthesised from an estimated recipe, with
   nothing recorded, and its level against the others is estimated too.
   Only the master alarm's tone is the Operations Handbook's. No voice is

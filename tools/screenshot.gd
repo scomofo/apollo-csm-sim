@@ -2,6 +2,7 @@
 ##   godot --path . tools/screenshot.tscn -- --phase=lunar_orbit --view=1 --out=res://docs/images/x.png
 ## --view: 0 window, 1 chase, 2 cabin. --yaw/--pitch (rad) turn the window
 ## view's look, the chase camera or, in the cabin, the desktop rig's head.
+## --zoom=<factor> magnifies the desktop cabin camera for detail captures.
 ## --hud=0 leaves the HUD out. --menu=1 shows the wrist menu, and
 ## --pad=<kind> (mcc, loi, circ, tei) asks Mission Control for a PAD first.
 ## --undock=<s> undocks the LM and lets it drift for that many seconds.
@@ -28,6 +29,7 @@ func _ready() -> void:
 	var view_mode := 0
 	var yaw := 0.0
 	var pitch := 0.0
+	var zoom := 1.0
 	var hud := true
 	var show_menu := false
 	var pad := ""
@@ -49,6 +51,8 @@ func _ready() -> void:
 			yaw = float(a.trim_prefix("--yaw="))
 		elif a.begins_with("--pitch="):
 			pitch = float(a.trim_prefix("--pitch="))
+		elif a.begins_with("--zoom="):
+			zoom = float(a.trim_prefix("--zoom="))
 		elif a == "--hud=0":
 			hud = false
 		elif a == "--menu=1":
@@ -78,6 +82,7 @@ func _ready() -> void:
 		_main.cabin.set_seat(seat)
 	if view_mode == 2:
 		(_main.rig.get_node("Camera3D") as Camera3D).rotation = Vector3(pitch, yaw, 0.0)
+		_main.rig.set_zoom_factor(zoom)
 	elif view_mode == 1:
 		_main.view.chase_yaw = yaw if yaw != 0.0 else 0.6
 		_main.view.chase_pitch = pitch if pitch != 0.0 else 0.25

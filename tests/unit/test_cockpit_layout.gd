@@ -394,9 +394,6 @@ func test_the_commander_faces_the_console_inside_the_vessel() -> void:
 			"%s has four raised panel fasteners" % panel_name)
 		for edge in ["RevealTop", "RevealBottom", "RevealLeft", "RevealRight"]:
 			assert_true(mount.has_node(edge), "%s has its %s" % [panel_name, edge])
-	for window_name in CmCabin.WINDOWS:
-		var retainer := cabin.get_node(window_name + "Retainer")
-		assert_eq(retainer.get_child_count(), 8, "%s has a gasket and four-piece retainer" % window_name)
 	assert_true(cabin.anchor.global_basis.is_equal_approx(Basis.IDENTITY),
 		"the rig looks along the render -Z, which is body +X, with the crew's up")
 	assert_almost_eq(cabin.anchor.global_position, Frames.BODY_TO_GODOT * CmCabin.EYE_CDR, Vector3.ONE * 1e-6)
@@ -423,3 +420,73 @@ func test_the_commander_faces_the_console_inside_the_vessel() -> void:
 			across += 1
 	assert_eq(across, 0, "no wall across a window")
 	assert_eq(faces.size() / 3, 2 * (41 * 144 - (2 * 64 + 2 * 32 + 42)), "the wall has the five openings")
+
+
+func test_navigation_panel_faces_the_navigator_at_the_lower_bay() -> void:
+	var cabin := _cabin()
+	cabin.set_seat("LEB")
+	var mount := cabin.panel_node("LEB122")
+	var to_panel := mount.global_position - cabin.anchor.global_position
+	assert_gt(to_panel.normalized().dot(-cabin.anchor.global_basis.z), 0.999,
+		"the panel is straight ahead when the navigator selects the bay")
+	assert_gt(mount.global_basis.z.dot(-to_panel.normalized()), 0.999,
+		"the navigation panel faces the navigator, not the couches")
+	assert_gt(mount.global_basis.y.dot(cabin.anchor.global_basis.y), 0.999,
+		"the optics, DSKY and legends are upright at the station")
+	assert_between(to_panel.length(), 0.4, 0.65, "the panel is within a seated arm's reach")
+
+
+func test_window_frames_follow_the_shell_without_floating_or_sinking() -> void:
+	var cabin := _cabin()
+	for window_name in CmCabin.WINDOWS:
+		var root := cabin.get_node(window_name + "Retainer")
+		var shallow := INF
+		var deep := -INF
+		for child in root.get_children():
+			if child is MeshInstance3D:
+				for p in (child as MeshInstance3D).mesh.get_faces():
+					var depth := Vector2(p.y, p.z).length() - CmCabin.wall_radius(p.x)
+					shallow = minf(shallow, depth)
+					deep = maxf(deep, depth)
+		# The previous centre-radius boxes floated by roughly 9 cm at one
+		# end and disappeared into the shell at the other.
+		assert_almost_eq(shallow, -0.014, 0.0001, "%s retainer follows the taper" % window_name)
+		assert_almost_eq(deep, 0.055, 0.0001, "%s has a recessed liner" % window_name)
+		var heads := root.get_node("FastenerHeads") as MultiMeshInstance3D
+		assert_eq(heads.multimesh.instance_count, 12, "%s batches its fasteners" % window_name)
+		# Godot 4.4's dummy renderer returns identity for every MultiMesh
+		# transform. Run this additional check with a real renderer; the
+		# shell-depth and aperture-triangle checks work headless as well.
+		if DisplayServer.get_name() == "headless":
+			continue
+		for i in heads.multimesh.instance_count:
+			var t := heads.multimesh.get_instance_transform(i)
+			var radial := Vector3(0, t.origin.y, t.origin.z).normalized()
+			var inward := -(Vector3.RIGHT * CmCabin.VESSEL_SLOPE + radial).normalized()
+			assert_gt(t.basis.y.dot(inward), 0.999, "%s screw faces into the cabin" % window_name)
+
+
+func test_window_surrounds_close_the_edges_and_keep_the_view_clear() -> void:
+	var cabin := _cabin()
+	for window_name in CmCabin.WINDOWS:
+		var root := cabin.get_node(window_name + "Retainer")
+		var faces := PackedVector3Array()
+		for child in root.get_children():
+			if child is MeshInstance3D:
+				faces.append_array((child as MeshInstance3D).mesh.get_faces())
+		# Check actual triangles, not just the construction parameters. The
+		# left-side window also exercises the +/-180 degree seam.
+		for uv in [Vector2.ZERO, Vector2(-0.7, -0.7), Vector2(0.7, -0.7), Vector2(0.7, 0.7), Vector2(-0.7, 0.7)]:
+			assert_false(_window_ray_hits(faces, window_name, uv, 0.0), "%s viewing aperture is clear at %s" % [window_name, uv])
+		for uv in [Vector2(-1, 0), Vector2(1, 0), Vector2(0, -1), Vector2(0, 1),
+				Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
+			assert_true(_window_ray_hits(faces, window_name, uv, 0.017), "%s frame closes the edge at %s" % [window_name, uv])
+
+
+func _window_ray_hits(faces: PackedVector3Array, window_name: String, uv: Vector2, margin: float) -> bool:
+	var from := CmCabin.window_point(window_name, uv, margin, -0.12)
+	var to := CmCabin.window_point(window_name, uv, margin, 0.15)
+	for i in range(0, faces.size(), 3):
+		if Geometry3D.segment_intersects_triangle(from, to, faces[i], faces[i + 1], faces[i + 2]) != null:
+			return true
+	return false
