@@ -652,25 +652,28 @@ func lm_agl() -> float:
 ## The commander in P64: each second, compare where the LPD points (the
 ## LGC's landing point, along the window's reticle) with where
 ## [param target_mf] (Moon-fixed) is out of the window, and click the ACA
-## once to bring the one toward the other: fore or aft for the LPD angle,
-## right or left for azimuth; until the LPD time runs out, or the LGC's
-## altitude is under [param down_to] (m). Returns the clicks.
+## once, fore or aft or right or left, whichever brings the one nearest
+## the other as the LGC turns its line of sight (Lgc._redesignate()), if
+## by a tenth of a degree or more; until the LPD time runs out, or the
+## LGC's altitude is under [param down_to] (m). Returns the clicks.
 func lpd_pilot(lgc: Lgc, target_mf: Vector3, down_to: float = 0.0) -> int:
 	var clicks := 0
+	var d := SpacecraftData.section("descent_guidance")
 	while lgc.program == 64 and lgc.lpd_time() > 1.0 and lgc._h >= down_to:
 		var att := Basis(Bus.get_value("lm.dyn.att_q") as Quaternion)
 		var mf := Bodies.moon_fixed(SimClock.get_seconds)
-		var seen := lpd_look(att.inverse() * (mf * target_mf - rt.dynamics.lm.traj.pos()))
-		var lpd := lpd_look(att.inverse() * (mf * lgc.landing_site - lgc.nav.pos()))
+		var seen := mf * target_mf - rt.dynamics.lm.traj.pos()
+		var los := mf * lgc.landing_site - lgc.nav.pos()
+		var nearest := los.angle_to(seen) - deg_to_rad(0.1)
 		var aca := Vector3.ZERO
-		if lpd.x - seen.x > 0.3:
-			aca.y = -1.0   # fore: farther
-		elif seen.x - lpd.x > 0.3:
-			aca.y = 1.0    # aft: nearer
-		elif seen.y - lpd.y > 1.2:
-			aca.z = 1.0    # right
-		elif lpd.y - seen.y > 1.2:
-			aca.z = -1.0   # left
+		# Fore (-Y) and aft (+Y) about the LM's Y axis, right (+Z) and left
+		# (-Z) about the vertical.
+		for c: Vector3 in [Vector3(0, -1, 0), Vector3(0, 1, 0), Vector3(0, 0, 1), Vector3(0, 0, -1)]:
+			var turned := los.rotated((att * Vector3.UP).normalized(), deg_to_rad(-c.y * float(d["lpd_elevation_deg"]))) \
+				.rotated(lgc.nav.pos().normalized(), deg_to_rad(-c.z * float(d["lpd_azimuth_deg"])))
+			if turned.angle_to(seen) < nearest:
+				nearest = turned.angle_to(seen)
+				aca = c
 		if aca != Vector3.ZERO:
 			Bus.set_value("ctl.lm.rhc", aca)
 			run(SimClock.FIXED_DT, false)
@@ -678,12 +681,6 @@ func lpd_pilot(lgc: Lgc, target_mf: Vector3, down_to: float = 0.0) -> int:
 			clicks += 1
 		run(1.0, false)
 	return clicks
-
-
-## A line of sight in the LM's axes as the window shows it: its angle below
-## the +Z axis and to the right, degrees.
-static func lpd_look(los: Vector3) -> Vector2:
-	return Vector2(rad_to_deg(atan2(-los.x, los.z)), rad_to_deg(atan2(los.y, los.z)))
 
 
 ## One ROD click: +1 slows the descent by 1 ft/s, -1 speeds it up.

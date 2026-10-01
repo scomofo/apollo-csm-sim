@@ -113,11 +113,16 @@
 ## Powering up at undocking it takes the CSM's; the ground's uplinks
 ## replace it (P27, with the PDI PAD: MSFN's tracking error in it). It
 ## coasts it with its own integration and adds the LM's sensed ΔV
-## (lm.dyn.dv_step). Its altitude is above the landing site's radius [it
-## has no terrain model, as Apollo 11's LGC had none]. In P63 to P66 it
-## reads the landing radar every 2 s: N68 shows ΔH, the radar's altitude
-## less its own, and once the crew permits updates (V57) it weights the
-## radar's altitude and velocity into its state. The DSKY's ALT and VEL
+## (lm.dyn.dv_step). Its altitude is above the landing site's radius. In
+## P63 to P66 it reads the landing radar every 2 s: N68 shows ΔH, the
+## radar's altitude less its own, and once the crew permits updates (V57)
+## it weights the radar's altitude and velocity into its state. Where the
+## mission's LGC carried Luminary's terrain model, Apollo 15's for the
+## Apennines (slice 12b; its mission.json "descent_guidance"), ΔH adds
+## the height the model puts the ground at under the radar's beam, until
+## P66 [published: Luminary 210's SERVICER and Apollo 15's e-load; not
+## V68's turning it off]; without one the ground is the site's height
+## [as Apollo 11's LGC had none]. The DSKY's ALT and VEL
 ## lamps light while the radar has no good data. On the surface it holds
 ## the spot it landed at, turning with the Moon. The ground uplinks the
 ## CSM's state vector too (csm_nav): P12 flies into its plane, and the
@@ -737,7 +742,8 @@ func _navigate(dv: Vector3) -> void:
 
 
 ## Every 2 s in P63 to P66: read the landing radar. ΔH is its altitude
-## less the LGC's (above the landing site's radius); with updates
+## less the LGC's (above the landing site's radius), and the terrain
+## model's height there before P66 (terrain_height()); with updates
 ## permitted (V57), the radar's altitude and velocity are weighted into the
 ## state vector.
 func _landing_radar(dt: float) -> void:
@@ -759,8 +765,14 @@ func _landing_radar(dt: float) -> void:
 	var up := r.normalized()
 	if alt_good:
 		var beam := att * (Bus.get_value("lm.lr.beam_body", Vector3(-1, 0, 0)) as Vector3)
-		var h_lr := float(Bus.get_value("lm.lr.range_m", 0.0)) * -beam.dot(up)
+		var slant := float(Bus.get_value("lm.lr.range_m", 0.0))
+		var h_lr := slant * -beam.dot(up)
 		delta_h = h_lr - (nav.radius() - landing_site.length())
+		if program != 66:
+			# The terrain model, off in P66 (NOTERFLG): the ground's height
+			# where the beam meets it, along the track from the site.
+			var mf := Bodies.moon_fixed(_now())
+			delta_h += terrain_height((mf * guidance_frame).z.dot(r + beam * slant - mf * landing_site))
 		Bus.set_value("lm.guid.delta_h_m", delta_h)
 		if lr_update:
 			var k := delta_h * float(d["alt_weight"])
@@ -771,6 +783,27 @@ func _landing_radar(dt: float) -> void:
 		var dv := (v_meas - nav.vel()) * float(d["vel_weight"])
 		for i in 3:
 			nav.s[3 + i] += dv[i]
+
+
+## Luminary's terrain model (SERVICER, TERRAIN MODEL): the ground's height
+## above the landing site at [param range_m] along the track from it (m,
+## negative before it), five straight segments out from the site, their
+## ends at the e-load's abscissae and their slopes its SLOPE0 to SLOPE4
+## (the mission's "descent_guidance", mission.json's over
+## data/spacecraft.json's: terrain_absc_m, farthest first, and
+## terrain_slope_rad; Apollo 11's LGC carries none).
+static func terrain_height(range_m: float) -> float:
+	var d := SpacecraftData.section("descent_guidance")
+	var absc: Array = d.get("terrain_absc_m", [])
+	var slope: Array = d.get("terrain_slope_rad", [])
+	var h := 0.0
+	var last := 0.0
+	for i in range(absc.size() - 1, -1, -1):
+		h += float(slope[i]) * (maxf(range_m, float(absc[i])) - last)
+		last = float(absc[i])
+		if range_m > last:
+			break
+	return h
 
 
 ## From ignition to touchdown, the powered descent's jobs on the

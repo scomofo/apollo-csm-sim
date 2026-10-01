@@ -4,8 +4,9 @@
 ## (tests/fixtures/ephemeris_check.json). The slice asks for the Moon within
 ## 1 km and the Sun within 0.01°; the fit is far closer. Apollo 8's (slice
 ## 7a), Apollo 10's (slice 7b), Apollo 12's (slice 7c), Apollo 13's
-## (slice 7d) and Apollo 14's (slice 12a) are held to the same, each
-## against its own points (tests/fixtures/ephemeris_check_<mission>.json).
+## (slice 7d), Apollo 14's (slice 12a) and Apollo 15's (slice 12b) are held
+## to the same, each against its own points
+## (tests/fixtures/ephemeris_check_<mission>.json).
 extends GutTest
 
 const PATH := "res://data/ephemeris/apollo_11.json"
@@ -14,9 +15,9 @@ const CHECK := "res://tests/fixtures/ephemeris_check.json"
 ## zero: Apollo 8's 12:51:00 UTC on 21 December 1968, Apollo 10's 16:49:00
 ## UTC on 18 May 1969, Apollo 12's 16:22:00 UTC on 14 November 1969, Apollo
 ## 13's 19:13:00 UTC on 11 April 1970, Apollo 14's 21:03:02 UTC on 31
-## January 1971.
+## January 1971, Apollo 15's 13:34:00 UTC on 26 July 1971.
 const OTHERS := {"apollo_8": 2440212.0354167, "apollo_10": 2440360.2006944, "apollo_12": 2440540.1819444,
-	"apollo_13": 2440688.3006944, "apollo_14": 2440983.3771065}
+	"apollo_13": 2440688.3006944, "apollo_14": 2440983.3771065, "apollo_15": 2441159.0652778}
 ## Apollo 11's touchdown, 102:45:40 GET, and where.
 const T_LAND := 369940.0
 const SITE_LAT := 0.674

@@ -103,7 +103,12 @@ the liftoff, Yankee Clipper's first plane change flown), `tei`,
 lifeboat that brings the crew home around the Moon. Its start phases are
 `launch` (on LC-39A, AS-508 its Saturn V, whose S-II's centre engine pogo
 shuts down), `parking_orbit` (the default), `translunar_coast` and
-`tank_failure` (five minutes before the failure). Each mission is data under
+`tank_failure` (five minutes before the failure). `-- --mission=apollo_14`
+flies Apollo 14: Kitty Hawk's DOI with Antares docked, the landing at Fra
+Mauro and the direct rendezvous; `-- --mission=apollo_15` flies Apollo
+15, the first J mission: Falcon three days at Hadley, past the Apennine
+front. Their start phases are Apollo 12's, `lunar_orbit` on the descent
+orbit with the LM docked. Each mission is data under
 `data/missions/<id>/`: its dates and the JPL ephemeris for them, its
 vehicles, its orbits, Mission Control's timeline, the call signs, the
 checklists, and its start phases with the flight menu's line on each.
@@ -563,6 +568,50 @@ hundred feet and fly the rest, as Shepard flew 2,000 ft of it in P66.
 Antares's checklists follow its flight: the P52 after the undocking, the
 descent with noun 69, the surface and the liftoff, and the direct
 rendezvous; Kitty Hawk's have DOI and CIRC.
+
+**Apollo 15.** With `-- --mission=apollo_15` the flight is Apollo 15's,
+the first J mission, from the pad, its parking orbit or any start phase
+after them. From the pad it's the launch above on AS-510 at 13:34:00 UTC
+on 26 July 1971, on time, on the 80.1° azimuth. Falcon, the J mission's
+LM, carries 1,150 lb more descent propellant in longer tanks and five
+descent batteries, for three days at Hadley. The timeline's calls and
+PADs come at the flown times, the flight's clocks never moved:
+- GO for TLI (2:30), onto a trajectory past the Moon 139 nmi up; the
+  SPS's test, flown as MCC-2 (28:40), and MCC-4 (73:31), which bring the
+  pericynthion down to 68 nmi in the plane over Hadley;
+- LOI (78:32), into the orbit 26° to the lunar equator;
+- DOI (82:40), Endeavour's with Falcon docked, down to 10 nmi at the low
+  point: the RTCC sizes it for the landing pass a day later, its PAD at
+  81:31 and GO at 82:08;
+- the separation PAD, docked (98:42), Houston's word on the probe's loose
+  umbilical (100:20), the undocking 25 min late at 100:39 and the
+  separation after it; Endeavour's CIRC PAD (101:06), back up to 60 nmi at
+  101:39;
+- the PDI PAD and its state vector (102:28), two hours before PDI
+  (104:30); GO for PDI, noun 69 after throttle-up, keyed as Apollo 12's,
+  Houston's word to accept the radar's ΔH, and GO for landing;
+- STAY for T1, T2 and the three days; Endeavour's plane change (165:12),
+  which puts its orbit over Falcon for the liftoff;
+- the ascent PAD (170:41) for the direct rendezvous, with TPI's TIG for
+  N37, GO for the direct rendezvous (171:29) and for liftoff (171:35);
+- "No tweak" after the insertion, and GO for the APS TPI; GO for Pyro
+  Arm a revolution late, nearly six hours after docking;
+- the shaping PAD for the subsatellite's orbit (220:35), the RTCC's burn
+  at its TIG onto its 76 by 54 nmi; TEI (223:49), MCC-7 (291:57) and the
+  entry PAD (293:55).
+
+Falcon's descent is Luminary 210's, on its e-load's own targets: the
+approach 25° steep past the Apennine front against the H missions' 14°,
+P64 at 9 min 23 s. Its terrain model, the e-load's five slopes of the
+ground uprange of the site, goes into the landing radar's ΔH: over the
+mare it takes the LGC's altitude up thousands of feet, the model's
+slope where the mare had none, until the radar sees the foothills. The
+automatic guidance takes Falcon to the target, some 2,000 ft south of
+where it came down: redesignate the landing point north and on with the
+hand controller in P64, as Scott did, and take over at 400 ft. Falcon's
+checklists follow its flight: the P52 after the undocking, the descent
+with noun 69, the surface and the liftoff, and the direct rendezvous
+with no tweak; Endeavour's have DOI, CIRC and the shaping burn.
 
 **State vectors.** The CMC flies on its own state vector. Its
 accelerometers feed it only in P40, P41, P47 and entry, and during TLI. In
@@ -1282,8 +1331,8 @@ Journal and the Apollo Lunar Surface Journal:
 | DOI | 109:20:11, 69.6 ft/s in 30 s; 60.7 × 9.0 nmi | 109:23:40, 72.4 ft/s in 29.0 s; 60.6 × 8.1 nmi |
 | PDI, and the crossrange | 110:19:46; the site 4.3 nmi south of the orbit's plane, the lateral velocity up to 86 ft/s 228 s on | 110:20:38; about 5 miles south, up to 78 ft/s about 5 min on |
 | Noun 69, and the landing radar | +4,300 ft 80 s after PDI; ΔH −1,033 ft at 35,563 ft | +4,200 ft 79 s after PDI; ΔH −918, −1,000 ft, the radar's altitude from 41,438 ft |
-| P64 | 110:28:25 at 8,075 ft, aiming 455 ft from the Surveyor; 49 LPD clicks | 110:29:11 near 7,000 ft, aiming 416 ft from it |
-| The landing | P66 at 110:30:34 at 395 ft; touchdown 110:31:50, 515 ft from Surveyor III, where Intrepid came down; 1,375 lb of the DPS's propellant left | P66 at 110:30:50 at 400 ft; 110:32:36, 535 ft from it; 1,175 lb |
+| P64 | 110:28:25 at 8,075 ft, aiming 455 ft from the Surveyor; 15 LPD clicks | 110:29:11 near 7,000 ft, aiming 416 ft from it |
+| The landing | P66 at 110:30:35 at 390 ft; touchdown 110:31:53, 514 ft from Surveyor III, where Intrepid came down; 1,346 lb of the DPS's propellant left | P66 at 110:30:50 at 400 ft; 110:32:36, 535 ft from it; 1,175 lb |
 | The first plane change | 119:45:06, N81 −9.2, +312.8, 0; 313.1 ft/s in 19.0 s; 62.4 × 57.1 nmi | 119:47:13, N81 −11.5, +349.6, 0; 349.9 ft/s in 18.2 s; 62.5 × 57.6 nmi |
 | The P57 before the liftoff | 141:26:58, option 4, on gravity and Arcturus, which R59 finds in the right-rear detent: N05 0.02°, N93 +0.005, +0.107, −0.026° | 141:29 on Procyon through the left-front detent: N05 0.04°, N93 −0.023, +0.004, +0.015° |
 | The ascent | liftoff 142:01:21, N76 5,532.7 and 37.0 ft/s, 0.28 nmi crossrange; 439 s on the APS; 45.5 × 8.7 nmi, 0.02° from Yankee Clipper's plane | 142:03:48 (planned 142:01:18), N76 5,535.0 and 37.0 ft/s, 0.2 nmi; 423.2 s; 46.3 × 8.8 nmi |
@@ -1457,6 +1506,82 @@ The table takes these from the flight's figures:
 - TEI is solved at the flight's TIG for the flown return's inclination,
   entry interface time and corridor; the simulator's Kitty Hawk needs
   more of it up there.
+
+Apollo 15 flown from its data alone, from the pad into its parking orbit
+and on through TLI (`tests/scenarios/test_apollo_15_launch.gd`), from its
+parking orbit to the landing at Hadley (`tests/scenarios/test_apollo_15.gd`),
+from the surface to TEI (`tests/scenarios/test_apollo_15_return.gd`) and
+from the transearth coast to the splashdown
+(`tests/scenarios/test_apollo_15_entry.gd`), each holding its rows within
+set limits of the flight's figures, against the Apollo 15 Mission Report
+(MSC-05161) and its GN&C supplement, the AS-510 flight evaluation report
+(MPR-SAT-FE-71-2), the flight controllers' postflight memos, the Apollo
+Flight Journal and the Apollo Lunar Surface Journal:
+
+| Quantity | Simulator | Apollo 15 |
+|---|---|---|
+| Launch: Mach 1, maximum dynamic pressure | 1:06.3; 33.3 kPa at 1:17.8 | 1:05.0; 36.8 kPa at 1:22.0 |
+| Launch: the S-IC's centre and outboard engines' cutoffs | 2:15.96 at 2,035 m/s and 23.79° up, 2:39.74 at 2,755 m/s and 20.44° | 2:15.96 at 2,045 m/s and 24.22°, 2:39.56 at 2,756 m/s and 21.27° |
+| Launch: the S-II's centre and outboard engines' cutoffs | 7:39.72 at 5,708 m/s, 9:08.52 at 6,984 m/s | 7:39.56 at 5,713 m/s, 9:09.06 at 6,995 m/s |
+| Launch: the S-IVB's cutoff, and insertion | 11:37.40, 11:47.20 at 7,803.4 m/s | 11:34.68, 11:44.67 at 7,801.9 m/s |
+| Parking orbit, and the S-IVB's propellant for TLI | 90.7 × 90.6 nmi, 29.679°; 75,445 kg | 91.5 × 89.6 nmi, 29.679°; 75,960 kg at its second ignition |
+| TLI, and the pericynthion after it | 2:50:00, 10,449 ft/s in 352.1 s, C3 −1,436,465 m²/s²; 138.7 nmi at 78:31:21 | 2:50:03, 10,414.7 ft/s in 350.8 s, C3 −1,438,810 m²/s²; 139 nmi at 78:31:21 |
+| MCC-2, the SPS's test | 7.9 ft/s at 28:40:00, N81 +1.1, +3.5, +7.0; then 62.8 nmi at 78:35:01 | 5.3 ft/s at 28:40:22 on the SCS; then 63 nmi at 78:35:15 |
+| MCC-4, and the pericynthion after it | 1.9 ft/s; 67.1 nmi at 78:35:06 | 5.4 ft/s at 73:31:14; 68.3 nmi at 78:35:06 |
+| LOI | 78:31:54, N81 −2,883.5, −745.6, +33.4; 2,979 ft/s in 406.3 s; 170.8 × 59.3 nmi, 26.12° to the lunar equator | 78:31:46, N81 −2,897.5, −776.4, −44.1; 3,000.1 ft/s in 398.4 s; 170.1 × 57.7 nmi |
+| DOI, Endeavour with Falcon docked | 82:40:55, N81 −205.3, 0, 0; 205.2 ft/s in 25.0 s; 59.5 × 11.5 nmi; PDI planned for 104:32:51 | 82:39:48, N81 −208.4, −48.0, +2.0; 213.9 ft/s in 24.5 s; 58.5 × 9.6 nmi; PDI 104:30:09 |
+| The separation, and CIRC | 1.4 ft/s on P41 at 100:39:37; CIRC 101:38:58, N81 +66.4, 0, +29.4, 72.6 ft/s into 65.2 × 54.4 nmi | 1.1 ft/s on P47 after the undocking at 100:39:16; 101:38:58, N81 +68.3, −0.1, −0.7, 68.3 ft/s into 65.2 × 54.8 nmi |
+| Falcon's first P52, on stars 41 and 01 | 101:16:05: N05 0.004°, N93 −0.002, +0.079, −0.048° | 101:16: 0.01°; −0.002, +0.076, −0.046° |
+| PDI | the PAD at 102:30:40; 104:33:28, 51,441 ft over the site | the PAD at 102:27:58; 104:30:09, about 50,000 ft (the nominal 50,087) |
+| Noun 69 | +3,000 ft 77 s after PDI | 2,800 ft downrange, 76.5 s after PDI (voiced −02800) |
+| The landing radar and the terrain model | the altitude good 299 s after PDI, ΔH +3,508 ft; the LGC's altitude taken 3,550 ft above the truth, 16 ft above it at P64 | 3:29 after PDI, ΔH +3,400 ft; taken up 4,800 ft, converged over the Apennine foothills |
+| Throttle-down | 426 s after PDI | 7:21.7 |
+| P64, the 25° approach | 104:42:56, 568 s after PDI, at 7,106 ft, aiming 1,987 ft from where Falcon came down; 27 LPD clicks | 104:39:32, 9:22.8 after PDI, at 7,000 ft; 18 redesignations |
+| The landing | P66 at 104:44:33 at 391 ft, 651 ft off; touchdown 104:45:53, 745 s after PDI, on the spot; 1,460 lb of the DPS's propellant left | P66 at 104:41:08 at 400 ft; 104:42:29, 740 s after PDI; 1,188 lb |
+| The plane change (LOPC-1) | 165:15:49, N81 −9.5, +317.6, 0; 317.6 ft/s in 20.0 s; 66.1 × 52.5 nmi | 165:11:32, N81 −9.2, +330.3, +18.4; 330.6 ft/s in 18.3 s; 64.5 × 53.6 nmi |
+| The ascent | liftoff 171:39:54, N76 5,530.4 and 32.0 ft/s, +0.70 nmi crossrange, TPI's TIG 172:32:23; 444 s on the APS into 42.7 × 9.0 nmi | 171:37:23, N76 5,530.4 and 32.0 ft/s, −0.4 nmi, TPI 172:29:39; 431 s into 42.5 × 9.0 nmi |
+| TPI on the APS, no tweak | 172:32:23, 78.7 ft/s; Endeavour 25.5° up, Falcon 11.9 nmi below | 172:29:40, 72.7 ft/s |
+| Midcourse corrections, and docking | 0.3 ft/s together; 173:23:41 | 1.6 and 2.8 ft/s; 173:36:25 |
+| The shaping burn | 221:20:47, N81 +16.8, 0, −102.1; 103.3 ft/s into 76.7 × 54.5 nmi | 221:20:48, N81 +17.0, −0, −64.2; 66.4 ft/s into 76.0 × 54.3 nmi |
+| TEI | 223:48:45, N81 +2,922.6, −861.1, +701.0; 3,126 ft/s in 151.7 s | 223:48:45, N81 +2,945.2, −761.3, −171.4; 3,046.8 ft/s in 140.9 s |
+| MCC-7 | 1.2 ft/s | 5.6 ft/s on the SM RCS |
+| Entry interface | 294:59:11, 36,095 ft/s, 6.51° down, 14.09° N 175.08° W | 294:58:55, 36,096.4 ft/s, 6.51° down, 14.23° N 175.02° W |
+| The entry, and splashdown | P61 to P64, then P67; 6.49 g at the peak; 295:13:43, 871 s after entry interface on three main parachutes, 26.14° N 158.15° W, 1.4 nmi from the target | P61 to P67; 6.2 g on the PAD; 295:11:53, 778 s after it on two (the PAD's 809 on three), 26.13° N 158.14° W, about 1 nmi from it |
+
+The table takes these from the flight's figures:
+- The launch: the S-IC's vacuum Isp (305.1 s) and the S-II's flow at the
+  high ratio (1,240 kg/s) are tuned for the flown cutoffs [estimated];
+  the S-IVB's burn runs 2.7 s long, and on the standard atmosphere the
+  maximum dynamic pressure comes 4 s early and 3.5 kPa low.
+- MCC-2, the SPS's test after its THRUST light stayed on from TLI, is
+  flown on P40, where the crew flew it on the SCS.
+- DOI: the RTCC sizes it through the field the stack flies, needing no
+  trim, where the flight's perilune decayed faster than the ground
+  predicted until the DOI trim (95:56:44.7, 3.2 ft/s on the SM RCS):
+  its perilune comes out 2 nmi higher than the flight's, its revolutions
+  15 s longer, and PDI and the landing come 3 min late.
+- The separation is flown on P41 at the timeline's TIG, 21 s after the
+  undocking: Endeavour turns off Falcon as it burns, and senses more than
+  the PAD's 1.0 ft/s.
+- PDI comes where the flight's did, 17.04° of arc before the site; the
+  e-load's ignition point, 15.63°, is its ignition algorithm's, not
+  flown here. The simulator's braking holds Falcon higher than the
+  flight's at first, and its radar's altitude comes good 90 s later than
+  Falcon's; the terrain model then takes the LGC's altitude up 3,550 ft
+  against the flight's 4,800, and over the foothills the radar brings
+  it back.
+- The redesignations: the test's commander clicks the LPD once a second
+  while a click brings it nearer the spot, where Falcon came down, 590 m
+  north and 151 m west of the target; Scott moved it 338 m uprange and
+  409 m north of where the guidance was taking him, the ground's
+  state vector having Falcon south.
+- The rendezvous: Endeavour docks with no station-keeping, where the
+  flight's docking followed 20 min of it.
+- The shaping burn is the RTCC's at the PAD's TIG onto the PAD's orbit,
+  from the orbit the simulator's Endeavour has come to by then: its ΔV
+  differs, and so does TEI's.
+- The entry comes down on three main parachutes; one of the flight's
+  failed (slice 12b's second part).
 
 Deliberate simplifications are tagged `[simplified]` in the code. The main
 ones:
@@ -2732,6 +2857,35 @@ The scenario tests fly real segments through the crew interface:
   drogue and retract it 6.9 s after the contact, and the ring latches
   fire 11.8 s after it, as the flight's did. Houston's calls come at the
   flown times after the separation
+- Apollo 15's launch (`tests/scenarios/test_apollo_15_launch.gd`), slice
+  12b's check. From LC-39A, AS-510 flies Apollo 15 on time into its
+  90 nmi parking orbit on the 80.088° azimuth, and the flight goes on
+  through TLI as the parking-orbit start flies it:
+  - each of the S-IC's and S-II's cutoffs within 0.6 s of the flight
+    evaluation report's, and the S-IVB's 2.7 s late; the velocities
+    within 11 m/s and the flight path angles within 1°;
+  - Houston's marks of the abort modes at the flown times, One Bravo at
+    0:42 to mode IV at 9:15;
+  - the orbit 90.7 × 90.6 nmi at 29.679°, 0.003° from the flown plane,
+    and the S-IVB's propellant, 75,445 kg, within 2 t of the
+    parking-orbit start's;
+  - TLI at 2:50:02 for 350.8 s, onto a trajectory past the Moon 139.2 nmi
+    up at 78:31:23, not a free return.
+- Apollo 15 (`tests/scenarios/test_apollo_15.gd`,
+  `test_apollo_15_return.gd` and `test_apollo_15_entry.gd`), slice 12b's
+  check. It flies from its data alone, from the parking orbit to the
+  landing at Hadley: TLI, the SPS's test as MCC-2, MCC-4, LOI into the
+  plane over the site, DOI by Endeavour with Falcon docked, the undocking
+  25 min late and CIRC, Falcon's P52 after it, and powered descent on
+  Luminary 210's targets, 25° steep past the Apennine front, with noun 69,
+  the landing radar's ΔH through the LGC's terrain model, the
+  commander's redesignations in P64 and P66 from 400 ft to the spot
+  Falcon came down on; from the surface to TEI: Endeavour's plane change,
+  the P57 before the liftoff, the direct rendezvous with no tweak, TPI on
+  the ascent engine, docking, LM JETT, the shaping burn and TEI; and from
+  the transearth coast home: MCC-7, the entry PAD and the entry on P61 to
+  P67. Each row of Apollo 15's Fidelity table (above) is held within
+  limits of the flight's figures
 
 `tools/screenshot.tscn` renders the images above (`--view=0` window,
 `1` chase, `2` cabin; `--hud=0` leaves the HUD out, `--menu=1` shows the
@@ -2844,3 +2998,8 @@ troubles come with it: the ABORT switch's short and Houston's workaround
 keyed on the DSKY, the landing radar's low scale and its breaker's
 cycle, and the transposition and docking's six attempts, the capture
 latches failed, the probe retracted into the ring latches at the last.
+Apollo 15 flies from its data too (slice 12b's first part): AS-510 into
+its 90 nmi parking orbit, the J mission's LM three days at Hadley, its
+descent 25° steep past the Apennine front on Luminary 210's targets and
+the LGC's terrain model, Endeavour's plane change and its orbit shaped
+for the subsatellite, and the way home.
