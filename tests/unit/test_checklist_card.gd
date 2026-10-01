@@ -141,7 +141,7 @@ func test_every_step_names_a_cabin_control_or_one_writes_its_check() -> void:
 				assert_ne(id, "", "%s: a cabin control writes %s" % [s["text"], channel])
 			if id != "":
 				framed += 1
-	assert_eq(framed, 58, "43 of the flight's steps point at a cabin control, and 15 of the malfunction procedures'")
+	assert_eq(framed, 66, "43 of the flight's steps point at a cabin control, and 23 of the malfunction procedures'")
 
 
 func test_every_apollo_8_step_names_a_cabin_control_or_one_writes_its_check() -> void:
@@ -157,7 +157,7 @@ func test_every_apollo_8_step_names_a_cabin_control_or_one_writes_its_check() ->
 				assert_ne(id, "", "%s: a cabin control writes %s" % [s["text"], channel])
 			if id != "":
 				framed += 1
-	assert_eq(framed, 65, "50 of Apollo 8's steps point at a cabin control, and 15 of the malfunction procedures'")
+	assert_eq(framed, 73, "50 of Apollo 8's steps point at a cabin control, and 23 of the malfunction procedures'")
 
 
 func test_every_apollo_10_step_names_a_control_or_one_writes_its_check() -> void:
@@ -178,7 +178,7 @@ func test_every_apollo_10_step_names_a_control_or_one_writes_its_check() -> void
 					assert_ne(id, "", "%s: a cabin control writes %s" % [s["text"], channel])
 				if id != "":
 					framed[1 if lm else 0] += 1
-	assert_eq(framed, [66, 88], "Charlie Brown's and Snoopy's steps that point at a cabin control (15 and 12 of them the malfunction procedures')")
+	assert_eq(framed, [74, 88], "Charlie Brown's and Snoopy's steps that point at a cabin control (23 and 12 of them the malfunction procedures')")
 
 
 func test_every_apollo_12_step_names_a_control_or_one_writes_its_check() -> void:
@@ -199,7 +199,7 @@ func test_every_apollo_12_step_names_a_control_or_one_writes_its_check() -> void
 					assert_ne(id, "", "%s: a cabin control writes %s" % [s["text"], channel])
 				if id != "":
 					framed[1 if lm else 0] += 1
-	assert_eq(framed, [66, 92], "Yankee Clipper's and Intrepid's steps that point at a cabin control (15 and 12 of them the malfunction procedures')")
+	assert_eq(framed, [74, 92], "Yankee Clipper's and Intrepid's steps that point at a cabin control (23 and 12 of them the malfunction procedures')")
 
 
 func test_every_apollo_14_step_names_a_control_or_one_writes_its_check() -> void:
@@ -220,7 +220,7 @@ func test_every_apollo_14_step_names_a_control_or_one_writes_its_check() -> void
 					assert_ne(id, "", "%s: a cabin control writes %s" % [s["text"], channel])
 				if id != "":
 					framed[1 if lm else 0] += 1
-	assert_eq(framed, [66, 79], "Kitty Hawk's and Antares's steps that point at a cabin control (15 and 12 of them the malfunction procedures')")
+	assert_eq(framed, [74, 79], "Kitty Hawk's and Antares's steps that point at a cabin control (23 and 12 of them the malfunction procedures')")
 
 
 func test_every_apollo_15_step_names_a_control_or_one_writes_its_check() -> void:
@@ -241,7 +241,7 @@ func test_every_apollo_15_step_names_a_control_or_one_writes_its_check() -> void
 					assert_ne(id, "", "%s: a cabin control writes %s" % [s["text"], channel])
 				if id != "":
 					framed[1 if lm else 0] += 1
-	assert_eq(framed, [66, 71], "Endeavour's and Falcon's steps that point at a cabin control (15 and 12 of them the malfunction procedures')")
+	assert_eq(framed, [74, 71], "Endeavour's and Falcon's steps that point at a cabin control (23 and 12 of them the malfunction procedures')")
 
 
 func test_every_apollo_16_step_names_a_control_or_one_writes_its_check() -> void:
@@ -262,7 +262,7 @@ func test_every_apollo_16_step_names_a_control_or_one_writes_its_check() -> void
 					assert_ne(id, "", "%s: a cabin control writes %s" % [s["text"], channel])
 				if id != "":
 					framed[1 if lm else 0] += 1
-	assert_eq(framed, [78, 73], "Casper's and Orion's steps that point at a cabin control (15 and 12 of them the malfunction procedures', 12 the SPS burn's TVC checks)")
+	assert_eq(framed, [86, 73], "Casper's and Orion's steps that point at a cabin control (23 and 12 of them the malfunction procedures', 12 the SPS burn's TVC checks)")
 
 
 func test_every_eagle_step_names_one_of_its_controls_or_one_writes_its_check() -> void:

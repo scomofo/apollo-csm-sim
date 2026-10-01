@@ -25,7 +25,9 @@ of the director.
 - For the headset, set up as in [HEADSET_RUN.md](HEADSET_RUN.md). Make
   the headset's audio the system's default output. SteamVR and the Meta
   Quest Link app can do this for you.
-- There is no volume setting in the simulator yet: use the system's.
+- Set the system volume, then use SOUND - and SOUND + on the wrist
+  menu to adjust the simulator. Each press changes it by
+  3 dB, from -30 dB to the designed level (0 dB); the setting is saved.
 
 ## 1. The voices on their own
 

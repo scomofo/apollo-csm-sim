@@ -81,7 +81,7 @@ func test_a_save_from_the_menu_resumes_to_the_same_state_in_a_new_runtime() -> v
 	_fly(900.0)
 	var expect: Array = main.rt.dynamics.traj.s.duplicate()
 	var expect_t := SimClock.get_seconds
-	var old := weakref(main.rt.dynamics)
+	var old: WeakRef = weakref(main.rt.dynamics)
 	var next := await _replaced(main, menu.activate.bind("resume"))
 	assert_not_null(next, "RESUME started the saved flight in place")
 	assert_null(old.get_ref(), "the flight flown gone")
