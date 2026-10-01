@@ -41,8 +41,8 @@ picture).
 - **Start phases stay consistent.** A new `--phase` is built the way the
   existing ones are, from the RTCC's own solutions, so it continues the
   mission it claims to.
-- **CI stays fast.** The suite runs in fourteen jobs side by side: the
-  unit tests in two parts and the scenario tests in twelve, each dealt out
+- **CI stays fast.** The suite runs in fifteen jobs side by side: the
+  unit tests in two parts and the scenario tests in thirteen, each dealt out
   by each file's time on the runners (`.github/unit_seconds.txt`,
   `.github/scenario_seconds.txt`). Keep each job under ten minutes:
   start a long scenario from a phase or checkpoint instead of flying the
@@ -2319,19 +2319,19 @@ radar and AGS are gone, or measured against the flights.
 
 ## 12. The last lunar missions
 
-**Status: 12a in progress.** Milestone 7's pattern, for Apollo 14 to 17:
+**Status: 12a done.** Milestone 7's pattern, for Apollo 14 to 17:
 each mission is data, and each slice brings what its flight needed that
 the simulator can't do yet. The J missions' surfaces stay out, the EVAs,
 the rover and the experiments, and so does the SIM bay's science: the
 stays on the surface pass as time, as the other missions' do. After
 milestone 10 each flies from its pad. Apollo 14 flies from its data
-alone, in four parts: its flight (12a-1), the ABORT switch's short
+alone, built in four parts: its flight (12a-1), the ABORT switch's short
 (12a-2), the landing radar's scale (12a-3), and the docking's six
 attempts (12a-4).
 
 | Slice | Work | Check |
 |---|---|---|
-| 12a Apollo 14 (in progress: its flight, the ABORT switch, the landing radar) | Kitty Hawk's probe failing to capture Antares until the sixth try (a soft dock, and its latches); the CSM's DOI with the LM docked; the abort switch's short, and the keyed workaround that had the LGC ignore it; the landing radar's late lock-on, until its breaker was cycled; the direct rendezvous, TPI in the first revolution after the insertion, without CSI and CDH; Fra Mauro's terrain | Test: as 7a, Antares landing within a set limit of where it came down |
+| 12a (done) Apollo 14 | Kitty Hawk's probe failing to capture Antares until the sixth try (its capture latches, and the probe's retraction); the CSM's DOI with the LM docked; the abort switch's short, and the keyed workaround that had the LGC ignore it; the landing radar's late lock-on, until its breaker was cycled; the direct rendezvous, TPI in the first revolution after the insertion, without CSI and CDH; Fra Mauro's terrain | Test: as 7a, Antares landing within a set limit of where it came down |
 | 12b Apollo 15 | The J mission's LM, its descent stage heavier and its stay three days; the steep descent past the Apennines; Endeavour's plane changes; Worden's EVA on the way home, the CM depressurised, as an event; the splashdown on two main parachutes, the third having failed | Test: as 7a, Falcon landing within a set limit of Hadley, and the CM coming down on two parachutes at the flown speed |
 | 12c Apollo 16 | Casper's SPS, its secondary yaw gimbal servo oscillating before the circularization, and the landing waved off for about six hours; the flight a day shorter | Test: as 7a, Orion landing about six hours late within a set limit of its site |
 | 12d Apollo 17 | The night launch, Taurus-Littrow's terrain, and the longest stay | Test: as 7a, Challenger landing within a set limit of its site |
@@ -2410,6 +2410,27 @@ own troubles.
   and Houston's call to cycle the breaker 6 min 16 s after ignition;
   the crew cycle it and key V57, and its ΔH is about 1,000 ft, as
   Antares's was. Checkpoints are schema 33.
+- **The docking.** Done in 12a's fourth part. Where a mission flies
+  transposition and docking (mission.json tde_flown, Apollo 14's), the
+  crew's CSM/LV SEP leaves the CSM free of its target, the LM in the
+  S-IVB's adapter (the configuration lm_sivb, its drogue 10 m from their
+  centre of mass [estimated]), for the crew to turn about and dock by
+  hand; if they haven't by the flight's extraction, the ground takes it
+  as done [simplified]. The docking probe (`src/systems/docking_probe.gd`)
+  has its capture latches, which the failure catalog's
+  csm_capture_latches fails, as debris most probably held Kitty Hawk's
+  plunger through five attempts (MSC-04112, section 14.1.1): each
+  contact rebounds. The probe held in the drogue under +X and retracted
+  (PROBE RETRACT, a proxy on panel 2 for the probe's RETRACT switches)
+  pulls the rings together, the ring latches 4.9 s on, as the sixth
+  attempt's first latch came 11.8 s after its contact and 6.9 s after
+  the retraction began (ibid., Table 14-I); the hard dock clears the
+  failure, the mechanism normal in lunar orbit [simplified: the debris
+  gone]. The hard dock draws the LM out at once [simplified: Apollo 14's
+  ejection came 50 min later]. Apollo 14's timeline fails the latches at
+  CSM/LV SEP and has Houston's calls at the flown times after it (the
+  Apollo Flight Journal). There is no soft dock: capture still latches
+  the vehicles hard at once [simplified]. Checkpoints are schema 34.
 
 ## Later, not scheduled
 

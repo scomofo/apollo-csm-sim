@@ -424,6 +424,7 @@ func _switch_panel() -> PanelContainer:
 	_momentary(g, "MAIN CHUTES", "ctl.els.main")
 	_momentary(g, "CSM/LV SEP", "ctl.seq.csm_sep")
 	_momentary(g, "UNDOCK", "ctl.seq.undock")
+	_momentary(g, "PROBE RETRACT", "ctl.seq.probe_retract")
 	_momentary(g, "LM JETT", "ctl.seq.lm_jett")
 	_momentary(g, "CM/SM SEP", "ctl.seq.cm_sm_sep")
 	_momentary(g, "MASTER ALARM", "ctl.cw.master_alarm")
@@ -432,7 +433,6 @@ func _switch_panel() -> PanelContainer:
 	_option(g, "SCS TVC", "ctl.scs.tvc", ["AUTO", "RATE CMD"])
 	_momentary(g, "GDC ALIGN", "ctl.scs.gdc_align")
 	_option(g, "EMS FUNCTION", "ctl.ems.function", ["OFF", "DV SET", "DV", "RNG SET", "VO SET", "ENTRY"])
-	g.add_child(Control.new())
 	_momentary(g, "EMS SET DECR", "ctl.ems.set", -2, 0)
 	_momentary(g, "EMS SET decr", "ctl.ems.set", -1, 0)
 	_momentary(g, "EMS SET incr", "ctl.ems.set", 1, 0)
@@ -709,10 +709,12 @@ LGC  P%02d %s  VG %.1f ft/s  %s""" % [
 		float(Bus.get_value("lm.guid.vg_mps", 0.0)) / Units.FT, mnvr]) + ("\nC&W  " + "  ".join(lit) if not lit.is_empty() else "")
 
 
-## While the LM flies free: where its docking port is from the CSM's, in
-## the CSM's body axes (X along the probe), and the last contact.
+## While the LM flies free, or at transposition and docking waits on the
+## S-IVB (slice 12a): where its docking port is from the CSM's, in the
+## CSM's body axes (X along the probe), and the last contact, or the
+## probe retracting.
 func _docking_text() -> String:
-	if str(Bus.get_value("dock.state", "")) != "free":
+	if not str(Bus.get_value("dock.state", "")) in ["free", "tde"]:
 		return ""
 	var p: Vector3 = Bus.get_value("dock.rel_pos", Vector3.ZERO)
 	var v: Vector3 = Bus.get_value("dock.rel_vel", Vector3.ZERO)
@@ -728,7 +730,9 @@ MISALIGN %4.1f°""" % [
 		v.x / Units.FT, v.y / Units.FT, v.z / Units.FT,
 		float(Bus.get_value("dock.misalign_deg", 0.0))]
 	var contact: Dictionary = Bus.get_value("dock.contact", {})
-	if not contact.is_empty() and not contact["captured"]:
+	if bool(Bus.get_value("dock.retracting", false)):
+		text += "\nPROBE RETRACTING"
+	elif not contact.is_empty() and not contact["captured"]:
 		text += "\n" + Docking.describe(contact)
 	return text
 

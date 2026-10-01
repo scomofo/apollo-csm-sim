@@ -261,6 +261,13 @@ ABORT while it reads 70, as Luminary's did:
   V57 lets the radar in. Flying Apollo 14, the scale goes low 4 min
   52 s before PDI, and Houston calls for the breaker's cycle 6 min 16 s
   after ignition.
+- **Kitty Hawk's capture latches** (csm_capture_latches): the docking
+  probe's three capture latches don't engage the drogue, and each
+  contact rebounds. With the probe held in the drogue under +X, **PROBE
+  RETRACT** (panel 2, and the HUD) pulls the docking rings together, and
+  the twelve ring latches fire 4.9 s on: hard dock, which clears it.
+  Flying Apollo 14, it fails at CSM/LV SEP, and Houston's calls through
+  the attempts come at the flown times after the separation.
 
 The launch vehicle's engines and its guidance platform are on the
 failure catalog. A failure can also be armed a time after a mission
@@ -316,7 +323,14 @@ undocking to TEI) and at entry.
    onto the free return the RTCC planned. Watch it with `V16N62E` or
    `V82E`.
 3. **Transposition and docking.** Press **CSM/LV SEP** after cutoff. It
-   happens automatically an hour after cutoff if you don't.
+   happens automatically an hour after cutoff if you don't. Flying Apollo
+   14, CSM/LV SEP leaves Kitty Hawk free of Antares, still on the S-IVB:
+   +X away, pitch through 180° to face its drogue, and dock on the
+   translation controller, the flight panel showing the range and
+   alignment as for any docking (**Undocking and docking**, below). The
+   capture latches fail, as Kitty Hawk's did: hold +X at the contact and
+   press **PROBE RETRACT**. If you haven't docked by the flight's
+   extraction (5:47), the ground takes it as done.
 4. **Midcourse correction.** With the CMC in P00 and UP TLM CM in ACCEPT,
    press **MCC** under Mission Control. The RTCC solves the burn from the
    state MSFN tracked, and uplinks that state vector and the PAD: P27 and
@@ -512,6 +526,11 @@ range zero where the flight moved its clocks 40 min 3 s at 54:54:
 - GO for TLI (2:27); MCC-2 (30:36), which takes the stack off the free
   return onto the hybrid, and MCC-4 (76:58) if the tracking has the
   approach off;
+- after the crew's CSM/LV SEP, Kitty Hawk's capture latches failed, and
+  Houston's calls through the attempts to dock at the flown times after
+  the separation (3:02:29): the probe's breakers (3:18), +X held at the
+  contact (3:23), the normal procedures again (4:15) and the probe's
+  retraction (4:39);
 - LOI (81:57), centred on the pericynthion the corrections put in the
   plane over Fra Mauro;
 - DOI (86:13), Kitty Hawk's with Antares docked, down to 9 nmi at the
@@ -636,7 +655,9 @@ controller. The
 probe captures, and the vehicles are docked again, when it meets the
 drogue at under 1 ft/s, moving across at under 0.5 ft/s, within 1 ft of
 its centre, within 10° of alignment and under 1°/s of relative rate. Any
-other contact rebounds, and CAPCOM says why.
+other contact rebounds, and CAPCOM says why. With the capture latches
+failed (Apollo 14's), hold +X at the contact and press **PROBE
+RETRACT**: the ring latches fire 4.9 s on.
 
 **Eagle's platform and P52.** The LGC's IMU is a real one, as the CMC's
 is. At undocking it stands on the landing site REFSMMAT where the crew's
@@ -1360,8 +1381,9 @@ The table takes these from the flight's figures:
   flight's, and MCC-7 has less to do.
 
 Apollo 14 flown from its data alone, from the pad into its parking orbit
-and on through TLI (`tests/scenarios/test_apollo_14_launch.gd`), from its
-parking orbit to the landing at Fra Mauro
+and on through TLI (`tests/scenarios/test_apollo_14_launch.gd`), through
+its transposition and docking (`tests/scenarios/test_apollo_14_docking.gd`),
+from its parking orbit to the landing at Fra Mauro
 (`tests/scenarios/test_apollo_14.gd`) and from the surface to the
 splashdown (`tests/scenarios/test_apollo_14_return.gd`), each holding its
 rows within set limits of the flight's figures, against the Apollo 14
@@ -1377,6 +1399,9 @@ Journal and the Apollo Lunar Surface Journal:
 | Launch: the S-IVB's cutoff, and insertion | 11:45.10, 11:54.90 at 7,793.0 m/s | 11:40.56, 11:50.56 at 7,790.6 m/s |
 | Parking orbit, and the S-IVB's propellant for TLI | 100.1 × 99.9 nmi, 31.120°; 73,766 kg | 100.1 × 98.9 nmi, 31.120°; 74,453 kg at its second ignition |
 | TLI, and the pericynthion after it | GET 2:28:32, 10,391 ft/s in 353.2 s, C3 −1,668,228 m²/s²; 1,979.3 nmi at 82:15:18 | 2:28:32, 10,366.5 ft/s in 350.8 s, C3 −1,678,092 m²/s²; 1,979 nmi at 82:15:19 |
+| CSM/LV SEP and the transposition | the crew's at 3:02:29; turned about, the drogue 32.7 ft ahead, 0.5° out of line, at 3:06:28 | 03:02:29.4 |
+| The attempts without capture | 3:13:53 at 0.10 ft/s; 3:23:42 at 0.45 ft/s, +X 6.2 s; 4:32:29 at 0.25 ft/s: the capture latches didn't engage | 3:13:53.7 at 0.1 ft/s, and seven more contacts to 4:32:29.3: 3:23:41.7 at 0.4 to 0.5 ft/s, +X 6.2 s; 4:32:29.3 at 0.25 ft/s |
+| The sixth attempt | contact 4:56:45 at 0.20 ft/s, +X held; PROBE RETRACT 6.9 s on; the ring latches 11.8 s after the contact, hard dock 4:56:57 | 4:56:44.9 at 0.2 ft/s, +X 14.3 s; the retraction 6.9 s on; the first ring latch 11.8 s after the contact; hard dock 04:56:56 |
 | MCC-2, off the free return | 67.4 ft/s at 30:36:07, N81 −23.6, +7.7, +62.7 | 71.4 ft/s at 30:36:07, N81 −25.9, +4.4, +66.4 |
 | MCC-4, and the pericynthion after it | 2.2 ft/s; 59.1 nmi at 82:00:30 | 3.8 ft/s; 60.7 nmi at 82:00:33 |
 | LOI | 81:57:20, N81 −2,816.1, −1,190.2, +87.9; 3,059 ft/s in 393.0 s; 169.7 × 58.4 nmi, 13.8° to the lunar equator | 81:56:40, N81 −2,804.9, −1,103.5, −227.0; 3,022.4 ft/s in 370.8 s; 169.0 × 58.1 nmi |
@@ -1409,6 +1434,12 @@ The table takes these from the flight's figures:
   [estimated]. The S-IC still leaves the stack 0.9° flatter than AS-509,
   on SA-504's pitch polynomial [estimated for AS-509], and the S-IVB's
   burn runs 4.5 s long.
+- The transposition and docking: the test's crew fly four of the six
+  attempts at the flown times and closing speeds, the second and third
+  left out. The ring latches 4.9 s after the retraction began are the
+  flight's; the LM comes out of the adapter at the hard dock, where
+  Antares's ejection came 50 min later. test_apollo_14.gd leaves the
+  docking to the ground, at the flight's extraction.
 - LOI is centred on the pericynthion, where the midcourse corrections
   put the plane over the site: at the flight's TIG the simulator's burn,
   longer on the larger plane change, ran 3 min past that node, and the
@@ -1809,9 +1840,9 @@ godot --headless --path . -s addons/gut/gut_cmdln.gd -gexit
 That runs the whole suite, which takes over an hour and a half, nearly
 all of it in the scenario tests. Add `-gdir=res://tests/unit/` to run
 only the unit tests, in about ten minutes, or `-gselect=<name>` to run only the
-scripts whose file names contain `<name>`. CI runs the suite in fourteen
+scripts whose file names contain `<name>`. CI runs the suite in fifteen
 parts side by side (`.github/workflows/ci.yml`): the unit tests dealt
-out over two jobs and the scenario tests over twelve, by each file's time
+out over two jobs and the scenario tests over thirteen, by each file's time
 on the runners (`.github/unit_seconds.txt`,
 `.github/scenario_seconds.txt`). Beside them, its build job
 exports the PC VR presets with Godot 4.4.1's templates and flies a
@@ -2132,8 +2163,10 @@ The unit tests cover:
   mid-initialization, R47 at V06N16 and the DEDA mid-entry (schema 30),
   and R47's downlist from one taken while it is on (schema 31), and the
   LGC's mode register, its LETABORT and the ABORT switch's short from
-  one taken with MODREG loaded at 71 (schema 32), and the landing radar's
-  low scale and its breaker's cycle (schema 33)
+  one taken with MODREG loaded at 71 (schema 32), the landing radar's
+  low scale and its breaker's cycle (schema 33), and the transposition
+  and docking from one taken mid-retraction, the LM on the S-IVB and the
+  capture latches failed (schema 34)
 - The main scene, and in Eagle from `lunar_descent`: its HUD, the keys on
   its LGC or, with G, its DEDA, its two views, its checklist for the
   phase, and L between the vehicles; and the mission it's given, Apollo
@@ -2322,7 +2355,12 @@ The scenario tests fly real segments through the crew interface:
   back within 5 m a revolution later. A checkpoint taken mid-revolution
   flies on as the uninterrupted run does. The CSM docks again on the
   translation controller, and contacts that close too fast or
-  misaligned rebound
+  misaligned rebound. With the capture latches failed, a contact within
+  the limits rebounds too; the probe held in the drogue under +X and
+  retracted docks the vehicles 4.9 s on, and let out of the drogue first
+  it doesn't. Apollo 14's CSM/LV SEP leaves the LM on the S-IVB, the
+  stack's centre of mass and momentum kept, and at the flight's
+  extraction the ground takes the docking as done
 - DOI on the LGC (`tests/scenarios/test_doi.gd`), slice 3b's check. Eagle
   undocks, Mission Control uplinks a DOI PAD to the LGC, and P40 flies it
   on the descent engine, at 10 % and then 40 % throttle. Half a
@@ -2685,6 +2723,15 @@ The scenario tests fly real segments through the crew interface:
   slice 12a: from the lunar_descent start, the range scale low 4 min
   52 s before PDI; with the breaker left in at Houston's call, ALT and
   VEL are still on at 10,000 ft, where the mission rules called an abort
+- Apollo 14's transposition and docking
+  (`tests/scenarios/test_apollo_14_docking.gd`), slice 12a: from the
+  parking orbit, TLI and the crew's CSM/LV SEP at the flown time, Antares
+  left on the S-IVB. The crew (`tests/tde_crew.gd`) turn about and fly
+  four of the six attempts at the flown times and closing speeds, the
+  capture latches failed; on the last they hold +X with the probe in the
+  drogue and retract it 6.9 s after the contact, and the ring latches
+  fire 11.8 s after it, as the flight's did. Houston's calls come at the
+  flown times after the separation
 
 `tools/screenshot.tscn` renders the images above (`--view=0` window,
 `1` chase, `2` cabin; `--hud=0` leaves the HUD out, `--menu=1` shows the
@@ -2794,5 +2841,6 @@ from its data alone (slice 12a): AS-509 from the pad, DOI by Kitty Hawk
 with Antares docked, the landing at Fra Mauro, and the first direct
 rendezvous, TPI on the ascent engine in the first revolution. Its
 troubles come with it: the ABORT switch's short and Houston's workaround
-keyed on the DSKY, and the landing radar's low scale and its breaker's
-cycle; the docking's six attempts are still to come.
+keyed on the DSKY, the landing radar's low scale and its breaker's
+cycle, and the transposition and docking's six attempts, the capture
+latches failed, the probe retracted into the ring latches at the last.

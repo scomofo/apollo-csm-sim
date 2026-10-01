@@ -69,7 +69,10 @@ extends RefCounted
 ##    LETABORT and ZOOM, and the switch's short.
 ## 33: Apollo 14's landing radar (slice 12a): its range scale, and when it
 ##    last came on.
-const SCHEMA_VERSION := 33
+## 34: Apollo 14's transposition and docking (slice 12a): the docking
+##    probe's capture latches, the last contact and the probe's retraction,
+##    and the LM in the S-IVB's adapter as the CSM's target.
+const SCHEMA_VERSION := 34
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],
@@ -85,6 +88,7 @@ const SYSTEMS := [
 	["els", "res://src/systems/els.gd"],
 	["optics", "res://src/systems/optics.gd"],
 	["sce", "res://src/systems/sce.gd"],
+	["probe", "res://src/systems/docking_probe.gd"],
 	["cw", "res://src/systems/caution_warning.gd"],
 ]
 ## The LM's systems. They come after the CSM's, so in each clock stage
@@ -123,7 +127,8 @@ const CONTROL_DEFAULTS := {
 	"ctl.els.logic": false, "ctl.els.auto": false, "ctl.cw.master_alarm": false,
 	"ctl.eps.fc1": true, "ctl.eps.fc2": true, "ctl.eps.fc3": true, "ctl.eps.cm_power": 2, "ctl.eps.lm_power": false,
 	"ctl.sce.power": 1,
-	"ctl.seq.csm_sep": false, "ctl.seq.undock": false, "ctl.seq.lm_jett": false, "ctl.seq.cm_sm_sep": false,
+	"ctl.seq.csm_sep": false, "ctl.seq.undock": false, "ctl.seq.probe_retract": false, "ctl.seq.lm_jett": false,
+	"ctl.seq.cm_sm_sep": false,
 	"ctl.eds.auto": true, "ctl.eds.two_eng": true, "ctl.eds.rates": true, "ctl.abort": false, "ctl.les.tower_jett": false,
 	"ctl.ground.pad_request": "",
 	"ctl.lm.mode": 1, "ctl.lm.rhc": Vector3.ZERO, "ctl.lm.thc": Vector3.ZERO,

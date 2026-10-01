@@ -10,8 +10,12 @@
 ## mass (lm_ascent_port_m from the ascent stage's, after staging). Docked,
 ## the LM's +X points back along the CSM's -X [estimated].
 ## Capture latches the vehicles hard docked at once [simplified: no soft
-## dock and probe retraction], and only the probe can meet the LM
-## [simplified: no collisions between the vehicles' bodies].
+## dock], and only the probe can meet the LM [simplified: no collisions
+## between the vehicles' bodies]. At transposition and docking the LM is
+## still in the S-IVB's adapter (configuration lm_sivb, its drogue
+## tde_port_m from their centre of mass). With the capture latches failed
+## (Apollo 14's, slice 12a) no contact captures: the probe held in the
+## drogue under +X and retracted pulls the rings together to hard dock.
 class_name Docking
 extends RefCounted
 
@@ -37,9 +41,15 @@ static func lm_gimbals(cm_deg: Vector3) -> Vector3:
 
 
 ## The LM's docking port's distance from its centre of mass along +X, m,
-## for its configuration [param cfg] ("lm" or "lm_ascent").
+## for its configuration [param cfg] ("lm", "lm_ascent", or "lm_sivb" in
+## the S-IVB's adapter, from theirs).
 static func lm_port_m(cfg: String) -> float:
-	return float(params()["lm_ascent_port_m" if cfg == "lm_ascent" else "lm_port_m"])
+	match cfg:
+		"lm_ascent":
+			return float(params()["lm_ascent_port_m"])
+		"lm_sivb":
+			return float(params()["tde_port_m"])
+	return float(params()["lm_port_m"])
 
 
 ## [param b]'s state relative to [param a]'s, [x, y, z, vx, vy, vz] in
@@ -92,9 +102,13 @@ static func relative(csm_traj: Trajectory, csm_att: Attitude, lm: Vehicle) -> Di
 ## A contact of the probe with the drogue, from geometry [param g] and
 ## the probe's [param miss_m] from the drogue's centre, SI:
 ##   captured, fault   whether it captures; if not, the first limit it broke:
-##                     closing, across, miss, misaligned or turning
+##                     closing, across, miss, misaligned or turning, or
+##                     latches, within them with [param latches_failed]
 ##   closing_mps, lateral_speed_mps, miss_m, misalign_deg, rate_dps
-static func contact(g: Dictionary, miss_m: float) -> Dictionary:
+## Dynamics adds get_s (its GET) and tde (the target the LM on the S-IVB),
+## and reports the probe's retraction to hard dock as a capture with
+## retract.
+static func contact(g: Dictionary, miss_m: float, latches_failed: bool = false) -> Dictionary:
 	var p := params()
 	var fault := ""
 	if float(g["closing"]) > float(p["closing_max_mps"]):
@@ -107,6 +121,8 @@ static func contact(g: Dictionary, miss_m: float) -> Dictionary:
 		fault = "misaligned"
 	elif float(g["rate_dps"]) > float(p["rate_max_dps"]):
 		fault = "turning"
+	elif latches_failed:
+		fault = "latches"
 	return {
 		"captured": fault == "", "fault": fault,
 		"closing_mps": g["closing"], "lateral_speed_mps": g["lateral_speed"], "miss_m": miss_m,
@@ -118,6 +134,8 @@ static func contact(g: Dictionary, miss_m: float) -> Dictionary:
 static func describe(c: Dictionary) -> String:
 	if c.is_empty():
 		return ""
+	if bool(c.get("retract", false)):
+		return "hard dock: the probe retracted, the ring latches fired"
 	var closing := float(c["closing_mps"]) / Units.FT
 	if bool(c["captured"]):
 		return "capture at %.2f ft/s, %.1f ft off centre" % [closing, float(c["miss_m"]) / Units.FT]
@@ -130,5 +148,7 @@ static func describe(c: Dictionary) -> String:
 			return "no capture: %.1f ft off centre" % (float(c["miss_m"]) / Units.FT)
 		"misaligned":
 			return "no capture: %.0f° out of line" % float(c["misalign_deg"])
+		"latches":
+			return "no capture: the capture latches didn't engage, at %.2f ft/s" % closing
 		_:
 			return "no capture: turning at %.1f°/s" % float(c["rate_dps"])

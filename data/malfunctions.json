@@ -49,6 +49,12 @@
       {"text": "In orbit, at night: P51 (V37E 51E), a coarse align to the stars and two sightings; the platform back, the ISS light out", "check": {"channel": "imu.tumbled", "op": "eq", "value": false}},
       {"text": "Houston's REFSMMAT uplink, then P52 option 1 to it"}
     ]},
+    {"title": "Malfunction: docking probe", "phases": [], "steps": [
+      {"text": "Docking probe: the capture latches didn't engage the drogue, and the probe came back out of it. No light"},
+      {"text": "Close again at about 0.1 ft/s, the probe onto the drogue's centre, and hold +X on the THC at contact: the probe held in the drogue"},
+      {"text": "PROBE RETRACT - press (MDC-2), +X held: the probe pulls the docking rings together, the ring latches fire about 5 s on: hard dock", "control": "P2_PROBE_RETRACT", "check": {"channel": "dock.state", "op": "eq", "value": "docked"}},
+      {"text": "+X off: the ring latches hold the vehicles"}
+    ]},
     {"title": "Malfunction: LV ENG, LV RATE or LV GUID", "phases": [], "steps": [
       {"text": "LV ENG, LV RATE or LV GUID: a launch vehicle engine out, the vehicle's rates past the EDS's limits, or the IU's guidance lost"},
       {"text": "With the tower on and EDS AUTO: two S-IC engines out, or the rates, abort on their own, and the tower pulls the CM away (mode I)"},

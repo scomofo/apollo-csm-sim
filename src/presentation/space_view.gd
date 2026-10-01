@@ -126,6 +126,7 @@ func _ready() -> void:
 	csm = _build_csm()
 	add_child(csm)
 	lm_free = _build_lm()
+	lm_free.add_child(_build_tde_sivb())
 	lm_free.visible = false
 	add_child(lm_free)
 	ground = LunarGround.new()
@@ -318,6 +319,22 @@ func _build_lm() -> Node3D:
 	return lm
 
 
+## The S-IVB under the LM, the CSM's target at transposition and docking
+## (slice 12a), in the free LM's model: the adapter's fixed lower part and
+## the IU and S-IVB below the descent stage, their centre of mass with the
+## LM's tde_port_m from the drogue (data/spacecraft.json "docking")
+## [simplified: plain cylinders at their diameters and lengths, rounded].
+## It is the child "SIVB".
+func _build_tde_sivb() -> Node3D:
+	var white := _mat(Color(0.92, 0.92, 0.9), 0.1, 0.6)
+	var sivb := Node3D.new()
+	sivb.name = "SIVB"
+	_along_x(sivb, 2.97, 3.3, 8.2, 10.3, white)
+	_along_x(sivb, 3.3, 3.3, 10.3, 29.0, white)
+	sivb.visible = false
+	return sivb
+
+
 ## The docked LM's body axes and centre of mass in the CSM model's axes,
 ## for its configuration [param cfg] (the ascent stage's, staged).
 func _lm_docked(cfg: String = "lm") -> Transform3D:
@@ -492,7 +509,11 @@ func _process(_delta: float) -> void:
 	var staged := str(Bus.get_value("lm.dyn.config", "lm")) == "lm_ascent"
 	_parts["lm"].get_node("Descent").visible = not staged
 	lm_free.get_node("Descent").visible = not staged
-	lm_free.visible = str(Bus.get_value("dock.state", "")) == "free"
+	# The LM flying free, or at transposition and docking still on the
+	# S-IVB.
+	var dock := str(Bus.get_value("dock.state", ""))
+	lm_free.visible = dock in ["free", "tde"]
+	lm_free.get_node("SIVB").visible = dock == "tde"
 	if from_lm:
 		var far := LM_RENDER_MAX
 		if cabin_view:
