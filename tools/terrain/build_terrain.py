@@ -1,6 +1,6 @@
 """Build the terrain around the landing sites, Tranquility Base, Apollo
-12's beside Surveyor III, Apollo 14's at Fra Mauro and Apollo 15's at
-Hadley (data/terrain/),
+12's beside Surveyor III, Apollo 14's at Fra Mauro, Apollo 15's at
+Hadley and Apollo 16's at Descartes (data/terrain/),
 from NASA's lunar elevation maps.
 
     python3 tools/terrain/build_terrain.py [--cache DIR]
@@ -56,8 +56,21 @@ over the Apennine front on a track almost due west:
                 to 11.5 E, 25.3 N to 26.7 N: the Apennines the landing radar
                 looks at from its first data, 180 km out.
 
+Apollo 16's three, in the Descartes highlands, where its LM came down
+over the Kant plateau on a track almost due west:
+
+    site16      LROC NAC DTM of the Apollo 16 site (NAC_DTM_APOLLO16, 2 m/px),
+                resampled to 4 m about Orion: 3.7 km east-west, 1.6 km
+                north-south, past the craters of the first EVA's stations.
+    near16      SLDEM2015 at 512 px/deg over the final approach, 8 km past the
+                site to 34 km before it.
+    approach16  SLDEM2015 averaged to 64 px/deg (468 m east-west) from 15 E to
+                24 E, 8.3 S to 9.7 S: the plateau and the mare east of it,
+                the landing radar's view from its first data and all of the
+                LGC's terrain model.
+
 Only the rows each layer needs are downloaded, with HTTP range requests
-(about 220 MB, and NAC_DTM_APOLLO12 whole, 14 MB). The raw rows are kept
+(about 325 MB, and NAC_DTM_APOLLO12 whole, 14 MB). The raw rows are kept
 in the cache directory, so a second run doesn't download them again.
 Needs numpy.
 """
@@ -151,6 +164,28 @@ NAC15_LON_RES = NAC_RES * math.cos(math.radians(26.0))
 NAC15_LON_WEST = 180.0 + (-0.5 - 2405168.5) / NAC15_LON_RES
 # SLDEM2015's tile 00N-30N, 0-45E (Apollo 11's), 26.7 N to 25.3 N.
 SLDEM15_ROWS = (1690, 2407)
+
+# Apollo 16: where Orion stands, as mapped from LROC NAC images ("Spacecraft
+# Related Coordinates - 2016 Update"; Wagner et al., 2017, Icarus 283), in
+# the frame of the NAC DTM, 75 m east of Davies et al.'s (1987).
+LM16_LAT = -8.9734
+LM16_LON = 15.5011
+SLDEM16 = PDS_LOLA + "/sldem2015/tiles/float_img/sldem2015_512_30s_00s_000_045_float.img"
+NAC16_DTM = ("https://pds.lroc.im-ldi.com/data/LRO-L-LROC-5-RDR-V1.0/LROLRC_2001/DATA/SDP/"
+             "NAC_DTM/APOLLO16/NAC_DTM_APOLLO16.TIF")
+# NAC_DTM_APOLLO16: 15653 lines x 11985 float32 samples, a line after
+# another from byte 125896 (PDS counts from 1), equirectangular about 9 S
+# at 2 m/px; its label's projection offsets put line 0's top edge and
+# sample 0's west edge here.
+NAC16_OFFSET = 125895
+NAC16_SAMPLES = 11985
+NAC16_ROWS = (5040, 5860)
+NAC16_LAT_TOP = (-130602.5 + 0.5) / NAC_RES
+NAC16_LON_RES = NAC_RES * math.cos(math.radians(9.0))
+NAC16_LON_WEST = 180.0 + (-0.5 - 2468774.5) / NAC16_LON_RES
+# SLDEM2015's tile 30S-00N, 0-45E: line L's centre at -(L + 0.5) / 512
+# degrees; 8.3 S to 9.7 S.
+SLDEM16_ROWS = (4250, 4966)
 
 
 def fetch(url, path, first=None, last=None):
@@ -394,6 +429,69 @@ def apollo15_layers(c, out):
     return layers
 
 
+def apollo16_layers(c, out):
+    """Apollo 16's layers, coarsest first. Descartes's heights run from the
+    mare 2.8 km under the reference sphere east of the Kant plateau to the
+    plateau's 3.4 km over it, so the approach map keeps 0.1 m steps about
+    300 m up; Orion's spot is 8 m over the sphere."""
+    rb = SLDEM_SAMPLES * 4
+    fetch(SLDEM16, c("sldem16_rows.bin"), SLDEM16_ROWS[0] * rb, SLDEM16_ROWS[1] * rb - 1)
+    nb = NAC16_SAMPLES * 4
+    fetch(NAC16_DTM, c("nac16_rows.bin"), NAC16_OFFSET + NAC16_ROWS[0] * nb, NAC16_OFFSET + NAC16_ROWS[1] * nb - 1)
+    sld = np.fromfile(c("sldem16_rows.bin"), dtype="<f4").reshape(-1, SLDEM_SAMPLES).astype(np.float64) * 1000.0
+    nac = np.fromfile(c("nac16_rows.bin"), dtype="<f4").reshape(-1, NAC16_SAMPLES).astype(np.float64)
+
+    def sld_rc(lat, lon):
+        return -lat * 512.0 - 0.5 - SLDEM16_ROWS[0], lon * 512.0 - 0.5
+
+    layers = []
+    # The approach from the east: SLDEM2015 averaged 8 x 8 (64 px/deg).
+    k = 8
+    r0, c0 = int(round(8.3 * 512)) - SLDEM16_ROWS[0], int(round(15.0 * 512))
+    z = block_mean(sld[r0:r0 + int(round(1.4 * 512)), c0:c0 + int(round(9.0 * 512))], k)
+    layers.append(layer("approach16", z, -(r0 + SLDEM16_ROWS[0] + k / 2.0) / 512.0,
+                        (c0 + k / 2.0) / 512.0, 512.0 / k, 8, 300.0, 0.1, out))
+
+    # The final approach at SLDEM2015's own 512 px/deg, 8 km past Orion to
+    # 34 km before it.
+    r0, c0 = sld_rc(LM16_LAT + 0.21, LM16_LON - 8000.0 / (M_PER_DEG * math.cos(math.radians(LM16_LAT))))
+    r0, c0 = int(round(r0)), int(round(c0))
+    z = sld[r0:r0 + 215, c0:c0 + int(round(1.40 * 512))]
+    layers.append(layer("near16", z, -(r0 + SLDEM16_ROWS[0] + 0.5) / 512.0,
+                        (c0 + 0.5) / 512.0, 512.0, 8, 0.0, 0.1, out))
+
+    # The site: the NAC DTM resampled to 4 m, its gaps filled from
+    # SLDEM2015; 2.2 km west of Orion, past the craters of the first EVA's
+    # stations, to 1.5 km east along the approach. Its posts are 4 m
+    # north-south and, the layer's one ppd for both axes, 3.95 m east-west
+    # at this latitude.
+    ppd = M_PER_DEG / 4.0
+    lat_top = LM16_LAT + 800.0 / M_PER_DEG
+    lon_left = LM16_LON - 2200.0 / (M_PER_DEG * math.cos(math.radians(LM16_LAT)))
+    rows, cols = 400, 936
+    lat = lat_top - np.arange(rows)[:, None] / ppd + np.zeros((1, cols))
+    lon = lon_left + np.arange(cols)[None, :] / ppd + np.zeros((rows, 1))
+    ny = (NAC16_LAT_TOP - lat) * NAC_RES - 0.5 - NAC16_ROWS[0]
+    nx = (lon - NAC16_LON_WEST) * NAC16_LON_RES - 0.5
+    ok = nac > NAC_NODATA
+    nf = np.where(ok, nac, 0.0)
+    good = np.zeros_like(ny)
+    zn = np.zeros_like(ny)
+    for dy in (-0.5, 0.5):
+        for dx in (-0.5, 0.5):
+            good += bilinear(ok.astype(np.float64), ny + dy, nx + dx) / 4.0
+            zn += bilinear(nf, ny + dy, nx + dx) / 4.0
+    good = np.where((nx >= 0.0) & (nx <= NAC16_SAMPLES - 1.0), good, 0.0)
+    sy, sx = sld_rc(lat, lon)
+    zs = bilinear(sld, sy, sx)
+    z = np.where(good > 0.999, zn / np.maximum(good, 1e-9), zs)
+    at = float(bilinear(nf, np.array([(NAC16_LAT_TOP - LM16_LAT) * NAC_RES - 0.5 - NAC16_ROWS[0]]),
+                        np.array([(LM16_LON - NAC16_LON_WEST) * NAC16_LON_RES - 0.5]))[0])
+    print("gaps filled from SLDEM2015: %d of %d posts; Orion's spot %.2f m" % (np.sum(good <= 0.999), z.size, at))
+    layers.append(layer("site16", z, lat_top, lon_left, ppd, 25, 0.0, 0.01, out))
+    return layers
+
+
 def main():
     ap = argparse.ArgumentParser()
     here = os.path.dirname(os.path.abspath(__file__))
@@ -467,14 +565,15 @@ def main():
     layers.append(layer("site", z, lat_top, lon_left, ppd, 25, -1930.0, 0.01, a.out))
     a14 = apollo14_layers(c, a.out)
     # Apollo 14's approach map under Apollo 12's finer one where they meet.
-    layers += a14[:1] + apollo12_layers(c, a.out) + a14[1:] + apollo15_layers(c, a.out)
+    layers += a14[:1] + apollo12_layers(c, a.out) + a14[1:] + apollo15_layers(c, a.out) + apollo16_layers(c, a.out)
 
     manifest = {
         "_comment": "Heights relative to the 1737.4 km reference sphere: DN * scale_m + offset_m, "
                     "int16 little-endian, row-major, row 0 northmost. Row r's centre is at "
                     "lat_top - r / ppd, column c's at lon_left + c / ppd (degrees east). "
                     "Built by tools/terrain/build_terrain.py; sources in NOTICE.",
-        "_source": "LROC NAC_DTM_APOLLO11, NAC_DTM_APOLLO12, NAC_DTM_APOLLO14 and NAC_DTM_APOLLO15 (NASA/GSFC/Arizona State University); "
+        "_source": "LROC NAC_DTM_APOLLO11, NAC_DTM_APOLLO12, NAC_DTM_APOLLO14, NAC_DTM_APOLLO15 and NAC_DTM_APOLLO16 "
+                   "(NASA/GSFC/Arizona State University); "
                    "SLDEM2015 (Barker et al., 2016, LOLA and SELENE TC); LOLA LDEM_4 (NASA/GSFC)",
         "lm_lat_deg": LM_LAT, "lm_lon_deg": LM_LON,
         "layers": layers[::-1],

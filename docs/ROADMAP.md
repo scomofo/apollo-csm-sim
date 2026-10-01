@@ -41,8 +41,8 @@ picture).
 - **Start phases stay consistent.** A new `--phase` is built the way the
   existing ones are, from the RTCC's own solutions, so it continues the
   mission it claims to.
-- **CI stays fast.** The suite runs in eighteen jobs side by side: the
-  unit tests in three parts and the scenario tests in fifteen, each dealt out
+- **CI stays fast.** The suite runs in twenty-one jobs side by side: the
+  unit tests in three parts and the scenario tests in eighteen, each dealt out
   by each file's time on the runners (`.github/unit_seconds.txt`,
   `.github/scenario_seconds.txt`). Keep each job under ten minutes:
   start a long scenario from a phase or checkpoint instead of flying the
@@ -2319,22 +2319,25 @@ radar and AGS are gone, or measured against the flights.
 
 ## 12. The last lunar missions
 
-**Status: 12a and 12b done.** Milestone 7's pattern, for Apollo 14 to 17:
-each mission is data, and each slice brings what its flight needed that
-the simulator can't do yet. The J missions' surfaces stay out, the EVAs,
-the rover and the experiments, and so does the SIM bay's science: the
-stays on the surface pass as time, as the other missions' do. After
-milestone 10 each flies from its pad. Apollo 14 flies from its data
-alone, built in four parts: its flight (12a-1), the ABORT switch's short
-(12a-2), the landing radar's scale (12a-3), and the docking's six
+**Status: 12a, 12b and 12c done.** Milestone 7's pattern, for Apollo 14
+to 17: each mission is data, and each slice brings what its flight
+needed that the simulator can't do yet. The J missions' surfaces stay
+out, the EVAs, the rover and the experiments, and so does the SIM bay's
+science: the stays on the surface pass as time, as the other missions'
+do. After milestone 10 each flies from its pad. Apollo 14 flies from its
+data alone, built in four parts: its flight (12a-1), the ABORT switch's
+short (12a-2), the landing radar's scale (12a-3), and the docking's six
 attempts (12a-4). Apollo 15 in two: its flight from the pad to the
-splashdown (12b-1), and Worden's EVA and the parachute's failure (12b-2).
+splashdown (12b-1), and Worden's EVA and the parachute's failure
+(12b-2). Apollo 16 in two: its flight, the landing waved off as Mission
+Control flew it (12c-1), and Casper's SPS servo loops, the secondary yaw
+loop's oscillation the crew's gimbal checks find (12c-2).
 
 | Slice | Work | Check |
 |---|---|---|
 | 12a (done) Apollo 14 | Kitty Hawk's probe failing to capture Antares until the sixth try (its capture latches, and the probe's retraction); the CSM's DOI with the LM docked; the abort switch's short, and the keyed workaround that had the LGC ignore it; the landing radar's late lock-on, until its breaker was cycled; the direct rendezvous, TPI in the first revolution after the insertion, without CSI and CDH; Fra Mauro's terrain | Test: as 7a, Antares landing within a set limit of where it came down |
 | 12b (done) Apollo 15 | The J mission's LM, its descent stage heavier and its stay three days; the steep descent past the Apennines; Endeavour's plane changes; Worden's EVA on the way home, the CM depressurised, as an event; the splashdown on two main parachutes, the third having failed | Test: as 7a, Falcon landing within a set limit of Hadley, and the CM coming down on two parachutes at the flown speed |
-| 12c Apollo 16 | Casper's SPS, its secondary yaw gimbal servo oscillating before the circularization, and the landing waved off for about six hours; the flight a day shorter | Test: as 7a, Orion landing about six hours late within a set limit of its site |
+| 12c (done) Apollo 16 | Casper's SPS, its secondary yaw gimbal servo oscillating before the circularization, and the landing waved off for about six hours; the flight a day shorter | Test: as 7a, Orion landing about six hours late within a set limit of its site |
 | 12d Apollo 17 | The night launch, Taurus-Littrow's terrain, and the longest stay | Test: as 7a, Challenger landing within a set limit of its site |
 
 **Done when** Apollo 14 to 17 fly from their data alone, each with its
@@ -2480,6 +2483,56 @@ own troubles.
   and 36 on two (NASA TN D-7437, Fig. 2), where an estimate had brought
   every mission's CM down on its mains about 45 s slower. Checkpoints
   are schema 35.
+
+- **Apollo 16's flight and its wave-off.** Done in 12c's first part. Its
+  data (`data/missions/apollo_16/`): AS-511's vehicles and launch, on
+  time into a 90 nmi parking orbit, the S-IC's vacuum Isp and the S-II's
+  flow tuned for the flown cutoffs as Apollo 15's were; JPL's ephemeris
+  for its dates; its checklists; and Descartes's terrain from the LROC
+  NAC model of the site, SLDEM2015 along the approach over the Kant
+  plateau. The flight moved its clocks, 11 min 48 s at 118:07 and
+  24 h 46 min in all at 202:18: the timeline's calls and PADs are taken
+  back to range zero [simplified: the simulator's clocks never move].
+  Orion's descent flies Luminary 210's targets from its e-load for
+  Apollo 16, Apollo 15's own, on its terrain model's slopes. The
+  wave-off is Mission Control's timeline: a PAD the crew held
+  ("flown": false) isn't flown on the way to a start, and an entry's
+  "wave_off_revs" moves PDI and the landing that many of the LM's
+  revolutions on (`MissionSequencer._wave_off()`), the waved-off pass's
+  PDI PAD no longer to fly. The RTCC's DOI still aims at the planned
+  pass, rev 13, and the PDI PAD for rev 16 finds the later one. CIRC
+  burns at the flown burn's place in the orbit, a set time past the
+  apolune nearest the PAD's TIG (mission.json "lunar_orbit":
+  loi2_after_apolune_s, `Rtcc.apoapsis_near()`), since the simulator's
+  orbit runs minutes ahead of the flight's after its own DOI; and TEI's
+  ignition moves, within 10 min, to where the burn needs no part up or
+  down ("tei": tig_free). The LGC's site, moved by the ground's state
+  vector, lies downrange and north of where Orion came down ("pdi":
+  site_error_m), and the tests' commander redesignates it back. Casper's
+  rendezvous to station-keeping during the wave-off isn't flown, and
+  the gimbal checks are 12c-2's. Apollo 15's braking target is its
+  e-load's to the millimetre (z −3,578.791 m, a 3 mm slip), which brings
+  its touchdown 8 s sooner. CI's parts
+  went to eighteen and three for Apollo 16's four scenario files.
+  Checkpoints stay schema 35.
+
+- **Casper's servo loops.** Done in 12c's second part. The SPS's gimbal
+  is driven by two servo loops in each axis, each on its own gimbal
+  motor (`Sps`): SPS GIMBAL MOTORS start and stop the motors, TVC GMBL
+  DRIVE picks the loop, AUTO taking loop 2 with the THC clockwise, which
+  also takes control from the CMC to the SCS (`Scs.sc_cont()`), and a
+  loop whose motor is stopped leaves the gimbal where it stands. The GPI
+  shows the gimbal on MDC-1 and the HUD; under the SCS before ignition
+  its trim thumbwheels and MTVC move it, the crews' TVC checks. The
+  failure catalog's sps_yaw_servo_2 opens the secondary yaw loop's rate
+  feedback: once a command moves the gimbal it swings 1° either way at
+  2.4 Hz about it, the rate-limited overshoot the flight's "slightly
+  greater than ±1 degree" fits, and the thrust damps it (MSC-07230,
+  section 14.1.10). Apollo 16's fails after DOI; its SPS burn checklist
+  has the TVC checks, and the landing test flies them before CIRC, the
+  oscillation found and the motors off, then CIRC on the primary loops.
+  The motors start off, as the crews left them: the SCS's burns in the
+  backups' tests start them. Checkpoints are schema 36.
 
 ## Later, not scheduled
 

@@ -2,10 +2,11 @@
 ## built by tools/terrain/build_terrain.py; sources in NOTICE). Around
 ## Tranquility Base it is LROC's 2 m terrain model of the Apollo 11 site,
 ## resampled to 4 m, with West crater and Little West in it, and around
-## Apollo 12's, 14's and 15's sites LROC's of each, with Surveyor crater
-## at Apollo 12's. Along each approach it is SLDEM2015 (59 m, then 118 m
-## for Apollo 11's, 237 m for Apollo 12's, and 474 m for Apollo 14's and
-## for Apollo 15's over the Apennine front); elsewhere LOLA at 1°. Finer
+## Apollo 12's, 14's, 15's and 16's sites LROC's of each, with Surveyor
+## crater at Apollo 12's. Along each approach it is SLDEM2015 (59 m, then
+## 118 m for Apollo 11's, 237 m for Apollo 12's, and 474 m for Apollo 14's,
+## for Apollo 15's over the Apennine front and for Apollo 16's over the
+## Kant plateau); elsewhere LOLA at 1°. Finer
 ## maps are blended into coarser ones over a margin at their edges.
 ##
 ## Heights are relative to the 1737.4 km reference sphere (Bodies.R_MOON),

@@ -54,6 +54,9 @@
 ## mission's failures may be armed on (Apollo 15's main parachute). A
 ## timeline entry's "cabin" vents the CM's cabin for an EVA ("vented") or
 ## brings it back ("pressurized"), as Worden's on Apollo 15's way home.
+## One's "wave_off_revs" waves the landing off, PDI and the landing that
+## many of the LM's revolutions later (_wave_off(), Apollo 16's); a PAD
+## the crew held ("flown": false) isn't flown on the way to a start.
 ##
 ## Reads:  ctl.seq.csm_sep, ctl.seq.undock, ctl.seq.lm_jett,
 ##         ctl.seq.cm_sm_sep, ctl.lm.stage (crew pushbuttons,
@@ -399,7 +402,8 @@ func start(p_phase: String) -> void:
 		var mass := SpacecraftData.total_mass("csm", sps_prop, _sm_rcs_load(), _cm_rcs_load(), 0.0)
 		var r_site := landing_site().length()
 		var circ := Rtcc.plan_loi2(tr, mass, r_site + float(lo["loi2_apolune_nmi"]) * Units.NMI,
-			r_site + float(lo["loi2_perilune_nmi"]) * Units.NMI, _get_s(lo["loi2_tig"]), bool(lo.get("loi2_rising", false)))
+			r_site + float(lo["loi2_perilune_nmi"]) * Units.NMI, _circ_tig(tr, _get_s(lo["loi2_tig"])),
+			bool(lo.get("loi2_rising", false)))
 		assert(not circ.is_empty(), "no CIRC solution")
 		tr.coast_to(float(circ["tig"]), 30.0)
 		var after := Rtcc.simulate_sps_burn(tr, mass, circ["dv_lvlh"])
@@ -964,13 +968,15 @@ func request_pad(kind: String, earliest: float = -1.0, e: Dictionary = {}) -> Di
 			pad = Rtcc.plan_loi(tr, mass, float(loi["apolune_alt_km"]) * 1000.0, landing_site(), site_get(),
 				float(loi.get("perilune_alt_km", -1.0)) * 1000.0, _get_s(loi["tig"]) if loi.has("tig") else -1.0)
 		"circ":
-			# At the flown PAD's TIG if given ("loi2_tig"), the new
+			# At the timeline PAD's own TIG ("tig": Apollo 16's two, the
+			# first held) or the flown PAD's ("loi2_tig"), or at the flown
+			# burn's place in the orbit by it (_circ_tig()), the new
 			# pericynthion behind the burn point with "loi2_rising".
 			var lo := mission.section("lunar_orbit")
 			var r_site := landing_site().length()
+			var tig := _circ_tig(tr, earliest if earliest >= 0.0 else (_get_s(lo["loi2_tig"]) if lo.has("loi2_tig") else -1.0))
 			pad = Rtcc.plan_loi2(tr, mass, r_site + float(lo["loi2_apolune_nmi"]) * Units.NMI,
-				r_site + float(lo["loi2_perilune_nmi"]) * Units.NMI, _get_s(lo["loi2_tig"]) if lo.has("loi2_tig") else -1.0,
-				bool(lo.get("loi2_rising", false)))
+				r_site + float(lo["loi2_perilune_nmi"]) * Units.NMI, tig, bool(lo.get("loi2_rising", false)))
 			if not pad.is_empty() and dynamics.config == "csm":
 				# The CSM's own, after the undocking (Apollo 14's).
 				pad["name"] = "CIRC"
@@ -1595,6 +1601,35 @@ func pdi_pad() -> Dictionary:
 	return pad
 
 
+## The circularization's TIG for the PAD's [param tig]: with mission.json
+## "lunar_orbit" loi2_after_apolune_s, the flown burn's place in the orbit
+## instead, that long after [param tr]'s apolune nearest it (Apollo 16's:
+## the simulator's own DOI leaves the descent orbit's timing minutes off
+## the flight's by then).
+func _circ_tig(tr: Trajectory, tig: float) -> float:
+	var lo := mission.section("lunar_orbit")
+	if tig < 0.0 or not lo.has("loi2_after_apolune_s"):
+		return tig
+	return Rtcc.apoapsis_near(tr, tig) + float(lo["loi2_after_apolune_s"])
+
+
+## The landing waved off for [param revs] of the LM's revolutions on its
+## descent orbit (Apollo 16's three, while Houston worked out whether
+## Casper's SPS could be used): the plan's PDI and landing that much later,
+## the waved-off PDI PAD no longer to be flown. The next PDI PAD finds the
+## pass's own PDI (pdi_pad()).
+func _wave_off(revs: int) -> void:
+	var lm := dynamics.lm
+	if lm == null or lm.landed:
+		return
+	var later := revs * float(lm.traj.conic()["period"])
+	for k in ["pdi_tig", "land_get"]:
+		if plan.has(k):
+			plan[k] = float(plan[k]) + later
+	plan.erase("pdi_pad_tig")
+	pads.erase("pdi")
+
+
 ## The landing site correction in powered descent, N69: MSFN's powered
 ## flight processor finds, from its tracking, how far along the ground
 ## track the LGC has the LM from where it is, and CAPCOM reads the site's
@@ -1837,6 +1872,8 @@ func _timeline() -> void:
 			# The cabin vented for an EVA, or pressurized again after it.
 			cabin_vented = str(e["cabin"]) == "vented"
 			Bus.set_value("mission.cabin_vented", cabin_vented)
+		if e.has("wave_off_revs"):
+			_wave_off(int(e["wave_off_revs"]))
 		if e.has("n81_ft_s"):
 			maneuver_pad(e)
 		elif e.has("pad"):
@@ -2003,7 +2040,10 @@ func _lm_start_on_descent_orbit(p_phase: String) -> void:
 	var lgc: Lgc = systems["lgc"]
 	var lm := dynamics.lm
 	if p_phase == "lunar_descent":
-		_advance_flying(float(plan["pdi_tig"]) - 1200.0)
+		# The plan read again after each advance: a wave-off on the way
+		# moves PDI on (_wave_off(), Apollo 16's).
+		while SimClock.get_seconds < float(plan["pdi_tig"]) - 1200.0 - 1e-6:
+			_advance_flying(float(plan["pdi_tig"]) - 1200.0)
 		# Apollo 14's crew tapped each of their ABORT switch's shorts clear
 		# as Houston called it: the start takes the switch up clear.
 		lgc.abort_short = false
@@ -2012,8 +2052,9 @@ func _lm_start_on_descent_orbit(p_phase: String) -> void:
 		if pads.has("pdi"):
 			pdi_pad()
 		return
+	while SimClock.get_seconds < float(plan["land_get"]) - 1e-6:
+		_advance_flying(float(plan["land_get"]))
 	var t_land := float(plan["land_get"])
-	_advance_flying(t_land)
 	lgc.abort_short = false
 	_set_lm_landed(t_land)
 	var dps: Dps = systems["dps"]
@@ -2059,12 +2100,14 @@ func _advance(t: float) -> void:
 ## "circ") at its TIG, as the RTCC planned it [simplified: the RTCC's model
 ## of P40's burn]: Apollo 12's first plane change, which put Yankee
 ## Clipper's orbit back over Intrepid for the liftoff; Apollo 14's
-## circularization after the undocking (slice 12a).
+## circularization after the undocking (slice 12a). A PAD the crew held
+## ("flown": false: Apollo 16's first CIRC, its SPS's secondary yaw servo
+## failing the check before it) isn't flown.
 func _advance_flying(t: float) -> void:
 	for e in _timeline_entries():
 		var te := _entry_time(e)
 		var kind := str(e.get("pad", ""))
-		if not kind in ["plane", "circ"] or te < SimClock.get_seconds or te >= t:
+		if not kind in ["plane", "circ"] or not bool(e.get("flown", true)) or te < SimClock.get_seconds or te >= t:
 			continue
 		_advance(te)
 		var pad: Dictionary = pads.get(kind, {})

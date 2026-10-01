@@ -105,7 +105,8 @@
 ## member, the ICDU angles. P30 works out the preferred orientation for the
 ## maneuver it stores (X along the thrust, heads up), which P52 aligns to.
 ##
-## Digital autopilot (active when ctl.scs.att_source == 0, CMC):
+## Digital autopilot (active when ctl.scs.att_source == 0, CMC, and the THC
+## isn't clockwise: Scs.sc_cont()):
 ##   ctl.cmc.mode 0 FREE  RHC commands acceleration, no hold
 ##                1 HOLD  RHC rate command, attitude hold on release
 ##                2 AUTO  as HOLD, plus program-commanded maneuvers
@@ -285,7 +286,7 @@ func rhc() -> Vector3:
 
 
 func att_source() -> int:
-	return int(Bus.get_value("ctl.scs.att_source", 0))
+	return Scs.sc_cont()
 
 
 func dap_enabled() -> bool:

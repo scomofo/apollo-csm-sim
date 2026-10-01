@@ -63,11 +63,15 @@ J2000_JD = 2451545.0
 
 
 def tt_minus_utc(jd_utc):
-    """TT - UTC, s, for 1968-02-01 to 1972-01-01: 32.184 s plus TAI - UTC,
-    which then ran at 4.2131700 s + (MJD - 39126) x 0.002592 s (USNO,
-    tai-utc.dat). TDB differs from TT by under 2 ms."""
+    """TT - UTC, s, for 1968-02-01 to 1974-01-01: 32.184 s plus TAI - UTC,
+    which ran at 4.2131700 s + (MJD - 39126) x 0.002592 s until 1972-01-01
+    and was then a whole number of seconds: 10 s, 11 s from 1972-07-01 and
+    12 s from 1973-01-01 (USNO, tai-utc.dat). TDB differs from TT by under
+    2 ms."""
     mjd = jd_utc - 2400000.5
-    assert 39887 <= mjd < 41317, "TAI - UTC rule only holds for 1968 to 1971"
+    assert 39887 <= mjd < 42048, "TAI - UTC rules only hold for 1968 to 1973"
+    if mjd >= 41317:
+        return 32.184 + (12.0 if mjd >= 41683 else 11.0 if mjd >= 41499 else 10.0)
     return 32.184 + 4.2131700 + (mjd - 39126.0) * 0.002592
 
 

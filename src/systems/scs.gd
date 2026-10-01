@@ -32,7 +32,18 @@
 ## gimbal holds the attitude (SCS TVC at AUTO), or the hand controller
 ## turns the vehicle on it (RATE CMD: MTVC, the BMAGs damping the rates);
 ## roll stays on the jets. Under the CMC the gimbal stays at its trim
-## [simplified: the CMC steers its burns on the jets].
+## [simplified: the CMC steers its burns on the jets]. Before ignition
+## (slice 12c) the gimbal stands at the trim the GPI's thumbwheels set
+## (ctl.scs.gpi_trim_p and _y, rockers here), and on RATE CMD the hand
+## controller's MTVC moves it about that, full deflection the gimbal's
+## travel [estimated; simplified: the MTVC integrator left out]; at
+## ignition the TVC takes it through the centre of mass [simplified: the
+## simulator's centre of mass on the engine's null]. The SPS's servo loops
+## drive it (Sps).
+##
+## SC CONT (slice 12c): the THC turned clockwise (ctl.thc_cw) takes
+## attitude and thrust vector control from the CMC to the SCS, as SC CONT
+## at SCS does (sc_cont()) [published: ibid., pp. 2.3-41 and 2.3-45].
 ##
 ## SCS ΔV: THRUST ON, with the EMS's counter in ΔV at zero or more, starts
 ## the SPS and keeps it firing until the EMS's thrust-off (the counter below
@@ -42,14 +53,16 @@
 ## Reads:  ctl.scs.att_source, ctl.scs.rate (0 LOW, 1 HIGH),
 ##         ctl.scs.att_db (0 MIN, 1 MAX), ctl.scs.gdc_align,
 ##         ctl.scs.tvc (0 AUTO, 1 RATE CMD), ctl.rhc, ctl.sps.thrust_on,
-##         ctl.sps.arm_a, ctl.sps.arm_b, dyn.omega, dyn.att_q, sps.on,
+##         ctl.sps.arm_a, ctl.sps.arm_b, ctl.thc_cw, ctl.scs.gpi_trim_p,
+##         ctl.scs.gpi_trim_y, dyn.omega, dyn.att_q, sps.on,
 ##         ems.thrust_off, ems.dv_mode, guid.indicator.attitude, imu.mode,
 ##         guid.fail, sys.powered
 ## Writes: scs.rot_cmd (the jets' duty cycles, as guid.rcs_rot_cmd),
 ##         scs.gimbal_cmd (the SPS gimbal, pitch and yaw, rad), scs.sps_on,
 ##         scs.busy (the clock keeps fine steps), scs.indicator.attitude,
 ##         scs.fdai.attitude (the FDAIs' source), scs.gdc_deg (the GDC's
-##         angles as the FDAI shows them), scs.hold (attitude hold)
+##         angles as the FDAI shows them), scs.hold (attitude hold),
+##         scs.gpi_trim_p_deg and scs.gpi_trim_y_deg (the GPI's trim)
 class_name Scs
 extends Node
 
@@ -76,6 +89,9 @@ const GIMBAL_MAX := 4.5 * PI / 180.0
 ## The TVC loop's time constants, s [estimated].
 const TVC_TAU := 1.0
 const TVC_RATE_TAU := 0.5
+## The GPI's trim thumbwheels' rate, turned on their rockers, rad/s
+## [estimated].
+const TRIM_RATE := 1.0 * PI / 180.0
 
 ## The GDC's attitude: body to its reference, the IMU's stable member when
 ## it was aligned (as the IMU's gimbals, Imu.gimbals()).
@@ -89,6 +105,8 @@ var hold: Basis = Basis.IDENTITY
 var holding: bool = false
 ## THRUST ON latched under the EMS's ΔV.
 var sps_latched: bool = false
+## The GPI's trim, the thumbwheels' pitch and yaw, rad.
+var trim: Vector2 = Vector2.ZERO
 var _align_was: bool = false
 var _thrust_was: bool = false
 
@@ -100,6 +118,14 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	SimClock.remove_ticker(tick)
+
+
+## Where attitude and thrust vector control lie, as ATT SOURCE names it
+## (0 CMC, 1 SCS, 2 DIRECT): the THC turned clockwise takes the CMC's to
+## the SCS.
+static func sc_cont() -> int:
+	var src := int(Bus.get_value("ctl.scs.att_source", 0))
+	return 1 if src == 0 and bool(Bus.get_value("ctl.thc_cw", false)) else src
 
 
 ## The IMU's attitude now, for GDC ALIGN, or null while the IMU isn't
@@ -131,11 +157,13 @@ func tick(dt: float) -> void:
 	if press and not _align_was:
 		align()
 	_align_was = press
-	var scs := int(Bus.get_value("ctl.scs.att_source", 0)) == 1 and bool(Bus.get_value("sys.powered", true))
+	var wheels := Vector2(float(Bus.get_value("ctl.scs.gpi_trim_p", 0)), float(Bus.get_value("ctl.scs.gpi_trim_y", 0)))
+	trim = (trim + wheels.sign() * TRIM_RATE * dt).clamp(-Vector2.ONE * GIMBAL_MAX, Vector2.ONE * GIMBAL_MAX)
+	var scs := sc_cont() == 1 and bool(Bus.get_value("sys.powered", true))
 	_thrust_logic(scs)
 	if not scs:
 		holding = false
-		_publish(Vector3.ZERO, Vector2.ZERO, false)
+		_publish(Vector3.ZERO, Vector2.ZERO, wheels != Vector2.ZERO)
 		return
 	var high := int(Bus.get_value("ctl.scs.rate", 0)) == 1
 	var max_rate := Vector3(RATE_HIGH_ROLL, RATE_HIGH, RATE_HIGH) if high else Vector3.ONE * RATE_LOW
@@ -167,7 +195,10 @@ func tick(dt: float) -> void:
 			rot[i] = clampf(err * JET_GAIN, -1.0, 1.0)
 	if tvc:
 		gimbal = _tvc(w, w_cmd, manual)
-	_publish(rot, gimbal, manual or tvc or rot != Vector3.ZERO or w_true.length() > BUSY_RATE)
+	else:
+		gimbal = _pre_ignition(rhc)
+	_publish(rot, gimbal, manual or tvc or rot != Vector3.ZERO or w_true.length() > BUSY_RATE
+		or wheels != Vector2.ZERO)
 
 
 ## The body-axes rotation (rad) from the GDC's attitude to [param target]
@@ -200,6 +231,17 @@ func _tvc(w: Vector3, w_cmd: Vector3, manual: bool) -> Vector2:
 		clampf(asin(clampf(g.y, -1.0, 1.0)), -GIMBAL_MAX, GIMBAL_MAX))
 
 
+## The gimbal's pitch and yaw (rad) before ignition: the GPI's trim and,
+## on RATE CMD, the hand controller's MTVC about it.
+func _pre_ignition(rhc: Vector3) -> Vector2:
+	var mtvc := Vector2.ZERO
+	if int(Bus.get_value("ctl.scs.tvc", 0)) == 1:
+		for i in 2:
+			var d: float = rhc[i + 1]
+			mtvc[i] = clampf(d, -1.0, 1.0) * GIMBAL_MAX if absf(d) > DETENT else 0.0
+	return (trim + mtvc).clamp(-Vector2.ONE * GIMBAL_MAX, Vector2.ONE * GIMBAL_MAX)
+
+
 ## THRUST ON under the EMS's ΔV latches the SPS on until the EMS's
 ## thrust-off or the ΔV THRUST switches; the EMS's thrust-off keeps it
 ## from starting.
@@ -216,7 +258,7 @@ func _thrust_logic(scs: bool) -> void:
 
 
 func _publish(rot: Vector3, gimbal: Vector2, busy: bool) -> void:
-	var scs := int(Bus.get_value("ctl.scs.att_source", 0)) == 1
+	var scs := sc_cont() == 1
 	var q := gdc.get_rotation_quaternion()
 	Bus.set_value("scs.rot_cmd", rot)
 	Bus.set_value("scs.gimbal_cmd", gimbal)
@@ -226,11 +268,13 @@ func _publish(rot: Vector3, gimbal: Vector2, busy: bool) -> void:
 	Bus.set_value("scs.indicator.attitude", q)
 	Bus.set_value("scs.gdc_deg", Imu.gimbal_angles(gdc))
 	Bus.set_value("scs.fdai.attitude", q if scs else Bus.get_value("guid.indicator.attitude", q))
+	Bus.set_value("scs.gpi_trim_p_deg", rad_to_deg(trim.x))
+	Bus.set_value("scs.gpi_trim_y_deg", rad_to_deg(trim.y))
 
 
 func snapshot() -> Dictionary:
 	return {"gdc": Imu.rows_of(gdc), "hold": Imu.rows_of(hold), "holding": holding,
-		"drift": [bmag_drift.x, bmag_drift.y, bmag_drift.z], "latched": sps_latched}
+		"drift": [bmag_drift.x, bmag_drift.y, bmag_drift.z], "latched": sps_latched, "trim": [trim.x, trim.y]}
 
 
 func restore(d: Dictionary) -> void:
@@ -240,6 +284,8 @@ func restore(d: Dictionary) -> void:
 	var dr: Array = d.get("drift", [bmag_drift.x, bmag_drift.y, bmag_drift.z])
 	bmag_drift = Vector3(dr[0], dr[1], dr[2])
 	sps_latched = bool(d.get("latched", false))
+	var t: Array = d["trim"]
+	trim = Vector2(t[0], t[1])
 	_align_was = bool(Bus.get_value("ctl.scs.gdc_align", false))
 	_thrust_was = bool(Bus.get_value("ctl.sps.thrust_on", false))
 	_publish(Vector3.ZERO, Vector2.ZERO, false)

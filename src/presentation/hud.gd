@@ -432,6 +432,15 @@ func _switch_panel() -> PanelContainer:
 	_option(g, "ATT DEADBAND", "ctl.scs.att_db", ["MIN", "MAX"])
 	_option(g, "SCS TVC", "ctl.scs.tvc", ["AUTO", "RATE CMD"])
 	_momentary(g, "GDC ALIGN", "ctl.scs.gdc_align")
+	for m in [["PITCH 1", "p1"], ["YAW 1", "y1"], ["PITCH 2", "p2"], ["YAW 2", "y2"]]:
+		_option(g, "GMBL MOTORS " + m[0], "ctl.sps.gmbl_" + m[1], ["OFF", "ON", "START"])
+	_option(g, "TVC GMBL DRIVE P", "ctl.scs.tvc_drive_p", ["AUTO", "1", "2"])
+	_option(g, "TVC GMBL DRIVE Y", "ctl.scs.tvc_drive_y", ["AUTO", "1", "2"])
+	_momentary(g, "GPI TRIM P DN", "ctl.scs.gpi_trim_p", -1, 0)
+	_momentary(g, "GPI TRIM P UP", "ctl.scs.gpi_trim_p", 1, 0)
+	_momentary(g, "GPI TRIM Y DN", "ctl.scs.gpi_trim_y", -1, 0)
+	_momentary(g, "GPI TRIM Y UP", "ctl.scs.gpi_trim_y", 1, 0)
+	_toggle(g, "THC CW", "ctl.thc_cw")
 	_option(g, "EMS FUNCTION", "ctl.ems.function", ["OFF", "DV SET", "DV", "RNG SET", "VO SET", "ENTRY"])
 	_momentary(g, "EMS SET DECR", "ctl.ems.set", -2, 0)
 	_momentary(g, "EMS SET decr", "ctl.ems.set", -1, 0)
@@ -824,7 +833,10 @@ RATE  %+.2f %+.2f %+.2f °/s""" % [
 	var sce: String = ["OFF", "NORM", "AUX"][clampi(int(Bus.get_value("ctl.sce.power", 1)), 0, 2)]
 	if not bool(Bus.get_value("tm.valid", true)):
 		sce += " TM LOST"
-	_systems.text = """SPS  %6.0f lb  PC %3.0f%%  %s   ignitions %d
+	var motors := PackedStringArray()
+	for m in Sps.LOOPS:
+		motors.append(str(m).to_upper() if bool(Bus.get_value("sps.motor_" + m, false)) else "--")
+	_systems.text = """SPS  %6.0f lb  PC %3.0f%%  %s   ignitions %d   GPI %+5.2f %+5.2f  GMBL %s
 RCS  A %3.0f  B %3.0f  C %3.0f  D %3.0f lb   CM %3.0f lb
 EPS  MAIN A %4.1f V  B %4.1f V  load %4.0f W  SCE %s
 FC   %s
@@ -835,6 +847,7 @@ SCS  GDC %06.2f %06.2f %06.2f  %s
 EMS  %+.1f  %s""" % [
 		Units.kg_to_lb(float(Bus.get_value("sps.prop_kg", 0.0))), float(Bus.get_value("sps.chamber_pct", 0.0)),
 		"FIRING" if bool(Bus.get_value("sps.on", false)) else "", int(Bus.get_value("sps.ignitions", 0)),
+		float(Bus.get_value("sps.gpi_p_deg", 0.0)), float(Bus.get_value("sps.gpi_y_deg", 0.0)), " ".join(motors),
 		Units.kg_to_lb(float(Bus.get_value("rcs.quad_a_kg", 0.0))), Units.kg_to_lb(float(Bus.get_value("rcs.quad_b_kg", 0.0))),
 		Units.kg_to_lb(float(Bus.get_value("rcs.quad_c_kg", 0.0))), Units.kg_to_lb(float(Bus.get_value("rcs.quad_d_kg", 0.0))),
 		Units.kg_to_lb(float(Bus.get_value("rcs.cm_prop_kg", 0.0))),

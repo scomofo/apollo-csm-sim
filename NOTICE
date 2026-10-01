@@ -21,10 +21,10 @@ Lunar elevation data
 data/terrain/ holds heights cut and resampled from NASA's lunar elevation
 maps by tools/terrain/build_terrain.py:
 
-- NAC_DTM_APOLLO11, NAC_DTM_APOLLO12, NAC_DTM_APOLLO14 and
-  NAC_DTM_APOLLO15, the Lunar Reconnaissance Orbiter Camera's 2 m digital
-  terrain models of the Apollo 11, 12, 14 and 15 landing sites (Henriksen
-  et al., 2017). Credit: NASA/GSFC/Arizona State University. PDS volume
+- NAC_DTM_APOLLO11, NAC_DTM_APOLLO12, NAC_DTM_APOLLO14,
+  NAC_DTM_APOLLO15 and NAC_DTM_APOLLO16, the Lunar Reconnaissance Orbiter
+  Camera's 2 m digital terrain models of the Apollo 11, 12, 14, 15 and 16
+  landing sites (Henriksen et al., 2017). Credit: NASA/GSFC/Arizona State University. PDS volume
   LROLRC_2001.
 - SLDEM2015, the Lunar Orbiter Laser Altimeter merged with SELENE Terrain
   Camera stereo, 512 px/deg (Barker et al., 2016, Icarus 273). Credit:

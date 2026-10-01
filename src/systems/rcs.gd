@@ -9,7 +9,8 @@
 ## its share of authority. Commands are continuous in [-1, 1] and stand for
 ## the jet duty cycle over the step (pulse-width modulation).
 ##
-## Rotation command source (ctl.scs.att_source):
+## Rotation command source (ctl.scs.att_source, the THC clockwise taking
+## the CMC's to the SCS: Scs.sc_cont()):
 ##   0 CMC   the computer's digital autopilot (guid.rcs_rot_cmd)
 ##   1 SCS   the Stabilization and Control System's attitude hold and
 ##           rate command (scs.rot_cmd, src/systems/scs.gd)
@@ -73,7 +74,7 @@ static func _db3(v: Vector3) -> Vector3:
 ## Rotation command for this step. The hand-controller deadband applies to
 ## crew inputs only; the CMC autopilot's duty cycles pass through unchanged.
 func rotation_command() -> Vector3:
-	var src := int(Bus.get_value("ctl.scs.att_source", 0))
+	var src := Scs.sc_cont()
 	var rhc := _db3(Bus.get_value("ctl.rhc", Vector3.ZERO))
 	match src:
 		1:
