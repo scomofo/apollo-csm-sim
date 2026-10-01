@@ -35,7 +35,7 @@ func _step_texts(card: ChecklistCard) -> PackedStringArray:
 
 
 func test_the_book_opens_by_phase_cycles_and_acknowledges() -> void:
-	assert_eq(book.lists.size(), 17, "six for the flight, eleven malfunction procedures")
+	assert_eq(book.lists.size(), 18, "six for the flight, twelve malfunction procedures")
 	book.select_for_phase("translunar_coast")
 	assert_eq(book.list().title, "SPS burn (P30 / P40)")
 	var w := book.window()
@@ -262,7 +262,7 @@ func test_every_apollo_16_step_names_a_control_or_one_writes_its_check() -> void
 					assert_ne(id, "", "%s: a cabin control writes %s" % [s["text"], channel])
 				if id != "":
 					framed[1 if lm else 0] += 1
-	assert_eq(framed, [66, 73], "Casper's and Orion's steps that point at a cabin control (15 and 12 of them the malfunction procedures')")
+	assert_eq(framed, [78, 73], "Casper's and Orion's steps that point at a cabin control (15 and 12 of them the malfunction procedures', 12 the SPS burn's TVC checks)")
 
 
 func test_every_eagle_step_names_one_of_its_controls_or_one_writes_its_check() -> void:

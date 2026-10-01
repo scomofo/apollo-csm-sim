@@ -177,6 +177,16 @@ and the HUD):
 - **The SPS under the SCS.** While the SPS fires, its gimbal (±4.5°)
   holds the attitude (SCS TVC AUTO), or turns the CSM on the hand
   controller (RATE CMD, MTVC).
+- **The SPS's servo loops.** Two servo loops drive each of the gimbal's
+  actuators, pitch and yaw, each on its own gimbal motor: SPS GIMBAL
+  MOTORS PITCH 1, YAW 1, PITCH 2 and YAW 2 start them (START, sprung back
+  to ON) and stop them (OFF), and TVC GMBL DRIVE picks the loop that
+  drives, 1 or 2, or at AUTO loop 1, loop 2 with the THC turned clockwise
+  (THC CW), which also takes control from the CMC to the SCS. With no
+  motor running the gimbal stays where it stands. The GPI shows it; under
+  the SCS before ignition its trim thumbwheels set it (GPI TRIM, rockers
+  here), and on RATE CMD MTVC moves it about the trim: the crews' TVC
+  checks before each burn.
 - **The EMS.** Its ΔV counter, set on the ΔV/EMS SET rocker, counts down
   the ΔV its own accelerometer senses along X. With the EMS in ΔV,
   THRUST ON starts the SPS and the EMS ends the burn at −0.1 ft/s.
@@ -631,9 +641,11 @@ flown times, taken back to range zero where the flight moved its clocks,
 - the separation PAD, docked (95:14), GO for undocking (95:25), the
   undocking at 96:14 and the separation after it; Orion's PDI PAD for rev
   13 (96:43) and Casper's CIRC PAD (96:52);
-- CIRC held: before it the gimbal checks find the SPS's secondary yaw
-  servo loop oscillating, and the flight rules want all four servo loops
-  for the burn. Houston waves the landing off for three revolutions
+- CIRC held: before it the crew's TVC checks find the yaw gimbal
+  swinging 1° either way at 2.4 Hz on the GPI with loop 2 driving, its
+  rate feedback open since DOI (the failure catalog's sps_yaw_servo_2),
+  and the flight rules want all four servo loops for the burn: the motors
+  off. Houston waves the landing off for three revolutions
   (98:14), PDI and the landing 5 h 43 min later, and asks for
   station-keeping (99:03; the CSM-active rendezvous isn't flown);
 - GO for another try on rev 16 (102:01) and Houston's word on the servo
@@ -1678,14 +1690,15 @@ Apollo Flight Journal and the Apollo Lunar Surface Journal:
 | DOI, Casper with Orion docked | 78:33:10, N81 −206.6, 0, 0; 206.5 ft/s in 26.0 s; 58.0 × 10.2 nmi; PDI planned for 98:31:27 | 78:33:45, N81 −205.3, 0, −45.5; 209.5 ft/s in 24.4 s; 58.5 × 10.9 nmi; PDI 98:34:41 |
 | The separations | 1.0 ft/s on P41 at 96:13:50 and again at 102:30:00, radially down | 1.0 ft/s right after the undocking at 96:13:33, and 1 ft/s about 102:30 |
 | Orion's first P52, on stars 26 and 33 | 96:58:01: N05 0.003°, N93 −0.060, +0.141, −0.025° | 96:58: 0.05°; −0.060, +0.139, −0.018° |
+| The secondary yaw servo loop | 1.00° either way at 2.40 Hz on the GPI, the primary loop steady | 1.0° either way at 2.4 Hz about the command, slightly more at the last check; the primary loop good |
 | The wave-off | PDI's TIG moved from 98:32:08 to 104:14:49, three revolutions of 114.2 min | called at 98:13:35; PDI's TIG from 98:35:05 to 104:17:23 |
-| CIRC, held, then flown | the first PAD's N81 +73.4, 0, −44.0 at 97:34:52, held; the second's +72.7, 0, −44.5 at 103:17:04, 84.9 ft/s into 68.0 × 52.9 nmi | +68.1, 0, −58.0 at 97:40:17, held; +69.1, 0, −43.5 at 103:21:42, 81.6 ft/s into 68.0 × 53.1 nmi |
-| PDI | the PAD at 102:08:14; 104:13:46, 53,636 ft over the site, the site 3.2 nmi out of plane | the PAD at 102:08:14; 104:17:25, 66,500 ft (the plan's 52,707), 3.56 nmi out of plane |
+| CIRC, held, then flown | the first PAD's N81 +73.4, 0, −44.0 at 97:34:52, held; the second's +72.7, 0, −44.5 at 103:17:04, 84.9 ft/s into 68.1 × 52.9 nmi | +68.1, 0, −58.0 at 97:40:17, held; +69.1, 0, −43.5 at 103:21:42, 81.6 ft/s into 68.0 × 53.1 nmi |
+| PDI | the PAD at 102:08:14; 104:13:46, 53,633 ft over the site, the site 3.2 nmi out of plane | the PAD at 102:08:14; 104:17:25, 66,500 ft (the plan's 52,707), 3.56 nmi out of plane |
 | Noun 69 | +600 ft, keyed in 101 s after PDI | +800 ft downrange, voiced 1:40 after PDI and entered at 1:51 |
-| The landing radar and the terrain model | the altitude good 309 s after PDI, ΔH −1,353 ft; the LGC's altitude off the truth by 2,706 ft at most, −14 ft at P64 | range data good 3:59 after PDI, at 48,700 ft of slant range |
+| The landing radar and the terrain model | the altitude good 309 s after PDI, ΔH −1,357 ft; the LGC's altitude off the truth by 2,707 ft at most, −15 ft at P64 | range data good 3:59 after PDI, at 48,700 ft of slant range |
 | Throttle-down | 419 s after PDI | 7:29 |
-| P64 | 104:23:18, 572 s after PDI, at 8,471 ft, aiming 1,228 ft from where Orion came down; 18 LPD clicks | 104:26:52, 9:27 after PDI, at 7,200 ft; about ten redesignations, south |
-| The landing | P66 at 104:25:13 at 245 ft, 194 ft off; touchdown 104:26:10, 744 s after PDI, on the spot, 5:39:28 after the plan's; 1,474 lb of the DPS's propellant left | P66 at 104:28:42 at about 250 ft; 104:29:35, 730 s after PDI, 5:42:53 after the plan's 98:46:42; 1,128 lb usable |
+| P64 | 104:23:18, 572 s after PDI, at 8,481 ft, aiming 1,228 ft from where Orion came down; 18 LPD clicks | 104:26:52, 9:27 after PDI, at 7,200 ft; about ten redesignations, south |
+| The landing | P66 at 104:25:13 at 245 ft, 194 ft off; touchdown 104:26:10, 744 s after PDI, on the spot, 5:39:28 after the plan's; 1,476 lb of the DPS's propellant left | P66 at 104:28:42 at about 250 ft; 104:29:35, 730 s after PDI, 5:42:53 after the plan's 98:46:42; 1,128 lb usable |
 | The plane change (LOPC-1) | 169:03:17, N81 −1.4, −123.9, 0; 123.8 ft/s in 9.2 s; 66.9 × 53.1 nmi | 169:05:52, N81 −1.5, −124.7, 0; 124.0 ft/s in 7.1 s; 64.6 × 55.0 nmi |
 | The ascent | liftoff 175:29:00, N76 5,526.0 and 32.0 ft/s, −0.71 nmi crossrange, TPI's TIG 176:23:31; 442 s on the APS into 41.6 × 8.9 nmi | 175:31:48, N76 5,525.2 and 32.0 ft/s, +0.2 nmi, TPI 176:26:04; 427.7 s into 40.2 × 7.9 nmi |
 | The tweak, and TPI on the APS | 175:39:44, 7.6 ft/s on the RCS; 176:23:31, 83.1 ft/s, Casper 26.6° up, Orion 15.0 nmi below | 175:42:18, 10.2 ft/s, the insertion 33,000 ft further downrange than desired; 176:26:05, 78.0 ft/s |
@@ -1715,8 +1728,14 @@ The table takes these from the flight's figures:
 - The separations are flown on P41, the first 17 s after the undocking.
 - The wave-off is Houston's call at its flown time: PDI and the landing
   move three of Orion's revolutions on, and the CIRC PAD the crew held
-  isn't flown; the gimbal checks before it aren't flown here, and nor is
-  Casper's rendezvous to station-keeping, 99:44 to 101:08 [simplified].
+  isn't flown; nor is Casper's rendezvous to station-keeping, 99:44 to
+  101:08 [simplified].
+- The secondary yaw loop: its rate feedback fails at 80:00, after DOI,
+  the loops having checked out before it [estimated]. The test's crew
+  nudges the yaw trim on loop 2, as Mattingly set it, and the swing
+  builds to its limit in a few seconds, where the flight's crew saw it
+  diverge at first; the engine's swing doesn't shake the spacecraft here,
+  as the crew felt it [simplified].
 - CIRC: the RTCC burns each PAD at the flown burn's place in the orbit,
   48 s past the apolune, where the simulator's Casper comes minutes
   before the flight's.
@@ -2213,7 +2232,8 @@ The unit tests cover:
   armed one on its second; a mission arms its own; the instructor's page
   fails the one it shows; and a failure opens its malfunction procedure.
   Apollo 14's ABORT switch, which no light shows, sets the LGC's abort
-  bit, and its landing radar's scale goes low
+  bit, and its landing radar's scale goes low; Apollo 16's secondary yaw
+  servo loop, which none shows either, opens its rate feedback
 - Apollo 11's program alarms (`tests/scenarios/test_program_alarms.gd`),
   slice 9b: the landing flown as its crew flew it, the rendezvous radar's
   switch turned to SLEW, Aldrin's V16N68 for ΔH, and Armstrong's ATT HOLD
@@ -2239,8 +2259,17 @@ The unit tests cover:
   LOW and HIGH and ATT DEADBAND MIN and MAX; the GDC's drift, GDC ALIGN
   and the FDAIs on it at SCS; the EMS's rocker; the EMS ending an SCS burn
   (106 ft/s for 100 set, the tail-off after it) and keeping THRUST ON
-  from starting below zero; MTVC pitching the CSM on the gimbal; and a
-  checkpoint
+  from starting below zero; MTVC pitching the CSM on the gimbal, its
+  motors started; and a checkpoint. `tests/unit/test_sps_gimbal.gd`,
+  slice 12c: the gimbal motors off at first, START sprung back to ON
+  keeping one running and OFF stopping it; no motor running, the gimbal
+  stays where it stands; TVC GMBL DRIVE's AUTO picking loop 1, and loop 2
+  with the THC clockwise, which takes control to the SCS; the GPI's trim
+  on its rocker at 1°/s and MTVC on RATE CMD moving the gimbal on either
+  loop, and the CMC's null on loop 1; and Apollo 16's secondary yaw loop,
+  steady until a command moves the gimbal, then swinging 1° either way at
+  2.4 Hz about it, damped under thrust and swinging again after it, until
+  loop 1 takes over
 - The launch's aborts (`tests/scenarios/test_launch_aborts.gd`), slice
   9d: from a point in each mode's window of Apollo 11's launch, set off
   by a failure from the catalog. Downrange is measured along the nominal
@@ -2447,8 +2476,10 @@ The unit tests cover:
   one taken with MODREG loaded at 71 (schema 32), the landing radar's
   low scale and its breaker's cycle (schema 33), the transposition and
   docking from one taken mid-retraction, the LM on the S-IVB and the
-  capture latches failed (schema 34), and a failed main parachute and
-  the cabin vented for an EVA (schema 35)
+  capture latches failed (schema 34), a failed main parachute and the
+  cabin vented for an EVA (schema 35), and the SPS's servo loops, their
+  motors, the secondary yaw loop's failure and its swing, and the GPI's
+  trim (schema 36)
 - The main scene, and in Eagle from `lunar_descent`: its HUD, the keys on
   its LGC or, with G, its DEDA, its two views, its checklist for the
   phase, and L between the vehicles; and the mission it's given, Apollo
@@ -3196,7 +3227,8 @@ steep past the Apennine front on Luminary 210's targets and the LGC's
 terrain model, Endeavour's plane change and its orbit shaped for the
 subsatellite, and the way home: Worden's EVA, the cabin vented, and the
 splashdown on two main parachutes, the third failed.
-Apollo 16 flies from its data too (slice 12c's first part): AS-511 from
-the pad, the CIRC PAD held and the landing waved off for three
-revolutions, Orion's descent on rev 16 to Descartes about six hours
-late, and the way home a day early, Mattingly's EVA on it.
+Apollo 16 flies from its data too (slice 12c): AS-511 from the pad, the
+SPS's secondary yaw servo loop swinging in the crew's TVC checks before
+CIRC, the CIRC held and the landing waved off for three revolutions,
+Orion's descent on rev 16 to Descartes about six hours late, and the way
+home a day early, Mattingly's EVA on it.

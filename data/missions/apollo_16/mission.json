@@ -934,7 +934,13 @@
       }
     ]
   },
-  "failures": [],
+  "failures": [
+    {
+      "id": "sps_yaw_servo_2",
+      "get_s": 288000.0,
+      "_comment": "The secondary yaw servo loop's rate feedback open, the failure catalog's sps_yaw_servo_2 (data/failures.json), armed for 80:00:00, after DOI: the four loops checked out before LOI and DOI, and the crew found it in the gimbal checks before CIRC at about 97:33 (MSC-07230, section 14.1.10; Apollo Flight Journal, 097:35:10) [the time it failed estimated]"
+    }
+  ],
   "start_phases": [
     "launch",
     "parking_orbit",

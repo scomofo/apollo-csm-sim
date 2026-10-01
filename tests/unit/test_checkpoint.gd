@@ -41,7 +41,7 @@ func test_restore_rejects_foreign_checkpoints() -> void:
 func test_a_checkpoint_keeps_each_vehicle_under_its_name() -> void:
 	build("lunar_orbit")
 	var snap := rt.snapshot()
-	assert_eq(snap["schema_version"], 35)
+	assert_eq(snap["schema_version"], 36)
 	assert_eq(snap["vehicles"].keys(), ["csm"], "docked, the LM is part of the CSM's csm_lm")
 	assert_eq(snap["vehicles"]["csm"]["dynamics"]["config"], "csm_lm")
 	assert_has(snap["vehicles"]["csm"]["systems"], "agc")
@@ -60,7 +60,7 @@ func test_a_checkpoint_from_before_the_vehicles_map_is_rejected() -> void:
 	snap["dynamics"] = snap["vehicles"]["csm"]["dynamics"]
 	snap["systems"] = snap["vehicles"]["csm"]["systems"]
 	snap.erase("vehicles")
-	assert_eq(rt.restore(snap), "checkpoint schema 1, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 1, expected 36")
 
 
 func test_a_checkpoint_from_before_the_rendezvous_is_rejected() -> void:
@@ -69,7 +69,7 @@ func test_a_checkpoint_from_before_the_rendezvous_is_rejected() -> void:
 	# Schema 2's LGC had no rendezvous state.
 	snap["schema_version"] = 2
 	snap["vehicles"]["csm"]["systems"]["lgc"].erase("rendezvous")
-	assert_eq(rt.restore(snap), "checkpoint schema 2, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 2, expected 36")
 
 
 func test_a_checkpoint_from_before_the_timeline_is_rejected() -> void:
@@ -79,7 +79,7 @@ func test_a_checkpoint_from_before_the_timeline_is_rejected() -> void:
 	snap["schema_version"] = 3
 	snap["mission"].erase("plan")
 	snap["mission"].erase("timeline_done")
-	assert_eq(rt.restore(snap), "checkpoint schema 3, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 3, expected 36")
 
 
 func test_the_lms_systems_come_back_with_it() -> void:
@@ -178,7 +178,7 @@ func test_a_checkpoint_from_the_circular_moon_is_rejected() -> void:
 	var snap := rt.snapshot()
 	# Schema 4's states were in the circular model's ECI, not the ICRF.
 	snap["schema_version"] = 4
-	assert_eq(rt.restore(snap), "checkpoint schema 4, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 4, expected 36")
 
 
 func test_a_checkpoint_from_before_the_cmcs_own_state_vector_is_rejected() -> void:
@@ -186,7 +186,7 @@ func test_a_checkpoint_from_before_the_cmcs_own_state_vector_is_rejected() -> vo
 	var snap := rt.snapshot()
 	# Schema 5's CMC read truth, and the flight had no dispersions.
 	snap["schema_version"] = 5
-	assert_eq(rt.restore(snap), "checkpoint schema 5, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 5, expected 36")
 
 
 func test_a_checkpoint_from_before_the_imu_is_rejected() -> void:
@@ -194,7 +194,7 @@ func test_a_checkpoint_from_before_the_imu_is_rejected() -> void:
 	var snap := rt.snapshot()
 	# Schema 6's CMC read its attitude and sensed ΔV straight, on no platform.
 	snap["schema_version"] = 6
-	assert_eq(rt.restore(snap), "checkpoint schema 6, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 6, expected 36")
 
 
 func test_a_checkpoint_from_before_the_navigation_filter_is_rejected() -> void:
@@ -202,7 +202,7 @@ func test_a_checkpoint_from_before_the_navigation_filter_is_rejected() -> void:
 	var snap := rt.snapshot()
 	# Schema 7's CMC had no filter, and P22 and P23 no state.
 	snap["schema_version"] = 7
-	assert_eq(rt.restore(snap), "checkpoint schema 7, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 7, expected 36")
 
 
 func test_a_checkpoint_from_before_the_moons_field_is_rejected() -> void:
@@ -210,7 +210,7 @@ func test_a_checkpoint_from_before_the_moons_field_is_rejected() -> void:
 	var snap := rt.snapshot()
 	# Schema 8's trajectories held no sample of the Moon's field.
 	snap["schema_version"] = 8
-	assert_eq(rt.restore(snap), "checkpoint schema 8, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 8, expected 36")
 
 
 func test_a_checkpoint_from_before_the_samples_thrust_is_rejected() -> void:
@@ -218,7 +218,7 @@ func test_a_checkpoint_from_before_the_samples_thrust_is_rejected() -> void:
 	var snap := rt.snapshot()
 	# Schema 9's field samples didn't say which thrust they were taken for.
 	snap["schema_version"] = 9
-	assert_eq(rt.restore(snap), "checkpoint schema 9, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 9, expected 36")
 
 
 func test_a_checkpoint_from_before_the_iterative_guidance_is_rejected() -> void:
@@ -226,7 +226,7 @@ func test_a_checkpoint_from_before_the_iterative_guidance_is_rejected() -> void:
 	var snap := rt.snapshot()
 	# Schema 10's IU held a yaw and an energy, not a target conic.
 	snap["schema_version"] = 10
-	assert_eq(rt.restore(snap), "checkpoint schema 10, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 10, expected 36")
 
 
 func test_a_checkpoint_from_before_the_launch_is_rejected() -> void:
@@ -234,7 +234,7 @@ func test_a_checkpoint_from_before_the_launch_is_rejected() -> void:
 	var snap := rt.snapshot()
 	# Schema 11 had no launch vehicle.
 	snap["schema_version"] = 11
-	assert_eq(rt.restore(snap), "checkpoint schema 11, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 11, expected 36")
 
 
 func test_a_checkpoint_from_before_cross_product_steering_is_rejected() -> void:
@@ -242,7 +242,7 @@ func test_a_checkpoint_from_before_cross_product_steering_is_rejected() -> void:
 	var snap := rt.snapshot()
 	# Schema 12 had no steered thrust direction.
 	snap["schema_version"] = 12
-	assert_eq(rt.restore(snap), "checkpoint schema 12, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 12, expected 36")
 
 
 func test_a_checkpoint_from_before_the_entry_programs_is_rejected() -> void:
@@ -250,7 +250,7 @@ func test_a_checkpoint_from_before_the_entry_programs_is_rejected() -> void:
 	var snap := rt.snapshot()
 	# Schema 13 had no entry guidance, nor the CM's roll rate.
 	snap["schema_version"] = 13
-	assert_eq(rt.restore(snap), "checkpoint schema 13, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 13, expected 36")
 
 
 func test_a_checkpoint_from_before_the_master_alarm_circuit_is_rejected() -> void:
@@ -258,7 +258,7 @@ func test_a_checkpoint_from_before_the_master_alarm_circuit_is_rejected() -> voi
 	var snap := rt.snapshot()
 	# Schema 14 had no caution and warning system.
 	snap["schema_version"] = 14
-	assert_eq(rt.restore(snap), "checkpoint schema 14, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 14, expected 36")
 
 
 func test_a_checkpoint_from_before_the_lgcs_throttle_schedule_is_rejected() -> void:
@@ -266,7 +266,7 @@ func test_a_checkpoint_from_before_the_lgcs_throttle_schedule_is_rejected() -> v
 	var snap := rt.snapshot()
 	# Schema 15 had no throttle schedule uplinked with a DPS burn's PAD.
 	snap["schema_version"] = 15
-	assert_eq(rt.restore(snap), "checkpoint schema 15, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 15, expected 36")
 
 
 func test_a_checkpoint_from_before_noun_69_is_rejected() -> void:
@@ -274,7 +274,7 @@ func test_a_checkpoint_from_before_noun_69_is_rejected() -> void:
 	var snap := rt.snapshot()
 	# Schema 16 kept no word of noun 69 moving the LGC's landing site.
 	snap["schema_version"] = 16
-	assert_eq(rt.restore(snap), "checkpoint schema 16, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 16, expected 36")
 
 
 func test_a_checkpoint_from_before_the_lifeboat_is_rejected() -> void:
@@ -282,7 +282,7 @@ func test_a_checkpoint_from_before_the_lifeboat_is_rejected() -> void:
 	var snap := rt.snapshot()
 	# Schema 17 kept no LM batteries, AGS, docked LGC's IMU or tank leak.
 	snap["schema_version"] = 17
-	assert_eq(rt.restore(snap), "checkpoint schema 17, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 17, expected 36")
 
 
 func test_a_checkpoint_from_before_the_failure_catalog_is_rejected() -> void:
@@ -291,7 +291,7 @@ func test_a_checkpoint_from_before_the_failure_catalog_is_rejected() -> void:
 	# Schema 18 kept no armed or failed failures, nor the systems' failed
 	# parts, and armed Apollo 13's tank from the mission.
 	snap["schema_version"] = 18
-	assert_eq(rt.restore(snap), "checkpoint schema 18, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 18, expected 36")
 
 
 func test_a_checkpoint_from_before_the_program_alarms_is_rejected() -> void:
@@ -300,7 +300,7 @@ func test_a_checkpoint_from_before_the_program_alarms_is_rejected() -> void:
 	# Schema 19 kept no LGC Executive, restarts or alarm registers, nor the
 	# ground's answers to the alarms.
 	snap["schema_version"] = 19
-	assert_eq(rt.restore(snap), "checkpoint schema 19, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 19, expected 36")
 
 
 func test_a_checkpoint_from_before_the_backups_is_rejected() -> void:
@@ -308,7 +308,7 @@ func test_a_checkpoint_from_before_the_backups_is_rejected() -> void:
 	var snap := rt.snapshot()
 	# Schema 20 kept no SCS, SPS gimbal or EMS.
 	snap["schema_version"] = 20
-	assert_eq(rt.restore(snap), "checkpoint schema 20, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 20, expected 36")
 
 
 func test_a_checkpoint_from_before_the_launch_aborts_is_rejected() -> void:
@@ -316,7 +316,7 @@ func test_a_checkpoint_from_before_the_launch_aborts_is_rejected() -> void:
 	var snap := rt.snapshot()
 	# Schema 21 kept no EDS, escape tower or launch vehicle failures.
 	snap["schema_version"] = 21
-	assert_eq(rt.restore(snap), "checkpoint schema 21, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 21, expected 36")
 
 
 func test_a_checkpoint_from_before_the_lms_aborts_is_rejected() -> void:
@@ -325,7 +325,7 @@ func test_a_checkpoint_from_before_the_lms_aborts_is_rejected() -> void:
 	# Schema 22 kept no abort programs, abort TPIs, LM caution and warning
 	# or descent helium.
 	snap["schema_version"] = 22
-	assert_eq(rt.restore(snap), "checkpoint schema 22, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 22, expected 36")
 
 
 func test_a_checkpoint_from_before_the_lightning_is_rejected() -> void:
@@ -333,7 +333,7 @@ func test_a_checkpoint_from_before_the_lightning_is_rejected() -> void:
 	var snap := rt.snapshot()
 	# Schema 23 kept no tripped fuel cells, no SCE and no tumbled platform.
 	snap["schema_version"] = 23
-	assert_eq(rt.restore(snap), "checkpoint schema 23, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 23, expected 36")
 	Mission.load_default()
 
 
@@ -347,7 +347,7 @@ func test_a_checkpoint_from_before_the_centre_engine_is_rejected() -> void:
 	var text := JSON.stringify(snap)
 	# Schema 24 kept no S-II velocity gain for the shift's criterion.
 	snap["schema_version"] = 24
-	assert_eq(rt.restore(snap), "checkpoint schema 24, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 24, expected 36")
 	# Schema 25 keeps it, and the IU's command still to come.
 	build("", "apollo_13")
 	assert_eq(rt.restore(JSON.parse_string(text)), "")
@@ -385,7 +385,7 @@ func test_a_checkpoint_from_before_the_lgcs_platform_is_rejected() -> void:
 	var text := JSON.stringify(snap)
 	# Schema 25 kept the LGC's IMU ideal, without P52.
 	snap["schema_version"] = 25
-	assert_eq(rt.restore(snap), "checkpoint schema 25, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 25, expected 36")
 	# Schema 26 keeps the P52 between its marks, and the platform.
 	build("")
 	assert_eq(rt.restore(JSON.parse_string(text)), "")
@@ -419,7 +419,7 @@ func test_a_checkpoint_from_before_p57_is_rejected() -> void:
 	var text := JSON.stringify(snap)
 	# Schema 26 kept no P57.
 	snap["schema_version"] = 26
-	assert_eq(rt.restore(snap), "checkpoint schema 26, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 26, expected 36")
 	# Schema 27 on keeps it where it was, the attitude stored and the reticle.
 	build("")
 	assert_eq(rt.restore(JSON.parse_string(text)), "")
@@ -459,7 +459,7 @@ func test_a_checkpoint_from_before_luminarys_steering_is_rejected() -> void:
 	var there := SimClock.get_seconds
 	# Schema 27 kept no turn.
 	snap["schema_version"] = 27
-	assert_eq(rt.restore(snap), "checkpoint schema 27, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 27, expected 36")
 	build("")
 	assert_eq(rt.restore(JSON.parse_string(text)), "")
 	lgc = rt.lgc()
@@ -509,7 +509,7 @@ func test_a_checkpoint_from_before_the_rendezvous_radars_errors_is_rejected() ->
 	var angles := Vector2(rr.shaft, rr.trunnion)
 	# Schema 28 had no radar errors and no P20 filter.
 	snap["schema_version"] = 28
-	assert_eq(rt.restore(snap), "checkpoint schema 28, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 28, expected 36")
 	build("")
 	assert_eq(rt.restore(JSON.parse_string(text)), "")
 	lgc = rt.lgc()
@@ -681,7 +681,7 @@ func test_the_ags_comes_back_from_a_checkpoint_mid_initialization() -> void:
 	var text := JSON.stringify(snap)
 	# Schema 29 had neither the AGS's flight program nor its DEDA nor R47.
 	snap["schema_version"] = 29
-	assert_eq(rt.restore(snap), "checkpoint schema 29, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 29, expected 36")
 	build("")
 	assert_eq(rt.restore(JSON.parse_string(text)), "")
 	lgc = rt.lgc()
@@ -727,7 +727,7 @@ func test_r47s_downlist_comes_back_from_a_checkpoint_mid_send() -> void:
 	var text := JSON.stringify(snap)
 	# Schema 30 had R47 sending but not the state vectors it sent.
 	snap["schema_version"] = 30
-	assert_eq(rt.restore(snap), "checkpoint schema 30, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 30, expected 36")
 	build("")
 	assert_eq(rt.restore(JSON.parse_string(text)), "")
 	lgc = rt.lgc()
@@ -760,7 +760,7 @@ func test_the_lgcs_mode_register_and_the_abort_switch_come_back_from_a_checkpoin
 	var text := JSON.stringify(snap)
 	# Schema 31 had neither the mode register nor the switch's short.
 	snap["schema_version"] = 31
-	assert_eq(rt.restore(snap), "checkpoint schema 31, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 31, expected 36")
 	build("")
 	assert_eq(rt.restore(JSON.parse_string(text)), "")
 	lgc = rt.lgc()
@@ -785,7 +785,7 @@ func test_the_landing_radars_scale_and_its_breaker_come_back_from_a_checkpoint()
 	var text := JSON.stringify(snap)
 	# Schema 32 had neither the radar's scale nor its breaker's cycle.
 	snap["schema_version"] = 32
-	assert_eq(rt.restore(snap), "checkpoint schema 32, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 32, expected 36")
 	build("", "apollo_14")
 	assert_eq(rt.restore(JSON.parse_string(text)), "")
 	lr = rt.systems["lr"]
@@ -838,7 +838,7 @@ func test_the_transposition_and_docking_comes_back_from_a_checkpoint_mid_retract
 	var text := JSON.stringify(snap)
 	# Schema 33 had neither the probe's latches nor the LM on the S-IVB.
 	snap["schema_version"] = 33
-	assert_eq(rt.restore(snap), "checkpoint schema 33, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 33, expected 36")
 	build("", "apollo_14")
 	assert_eq(rt.restore(JSON.parse_string(text)), "")
 	d = rt.dynamics
@@ -867,7 +867,7 @@ func test_a_failed_main_parachute_and_a_vented_cabin_come_back_from_a_checkpoint
 	var text := JSON.stringify(snap)
 	# Schema 34 had neither the ELS's failed main nor the cabin's venting.
 	snap["schema_version"] = 34
-	assert_eq(rt.restore(snap), "checkpoint schema 34, expected 35")
+	assert_eq(rt.restore(snap), "checkpoint schema 34, expected 36")
 	build("", "apollo_15")
 	assert_false(bool(Bus.get_value("els.main_failed")), "a new flight's mains")
 	assert_false(bool(Bus.get_value("mission.cabin_vented")), "and its cabin")
@@ -878,3 +878,39 @@ func test_a_failed_main_parachute_and_a_vented_cabin_come_back_from_a_checkpoint
 	assert_true(rt.sequencer.cabin_vented, "the cabin still vented")
 	assert_true(bool(Bus.get_value("mission.cabin_vented")))
 	Mission.load_default()
+
+
+func test_the_sps_servo_loops_come_back_from_a_checkpoint() -> void:
+	build("transearth_coast")
+	# Apollo 16's secondary yaw loop, its rate feedback open, driving the
+	# yaw gimbal and swinging, loop 1 the pitch; the GPI's trim set.
+	assert_true(rt.failures.fail("sps_yaw_servo_2"), "the loop's rate feedback")
+	for m in ["p1", "y2"]:
+		Bus.set_value("ctl.sps.gmbl_" + m, 2)
+	run(SimClock.FIXED_DT, false)
+	for m in ["p1", "y2"]:
+		Bus.set_value("ctl.sps.gmbl_" + m, 1)
+	Bus.set_value("ctl.scs.tvc_drive_y", 2)
+	Bus.set_value("ctl.scs.att_source", 1)
+	var scs: Scs = rt.systems["scs"]
+	scs.trim = Vector2(deg_to_rad(0.49), deg_to_rad(1.19))
+	run(3.0, false)
+	var sps: Sps = rt.systems["sps"]
+	var cycle := sps.cycle
+	assert_gt(cycle.y, 0.0, "swinging")
+	var snap := rt.snapshot()
+	var text := JSON.stringify(snap)
+	# Schema 35 had neither the gimbal motors, the loops' failures and their
+	# swing nor the GPI's trim.
+	snap["schema_version"] = 35
+	assert_eq(rt.restore(snap), "checkpoint schema 35, expected 36")
+	build("")
+	assert_eq((rt.systems["sps"] as Sps).motors, [false, false, false, false] as Array[bool], "a new flight's motors off")
+	assert_eq(rt.restore(JSON.parse_string(text)), "")
+	sps = rt.systems["sps"]
+	assert_eq(sps.motors, [true, false, false, true] as Array[bool], "PITCH 1 and YAW 2 running")
+	assert_eq(Array(sps.rate_open), ["y2"], "the loop's rate feedback still open")
+	assert_almost_eq(sps.cycle.y, cycle.y, 1e-9, "and swinging as it was")
+	assert_almost_eq((rt.systems["scs"] as Scs).trim, Vector2(deg_to_rad(0.49), deg_to_rad(1.19)), Vector2.ONE * 1e-9, "the trim")
+	assert_eq(Bus.get_value("sps.tvc_loops"), Vector2i(1, 2), "TVC GMBL DRIVE YAW at 2 with it")
+	assert_eq(rt.failures.active.keys(), ["sps_yaw_servo_2"])

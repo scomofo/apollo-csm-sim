@@ -206,6 +206,95 @@
           }
         },
         {
+          "text": "TVC preparation: TVC GMBL DRIVE PITCH and YAW - AUTO; SCS TVC - RATE CMD",
+          "control": "P1_SCS_TVC",
+          "check": {
+            "channel": "ctl.scs.tvc",
+            "op": "eq",
+            "value": 1
+          }
+        },
+        {
+          "text": "SC CONT - SCS (ATT SOURCE)",
+          "control": "P1_ATT_SOURCE",
+          "check": {
+            "channel": "ctl.scs.att_source",
+            "op": "eq",
+            "value": 1
+          }
+        },
+        {
+          "text": "Primary TVC check: SPS GIMBAL MOTORS PITCH 1 - START, then ON",
+          "control": "P1_GMBL_P1",
+          "check": {
+            "channel": "sps.motor_p1",
+            "op": "eq",
+            "value": true
+          }
+        },
+        {
+          "text": "SPS GIMBAL MOTORS YAW 1 - START, then ON",
+          "control": "P1_GMBL_Y1",
+          "check": {
+            "channel": "sps.motor_y1",
+            "op": "eq",
+            "value": true
+          }
+        },
+        {
+          "text": "Verify the trim control and set the PAD's pitch and yaw trims on the GPI's thumbwheels; verify MTVC on the hand controller",
+          "control": "P1_GPI_TRIM_P"
+        },
+        {
+          "text": "SC CONT - CMC (ATT SOURCE)",
+          "control": "P1_ATT_SOURCE",
+          "check": {
+            "channel": "ctl.scs.att_source",
+            "op": "eq",
+            "value": 0
+          }
+        },
+        {
+          "text": "THC - CLOCKWISE; verify no MTVC: loop 2 drives, its motors off",
+          "control": "P1_THC_CW",
+          "check": {
+            "channel": "ctl.thc_cw",
+            "op": "eq",
+            "value": true
+          }
+        },
+        {
+          "text": "Secondary TVC check: SPS GIMBAL MOTORS PITCH 2 - START, then ON",
+          "control": "P1_GMBL_P2",
+          "check": {
+            "channel": "sps.motor_p2",
+            "op": "eq",
+            "value": true
+          }
+        },
+        {
+          "text": "SPS GIMBAL MOTORS YAW 2 - START, then ON",
+          "control": "P1_GMBL_Y2",
+          "check": {
+            "channel": "sps.motor_y2",
+            "op": "eq",
+            "value": true
+          }
+        },
+        {
+          "text": "Set the GPI trim; verify MTVC on loop 2",
+          "control": "P1_GPI_TRIM_Y"
+        },
+        {
+          "text": "THC - NEUTRAL; verify no MTVC and the GPI back to 0, 0 under the CMC",
+          "control": "P1_THC_CW",
+          "check": {
+            "channel": "ctl.thc_cw",
+            "op": "eq",
+            "value": false
+          }
+        },
+        {
           "text": "V50N18 flashing: PRO to maneuver to burn attitude",
           "control": "P2_DSKY",
           "check": {
@@ -254,6 +343,15 @@
             "channel": "ctl.sps.arm_a",
             "op": "eq",
             "value": false
+          }
+        },
+        {
+          "text": "SPS GIMBAL MOTORS (4) - OFF, one at a time",
+          "control": "P1_GMBL_Y2",
+          "check": {
+            "channel": "sps.motors_on",
+            "op": "eq",
+            "value": 0
           }
         },
         {

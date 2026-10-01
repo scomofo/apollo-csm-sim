@@ -14,12 +14,14 @@
 # which carries the longer of its two runs in 47bfc06's CI; it,
 # test_checkpoint.gd and test_failures.gd, with slice 12b's second part's
 # tests, the longer of their two in f0c672f's. Slice 12c's
-# test_apollo_16_mission.gd counts 1.2 times its seconds on a local run.
+# test_apollo_16_mission.gd carries the longer of its two runs in
+# 2cfb7c7's CI, and test_sps_gimbal.gd counts 1.2 times its seconds on a
+# local run.
 test_agc.gd 30
 test_ags_fp6.gd 1
 test_apollo_14_starts.gd 21
 test_apollo_15_mission.gd 57
-test_apollo_16_mission.gd 203
+test_apollo_16_mission.gd 141
 test_ascent_guidance.gd 1
 test_audio_director.gd 10
 test_bus.gd 1
@@ -69,6 +71,7 @@ test_rendezvous_targeting.gd 1
 test_saved_flights.gd 12
 test_scs_ems.gd 44
 test_space_view.gd 1
+test_sps_gimbal.gd 26
 test_systems.gd 72
 test_terrain.gd 1
 test_trajectory.gd 1

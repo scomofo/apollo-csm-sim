@@ -80,6 +80,12 @@ func test_the_ems_ends_an_scs_burn_and_mtvc_turns_on_the_gimbal() -> void:
 	var ems: Ems = _ems()
 	Bus.set_value("ctl.scs.att_source", 1)
 	Bus.set_value("ctl.sps.arm_a", true)
+	# The gimbal motors, PITCH 1 and YAW 1 (slice 12c): START, then ON.
+	for m in ["p1", "y1"]:
+		Bus.set_value("ctl.sps.gmbl_" + m, 2)
+	run(SimClock.FIXED_DT, false)
+	for m in ["p1", "y1"]:
+		Bus.set_value("ctl.sps.gmbl_" + m, 1)
 	# Below zero, THRUST ON starts nothing.
 	Bus.set_value("ctl.ems.function", Ems.Function.DV)
 	ems.dv = -1.0

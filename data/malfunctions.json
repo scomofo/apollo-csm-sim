@@ -60,6 +60,11 @@
       {"text": "Two mains bring the CM down at about 36 ft/s at the water, against three's 32: within the design. Nothing to do but brace for the harder impact"},
       {"text": "After Apollo 15, whose main the CM RCS's dump most probably burnt: land with the RCS propellants aboard, not dumped under the mains"}
     ]},
+    {"title": "Malfunction: SPS gimbal", "phases": [], "steps": [
+      {"text": "GPI: one axis swinging about its trim on one servo loop, as Apollo 16's yaw on loop 2 did, 1 deg either way at 2.4 Hz; the axis steady on the other loop. No light: the TVC check shows it"},
+      {"text": "SPS GIMBAL MOTORS (4) - OFF, the bad loop's first", "check": {"channel": "sps.motor_y2", "op": "eq", "value": false}},
+      {"text": "The flight rules want all four servo loops for an SPS burn before the landing: no burn until Houston clears the loop. Apollo 16's was an open in its rate feedback, a limit cycle the engine can fly with, the thrust damping it; it flew its burns on the primary loops, the secondary yaw motor on only to back them up"}
+    ]},
     {"title": "Malfunction: LV ENG, LV RATE or LV GUID", "phases": [], "steps": [
       {"text": "LV ENG, LV RATE or LV GUID: a launch vehicle engine out, the vehicle's rates past the EDS's limits, or the IU's guidance lost"},
       {"text": "With the tower on and EDS AUTO: two S-IC engines out, or the rates, abort on their own, and the tower pulls the CM away (mode I)"},

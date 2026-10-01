@@ -103,6 +103,12 @@ func test_a_tei_on_the_scs_ends_on_the_ems_count_within_its_pad() -> void:
 	assert_almost_eq(float(Bus.get_value("ems.display")), float(pad["dvc"]) / Units.FT, 0.05, "ΔVC on the counter")
 	Bus.set_value("ctl.sps.arm_a", true)
 	Bus.set_value("ctl.sps.arm_b", true)
+	# The gimbal motors, PITCH 1 and YAW 1, for the SCS's TVC (slice 12c).
+	for m in ["p1", "y1"]:
+		Bus.set_value("ctl.sps.gmbl_" + m, 2)
+	run(SimClock.FIXED_DT, false)
+	for m in ["p1", "y1"]:
+		Bus.set_value("ctl.sps.gmbl_" + m, 1)
 	run(tig - SimClock.get_seconds, false)
 	# THRUST ON at TIG; the EMS ends it.
 	var v0 := rt.dynamics.traj.vel()

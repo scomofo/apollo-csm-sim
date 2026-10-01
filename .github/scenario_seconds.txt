@@ -27,7 +27,8 @@
 # they carry the longer of their two runs in 47bfc06's CI, and
 # test_apollo_15_entry.gd, with slice 12b's second part, the longer of its
 # two in f0c672f's. The parts went to eighteen with slice 12c's four
-# Apollo 16 files, at 1.2 times their seconds on a local run.
+# Apollo 16 files, dealt at 1.2 times their seconds on a local run; they
+# carry the longer of their two runs in 2cfb7c7's CI.
 test_ags.gd 74
 test_apollo_10.gd 456
 test_apollo_10_launch.gd 50
@@ -45,10 +46,10 @@ test_apollo_15.gd 129
 test_apollo_15_entry.gd 172
 test_apollo_15_launch.gd 47
 test_apollo_15_return.gd 248
-test_apollo_16.gd 300
-test_apollo_16_entry.gd 284
-test_apollo_16_launch.gd 90
-test_apollo_16_return.gd 371
+test_apollo_16.gd 194
+test_apollo_16_entry.gd 176
+test_apollo_16_launch.gd 54
+test_apollo_16_return.gd 243
 test_apollo_8.gd 190
 test_apollo_8_launch.gd 41
 test_ascent.gd 78

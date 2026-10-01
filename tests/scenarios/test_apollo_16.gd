@@ -108,6 +108,41 @@ func _get_s(s: String) -> float:
 	return MissionSequencer._get_s(s)
 
 
+## Start the SPS gimbal motor of servo loop [param loop] (Sps.LOOPS):
+## START, sprung back to ON.
+func _motor(loop: String) -> void:
+	Bus.set_value("ctl.sps.gmbl_" + loop, 2)
+	run(SimClock.FIXED_DT, false)
+	Bus.set_value("ctl.sps.gmbl_" + loop, 1)
+	run(SimClock.FIXED_DT, false)
+
+
+## The GPI's yaw through [param seconds]: x half its swing (deg), y how
+## often it swings about its mean (Hz), from the first crossing of the mean
+## to the last.
+func _yaw_swing(seconds: float) -> Vector2:
+	var ys := PackedFloat64Array()
+	var t0 := SimClock.get_seconds
+	while SimClock.get_seconds - t0 < seconds:
+		run(SimClock.FIXED_DT, false)
+		ys.append(float(Bus.get_value("sps.gpi_y_deg")))
+	var lo: float = ys[0]
+	var hi: float = ys[0]
+	var mean := 0.0
+	for y in ys:
+		lo = minf(lo, y)
+		hi = maxf(hi, y)
+		mean += y / ys.size()
+	var crossed := PackedFloat64Array()
+	for i in range(1, ys.size()):
+		var a: float = ys[i - 1] - mean
+		var b: float = ys[i] - mean
+		if (a < 0.0) != (b < 0.0):
+			crossed.append((i - 1 + a / (a - b)) * SimClock.FIXED_DT)
+	var hz := 0.0 if crossed.size() < 2 else (crossed.size() - 1) / (2.0 * (crossed[-1] - crossed[0]))
+	return Vector2((hi - lo) / 2.0, hz)
+
+
 func test_apollo_16_flies_its_data_waves_off_and_lands_at_descartes() -> void:
 	build("parking_orbit", "apollo_16")
 	sq = rt.sequencer
@@ -247,6 +282,48 @@ func test_apollo_16_flies_its_data_waves_off_and_lands_at_descartes() -> void:
 	assert_almost_eq(n93, Vector3(-0.060, 0.139, -0.018), Vector3.ONE * 0.015, "N93 as flown")
 	assert_lt(float(p52["sad"]), 0.07, "N05 within the flown")
 
+	# The TVC checks before CIRC, behind the Moon from 97:31:50 (Apollo
+	# Flight Journal): SC CONT at SCS on RATE CMD, the primary loops'
+	# motors, the PAD's trims, +0.49 and +1.22 deg; then SC CONT at CMC, the
+	# THC clockwise and the secondary loops' motors. Setting the yaw trim on
+	# loop 2, the yaw gimbal oscillated, "an unstable yaw gimbal Number 2"
+	# (097:35:10), limited at 1.0 deg either way at 2.4 Hz about the gimbal's
+	# command (MSC-07230, section 14.1.10), the loop's rate feedback open
+	# here since DOI (mission.json "failures"). The motors off at 097:39:04,
+	# the GPI back to 0, 0 under the CMC first, here, for the burns to come.
+	run(_get_s("97:31:50") - SimClock.get_seconds)
+	assert_eq(Bus.get_value("sps.rate_open"), "y2", "the secondary yaw loop's rate feedback open")
+	var scs: Scs = rt.systems["scs"]
+	Bus.set_value("ctl.scs.tvc", 1)
+	Bus.set_value("ctl.scs.att_source", 1)
+	_motor("p1")
+	_motor("y1")
+	scs.trim = Vector2(deg_to_rad(0.49), deg_to_rad(1.22))
+	run(2.0, false)
+	var primary := _yaw_swing(3.0)
+	assert_almost_eq(float(Bus.get_value("sps.gpi_y_deg")), 1.22, 0.01, "the primary yaw loop on the trim")
+	assert_lt(primary.x, 0.001, "and steady")
+	Bus.set_value("ctl.scs.att_source", 0)
+	Bus.set_value("ctl.thc_cw", true)
+	_motor("p2")
+	_motor("y2")
+	assert_eq(Bus.get_value("sps.tvc_loops"), Vector2i(2, 2), "the secondary loops drive")
+	scs.trim.y = deg_to_rad(1.32)
+	run(4.0, false)
+	var secondary := _yaw_swing(5.0)
+	rows.append("The secondary yaw servo loop | %.2f deg either way at %.2f Hz on the GPI, the primary loop steady | 1.0 deg either way at 2.4 Hz about the command, slightly more at the last check; the primary loop good" % [
+		secondary.x, secondary.y])
+	assert_almost_eq(secondary.x, 1.0, 0.05, "1 deg either way")
+	assert_almost_eq(secondary.y, 2.4, 0.05, "at 2.4 Hz")
+	Bus.set_value("ctl.thc_cw", false)
+	run(1.0, false)
+	assert_almost_eq(Vector2(float(Bus.get_value("sps.gpi_p_deg")), float(Bus.get_value("sps.gpi_y_deg"))), Vector2.ZERO,
+		Vector2.ONE * 0.01, "the GPI at 0, 0 under the CMC")
+	for m in ["y2", "p2", "y1", "p1"]:
+		Bus.set_value("ctl.sps.gmbl_" + m, 0)
+	run(SimClock.FIXED_DT, false)
+	assert_eq(int(Bus.get_value("sps.motors_on")), 0, "the gimbal motors off")
+
 	# CIRC held: the crew doesn't fly it, the gimbal checks before it having
 	# found the SPS's secondary yaw servo loop oscillating, an open in its
 	# rate feedback, and the flight rules wanting all four servo loops for
@@ -290,7 +367,16 @@ func test_apollo_16_flies_its_data_waves_off_and_lands_at_descartes() -> void:
 	assert_almost_eq(sep2f, 1.0, 0.4, "the second separation")
 	assert_true(run_until(func() -> bool: return sq.timeline_done.has("go_circ"), 3600.0, 10.0), "GO for CIRC")
 	assert_true(rt.agc().uplink_maneuver(float(circ["tig"]), circ["dv_lvlh"]), "CIRC's PAD in P30")
+	# The gimbal checks on the primary loops, the secondary yaw motor
+	# started after them (MSC-07230, p. 9-16), the burn on the primary
+	# loops under the CMC, the GPI at its null.
+	for m in ["p1", "y1", "p2", "y2"]:
+		_motor(m)
+	assert_eq(Bus.get_value("sps.tvc_loops"), Vector2i(1, 1), "the primary loops drive")
 	flown = _fly(circ)
+	assert_eq(_yaw_swing(1.0).x, 0.0, "the yaw gimbal steady on loop 1")
+	for m in ["y2", "p2", "y1", "p1"]:
+		Bus.set_value("ctl.sps.gmbl_" + m, 0)
 	o = _orbit(rt.dynamics.traj)
 	rows.append("CIRC, held then flown | the first PAD's N81 %+.1f, %+.1f, %+.1f at %s, held; the second's %+.1f, %+.1f, %+.1f at %s, %.1f ft/s; Casper in %.1f × %.1f nmi | the first +68.1, 0, −58.0 at 97:40:17, held; the second +69.1, 0, −43.5 at 103:21:42, 81.6 ft/s; 68.0 × 53.1 nmi" % [
 		circ1_n81.x, circ1_n81.y, circ1_n81.z, _hms(float(circ1["tig"])), circ_n81.x, circ_n81.y, circ_n81.z, _hms(float(circ["tig"])),

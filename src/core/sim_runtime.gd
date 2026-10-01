@@ -74,7 +74,9 @@ extends RefCounted
 ##    and the LM in the S-IVB's adapter as the CSM's target.
 ## 35: Apollo 15's way home (slice 12b): the ELS's failed main parachute,
 ##    and the cabin vented for Worden's EVA.
-const SCHEMA_VERSION := 35
+## 36: the SPS's servo loops (slice 12c): the gimbal motors, the loops'
+##    failed rate feedback and its limit cycle, and the GPI's trim.
+const SCHEMA_VERSION := 36
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],
@@ -107,8 +109,9 @@ const LM_SYSTEMS := [
 	["aot", "res://src/systems/aot.gd"],
 	["lm_cw", "res://src/systems/lm_caution_warning.gd"],
 ]
-## Crew control defaults: CMC attitude source, HOLD, SPS disarmed, UP TLM
-## CM in ACCEPT, the SCS at RATE LOW, ATT DEADBAND MIN and TVC AUTO, the
+## Crew control defaults: CMC attitude source, HOLD, SPS disarmed, its
+## gimbal motors off and TVC GMBL DRIVE at AUTO, the THC not clockwise, UP
+## TLM CM in ACCEPT, the SCS at RATE LOW, ATT DEADBAND MIN and TVC AUTO, the
 ## EMS OFF, the optics in CMC mode at MED speed, the CM's loads all on
 ## its own buses; the LM's DAP in HOLD, its engines disarmed and both RCS
 ## systems open, the PGNS's breakers in and its guidance in control, the
@@ -125,6 +128,9 @@ const CONTROL_DEFAULTS := {
 	"ctl.optics.zero": false, "ctl.optics.mode": 1, "ctl.optics.speed": 1, "ctl.optics.hc": Vector3.ZERO,
 	"ctl.optics.mark": false, "ctl.optics.mark_reject": false,
 	"ctl.sps.arm_a": false, "ctl.sps.arm_b": false, "ctl.sps.thrust_on": false,
+	"ctl.sps.gmbl_p1": 0, "ctl.sps.gmbl_y1": 0, "ctl.sps.gmbl_p2": 0, "ctl.sps.gmbl_y2": 0,
+	"ctl.scs.tvc_drive_p": 0, "ctl.scs.tvc_drive_y": 0, "ctl.scs.gpi_trim_p": 0, "ctl.scs.gpi_trim_y": 0,
+	"ctl.thc_cw": false,
 	"ctl.rhc": Vector3.ZERO, "ctl.thc": Vector3.ZERO,
 	"ctl.els.logic": false, "ctl.els.auto": false, "ctl.cw.master_alarm": false,
 	"ctl.eps.fc1": true, "ctl.eps.fc2": true, "ctl.eps.fc3": true, "ctl.eps.cm_power": 2, "ctl.eps.lm_power": false,

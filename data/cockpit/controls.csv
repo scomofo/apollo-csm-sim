@@ -31,6 +31,17 @@ P1_SCS_RATE,MDC1,toggle,RATE,40,-10,0,ctl.scs.rate,labels=LOW|HIGH,AOH SCS 2.3-3
 P1_ATT_DEADBAND,MDC1,toggle,ATT DEADBAND,100,-10,0,ctl.scs.att_db,labels=MIN|MAX,AOH SCS 2.3-35,D,implemented,historical
 P1_SCS_TVC,MDC1,toggle,SCS TVC,160,-10,0,ctl.scs.tvc,labels=AUTO|RATE CMD,AOH SCS 2.3-44,D,implemented,proxy
 P1_GDC_ALIGN,MDC1,pushbutton,GDC ALIGN,220,-10,0,ctl.scs.gdc_align,,AOH SCS 2.3-20,D,implemented,proxy
+P1_GMBL_P1,MDC1,toggle,SPS GMBL MOTORS PITCH 1,-20,110,0,ctl.sps.gmbl_p1,positions=3;labels=OFF|ON|START;momentary_positions=2;rest_position=1,AOH SPS 2.4-16,D,implemented,historical
+P1_GMBL_Y1,MDC1,toggle,SPS GMBL MOTORS YAW 1,15,110,0,ctl.sps.gmbl_y1,positions=3;labels=OFF|ON|START;momentary_positions=2;rest_position=1,AOH SPS 2.4-16,D,implemented,historical
+P1_GMBL_P2,MDC1,toggle,SPS GMBL MOTORS PITCH 2,50,110,0,ctl.sps.gmbl_p2,positions=3;labels=OFF|ON|START;momentary_positions=2;rest_position=1,AOH SPS 2.4-16,D,implemented,historical
+P1_GMBL_Y2,MDC1,toggle,SPS GMBL MOTORS YAW 2,85,110,0,ctl.sps.gmbl_y2,positions=3;labels=OFF|ON|START;momentary_positions=2;rest_position=1,AOH SPS 2.4-16,D,implemented,historical
+P1_TVC_DRIVE_P,MDC1,toggle,TVC GMBL DRIVE PITCH,120,110,0,ctl.scs.tvc_drive_p,positions=3;labels=2|AUTO|1;values=2|0|1,AOH SCS 2.3-41,D,implemented,historical
+P1_TVC_DRIVE_Y,MDC1,toggle,TVC GMBL DRIVE YAW,155,110,0,ctl.scs.tvc_drive_y,positions=3;labels=2|AUTO|1;values=2|0|1,AOH SCS 2.3-41,D,implemented,historical
+P1_GPI_TRIM_P,MDC1,toggle,GPI TRIM PITCH,190,110,0,ctl.scs.gpi_trim_p,positions=3;labels=DN||UP;values=-1|0|1;rest_position=1;momentary_positions=0|2,AOH SCS 2.3-44,D,implemented,proxy
+P1_GPI_TRIM_Y,MDC1,toggle,GPI TRIM YAW,225,110,0,ctl.scs.gpi_trim_y,positions=3;labels=DN||UP;values=-1|0|1;rest_position=1;momentary_positions=0|2,AOH SCS 2.3-44,D,implemented,proxy
+P1_GPI_P,MDC1,numeric,GPI PITCH,100,58,0,sps.gpi_p_deg,format=%+5.2f,AOH SCS 2.3-43,D,implemented,proxy
+P1_GPI_Y,MDC1,numeric,GPI YAW,100,40,0,sps.gpi_y_deg,format=%+5.2f,AOH SCS 2.3-43,D,implemented,proxy
+P1_THC_CW,MDC1,toggle,THC CW,85,-115,0,ctl.thc_cw,labels=NEUTRAL|CW,AOH SCS 2.3-41,D,implemented,proxy
 P1_CSM_LV_SEP,MDC1,pushbutton,CSM/LV SEP,40,-70,0,ctl.seq.csm_sep,,AOH §3,D,implemented,proxy
 P1_LM_JETT,MDC1,pushbutton,LM JETT,130,-70,0,ctl.seq.lm_jett,,AOH §3,D,implemented,proxy
 P1_CM_SM_SEP,MDC1,pushbutton,CM/SM SEP,220,-70,0,ctl.seq.cm_sm_sep,,AOH §3,D,implemented,proxy
