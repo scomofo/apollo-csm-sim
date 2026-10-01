@@ -870,7 +870,9 @@ func test_a_failed_main_parachute_and_a_vented_cabin_come_back_from_a_checkpoint
 	assert_eq(rt.restore(snap), "checkpoint schema 34, expected 36")
 	build("", "apollo_15")
 	assert_false(bool(Bus.get_value("els.main_failed")), "a new flight's mains")
-	assert_false(bool(Bus.get_value("mission.cabin_vented")), "and its cabin")
+	# No phase has started yet, so the mission has not published this
+	# channel. Check the initial state before restoring and publishing.
+	assert_false(rt.sequencer.cabin_vented, "and its cabin")
 	assert_eq(rt.restore(JSON.parse_string(text)), "")
 	assert_true(bool(Bus.get_value("els.main_failed")), "the main still failed")
 	assert_almost_eq(float(Bus.get_value("els.main_cds_factor")), 0.79, 1e-6, "two mains' drag still")

@@ -98,7 +98,14 @@ jobs:
             exit 1
           fi
           args=(-gdir= "-gtest=$(IFS=,; echo "${list[*]}")")
-          ~/godot/godot --headless --path . -s addons/gut/gut_cmdln.gd "${args[@]}" -gexit
+          # GUT can report a test as passed after a GDScript runtime
+          # error aborts it before its remaining assertions.
+          set -o pipefail
+          ~/godot/godot --headless --path . -s addons/gut/gut_cmdln.gd "${args[@]}" -gexit 2>&1 | tee gut.log
+          if grep -Fq "SCRIPT ERROR:" gut.log; then
+            echo "A GDScript runtime error aborted a test."
+            exit 1
+          fi
 
   test:
     # The check to require on main: it passes only when every part of the
