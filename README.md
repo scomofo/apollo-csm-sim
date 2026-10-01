@@ -1213,7 +1213,7 @@ A flown Apollo 11 profile in the simulator reproduces these values:
 | Entry interface | 195:03:05, 36,194 ft/s, 6.53° down, 3.23° S 171.88° E | 195:03:05.7, 36,194 ft/s, 6.48° down, 3.19° S 171.96° E |
 | Entry: 0.05 g, and the two peak loads | 195:03:34; 6.5 and 6.1 g | about 195:03:34; 6.5 and 6.0 g |
 | Drogues | 195:12:39 | 195:12:07 |
-| Splashdown | 195:19:04, 13.33° N 169.18° W, 0.9 nmi from the target, at 8.5 m/s | 195:18:35, 13.30° N 169.15° W, 1.7 nmi from it by the CMC's reckoning |
+| Splashdown | 195:18:20, 13.33° N 169.18° W, 0.9 nmi from the target, at 9.8 m/s | 195:18:35, 13.30° N 169.15° W, 1.7 nmi from it by the CMC's reckoning |
 
 Apollo 8 flown from its data alone, from the pad into its parking orbit
 (`tests/scenarios/test_apollo_8_launch.gd`) and from its parking orbit
@@ -1241,7 +1241,7 @@ Mission Report (MSC-PA-R-69-1), the AS-503 flight evaluation report
 | Transearth midcourse corrections | MCC-5 2.2 ft/s, MCC-6 none, MCC-7 2.7 ft/s | MCC-5 4.8 ft/s, MCC-6 and MCC-7 scrubbed |
 | Entry interface | 146:46:58, 36,216 ft/s, 6.57° down, 20.80° N 176.54° E | 146:46:13, 36,221 ft/s, 6.50° down, 20.72° N 176.89° E |
 | The entry | P61 to P65, then P67; 6.89 g at the peak | P61 to P64, P67, no P65; 6.84 g |
-| Splashdown | 147:02:19, 8.16° N 165.02° W, 2.1 nmi from the target | 147:00:42, 8.10° N 165.01° W, 2.3 nmi from it |
+| Splashdown | 147:01:36, 8.16° N 165.02° W, 2.1 nmi from the target | 147:00:42, 8.10° N 165.01° W, 2.3 nmi from it |
 
 The report's own figures don't all agree, and the table takes these:
 - Its entry interface's longitude, 179.89° W (Table 5-V), is 3° from the
@@ -1288,7 +1288,7 @@ Apollo Flight Journal:
 | Transearth midcourse corrections | MCC-6 12.9 ft/s, MCC-7 4.4 ft/s | MCC-6 not flown, MCC-7 2.2 ft/s |
 | Entry interface | 191:48:55, 36,307 ft/s, 6.64° down, 23.56° S 174.09° E | 191:48:55, 36,314 ft/s, 6.54° down, 23.60° S 174.39° E |
 | The entry | P61 to P65, then P67; 7.13 g at the peak | P61 to P67; 6.78 g |
-| Splashdown | 192:04:18, 15.07° S 164.70° W, 1.8 nmi from the target | 192:03:23, 15.06° S 164.65° W, 1.3 nmi from it |
+| Splashdown | 192:03:35, 15.07° S 164.70° W, 1.8 nmi from the target | 192:03:23, 15.06° S 164.65° W, 1.3 nmi from it |
 
 Here too the report's figures don't all agree, and the table takes these:
 - Its TEI gave 3,680.3 ft/s by Table 6-V and 3,630.2 ft/s by the SPS's
@@ -1334,19 +1334,19 @@ Journal and the Apollo Lunar Surface Journal:
 | P64 | 110:28:25 at 8,075 ft, aiming 455 ft from the Surveyor; 15 LPD clicks | 110:29:11 near 7,000 ft, aiming 416 ft from it |
 | The landing | P66 at 110:30:35 at 390 ft; touchdown 110:31:53, 514 ft from Surveyor III, where Intrepid came down; 1,346 lb of the DPS's propellant left | P66 at 110:30:50 at 400 ft; 110:32:36, 535 ft from it; 1,175 lb |
 | The first plane change | 119:45:06, N81 −9.2, +312.8, 0; 313.1 ft/s in 19.0 s; 62.4 × 57.1 nmi | 119:47:13, N81 −11.5, +349.6, 0; 349.9 ft/s in 18.2 s; 62.5 × 57.6 nmi |
-| The P57 before the liftoff | 141:26:58, option 4, on gravity and Arcturus, which R59 finds in the right-rear detent: N05 0.02°, N93 +0.005, +0.107, −0.026° | 141:29 on Procyon through the left-front detent: N05 0.04°, N93 −0.023, +0.004, +0.015° |
-| The ascent | liftoff 142:01:21, N76 5,532.7 and 37.0 ft/s, 0.28 nmi crossrange; 439 s on the APS; 45.5 × 8.7 nmi, 0.02° from Yankee Clipper's plane | 142:03:48 (planned 142:01:18), N76 5,535.0 and 37.0 ft/s, 0.2 nmi; 423.2 s; 46.3 × 8.8 nmi |
-| The P52 after the insertion | 142:21:05 on Rigel and Capella: N05 0.013°, N93 +0.002, +0.018, +0.014° | 142:23 on the same stars: N05 0.01° |
-| CSI | 142:58:35, 47.3 ft/s; 44.9 × 42.4 nmi | 143:01:51, 45.0 ft/s; 51.0 × 41.5 nmi |
-| CDH | 143:56:31, 3.6 ft/s, 16.6 nmi below Yankee Clipper | 144:00:03, 13.8 ft/s |
-| TPI, and the midcourse corrections | 144:34:41, 28.3 ft/s; 3.3 ft/s | 144:36:26, 29.0 ft/s |
-| Docking | 145:25:26, the LM's RCS having given 122 ft/s from CSI | 145:36:20 |
+| The P57 before the liftoff | 141:26:58, option 4, on gravity and Arcturus, which R59 finds in the right-rear detent: N05 0.02°, N93 +0.010, +0.106, −0.033° | 141:29 on Procyon through the left-front detent: N05 0.04°, N93 −0.023, +0.004, +0.015° |
+| The ascent | liftoff 142:01:21, N76 5,532.7 and 37.0 ft/s, −0.28 nmi crossrange; 441 s on the APS; 45.3 × 8.7 nmi, 0.02° from Yankee Clipper's plane | 142:03:48 (planned 142:01:18), N76 5,535.0 and 37.0 ft/s, +0.2 nmi; 423.2 s; 46.3 × 8.8 nmi |
+| The P52 after the insertion | 142:20:55 on Rigel and Capella: N05 0.002°, N93 −0.006, +0.023, +0.015° | 142:23 on the same stars: N05 0.01° |
+| CSI | 142:58:34, 47.0 ft/s; 44.7 × 42.1 nmi | 143:01:51, 45.0 ft/s; 51.0 × 41.5 nmi |
+| CDH | 143:56:29, 3.9 ft/s, 17.0 nmi below Yankee Clipper | 144:00:03, 13.8 ft/s |
+| TPI, and the midcourse corrections | 144:33:56, 30.0 ft/s; 5.7 ft/s | 144:36:26, 29.0 ft/s |
+| Docking | 145:24:39, the LM's RCS having given 129 ft/s from CSI | 145:36:20 |
 | The second plane change | 159:04:44, 381.4 ft/s in 22.0 s; 63.0 × 56.8 nmi | 159:04:46, 381.8 ft/s in 19.2 s; 64.7 × 56.8 nmi |
 | TEI | 172:22:44, N81 +3,029.6, +64.6, −0.1; 3,030 ft/s in 138.2 s; entry interface after it at 244:21:08 | 172:27:17, N81 +3,027.2, +302.1, −25.3; 3,042 ft/s in 130.3 s; 244:22:19 |
 | Transearth midcourse corrections | MCC-5 3.9 ft/s, MCC-7 none | MCC-5 2.0 ft/s, MCC-7 2.4 ft/s |
-| Entry interface | 244:18:37, 36,117 ft/s, 6.52° down, 13.57° S 174.37° E | 244:22:19, 36,116 ft/s, 6.48° down, 13.80° S 173.52° E |
-| The entry | P61 to P64, then P67; 6.82 g at the peak | P61 to P67; 6.1 g on the PAD |
-| Splashdown | 244:33:29, 15.84° S 165.17° W, 1.8 nmi from the target | 244:36:25, 15.78° S 165.15° W, within 2 miles of it |
+| Entry interface | 244:18:36, 36,117 ft/s, 6.51° down, 13.57° S 174.39° E | 244:22:19, 36,116 ft/s, 6.48° down, 13.80° S 173.52° E |
+| The entry | P61 to P64, then P67; 6.80 g at the peak | P61 to P67; 6.1 g on the PAD |
+| Splashdown | 244:32:45, 15.84° S 165.17° W, 1.7 nmi from the target | 244:36:25, 15.78° S 165.15° W, within 2 miles of it |
 
 The table takes these from the flight's figures:
 - TLI's 10,515 ft/s is the J-2's (MSC-01855, Table 5-IV), which the
@@ -1399,10 +1399,10 @@ prediction:
 | SM SEP | 138:01:44; the CM and LM 37,464 lb | 138:01:48; 37,110 lb |
 | The CM's power-up | 120 A-h in the entry batteries; P52 on stars 7 and 44, 0.004° of star angle difference | 118 A-h; stars 36 and 40, 0.00 |
 | Aquarius at LM JETT | 456 A-h left; 10,288 lb in the descent stage, 8,147 lb of it used; 258 lb of the jets' propellant used | 410 A-h; 10,091.6 lb, 8,342.9 used; 467 lb |
-| LM JETT | 141:29:56; the CM pushed back 1.90 ft/s, 12,367.7 lb | 141:30:00; 1.88 ft/s, 12,367.6 lb |
+| LM JETT | 141:29:56; the CM pushed back 1.91 ft/s, 12,367.7 lb | 141:30:00; 1.88 ft/s, 12,367.6 lb |
 | Entry interface | 142:41:45, 36,199 ft/s, 6.33° down | 142:40:46, 36,210.6 ft/s, 6.27° down |
-| The entry | P61 to P64, then P67; 5.69 g at the peak | P61 to P67; 5.2 g on the PAD |
-| Splashdown | 142:56:45, 21.65° S 165.37° W, 0.8 nmi from the target; 41 A-h left in the entry batteries | 142:54:41, 21.64° S 165.36° W, about a mile from it; 29 A-h |
+| The entry | P61 to P64, then P67; 5.68 g at the peak | P61 to P67; 5.2 g on the PAD |
+| Splashdown | 142:55:58, 21.67° S 165.37° W, 0.4 nmi from the target; 41 A-h left in the entry batteries | 142:54:41, 21.64° S 165.36° W, about a mile from it; 29 A-h |
 
 The table takes these from the flight's figures:
 - The launch: AS-508's F-1s give 8,000 kN each in vacuum, the stage's
@@ -1467,11 +1467,11 @@ Journal and the Apollo Lunar Surface Journal:
 | The ascent | liftoff 141:43:53, N76 5,542.9 and 31.3 ft/s, −0.12 nmi crossrange, TPI's TIG 142:29:15; 442 s on the APS into 52.6 × 9.2 nmi | 141:45:40, N76 5,542.9 and 31.3 ft/s, −0.3 nmi, TPI 142:30:51; 432.1 s into 51.7 × 8.5 nmi |
 | The tweak | 141:55:13, 9.3 ft/s on the RCS | 141:56:49, 10.3 ft/s |
 | TPI on the APS | 142:29:15, 99.1 ft/s; Kitty Hawk 26.6° up, Antares 15.0 nmi below | 142:30:51, 88.5 ft/s; 26.6°, 15 nmi below |
-| Midcourse corrections, and docking | 0.3 ft/s together; 143:24:26 | 1.1 and 1.6 ft/s; 143:32:51 |
+| Midcourse corrections, and docking | 0.3 ft/s together; 143:24:27 | 1.1 and 1.6 ft/s; 143:32:51 |
 | TEI | 148:36:01, N81 +2,955.0, +1,712.0, −958.4; 3,547 ft/s in 162.3 s | 148:36:01, N81 +3,013.3, +1,667.4, −340.3; 3,460.6 ft/s in 149.2 s |
-| MCC-5 | 0.7 ft/s | 0.5 ft/s (the PAD's 0.7) |
-| Entry interface | 215:48:10, 36,150 ft/s, 6.70° down, 36.37° S 164.93° E | 215:47:45, 36,170.2 ft/s, 6.37° down, 36.36° S 165.80° E |
-| The entry, and splashdown | P61 to P64, then P67; 7.31 g at the peak; 216:03:12, 27.01° S 172.65° W, 0.7 nmi from the target | P61 to P67; 6.2 g on the PAD; 216:01:58, 27.01° S 172.65° W, 0.62 nmi from it |
+| MCC-5 | 0.2 ft/s | 0.5 ft/s (the PAD's 0.7) |
+| Entry interface | 215:48:03, 36,149 ft/s, 6.71° down, 36.36° S 164.92° E | 215:47:45, 36,170.2 ft/s, 6.37° down, 36.36° S 165.80° E |
+| The entry, and splashdown | P61 to P64, then P67; 7.32 g at the peak; 216:02:22, 27.01° S 172.65° W, 0.7 nmi from the target | P61 to P67; 6.2 g on the PAD; 216:01:58, 27.01° S 172.65° W, 0.62 nmi from it |
 
 The table takes these from the flight's figures:
 - The launch: AS-509's F-1s give 7,940 kN each in vacuum, the stage's
@@ -1515,8 +1515,10 @@ from the transearth coast to the splashdown
 (`tests/scenarios/test_apollo_15_entry.gd`), each holding its rows within
 set limits of the flight's figures, against the Apollo 15 Mission Report
 (MSC-05161) and its GN&C supplement, the AS-510 flight evaluation report
-(MPR-SAT-FE-71-2), the flight controllers' postflight memos, the Apollo
-Flight Journal and the Apollo Lunar Surface Journal:
+(MPR-SAT-FE-71-2), the main parachute's anomaly report (MSC-05805), the
+Earth landing system's experience report (NASA TN D-7437), the flight
+controllers' postflight memos, the Apollo Flight Journal and the Apollo
+Lunar Surface Journal:
 
 | Quantity | Simulator | Apollo 15 |
 |---|---|---|
@@ -1544,9 +1546,11 @@ Flight Journal and the Apollo Lunar Surface Journal:
 | Midcourse corrections, and docking | 0.3 ft/s together; 173:23:41 | 1.6 and 2.8 ft/s; 173:36:25 |
 | The shaping burn | 221:20:47, N81 +16.8, 0, −102.1; 103.3 ft/s into 76.7 × 54.5 nmi | 221:20:48, N81 +17.0, −0, −64.2; 66.4 ft/s into 76.0 × 54.3 nmi |
 | TEI | 223:48:45, N81 +2,922.6, −861.1, +701.0; 3,126 ft/s in 151.7 s | 223:48:45, N81 +2,945.2, −761.3, −171.4; 3,046.8 ft/s in 140.9 s |
+| Worden's EVA | the cabin vented from 241:57:12 to 242:36:19 | 241:57:12 to 242:36:19 |
 | MCC-7 | 1.2 ft/s | 5.6 ft/s on the SM RCS |
 | Entry interface | 294:59:11, 36,095 ft/s, 6.51° down, 14.09° N 175.08° W | 294:58:55, 36,096.4 ft/s, 6.51° down, 14.23° N 175.02° W |
-| The entry, and splashdown | P61 to P64, then P67; 6.49 g at the peak; 295:13:43, 871 s after entry interface on three main parachutes, 26.14° N 158.15° W, 1.4 nmi from the target | P61 to P67; 6.2 g on the PAD; 295:11:53, 778 s after it on two (the PAD's 809 on three), 26.13° N 158.14° W, about 1 nmi from it |
+| The parachutes | the mains out at 295:08:34; one deflated 99 s on, at 5,844 ft; two at 39.1 ft/s on average from there, 37.3 ft/s at the water | 295:07:34; one deflated about 99 s on, at about 6,000 ft; two at 37.5 ft/s on average, 36 ft/s at the water by design, 32 on three |
+| The entry, and splashdown | P61 to P64, then P67; 6.49 g at the peak; 295:12:43, 811 s after entry interface, 26.14° N 158.15° W, 1.4 nmi from the target | P61 to P67; 6.2 g on the PAD; 295:11:53, 778 s after it (the PAD's 809 on three mains), 26.13° N 158.14° W, about 1 nmi from it |
 
 The table takes these from the flight's figures:
 - The launch: the S-IC's vacuum Isp (305.1 s) and the S-II's flow at the
@@ -1580,8 +1584,20 @@ The table takes these from the flight's figures:
 - The shaping burn is the RTCC's at the PAD's TIG onto the PAD's orbit,
   from the orbit the simulator's Endeavour has come to by then: its ΔV
   differs, and so does TEI's.
-- The entry comes down on three main parachutes; one of the flight's
-  failed (slice 12b's second part).
+- Worden's EVA passes as time, the cabin vented from its start to its
+  end [simplified].
+- One of the mains fails 99 s after they come out, where the flight's
+  deflated, about 3 s after the CM RCS's depletion firing ran out of
+  oxidizer (MSC-05161, section 14.1.9); the flight's rate on two from
+  there, 37.5 ft/s, is derived from the time it took to come down from
+  about 6,000 ft. The simulator's CM comes down at the weight it entered
+  with, where the flight's weighed 1,200 lb less at the water
+  (MSC-05161, Table A-III): it lands 1.3 ft/s faster than the design's
+  rate on two [simplified].
+- The mains come out 60 s after the flight's: entry interface 16 s late,
+  and the CM 44 s longer from there to 10,000 ft, 32 s of it below
+  90,000 ft, where its drag is held at the hypersonic trim's
+  [simplified].
 
 Deliberate simplifications are tagged `[simplified]` in the code. The main
 ones:
@@ -1965,9 +1981,9 @@ godot --headless --path . -s addons/gut/gut_cmdln.gd -gexit
 That runs the whole suite, which takes over an hour and a half, nearly
 all of it in the scenario tests. Add `-gdir=res://tests/unit/` to run
 only the unit tests, in about ten minutes, or `-gselect=<name>` to run only the
-scripts whose file names contain `<name>`. CI runs the suite in fifteen
+scripts whose file names contain `<name>`. CI runs the suite in eighteen
 parts side by side (`.github/workflows/ci.yml`): the unit tests dealt
-out over two jobs and the scenario tests over thirteen, by each file's time
+out over three jobs and the scenario tests over fifteen, by each file's time
 on the runners (`.github/unit_seconds.txt`,
 `.github/scenario_seconds.txt`). Beside them, its build job
 exports the PC VR presets with Godot 4.4.1's templates and flies a
@@ -2092,7 +2108,7 @@ The unit tests cover:
 
   | Mode | Set off by | Where it came down | Area (Mission Operation Report) |
   |---|---|---|---|
-  | IB | S-IC engines 1 and 2 out at 1:00; the EDS aborts on its own | 2.9 nmi downrange, 0.1 nmi off the track; 5.7 g, 8.5 m/s | launch site to 520 nmi |
+  | IB | S-IC engines 1 and 2 out at 1:00; the EDS aborts on its own | 2.9 nmi downrange, 0.1 nmi off the track; 5.7 g, 9.8 m/s | launch site to 520 nmi |
   | II | the S-II's engines out at 4:00; Houston's ABORT and the handle; full lift | 530.6 nmi, 0.2 nmi off; 10.5 g | 440 to 3,200 nmi on the track |
   | III | Apollo 13's O2 tank at 11:00; the ground's 378 m/s retrograde burn; half lift | 3,304.9 nmi, 52.5 nmi south; 7.9 g | 3,000 to 3,350 nmi, about 70 nmi south |
   | IV | the S-IVB's engine out at 10:30; the SPS's 493 m/s into orbit | 85.6 by 84.9 nmi, still up an hour on | a safe orbit (perigee at least 75 nmi) |
@@ -2289,9 +2305,10 @@ The unit tests cover:
   and R47's downlist from one taken while it is on (schema 31), and the
   LGC's mode register, its LETABORT and the ABORT switch's short from
   one taken with MODREG loaded at 71 (schema 32), the landing radar's
-  low scale and its breaker's cycle (schema 33), and the transposition
-  and docking from one taken mid-retraction, the LM on the S-IVB and the
-  capture latches failed (schema 34)
+  low scale and its breaker's cycle (schema 33), the transposition and
+  docking from one taken mid-retraction, the LM on the S-IVB and the
+  capture latches failed (schema 34), and a failed main parachute and
+  the cabin vented for an EVA (schema 35)
 - The main scene, and in Eagle from `lunar_descent`: its HUD, the keys on
   its LGC or, with G, its DEDA, its two views, its checklist for the
   phase, and L between the vehicles; and the mission it's given, Apollo
@@ -2883,8 +2900,10 @@ The scenario tests fly real segments through the crew interface:
   Falcon came down on; from the surface to TEI: Endeavour's plane change,
   the P57 before the liftoff, the direct rendezvous with no tweak, TPI on
   the ascent engine, docking, LM JETT, the shaping burn and TEI; and from
-  the transearth coast home: MCC-7, the entry PAD and the entry on P61 to
-  P67. Each row of Apollo 15's Fidelity table (above) is held within
+  the transearth coast home: Worden's EVA, the cabin vented at the flown
+  times, MCC-7, the entry PAD and the entry on P61 to P67, one of the
+  mains failed 99 s after they came out and the CM down on two at their
+  rate. Each row of Apollo 15's Fidelity table (above) is held within
   limits of the flight's figures
 
 `tools/screenshot.tscn` renders the images above (`--view=0` window,
@@ -2998,8 +3017,9 @@ troubles come with it: the ABORT switch's short and Houston's workaround
 keyed on the DSKY, the landing radar's low scale and its breaker's
 cycle, and the transposition and docking's six attempts, the capture
 latches failed, the probe retracted into the ring latches at the last.
-Apollo 15 flies from its data too (slice 12b's first part): AS-510 into
-its 90 nmi parking orbit, the J mission's LM three days at Hadley, its
-descent 25° steep past the Apennine front on Luminary 210's targets and
-the LGC's terrain model, Endeavour's plane change and its orbit shaped
-for the subsatellite, and the way home.
+Apollo 15 flies from its data too (slice 12b): AS-510 into its 90 nmi
+parking orbit, the J mission's LM three days at Hadley, its descent 25°
+steep past the Apennine front on Luminary 210's targets and the LGC's
+terrain model, Endeavour's plane change and its orbit shaped for the
+subsatellite, and the way home: Worden's EVA, the cabin vented, and the
+splashdown on two main parachutes, the third failed.

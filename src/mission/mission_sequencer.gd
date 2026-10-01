@@ -50,17 +50,23 @@
 ## on, and fuel cells it shows tripped off their buses bring a call to
 ## reset them, as Apollo 12's lightning did.
 ##
+## The mains out (els.mains) is the event "main_chutes", which the
+## mission's failures may be armed on (Apollo 15's main parachute). A
+## timeline entry's "cabin" vents the CM's cabin for an EVA ("vented") or
+## brings it back ("pressurized"), as Worden's on Apollo 15's way home.
+##
 ## Reads:  ctl.seq.csm_sep, ctl.seq.undock, ctl.seq.lm_jett,
 ##         ctl.seq.cm_sm_sep, ctl.lm.stage (crew pushbuttons,
 ##         edge-triggered), ctl.ground.pad_request (String),
 ##         lm.guid.restarts, lm.guid.restart_get, lm.guid.restart_alarm,
-##         tm.valid, sys.powered, eps.fc<n>_tripped
+##         tm.valid, sys.powered, eps.fc<n>_tripped, els.mains
 ## Writes: mission.phase, mission.capcom, mission.pad_text, mission.event.<id>,
 ##         mission.result, mission.tli_tig, mission.next_event_get_s (the
 ##         timeline's next entry or the scripted failure, which SimClock
 ##         drops time acceleration at), mission.launch_mode (the abort mode
 ##         the launch is in), mission.abort_mode (its abort's),
-##         mission.abort_downrange_nmi (the abort's splashdown's)
+##         mission.abort_downrange_nmi (the abort's splashdown's),
+##         mission.cabin_vented (the timeline's EVA)
 class_name MissionSequencer
 extends Node
 
@@ -172,6 +178,9 @@ var tm_lost_get: float = -1.0
 var tm_call_said: bool = false
 var fc_trip_get: float = -1.0
 var fc_call_said: bool = false
+## The CM's cabin vented for an EVA, as the timeline's "cabin" entries
+## have it (mission.cabin_vented): Worden's on Apollo 15's way home.
+var cabin_vented: bool = false
 ## The seed the flight's dispersions are drawn from.
 var dispersion_seed: int = 0
 var _edges: Dictionary = {}
@@ -299,6 +308,8 @@ func start(p_phase: String) -> void:
 	tm_call_said = false
 	fc_trip_get = -1.0
 	fc_call_said = false
+	cabin_vented = false
+	Bus.set_value("mission.cabin_vented", false)
 	tli_pad = {}
 	tli_cutoff_get = -1.0
 	pads = {}
@@ -703,6 +714,9 @@ func _automation() -> void:
 		dynamics.finish_tde()
 		_fire("transposition_docking")
 		_say("Houston confirms hard dock and LM extraction. {csm} and {lm} are on their way.")
+	# The mains out, for the failures armed on them (Apollo 15's).
+	if bool(Bus.get_value("els.mains", false)) and not _has("main_chutes"):
+		_fire("main_chutes")
 	if dynamics.landed and not _has("landing"):
 		_fire("landing")
 	_check_lm_abort()
@@ -1819,6 +1833,10 @@ func _timeline() -> void:
 		if e.has("fail") and failures != null:
 			# A failure that comes and goes: Apollo 14's ABORT switch.
 			failures.recur(str(e["fail"]))
+		if e.has("cabin"):
+			# The cabin vented for an EVA, or pressurized again after it.
+			cabin_vented = str(e["cabin"]) == "vented"
+			Bus.set_value("mission.cabin_vented", cabin_vented)
 		if e.has("n81_ft_s"):
 			maneuver_pad(e)
 		elif e.has("pad"):
@@ -2444,7 +2462,7 @@ func snapshot() -> Dictionary:
 		"ground_abort_get": ground_abort_get,
 		"ground_abort_return": ground_abort_return, "mode_calls_said": mode_calls_said,
 		"tm_lost_get": tm_lost_get, "tm_call_said": tm_call_said, "fc_trip_get": fc_trip_get,
-		"fc_call_said": fc_call_said}
+		"fc_call_said": fc_call_said, "cabin_vented": cabin_vented}
 
 
 func restore(d: Dictionary) -> void:
@@ -2465,6 +2483,8 @@ func restore(d: Dictionary) -> void:
 	tm_call_said = bool(d.get("tm_call_said", false))
 	fc_trip_get = float(d.get("fc_trip_get", -1.0))
 	fc_call_said = bool(d.get("fc_call_said", false))
+	cabin_vented = bool(d.get("cabin_vented", false))
+	Bus.set_value("mission.cabin_vented", cabin_vented)
 	dispersion_seed = int(d.get("seed", 0))
 	_rng.seed = dispersion_seed + 1
 	_rng.state = str(d.get("rng_state", str(_rng.state))).to_int()

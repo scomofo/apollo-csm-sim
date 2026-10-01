@@ -197,7 +197,10 @@ func test_every_timeline_entry_is_one_mission_control_can_make() -> void:
 			assert_true(e.has("get") or e.has("after") or e.has("before"), "%s: its time" % what)
 			var when := str(e.get("when", ""))
 			assert_true(when in MissionSequencer.PHASES or when in MissionSequencer.CONDITIONS, "%s: when %s" % [what, when])
-			assert_true(e.has("say") or e.has("pad") or e.has("fail"), "%s: a call, a PAD or a failure" % what)
+			assert_true(e.has("say") or e.has("pad") or e.has("fail") or e.has("cabin"),
+				"%s: a call, a PAD, a failure or the cabin's pressure" % what)
+			if e.has("cabin"):
+				assert_true(str(e["cabin"]) in ["vented", "pressurized"], "%s: the cabin %s" % [what, e["cabin"]])
 			if e.has("fail"):
 				assert_false(Failures.entry(str(e["fail"])).is_empty(), "%s: fails %s, in the catalog" % [what, e["fail"]])
 			if e.has("pad"):

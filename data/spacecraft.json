@@ -281,13 +281,14 @@
     "bank_accel_dps2": 9.1
   },
   "els": {
-    "_source": "Two 16.5 ft drogues at 24,000 ft, three 83.5 ft mains at 10,000 ft [published]; CdS [estimated]. The ELS's controller, armed, comes on below the 24,000 ft baroswitch; it fires the drogues 2.0 s after, and the pilot chutes that pull the mains out below the 10,000 ft baroswitch, but not before 14.0 s after it, as a low abort needs (CSM Apollo Operations Handbook, SM2A-03-BLOCK II-(1), p. 2.9-48) [published]",
+    "_source": "Two 16.5 ft drogues at 24,000 ft, three 83.5 ft mains at 10,000 ft [published]; the drogues' CdS [estimated]. The ELS's controller, armed, comes on below the 24,000 ft baroswitch; it fires the drogues 2.0 s after, and the pilot chutes that pull the mains out below the 10,000 ft baroswitch, but not before 14.0 s after it, as a low abort needs (CSM Apollo Operations Handbook, SM2A-03-BLOCK II-(1), p. 2.9-48) [published]. The mains' CdS brings Apollo 15's command module, 11,800 lb under them, down at 32 ft/s at the water on three and 36 ft/s on two, the design's rates of descent (Apollo Experience Report: Earth Landing System, NASA TN D-7437, Fig. 2) [published]; two_mains_cds_factor, their ratio squared, is what a failed main leaves of the cluster's drag [derived]: Apollo 15's, deflated to a fifth of its diameter at about 6,000 ft, left two to bring the CM down from there at 37.5 ft/s on average (MSC-05161, section 14.1.9) [derived]",
     "drogue_alt_m": 7315.0,
     "main_alt_m": 3048.0,
     "drogue_s": 2.0,
     "main_s": 14.0,
     "drogue_cds_m2": 26.0,
-    "main_cds_m2": 1200.0
+    "main_cds_m2": 900.0,
+    "two_mains_cds_factor": 0.79
   },
   "les": {
     "_source": "The launch escape system (CSM Apollo Operations Handbook, SM2A-03-BLOCK II-(1), section 2.9; Apollo 11 press kit) [published unless marked]: the launch escape motor's 147,000 lbf and at least 515,000 lbf-s, which it gives in 3.5 s [derived]; the pitch control motor's 2,400 lbf and 1,750 lbf-s, 0.73 s [derived], fired only in the first 42 s of the flight (mode IA), to take the crew out to sea; the tower jettison motor's 31,500 lbf. The tower, 8,910 lb with its boost protective cover, is saturn_v.s_ii.les_kg. The canards deploy 11 s after an LES abort and the ELS is armed 3.0 s after them (pp. 2.9-47 and 2.9-48); they turn the launch escape vehicle blunt end forward below Mach 3.8 (Figure 2.9-36). The motor's propellant (an Isp of 220 s [estimated]), the vehicle's drag with its tower forward, and the rates the pitch control motor, the air and the canards turn it at are [estimated]: its attitude follows those rates, not its moments [simplified]",

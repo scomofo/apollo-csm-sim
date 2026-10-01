@@ -504,7 +504,7 @@
     "_comment": "The Manned Space Flight Network's tracking error in the CSM state vector the RTCC plans the CSM's PADs from and uplinks with them (P27): standard deviations in LVLH (X along track, Y right, Z down), by the body the CSM's orbit is about, Apollo 11's [estimated]"
   },
   "timeline": {
-    "_comment": "Mission Control from TLI to the entry. Each entry happens once: at its GET ('get'), or 's' seconds 'after' a mission event or a planned time, or 'before' a planned time (the sequencer's plan), if its condition ('when', a flight phase or one of the sequencer's) holds then; CAPCOM makes the call ('say'), a failure that comes and goes comes again ('fail', Failures.recur()) and the ground uplinks the PAD ('pad'): the RTCC's solution, a midcourse correction's at its TIG ('tig'), a plane change's or TEI's at the opportunity nearest 'near', the orbit's shaping onto 'ha_nmi' by 'hp_nmi' at 'tig' ('rising', the new pericynthion behind the burn point), or a maneuver the flight plan fixed ('n81_ft_s', LVLH) at 'tig'. The times, calls and PADs are Apollo 15's, its clocks never moved (Apollo Flight Journal and Lunar Surface Journal) [published]: GO for TLI 2:29:52; the MCC-2 PAD 27:58:26, TIG 28:40:00.00, flown as the SPS's test; the MCC-4 PAD 72:43:50, TIG 73:31:14.02; the final LOI PAD 77:31:04; GO for LOI 78:03:47; the DOI PAD, the CSM's, docked, 81:31:14; GO for DOI 82:08:27; the separation PAD 98:41:59, flown at 100:39:37, 1 ft/s radially down (the PAD's N81 wasn't read up: down, as Apollo 12's [estimated]), after the first undocking failed on a loose umbilical, Houston's word on it at 100:19:48; GO for undocking 99:29:18; the CSM's circularization PAD 101:05:30 and GO for it 101:20:18; the PDI PAD 102:27:58, 2 h 2 min before its updated TIG, 104:30:08.54; GO for PDI 237.5 s before it; noun 69, 2,800 ft, 76.5 s after ignition, and GO for its Enter 94.5 s after; the landing radar accepted 216.5 s after; 'a little south of the site' 548.5 s after, GO for landing 623.5 s after; STAY for T-1, T-2 and the next 77, 369 and 4,045 s after the landing at 104:42:29.3; the plane change's PAD 163:26:31, TIG 165:11:31.96, GO 164:12:31; the ascent PAD 170:40:39, TIG 171:37:22.36; GO for the direct rendezvous 521.4 s before it and GO for liftoff 111.4 s before; no tweak 107 s after the insertion's cutoff and GO for the APS TPI 671 s after it; GO for Pyro Arm for the LM's jettison 179:25:26, a revolution late, 20,938 s after docking at 173:36:28; the shaping PAD 220:34:55, TIG 221:20:47.23, its N81 +17.0, -0, -64.2 for 76.1 by 54.3 nmi, GO 221:15:52; the TEI-74 PAD 222:42:54 and GO for TEI 223:23:14; the MCC-7 PAD 290:35:02, TIG 291:56:47.90; the entry PAD 293:55:20; GO for Pyro Arm 294:06:55. MCC-1, MCC-3, MCC-5 and MCC-6 weren't flown. undocking_get: the flown undocking, to which the LM's start phases fly docked (MSC-05161, Table 3-I) [published]",
+    "_comment": "Mission Control from TLI to the entry. Each entry happens once: at its GET ('get'), or 's' seconds 'after' a mission event or a planned time, or 'before' a planned time (the sequencer's plan), if its condition ('when', a flight phase or one of the sequencer's) holds then; CAPCOM makes the call ('say'), a failure that comes and goes comes again ('fail', Failures.recur()), the cabin vents for an EVA or comes back to pressure ('cabin') and the ground uplinks the PAD ('pad'): the RTCC's solution, a midcourse correction's at its TIG ('tig'), a plane change's or TEI's at the opportunity nearest 'near', the orbit's shaping onto 'ha_nmi' by 'hp_nmi' at 'tig' ('rising', the new pericynthion behind the burn point), or a maneuver the flight plan fixed ('n81_ft_s', LVLH) at 'tig'. The times, calls and PADs are Apollo 15's, its clocks never moved (Apollo Flight Journal and Lunar Surface Journal) [published]: GO for TLI 2:29:52; the MCC-2 PAD 27:58:26, TIG 28:40:00.00, flown as the SPS's test; the MCC-4 PAD 72:43:50, TIG 73:31:14.02; the final LOI PAD 77:31:04; GO for LOI 78:03:47; the DOI PAD, the CSM's, docked, 81:31:14; GO for DOI 82:08:27; the separation PAD 98:41:59, flown at 100:39:37, 1 ft/s radially down (the PAD's N81 wasn't read up: down, as Apollo 12's [estimated]), after the first undocking failed on a loose umbilical, Houston's word on it at 100:19:48; GO for undocking 99:29:18; the CSM's circularization PAD 101:05:30 and GO for it 101:20:18; the PDI PAD 102:27:58, 2 h 2 min before its updated TIG, 104:30:08.54; GO for PDI 237.5 s before it; noun 69, 2,800 ft, 76.5 s after ignition, and GO for its Enter 94.5 s after; the landing radar accepted 216.5 s after; 'a little south of the site' 548.5 s after, GO for landing 623.5 s after; STAY for T-1, T-2 and the next 77, 369 and 4,045 s after the landing at 104:42:29.3; the plane change's PAD 163:26:31, TIG 165:11:31.96, GO 164:12:31; the ascent PAD 170:40:39, TIG 171:37:22.36; GO for the direct rendezvous 521.4 s before it and GO for liftoff 111.4 s before; no tweak 107 s after the insertion's cutoff and GO for the APS TPI 671 s after it; GO for Pyro Arm for the LM's jettison 179:25:26, a revolution late, 20,938 s after docking at 173:36:28; the shaping PAD 220:34:55, TIG 221:20:47.23, its N81 +17.0, -0, -64.2 for 76.1 by 54.3 nmi, GO 221:15:52; the TEI-74 PAD 222:42:54 and GO for TEI 223:23:14; Worden's EVA, GO for depress 241:55:31, the cabin vented from 241:57:12 to 242:36:19, 'no hurry' 242:14:53 and the hatch's seal 242:28:38; the MCC-7 PAD 290:35:02, TIG 291:56:47.90; the entry PAD 293:55:20; GO for Pyro Arm 294:06:55; and the recovery helicopter Photo's call that a main was streaming, 140 s after the mains came out. MCC-1, MCC-3, MCC-5 and MCC-6 weren't flown. undocking_get: the flown undocking, to which the LM's start phases fly docked (MSC-05161, Table 3-I) [published]",
     "undocking_get": "100:39:16",
     "entries": [
       {
@@ -750,6 +750,37 @@
         "say": "Roger. Dave, Al and Jim, be advised you are Go for Trans-Earth Injection. Set your sails for home."
       },
       {
+        "id": "go_depress",
+        "get": "241:55:31",
+        "when": "earth_return",
+        "say": "We copy, 15. And you have a Go for depress."
+      },
+      {
+        "id": "eva_start",
+        "get": "241:57:12",
+        "when": "earth_return",
+        "cabin": "vented",
+        "_comment": "Worden's EVA, out to the SIM bay for the panoramic and mapping cameras' film: from 241:57:12 to 242:36:19, the cabin's pressure through 3 psia down and up (MSC-05161, Table 3-I) [published]; the dump valve open at 241:56:02, the hatch open from 242:04:25 to 242:25:15 (Apollo Flight Journal) [published]."
+      },
+      {
+        "id": "eva_no_hurry",
+        "get": "242:14:53",
+        "when": "earth_return",
+        "say": "Beautiful job, Al baby. Remember - remember, there is no hurry up there at all."
+      },
+      {
+        "id": "eva_seal",
+        "get": "242:28:38",
+        "when": "earth_return",
+        "say": "15, Houston. Your seal looks good to us."
+      },
+      {
+        "id": "eva_end",
+        "get": "242:36:19",
+        "when": "earth_return",
+        "cabin": "pressurized"
+      },
+      {
         "id": "mcc7_pad",
         "get": "290:35:02",
         "when": "earth_return",
@@ -769,10 +800,18 @@
         "get": "294:06:55",
         "when": "earth_return",
         "say": "Roger. Your Go for Pyro Arm."
+      },
+      {
+        "id": "streaming_main",
+        "after": "main_chutes",
+        "s": 140,
+        "when": "entry",
+        "say": "This is Photo. It appears that one of your main chutes is streaming. I can only see two main chutes, and one appears to be streaming.",
+        "_comment": "The recovery helicopter Photo's call at 295:09:54, 140 s after the mains came out at 295:07:34 (Apollo Flight Journal; MSC-05161, Table 3-I) [published]."
       }
     ]
   },
-  "failures": [],
+  "failures": [{"id": "els_main", "event": "main_chutes", "after_s": 99.0, "_comment": "One of the mains deflated at about 6,000 ft, about 295:09:13, some 3 s after the CM RCS's depletion firing ran out of oxidizer at 295:09:10, 99 s after the mains came out at 295:07:34 (MSC-05161, Table 3-I and section 14.1.9; MSC-05805) [derived]: the failure catalog's els_main, armed on the mains' coming out"}],
   "start_phases": [
     "launch",
     "parking_orbit",

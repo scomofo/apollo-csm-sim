@@ -132,11 +132,12 @@ const EVENTS := {
 	"tower_jettison": ["pyro", "csm"],           # the tower leaving the CM in a mode I abort
 }
 ## Events with no sound of their own: an engine's start or stop is its
-## continuous voice's.
+## continuous voice's, the mains' mortars els.mains's.
 const SILENT_EVENTS := ["ignition", "thrust_ok", "tilt", "mach_1", "max_q", "sic_ceco", "sic_oeco", "s2_ignition",
 	"igm", "s2_ceco", "emr_command", "emr_shift", "s2_oeco", "s4_ignition", "s4_cutoff", "insertion", "tli_ignition",
 	"tli_cutoff", "lm_liftoff", "lm_insertion", "lm_abort", "abort_request", "lv_cutoff", "sic_engine_1_failure",
-	"sic_engine_2_failure", "lv_guidance_failure", "s2_engine_5_failure", "s2_engines_failure", "s4_engine_failure"]
+	"sic_engine_2_failure", "lv_guidance_failure", "s2_engine_5_failure", "s2_engines_failure", "s4_engine_failure",
+	"main_chutes"]
 const SILENT_PREFIXES := ["start_", "phase_", "pad_", "timeline_"]
 ## Channels that move continuously (the hand controllers) or aren't the
 ## cabin's (the ground's): no click.

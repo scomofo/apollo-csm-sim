@@ -2,9 +2,9 @@
 ## mission's vehicles and its books; its LM start phases, which begin on
 ## the descent orbit Endeavour's DOI left, after its trim; its ascent PAD
 ## for the direct rendezvous; and its TEI start, Endeavour's orbit shaped
-## for the subsatellite. The flights from them are
-## tests/scenarios/test_apollo_15.gd's, test_apollo_15_return.gd's and
-## test_apollo_15_entry.gd's.
+## for the subsatellite; and the main parachute it lost on the way down.
+## The flights from them are tests/scenarios/test_apollo_15.gd's,
+## test_apollo_15_return.gd's and test_apollo_15_entry.gd's.
 extends SimTest
 
 const LB := 0.45359237
@@ -139,6 +139,21 @@ func test_apollo_15s_tei_starts_with_endeavours_orbit_shaped() -> void:
 	var c := rt.dynamics.traj.conic()
 	assert_almost_eq((float(c["ra"]) - r) / Units.NMI, 76.1, 2.0, "the orbit shaped for the subsatellite")
 	assert_almost_eq((float(c["rp"]) - r) / Units.NMI, 54.3, 2.0, "and its perilune")
+	Mission.load_default()
+
+
+## Slice 12b: the main parachute Apollo 15 lost, armed on the mains' coming
+## out (tests/scenarios/test_apollo_15_entry.gd flies the entry on two).
+func test_apollo_15s_main_parachute_fails_99_s_after_the_mains_come_out() -> void:
+	build("transearth_coast", "apollo_15")
+	assert_eq(rt.failures.armed_on.get("els_main", {}), {"event": "main_chutes", "after_s": 99.0}, "armed on the mains")
+	Bus.set_value("els.mains", true)
+	run(1.0, false)
+	var out := rt.sequencer.event_get("main_chutes")
+	assert_gt(out, 0.0, "the mains out")
+	assert_true(run_until(func() -> bool: return rt.failures.active.has("els_main"), 120.0, 1.0, false), "a main deflated")
+	assert_almost_eq(float(rt.failures.active.get("els_main", 0.0)) - out, 99.0, 0.05, "99 s after they came out")
+	assert_almost_eq(float(Bus.get_value("els.main_cds_factor")), 0.79, 1e-6, "two mains' drag")
 	Mission.load_default()
 
 

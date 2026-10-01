@@ -46,8 +46,8 @@
 ## Reads:  sps.thrust_n, sps.gimbal_rad, scs.busy, rcs.force_body,
 ##         rcs.torque_body, sivb.thrust_n,
 ##         sivb.dir, sps.prop_kg, rcs.sm_prop_kg, rcs.cm_prop_kg,
-##         sivb.prop_kg, els.drogue, els.mains, guid.bank_cmd_deg,
-##         les.thrust_n, les.dir, les.q, les.mass_kg, les.blunt,
+##         sivb.prop_kg, els.drogue, els.mains, els.main_cds_factor,
+##         guid.bank_cmd_deg, les.thrust_n, les.dir, les.q, les.mass_kg, les.blunt,
 ##         guid.bank_auto, ctl.rhc, guid.dap_busy; the LM's lm.dps.thrust_n,
 ##         lm.aps.thrust_n, lm.rcs.force_body, lm.rcs.torque_body,
 ##         lm.dps.prop_kg, lm.aps.prop_kg, lm.rcs.prop_kg, lm.guid.dap_busy,
@@ -830,7 +830,8 @@ func _aero_force() -> Vector3:
 	var lift := 0.0
 	if bool(Bus.get_value("els.mains", false)):
 		var frac := float(Bus.get_value("els.main_fraction", 1.0))
-		cds += maxf(float(els["drogue_cds_m2"]) * (1.0 - frac), float(els["main_cds_m2"]) * frac)
+		var mains := float(els["main_cds_m2"]) * frac * float(Bus.get_value("els.main_cds_factor", 1.0))
+		cds += maxf(float(els["drogue_cds_m2"]) * (1.0 - frac), mains)
 	elif bool(Bus.get_value("els.drogue", false)):
 		cds += float(els["drogue_cds_m2"])
 	else:

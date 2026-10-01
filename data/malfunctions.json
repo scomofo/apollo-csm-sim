@@ -55,6 +55,11 @@
       {"text": "PROBE RETRACT - press (MDC-2), +X held: the probe pulls the docking rings together, the ring latches fire about 5 s on: hard dock", "control": "P2_PROBE_RETRACT", "check": {"channel": "dock.state", "op": "eq", "value": "docked"}},
       {"text": "+X off: the ring latches hold the vehicles"}
     ]},
+    {"title": "Malfunction: main parachute", "phases": [], "steps": [
+      {"text": "Main parachutes: one deflated, streaming at a fifth of its diameter, two good. No light: seen out of the window, or called by the recovery forces"},
+      {"text": "Two mains bring the CM down at about 36 ft/s at the water, against three's 32: within the design. Nothing to do but brace for the harder impact"},
+      {"text": "After Apollo 15, whose main the CM RCS's dump most probably burnt: land with the RCS propellants aboard, not dumped under the mains"}
+    ]},
     {"title": "Malfunction: LV ENG, LV RATE or LV GUID", "phases": [], "steps": [
       {"text": "LV ENG, LV RATE or LV GUID: a launch vehicle engine out, the vehicle's rates past the EDS's limits, or the IU's guidance lost"},
       {"text": "With the tower on and EDS AUTO: two S-IC engines out, or the rates, abort on their own, and the tower pulls the CM away (mode I)"},
