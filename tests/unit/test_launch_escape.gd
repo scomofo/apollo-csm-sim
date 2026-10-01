@@ -59,7 +59,9 @@ func test_a_pad_abort_takes_the_cm_out_to_sea() -> void:
 	assert_between(apogee, 800.0, 2000.0, "up clear of the pad")
 	assert_between(_downrange_m(), 1000.0, 3000.0, "out to sea")
 	assert_true(rt.dynamics.landed)
-	assert_lt(rt.dynamics.landed_speed, 10.0, "on the mains")
+	# On three mains about 32 ft/s, 9.8 m/s, at the landing weight the
+	# design took (spacecraft.json "els"); on the drogues alone some 60.
+	assert_lt(rt.dynamics.landed_speed, 11.0, "on the mains")
 	assert_eq(rt.sequencer.phase, "splashdown")
 	assert_string_contains(str(Bus.get_value("mission.capcom")), "Mode IA")
 

@@ -105,7 +105,9 @@ func _fly_down(max_s: float) -> void:
 	assert_true(run_until(func() -> bool: return rt.dynamics.landed, max_s, 5.0, false), "down")
 	run(1.0, false)
 	assert_eq(rt.sequencer.phase, "splashdown")
-	assert_lt(rt.dynamics.landed_speed, 10.0, "on the mains")
+	# On three mains about 32 ft/s, 9.8 m/s, at the landing weight the
+	# design took (spacecraft.json "els"); on the drogues alone some 60.
+	assert_lt(rt.dynamics.landed_speed, 11.0, "on the mains")
 
 
 func test_mode_ib_the_tower_takes_the_cm_away_on_two_engines_out() -> void:

@@ -540,6 +540,9 @@ func _process(_delta: float) -> void:
 	_parts["drogues"].visible = bool(Bus.get_value("els.drogue", false))
 	_parts["main_chutes"].visible = bool(Bus.get_value("els.mains", false))
 	_parts["main_chutes"].scale = Vector3.ONE * lerpf(0.3, 1.0, float(Bus.get_value("els.main_fraction", 1.0)))
+	# A failed main deflated to a fifth of its diameter, as Apollo 15's.
+	var deflated := 0.2 if bool(Bus.get_value("els.main_failed", false)) else 1.0
+	(_parts["main_chutes"].get_child(0) as Node3D).scale = Vector3.ONE * deflated
 	_parts["cm"].visible = view_mode != 2 or from_lm
 	# Camera, in body axes too, so only the crew's own look turns it.
 	if cabin_view:

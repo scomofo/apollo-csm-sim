@@ -9,7 +9,10 @@
 ## chutes through (spacecraft.json "els"). The crew can deploy either set
 ## manually (ctl.els.drogue / ctl.els.main pushbuttons) with ELS LOGIC on.
 ## Deploying a parachute above its structural limit shreds it
-## [simplified: fixed dynamic-pressure limits].
+## [simplified: fixed dynamic-pressure limits]. One main can fail, as one
+## of Apollo 15's did (the failure catalog's els_main, slice 12b): it
+## deflates, and the cluster's drag falls to what two give
+## (spacecraft.json "els": two_mains_cds_factor).
 ##
 ## Reads:  ctl.els.logic, ctl.els.auto, ctl.els.drogue, ctl.els.main,
 ##         les.elsc_armed, dyn.alt_m, dyn.air_speed_mps, dyn.config,
@@ -18,7 +21,7 @@
 ## opening load stays near the ~4 g of the real staged disreefing.
 ##
 ## Writes: els.drogue, els.mains, els.main_fraction, els.failed,
-##         els.elsc_active
+##         els.main_failed, els.main_cds_factor, els.elsc_active
 extends Node
 
 const DROGUE_Q_LIMIT := 40000.0   ## Pa [estimated]
@@ -28,6 +31,8 @@ const MAIN_DISREEF_S := 10.0      ## s, reefed to full open [estimated]
 var drogue: bool = false
 var mains: bool = false
 var failed: bool = false
+## One main deflated (fail("main")).
+var main_failed: bool = false
 var main_fraction: float = 0.0
 ## Seconds since the ELS's controller came on, -1 before.
 var elsc_s: float = -1.0
@@ -84,22 +89,35 @@ func tick(dt: float) -> void:
 	_publish()
 
 
+## The failure catalog's part [param part] fails: "main", one of the three
+## mains, deflated whenever they are out.
+func fail(part: String) -> void:
+	if part == "main":
+		main_failed = true
+	_publish()
+
+
 func _publish() -> void:
 	Bus.set_value("els.drogue", drogue)
 	Bus.set_value("els.mains", mains)
 	Bus.set_value("els.main_fraction", main_fraction)
 	Bus.set_value("els.failed", failed)
+	Bus.set_value("els.main_failed", main_failed)
+	Bus.set_value("els.main_cds_factor",
+		float(SpacecraftData.section("els")["two_mains_cds_factor"]) if main_failed else 1.0)
 	Bus.set_value("els.elsc_active", elsc_s >= 0.0)
 
 
 func snapshot() -> Dictionary:
-	return {"drogue": drogue, "mains": mains, "failed": failed, "main_fraction": main_fraction, "elsc_s": elsc_s}
+	return {"drogue": drogue, "mains": mains, "failed": failed, "main_failed": main_failed,
+		"main_fraction": main_fraction, "elsc_s": elsc_s}
 
 
 func restore(d: Dictionary) -> void:
 	drogue = bool(d["drogue"])
 	mains = bool(d["mains"])
 	failed = bool(d["failed"])
+	main_failed = bool(d["main_failed"])
 	main_fraction = float(d.get("main_fraction", 1.0 if mains else 0.0))
 	elsc_s = float(d.get("elsc_s", 0.0 if drogue or mains else -1.0))
 	_publish()

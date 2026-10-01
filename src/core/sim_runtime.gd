@@ -72,7 +72,9 @@ extends RefCounted
 ## 34: Apollo 14's transposition and docking (slice 12a): the docking
 ##    probe's capture latches, the last contact and the probe's retraction,
 ##    and the LM in the S-IVB's adapter as the CSM's target.
-const SCHEMA_VERSION := 34
+## 35: Apollo 15's way home (slice 12b): the ELS's failed main parachute,
+##    and the cabin vented for Worden's EVA.
+const SCHEMA_VERSION := 35
 ## The CSM's systems (the S-IVB's among them, for the stack).
 const SYSTEMS := [
 	["eps", "res://src/systems/eps.gd"],

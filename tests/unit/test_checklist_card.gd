@@ -35,7 +35,7 @@ func _step_texts(card: ChecklistCard) -> PackedStringArray:
 
 
 func test_the_book_opens_by_phase_cycles_and_acknowledges() -> void:
-	assert_eq(book.lists.size(), 16, "six for the flight, ten malfunction procedures")
+	assert_eq(book.lists.size(), 17, "six for the flight, eleven malfunction procedures")
 	book.select_for_phase("translunar_coast")
 	assert_eq(book.list().title, "SPS burn (P30 / P40)")
 	var w := book.window()

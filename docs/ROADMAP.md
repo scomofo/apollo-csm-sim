@@ -41,8 +41,8 @@ picture).
 - **Start phases stay consistent.** A new `--phase` is built the way the
   existing ones are, from the RTCC's own solutions, so it continues the
   mission it claims to.
-- **CI stays fast.** The suite runs in fifteen jobs side by side: the
-  unit tests in two parts and the scenario tests in thirteen, each dealt out
+- **CI stays fast.** The suite runs in eighteen jobs side by side: the
+  unit tests in three parts and the scenario tests in fifteen, each dealt out
   by each file's time on the runners (`.github/unit_seconds.txt`,
   `.github/scenario_seconds.txt`). Keep each job under ten minutes:
   start a long scenario from a phase or checkpoint instead of flying the
@@ -2319,7 +2319,7 @@ radar and AGS are gone, or measured against the flights.
 
 ## 12. The last lunar missions
 
-**Status: 12a done; 12b's first part done.** Milestone 7's pattern, for Apollo 14 to 17:
+**Status: 12a and 12b done.** Milestone 7's pattern, for Apollo 14 to 17:
 each mission is data, and each slice brings what its flight needed that
 the simulator can't do yet. The J missions' surfaces stay out, the EVAs,
 the rover and the experiments, and so does the SIM bay's science: the
@@ -2333,7 +2333,7 @@ splashdown (12b-1), and Worden's EVA and the parachute's failure (12b-2).
 | Slice | Work | Check |
 |---|---|---|
 | 12a (done) Apollo 14 | Kitty Hawk's probe failing to capture Antares until the sixth try (its capture latches, and the probe's retraction); the CSM's DOI with the LM docked; the abort switch's short, and the keyed workaround that had the LGC ignore it; the landing radar's late lock-on, until its breaker was cycled; the direct rendezvous, TPI in the first revolution after the insertion, without CSI and CDH; Fra Mauro's terrain | Test: as 7a, Antares landing within a set limit of where it came down |
-| 12b (first part done) Apollo 15 | The J mission's LM, its descent stage heavier and its stay three days; the steep descent past the Apennines; Endeavour's plane changes; Worden's EVA on the way home, the CM depressurised, as an event; the splashdown on two main parachutes, the third having failed | Test: as 7a, Falcon landing within a set limit of Hadley, and the CM coming down on two parachutes at the flown speed |
+| 12b (done) Apollo 15 | The J mission's LM, its descent stage heavier and its stay three days; the steep descent past the Apennines; Endeavour's plane changes; Worden's EVA on the way home, the CM depressurised, as an event; the splashdown on two main parachutes, the third having failed | Test: as 7a, Falcon landing within a set limit of Hadley, and the CM coming down on two parachutes at the flown speed |
 | 12c Apollo 16 | Casper's SPS, its secondary yaw gimbal servo oscillating before the circularization, and the landing waved off for about six hours; the flight a day shorter | Test: as 7a, Orion landing about six hours late within a set limit of its site |
 | 12d Apollo 17 | The night launch, Taurus-Littrow's terrain, and the longest stay | Test: as 7a, Challenger landing within a set limit of its site |
 
@@ -2462,6 +2462,24 @@ own troubles.
   revolutions run long, and PDI comes 3 min late. CI's parts went to
   fifteen and three for its four scenario files. Checkpoints stay schema
   34.
+
+- **Worden's EVA and the main parachute.** Done in 12b's second part. A
+  timeline entry's "cabin" vents the CM's cabin for an EVA, or brings it
+  back to pressure (mission.cabin_vented): Worden's from 241:57:12 to
+  242:36:19 (MSC-05161, Table 3-I), with CAPCOM's GO for depress and his
+  calls at the flown times; the EVA itself passes as time [simplified].
+  The mains out fire the mission event "main_chutes", which a mission's
+  failures may be armed on, and the failure catalog's els_main deflates
+  one of the three (els.main_failed), the cluster's drag falling to
+  two's (spacecraft.json "els": two_mains_cds_factor). Apollo 15's arms
+  it 99 s after the mains came out, at about 6,000 ft, where the CM
+  RCS's dump most probably burnt its risers (MSC-05161, section 14.1.9),
+  and the recovery helicopter Photo calls it streaming 140 s after them,
+  as it did; the malfunction procedure has the rates and the lesson. The
+  mains' drag area is now the design's, 32 ft/s at the water on three
+  and 36 on two (NASA TN D-7437, Fig. 2), where an estimate had brought
+  every mission's CM down on its mains about 45 s slower. Checkpoints
+  are schema 35.
 
 ## Later, not scheduled
 
