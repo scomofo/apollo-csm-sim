@@ -32,6 +32,37 @@ func test_each_book_opens_the_checklist_for_the_phase() -> void:
 	assert_eq(csm.list().title, "Entry")
 
 
+func test_saved_reading_validates_every_page_before_applying_acknowledgments() -> void:
+	var book := ChecklistBook.load_default()
+	book.add_walkthrough("csm")
+	book.select_title("CM cockpit walkthrough")
+	book.next()
+	var saved: Dictionary = JSON.parse_string(JSON.stringify(book.reading_state()))
+	book.reset_progress()
+	assert_true(book.restore_reading_state(saved), "JSON numbers restore integer reading positions")
+	assert_eq(book.list().title, "CM cockpit walkthrough")
+	assert_eq(book.list().index, 1)
+	book.list().index = book.list().steps.size()
+	var complete := book.reading_state()
+	book.reset_progress()
+	assert_true(book.restore_reading_state(complete))
+	assert_true(book.list().done(), "a completed lesson stays complete on resume")
+	assert_true(book.restore_reading_state(saved))
+	var before := book.reading_state()
+	for defect in ["changed_steps", "fractional_index", "past_end", "duplicate_page", "unknown_version"]:
+		var bad := saved.duplicate(true)
+		match defect:
+			"changed_steps": bad["pages"][-1]["steps_sha256"] = "old instructions"
+			"fractional_index": bad["pages"][-1]["index"] = 0.5
+			"past_end": bad["pages"][-1]["index"] = 9999
+			"duplicate_page": bad["pages"][-1] = bad["pages"][0]
+			"unknown_version": bad["version"] = 2
+		assert_false(book.restore_reading_state(bad), defect)
+		assert_eq(book.reading_state(), before, "no partially applied book: " + defect)
+	var empty := ChecklistBook.load_lm("apollo_8")
+	assert_true(empty.restore_reading_state(empty.reading_state()), "Apollo 8 has no LM book")
+
+
 func test_every_lm_step_checks_itself_off() -> void:
 	for c in ChecklistBook.load_lm().lists.filter(func(l: Checklist) -> bool: return not l.title.begins_with("Malfunction: ")):
 		assert_false(c.phases.is_empty(), "%s: its phases" % c.title)

@@ -153,6 +153,8 @@ func test_f5_and_f9_keep_a_quick_save() -> void:
 	var main := _main("lunar_orbit")
 	await wait_process_frames(2)
 	_fly(120.0)
+	main.menu.activate("tour")
+	main.menu.activate("next")
 	var saved_get := SimClock.get_seconds
 	assert_ne(main.quick_save(), "", "F5")
 	var e: Dictionary = main.saves.entry(main.saves.quick_path())
@@ -166,6 +168,8 @@ func test_f5_and_f9_keep_a_quick_save() -> void:
 	assert_not_null(back, "F9 in another mission: its flight started in place")
 	assert_eq(back.rt.mission.id(), "apollo_11")
 	assert_almost_eq(SimClock.get_seconds, saved_get, 1e-6)
+	assert_eq(back.book.list().title, "CM cockpit walkthrough", "cross-mission F9 keeps the lesson")
+	assert_eq(back.book.list().index, 1)
 	back.rt.free_nodes()
 	back.free()
 
@@ -197,3 +201,91 @@ func test_the_settings_survive_the_apps_restart() -> void:
 	assert_eq(float(fresh.rig.get("height_offset")), 0.0, "a main scene with no settings file keeps none")
 	fresh.rt.free_nodes()
 	fresh.free()
+
+
+func test_quick_load_rewinds_the_saved_checklist_instead_of_retaining_future_notes() -> void:
+	var main := _main("lunar_orbit")
+	await wait_process_frames(2)
+	SimClock.paused = true
+	main.menu.activate("tour")
+	main.menu.activate("next")
+	assert_eq(main.book.list().index, 1)
+	assert_ne(main.quick_save(), "")
+	main.menu.activate("next")
+	main.menu.activate("next")
+	assert_gt(main.book.list().index, 1)
+	main.quick_load()
+	assert_eq(main.book.list().title, "CM cockpit walkthrough")
+	assert_eq(main.book.list().index, 1, "F9 must rewind the crew's reading position too")
+	main.rt.free_nodes()
+	main.free()
+
+
+func test_resumed_flight_restores_the_saved_cockpit_reading_position() -> void:
+	var main := _main("lunar_orbit")
+	await wait_process_frames(2)
+	SimClock.paused = true
+	main.menu.activate("tour")
+	main.menu.activate("next")
+	var path: String = main.save_flight()
+	assert_ne(path, "")
+	var next := await _replaced(main, main.resume_flight.bind(path))
+	assert_not_null(next)
+	assert_eq(next.book.list().title, "CM cockpit walkthrough")
+	assert_eq(next.book.list().index, 1, "A cold scene resumes the same lesson")
+	next.rt.free_nodes()
+	next.free()
+
+
+func test_legacy_or_stale_reading_metadata_clears_future_progress_without_rejecting_the_flight() -> void:
+	var main := _main("lunar_orbit")
+	await wait_process_frames(2)
+	SimClock.paused = true
+	main.menu.activate("tour")
+	main.menu.activate("next")
+	var path: String = main.quick_save()
+	var saved: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(path))
+	var saved_get := SimClock.get_seconds
+	for legacy in [true, false]:
+		var data := saved.duplicate(true)
+		if legacy:
+			data["save"].erase("checklists")
+		else:
+			data["save"]["checklists"]["csm"]["pages"][-1]["steps_sha256"] = "old instructions"
+		var file := FileAccess.open(path, FileAccess.WRITE)
+		file.store_string(JSON.stringify(data))
+		file.close()
+		main.menu.activate("tour")
+		main.menu.activate("next")
+		main.menu.activate("next")
+		main.quick_load()
+		assert_almost_eq(SimClock.get_seconds, saved_get, 1e-6, "the flight still restores")
+		assert_eq(main.book.list().title, "Lunar orbit and TEI", "phase fallback")
+		assert_eq(main.book.lists[-1].index, 0, "abandoned future tour acknowledgments cleared")
+	main.rt.free_nodes()
+	main.free()
+
+
+func test_lm_resume_restores_both_books_and_vehicle_switch_keeps_their_reading_positions() -> void:
+	var main := _main("lunar_descent")
+	await wait_process_frames(2)
+	SimClock.paused = true
+	assert_eq(main.vehicles.vehicle, "lm")
+	main.book.select_title("CM cockpit walkthrough")
+	main.book.next()
+	main.menu.activate("tour")
+	main.menu.activate("next")
+	var path: String = main.save_flight()
+	var next := await _replaced(main, main.resume_flight.bind(path))
+	assert_eq(next.vehicles.vehicle, "lm")
+	assert_eq(next.guide.book.list().title, "LM cockpit walkthrough")
+	assert_eq(next.guide.book.list().index, 1)
+	assert_eq(next.book.list().index, 1, "the hidden CM reading position also restores")
+	assert_true(next.vehicles.toggle())
+	assert_same(next.guide.book, next.book)
+	assert_eq(next.guide.book.list().title, "CM cockpit walkthrough")
+	assert_eq(next.guide.book.list().index, 1)
+	assert_same(next.menu.book, next.guide.book)
+	assert_same(next.card.book, next.guide.book)
+	next.rt.free_nodes()
+	next.free()

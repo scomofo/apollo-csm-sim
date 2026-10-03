@@ -7,7 +7,8 @@
 ## ends with the malfunction procedures (data/malfunctions.json, slice 9a),
 ## and the LM's with its own (data/lm_malfunctions.json, slice 9e), which
 ## no flight phase opens: a failure opens its own (select_title()).
-## Presentation state, like the HUD's before it: checkpoints don't save it.
+## Optional saved-flight metadata keeps reading positions beside the physics
+## checkpoint. Legacy saves open the restored phase's checklist afresh.
 class_name ChecklistBook
 extends RefCounted
 
@@ -80,6 +81,53 @@ func select_title(title: String) -> bool:
 ## The next checklist, where it stands.
 func cycle() -> void:
 	select(current + 1)
+
+
+## Bind saved reading positions to the exact instructions that were read.
+## This metadata never changes controls or satisfies a checked condition.
+func reading_state() -> Dictionary:
+	var pages := []
+	for c in lists:
+		pages.append({"title": c.title, "index": c.index,
+			"steps_sha256": JSON.stringify(c.steps).sha256_text()})
+	return {"version": 1, "current": list().title if list() else "", "pages": pages}
+
+
+func reset_progress() -> void:
+	current = 0
+	for c in lists:
+		c.index = 0
+
+
+## Validate the whole book before applying anything. Changed instructions,
+## duplicate pages or malformed indices must not import earlier acknowledgments.
+func restore_reading_state(state: Variant) -> bool:
+	if not state is Dictionary or state.get("version") != 1:
+		return false
+	var pages: Variant = state.get("pages")
+	if not pages is Array or pages.size() != lists.size():
+		return false
+	var indices := []
+	var selected := -1
+	for i in lists.size():
+		var page: Variant = pages[i]
+		var c := lists[i]
+		if not page is Dictionary or page.get("title") != c.title \
+				or page.get("steps_sha256") != JSON.stringify(c.steps).sha256_text():
+			return false
+		var index: Variant = page.get("index")
+		if not (index is int or index is float) or not is_finite(float(index)) \
+				or float(index) != floor(float(index)) or index < 0 or index > c.steps.size():
+			return false
+		indices.append(int(index))
+		if state.get("current") == c.title:
+			selected = i
+	if selected < 0 and not (lists.is_empty() and state.get("current") == ""):
+		return false
+	for i in lists.size():
+		lists[i].index = indices[i]
+	current = maxi(selected, 0)
+	return true
 
 
 ## Optional cockpit orientation lesson, added by the interactive scene.

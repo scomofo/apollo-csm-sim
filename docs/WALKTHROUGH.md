@@ -1,5 +1,30 @@
 # Flying with the walkthrough
 
+Saved flights and F5/F9 now keep each vehicle's selected checklist and reading
+position, including cockpit lessons and completed pages. Quick load rewinds
+acknowledgments made after the save; cold and cross-mission resumes restore
+both CM and LM books. The HUD, guide, wrist and cabin card share those books.
+Loading a flight still chooses the vehicle from its restored docking state.
+
+Reading positions are optional presentation metadata beside the unchanged
+physics checkpoint. Each page is bound to a hash of its instructions. Older
+saves, malformed metadata or changed instructions restore the flight and open
+a fresh phase checklist. Current conditions still verify themselves; restoring
+a reading position does not operate a control or recreate a missed flight event.
+
+Opening the guide clears the startup keyboard reference so the reading card
+has a clear background. Press **H** to show that reference again when needed.
+
+![Recovered paused cockpit lesson at 1024×600](images/checklist_recovered.png)
+
+`tools/reading_recovery.tscn -- OUTPUT_DIRECTORY` exercises actual viewport
+F2/F3/F5/F9 and GUI Tour/Continue input using isolated temporary saves. Its
+displayed pass verifies shared reading state, exact paused GET and explicit
+help access. The saved-flight regressions pass nine tests / 70 assertions,
+including LM resume/vehicle switching and legacy or changed-instruction
+fallback. Checklist books and guides pass 15 tests / 330 assertions. These
+checks do not establish physical headset acceptance.
+
 Press **F2** or click **Walkthrough [F2]** at the bottom right. Choose an existing
 flight checklist from the selector, or **Cockpit tour** for a short introduction
 to the vehicle you are aboard. **P** or wrist **PAUSE** pauses the flight while

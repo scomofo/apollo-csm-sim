@@ -269,6 +269,8 @@ func _ready() -> void:
 	vehicles.changed.connect(_on_vehicle)
 	vehicles.boarded.connect(_on_boarded)
 	add_child(vehicles)
+	if resumed:
+		_restore_reading(resume_path)
 	apply_settings(carried_settings if not carried_settings.is_empty() else _read_settings())
 	if xr and float(Bus.get_value("player.xr_refresh_hz", 0.0)) > 0.0:
 		# A new flight in a session already begun.
@@ -348,6 +350,11 @@ func quick_load() -> void:
 		resume_flight(path)
 		return
 	var msg: String = audio.hush(rt.load_file.bind(path))
+	if msg == "":
+		start_phase = str(e["start_phase"])
+		_first_phase = str(e.get("first_phase", Bus.get_value("mission.phase", start_phase)))
+		vehicles.update()
+		_restore_reading(path)
 	print("main: quick save loaded" if msg == "" else "main: " + msg)
 
 
@@ -363,10 +370,24 @@ func _resume() -> bool:
 	return true
 
 
-## What a save keeps beside the checkpoint: how the flight began, for the
-## checklists a resume opens.
+## Optional presentation metadata beside the unchanged physics checkpoint.
 func _save_header() -> Dictionary:
-	return {"start_phase": start_phase, "first_phase": _first_phase}
+	return {"start_phase": start_phase, "first_phase": _first_phase,
+		"checklists": {"version": 1, "csm": book.reading_state(), "lm": lm_book.reading_state()}}
+
+
+func _restore_reading(path: String) -> void:
+	book.reset_progress()
+	lm_book.reset_progress()
+	book.select_for_phase(_checklist_phase())
+	lm_book.select_for_phase(_checklist_phase())
+	var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	var header: Variant = data.get("save", {}) if data is Dictionary else {}
+	var state: Variant = header.get("checklists", {}) if header is Dictionary else {}
+	if state is Dictionary and state.get("version") == 1:
+		book.restore_reading_state(state.get("csm"))
+		lm_book.restore_reading_state(state.get("lm"))
+	guide.reading_restored()
 
 
 func _replace_flight(p_mission: String, p_phase: String, p_resume: String = "") -> void:

@@ -73,6 +73,14 @@ func follow(c: Cabin, b: ChecklistBook) -> void:
 	refresh()
 
 
+## A checkpoint replaces the reading history as well as the flight. Drop
+## transient tour-return and scroll caches from the abandoned future.
+func reading_restored() -> void:
+	_tour_returns.clear()
+	_shown_step = ""
+	refresh()
+
+
 func is_shown() -> bool:
 	return _shown and _capture_visible
 

@@ -340,6 +340,8 @@ func set_cabin_view(on: bool) -> void:
 
 func set_guided_checklist(on: bool) -> void:
 	_check_panel.visible = not on
+	if on:
+		_help.visible = false
 
 
 ## Show the panels for [param v]: "csm", or "lm" for Eagle's.
