@@ -18,6 +18,22 @@ func _events() -> Dictionary:
 	return Bus.get_value("audio.events", {})
 
 
+func test_detached_flight_does_not_count_or_play_replacement_events() -> void:
+	var old := AudioDirector.new()
+	add_child(old)
+	Bus.set_value("ctl.els.logic", true)
+	assert_eq(old.counts.get("click"), 1)
+	remove_child(old)
+	assert_false(Bus.value_changed.is_connected(old._on_bus))
+	Bus.set_value("ctl.els.logic", false)
+	old._play("click", "csm")
+	assert_eq(old.counts.get("click"), 1, "the abandoned flight stays silent")
+	old.free()
+	var next := _director()
+	Bus.set_value("ctl.els.logic", true)
+	assert_eq(next.counts.get("click"), 1, "new flight still hears live crew controls")
+
+
 ## [param voice]'s gain as the director's next frame sets it.
 func _gain(a: AudioDirector, voice: String) -> float:
 	a._process(0.0)

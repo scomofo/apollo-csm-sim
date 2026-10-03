@@ -208,6 +208,13 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	# The global Bus survives Main's remove_child/queue_free transition.
+	# Stop listening before the replacement publishes its restored state.
+	if Bus.value_changed.is_connected(_on_bus):
+		Bus.value_changed.disconnect(_on_bus)
+	for player in _players.values():
+		if is_instance_valid(player):
+			player.stop()
 	if _render_task >= 0:
 		WorkerThreadPool.wait_for_task_completion(_render_task)
 		_render_task = -1
@@ -297,7 +304,7 @@ func _count(kind: String) -> void:
 
 
 func _play(kind: String, vehicle: String) -> void:
-	if _hushed or not _heard(vehicle):
+	if not is_inside_tree() or _hushed or not _heard(vehicle):
 		return
 	_count(kind)
 	if not enabled:
