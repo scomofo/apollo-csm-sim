@@ -483,6 +483,26 @@ func test_window_surrounds_close_the_edges_and_keep_the_view_clear() -> void:
 			assert_true(_window_ray_hits(faces, window_name, uv, 0.017), "%s frame closes the edge at %s" % [window_name, uv])
 
 
+func test_couch_detail_stays_in_the_existing_envelope_and_batches_static_geometry() -> void:
+	var cabin := _cabin()
+	for pair in [["CouchLeft", -0.62], ["CouchCentre", 0.0], ["CouchRight", 0.62]]:
+		var couch: Node3D = cabin.get_node(pair[0])
+		var meshes := couch.find_children("*", "MeshInstance3D", true, false)
+		assert_eq(meshes.size(), 3, "three material surfaces per couch, not one draw per hardware part")
+		var valid := true
+		var vertices := 0
+		for mesh: MeshInstance3D in meshes:
+			assert_eq(mesh.mesh.get_surface_count(), 1)
+			for point: Vector3 in mesh.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]:
+				var p := mesh.transform * point
+				valid = valid and p.is_finite() and p.x >= 0.44 and p.x <= 1.0 \
+					and absf(p.y - float(pair[1])) <= 0.26 and p.z >= -0.76 and p.z <= 1.0
+				vertices += 1
+		assert_gt(vertices, 500, "validate the actual baked geometry")
+		assert_true(valid, str(pair[0]) + ": no non-finite or out-of-envelope detail")
+		assert_true(couch.find_children("*", "CollisionObject3D", true, false).is_empty(), "detail cannot intercept crew picks")
+
+
 func _window_ray_hits(faces: PackedVector3Array, window_name: String, uv: Vector2, margin: float) -> bool:
 	var from := CmCabin.window_point(window_name, uv, margin, -0.12)
 	var to := CmCabin.window_point(window_name, uv, margin, 0.15)

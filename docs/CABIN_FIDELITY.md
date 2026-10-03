@@ -80,10 +80,52 @@ yaw and zoom arguments with `--seat=LEB`.
 
 1. Transcribe the window planes and outlines from dimensioned drawings,
    distinguishing inner pressure frames from outer rendezvous recesses.
-2. Replace the couch slabs with sourced tubular frames and restraint
-   details while keeping crew eyes and control reach fixed.
+2. Calibrate the fitted couch frames, hinges and restraint anchors against
+   dimensioned drawings; the component refinement below is complete.
 3. Develop the console's stepped structure and equipment-bay enclosures
    around the existing functional controls, checking labels and reach.
 
 Each pass should retain its references, state estimated dimensions, and
 include a fresh visual check alongside the relevant interaction tests.
+
+## Couch supports and restraints, 2026-10-03
+
+The thick back/seat/leg slabs now use thin support webs with rounded perimeter
+rails, separate foot pans and headrest supports. Each couch has a lap belt,
+two shoulder straps and a three-point buckle with a release lever. Empty-couch
+straps lie against the support; there is no occupant or restraint simulation.
+Static pieces are baked into three material surfaces per couch. Crew eyes,
+stations, hand controllers, panel coordinates and control Touch shapes retain
+their previous locations.
+
+[NASA TN D-8178, Apollo Experience Report: Crew Station Integration, Volume I](https://ntrs.nasa.gov/citations/19760011098)
+(March 1976), printed pp. 15-16, describes a frame-supported Armalon web
+(Teflon-covered fiberglass Beta cloth), back/seat/leg/foot pans, a headrest,
+lap belt, two shoulder straps and a lever-operated three-point buckle.
+The [original PDF](https://ntrs.nasa.gov/api/citations/19760011098/downloads/19760011098.pdf)
+was retrieved on 2026-10-03 with SHA-256
+`60d9043be5ef73915f25a4e35c2c9bff733a55a252b865f2e4bd20287a38139d`.
+[Printed page 11](images/couches/nasa-d8178-page11.png), figures 7-10, records
+the crowded surrounding crew stations; it does not supply couch dimensions.
+
+The tubular cross-section, 28 mm rail diameter, web thickness, strap routing,
+anchor coordinates, buckle shape and finishes are **estimates**. This pass
+adds described components inside the working envelope; it does not establish
+flown couch articulation, attenuation struts or calibrated crew reach.
+
+| Fixed view | Previous slabs | Framed supports and restraints |
+| --- | --- | --- |
+| Unchanged CDR eye, 90° lens | [Before](images/couches/before-couches-cdr.png) | [After](images/couches/after-couches-cdr.png) |
+| Supplemental inspection pose, 65° lens | [Before](images/couches/before-couches-inspection.png) | [After](images/couches/after-couches-inspection.png) |
+
+The [before](images/couches/before-captures.json) and
+[after](images/couches/after-captures.json) records have identical body-frame
+cameras, targets, lens, viewport (1600×900), phase, GET and capture-script hash.
+The inspection pose is explicitly separate from the crew eye. Reproduce with
+`tools/couch_review.tscn -- OUTPUT_DIRECTORY` using Godot 4.4.1 Compatibility
+rendering and a display. The tool freezes simulation time.
+
+The displayed layout suite passes 13 tests / 1356 assertions, including actual
+baked geometry bounds, three surfaces per couch, absence of pick-intercepting
+collisions, existing control round trips/reach and all window assemblies.
+This draw budget is not physical headset performance acceptance.

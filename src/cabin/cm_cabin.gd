@@ -301,19 +301,37 @@ static func _ring(p: Vector2, phi_deg: float) -> Vector3:
 func _build_couches() -> void:
 	var pad := CabinMaterials.get_material("couch")
 	var frame := CabinMaterials.get_material("couch_frame")
+	var restraint := CabinMaterials.get_material("couch_restraint")
 	var names := ["CouchLeft", "CouchCentre", "CouchRight"]
 	for i in COUCH_Y.size():
 		var y: float = COUCH_Y[i]
 		var couch := Node3D.new()
 		couch.name = names[i]
 		add_child(couch)
-		# Back and headrest behind the crew member, then the seat and the
-		# raised legs (knees toward +X, feet toward +Z).
-		_slab(couch, "Back", Vector3(0.50, y, 0.31), Vector3(0.50, y, -0.55), 0.50, 0.06, pad)
+		# TN D-8178 pp. 15-16: a frame-supported Armalon web, back/seat/
+		# leg/foot pans, headrest, lap belt and two shoulder straps. Geometry
+		# and tubular section are fitted estimates inside the existing envelope.
+		var pans := [
+			["Back", Vector3(0.50, y, 0.31), Vector3(0.50, y, -0.55), 0.50],
+			["Seat", Vector3(0.52, y, 0.31), Vector3(0.92, y, 0.58), 0.46],
+			["Legs", Vector3(0.92, y, 0.58), Vector3(0.80, y, 0.89), 0.40],
+			["Feet", Vector3(0.80, y, 0.89), Vector3(0.80, y, 0.98), 0.40],
+		]
+		for pan in pans:
+			_couch_pan(couch, pan[0], pan[1], pan[2], pan[3], pad, frame)
 		_slab(couch, "Headrest", Vector3(0.53, y, -0.55), Vector3(0.53, y, -0.72), 0.26, 0.08, pad)
-		_slab(couch, "Seat", Vector3(0.52, y, 0.31), Vector3(0.92, y, 0.58), 0.46, 0.06, pad)
-		_slab(couch, "Legs", Vector3(0.92, y, 0.58), Vector3(0.80, y, 0.98), 0.40, 0.05, pad)
-		_slab(couch, "Frame", Vector3(0.44, y, 0.40), Vector3(0.44, y, -0.60), 0.08, 0.04, frame)
+		_tube(couch, "HeadrestSupport", Vector3(0.48, y, -0.50), Vector3(0.48, y, -0.68), 0.016, frame)
+		# Empty-couch stowage depiction: straps lie against the web, not an
+		# invisible occupant. Their exact anchor, routing and finish are estimated.
+		var buckle := Vector3(0.555, y, 0.28)
+		for side in [-1.0, 1.0]:
+			_strap(couch, "ShoulderLeft" if side < 0 else "ShoulderRight",
+				[Vector3(0.527, y + side * 0.15, -0.52), Vector3(0.527, y + side * 0.13, -0.12), buckle], 0.035, restraint)
+			_strap(couch, "LapLeft" if side < 0 else "LapRight",
+				[Vector3(0.55, y + side * 0.24, 0.31), buckle], 0.05, restraint)
+		_slab(couch, "Buckle", buckle + Vector3(0.006, 0, -0.026), buckle + Vector3(0.006, 0, 0.026), 0.068, 0.013, frame)
+		_slab(couch, "ReleaseLever", buckle + Vector3(0.014, 0, -0.011), buckle + Vector3(0.014, 0, 0.024), 0.034, 0.008, frame)
+		_batch_couch(couch)
 	# The commander's hand controllers: rotation on the right armrest
 	# (RHC-1, left-hand couch right armrest), translation on the left
 	# (THC, commander's left armrest) — AOH Vol 1 §3 p. 3-9; TN D-7884.
@@ -324,6 +342,74 @@ func _build_couches() -> void:
 	_slab(self, "ArmrestLeft", Vector3(0.56, -0.91, -0.05), Vector3(0.56, -0.91, 0.25), 0.07, 0.05, frame)
 	_slab(self, "RHC", Vector3(0.60, -0.33, 0.12), Vector3(0.76, -0.33, 0.12), 0.035, 0.04, arms)
 	_slab(self, "THC", Vector3(0.60, -0.91, 0.12), Vector3(0.72, -0.91, 0.12), 0.03, 0.03, arms)
+
+
+## Thin web support with rounded perimeter rails. All parts are visual-only;
+## the three crew eyes, controllers and every control Touch stay unchanged.
+func _couch_pan(parent: Node3D, pan_name: String, a: Vector3, b: Vector3, width: float, web: Material, frame: Material) -> void:
+	_slab(parent, pan_name, a, b, width - 0.034, 0.008, web)
+	for side in [-1.0, 1.0]:
+		var offset := Vector3(0, side * (width * 0.5 - 0.014), 0)
+		_tube(parent, pan_name + ("RailLeft" if side < 0 else "RailRight"), a + offset, b + offset, 0.014, frame)
+	for end in [["Start", a], ["End", b]]:
+		_tube(parent, pan_name + "Rail" + end[0], end[1] + Vector3(0, -width * 0.5 + 0.014, 0),
+			end[1] + Vector3(0, width * 0.5 - 0.014, 0), 0.014, frame)
+
+
+func _tube(parent: Node3D, part_name: String, a: Vector3, b: Vector3, radius: float, mat: Material) -> void:
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = radius
+	mesh.bottom_radius = radius
+	mesh.height = a.distance_to(b)
+	mesh.radial_segments = 12
+	var tube := MeshInstance3D.new()
+	tube.name = part_name
+	tube.mesh = mesh
+	tube.material_override = mat
+	var along := (b - a).normalized()
+	var cross_axis := Vector3.RIGHT.cross(along).normalized()
+	tube.basis = Basis(cross_axis, along, cross_axis.cross(along))
+	tube.position = (a + b) * 0.5
+	parent.add_child(tube)
+
+
+func _strap(parent: Node3D, part_name: String, points: Array, width: float, mat: Material) -> void:
+	var root := Node3D.new()
+	root.name = part_name
+	parent.add_child(root)
+	for i in points.size() - 1:
+		var segment := _slab(root, "Webbing%d" % i, points[i], points[i + 1], width, 0.003, mat)
+		var along: Vector3 = (points[i + 1] - points[i]).normalized()
+		var normal := (Vector3.RIGHT - along * along.dot(Vector3.RIGHT)).normalized()
+		segment.basis = Basis(normal, along.cross(normal), along)
+
+
+## Bake the static pieces into one surface per material, three per couch.
+## Geometry detail must not turn every rail or strap into a separate draw.
+func _batch_couch(couch: Node3D) -> void:
+	var surfaces := {}
+	for part: MeshInstance3D in couch.find_children("*", "MeshInstance3D", true, false):
+		var mat := part.material_override
+		if not surfaces.has(mat):
+			var st := SurfaceTool.new()
+			st.begin(Mesh.PRIMITIVE_TRIANGLES)
+			surfaces[mat] = st
+		var transform := part.transform
+		var ancestor := part.get_parent() as Node3D
+		while ancestor != couch:
+			transform = ancestor.transform * transform
+			ancestor = ancestor.get_parent() as Node3D
+		for surface in part.mesh.get_surface_count():
+			surfaces[mat].append_from(part.mesh, surface, transform)
+		part.free()
+	var index := 0
+	for mat: Material in surfaces:
+		var batch := MeshInstance3D.new()
+		batch.name = "SupportWeb" if index == 0 else ("FrameAndHardware" if index == 1 else "Restraints")
+		batch.mesh = surfaces[mat].commit()
+		batch.material_override = mat
+		couch.add_child(batch)
+		index += 1
 
 
 ## A box from [param a] to [param b] (body, m), [param width] across the

@@ -18,14 +18,15 @@ const PROVENANCE := {
 	"wall": {"basis": "Off-white cabin walls: a general impression of the CM interior, not yet matched to photographs", "confidence": "estimated"},
 	"bulkhead": {"basis": "Light grey aft and forward bulkheads and tunnel: a general impression, not yet matched to photographs", "confidence": "estimated"},
 	"panel_face": {"basis": "Medium-grey main display console faces with light legends: a general impression, not yet matched to photographs", "confidence": "estimated"},
-	"couch": {"basis": "Pale couch pads: a general impression, not yet matched to photographs", "confidence": "estimated"},
+	"couch": {"basis": "TN D-8178 pp. 15-16: Armalon (Teflon-coated fiberglass Beta cloth) over the support frame; colour and finish estimated", "confidence": "estimated"},
 	"dsky_case": {"basis": "Dark grey DSKY case and keys: a general impression, not yet matched to photographs", "confidence": "estimated"},
 	"lpd": {"basis": "Landing point designator marks on the commander's window, drawn bright red-orange so they read against the ground; the flown scale's colour is not sourced", "confidence": "estimated"},
 	"panel_edge": {"basis": "Dark edge reveal between removable MDC panels", "confidence": "estimated"},
 	"fastener": {"basis": "Dull stainless panel fasteners", "confidence": "estimated"},
 	"window_frame": {"basis": "Aluminium window frame: NASA TN D-6721 pp. 3-4; finish and dimensions estimated", "confidence": "estimated"},
 	"window_seal": {"basis": "NASA TN D-6721 p. 4: black silicone over visible insulation for antiglare; roughness and colour estimated", "confidence": "estimated"},
-	"couch_frame": {"basis": "Tubular metal couch structure", "confidence": "estimated"},
+	"couch_frame": {"basis": "TN D-8178 pp. 15-16: couch support frame; tubular section, finish and dimensions estimated", "confidence": "estimated"},
+	"couch_restraint": {"basis": "TN D-8178 p. 16: lap belt, two shoulder straps and lever-operated three-point buckle; empty-couch routing and finish estimated", "confidence": "estimated"},
 }
 
 static var _cache: Dictionary = {}
@@ -71,6 +72,8 @@ static func _built(role: String) -> Material:
 			return _plain(Color(0.018, 0.02, 0.021), 0.96, true)
 		"couch_frame":
 			return _metal(Color(0.34, 0.35, 0.34), 0.66, 0.36)
+		"couch_restraint":
+			return _plain(Color(0.31, 0.29, 0.23), 0.94)
 		"lpd":
 			var m := StandardMaterial3D.new()
 			m.albedo_color = lpd_colour()
