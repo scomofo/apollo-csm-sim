@@ -75,10 +75,10 @@ func clone() -> Trajectory:
 	return c
 
 
-func set_state(p_primary: String, p_t: float, pos: Vector3, vel: Vector3) -> void:
+func set_state(p_primary: String, p_t: float, p_pos: Vector3, vel: Vector3) -> void:
 	primary = p_primary
 	t = p_t
-	s = PackedFloat64Array([pos.x, pos.y, pos.z, vel.x, vel.y, vel.z])
+	s = PackedFloat64Array([p_pos.x, p_pos.y, p_pos.z, vel.x, vel.y, vel.z])
 	field_a = PackedFloat64Array()
 
 

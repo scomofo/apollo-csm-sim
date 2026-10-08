@@ -2,6 +2,8 @@ name: CI
 
 on:
   push:
+    branches: [main]
+    tags: ['*']
   pull_request:
 
 env:
@@ -25,10 +27,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        part: [unit 1 of 3, unit 2 of 3, unit 3 of 3, scenarios 1 of 18, scenarios 2 of 18, scenarios 3 of 18,
-          scenarios 4 of 18, scenarios 5 of 18, scenarios 6 of 18, scenarios 7 of 18, scenarios 8 of 18,
-          scenarios 9 of 18, scenarios 10 of 18, scenarios 11 of 18, scenarios 12 of 18, scenarios 13 of 18,
-          scenarios 14 of 18, scenarios 15 of 18, scenarios 16 of 18, scenarios 17 of 18, scenarios 18 of 18]
+        part: [unit 1 of 3, unit 2 of 3, unit 3 of 3, scenarios 1 of 6, scenarios 2 of 6, scenarios 3 of 6,
+          scenarios 4 of 6, scenarios 5 of 6, scenarios 6 of 6]
     steps:
       - uses: actions/checkout@v5
         with:
