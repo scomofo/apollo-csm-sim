@@ -98,7 +98,7 @@ static func state_text(c: ControlBase) -> String:
 	if "position_index" in c:
 		var i := int(c.get("position_index"))
 		var labels = c.get("labels")
-		if labels != null and i >= 0 and i < (labels as PackedStringArray).size():
+		if labels != null and i >= 0 and i < Array(labels).size():
 			return (labels as PackedStringArray)[i]
 		return str(i)
 	if "value" in c:
