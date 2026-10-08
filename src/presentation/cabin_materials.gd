@@ -45,32 +45,32 @@ static func _built(role: String) -> Material:
 	match role:
 		"bezel":
 			var m := StandardMaterial3D.new()
-			m.albedo_color = Color(0.18, 0.18, 0.2)
-			m.roughness = 0.45
-			m.metallic = 0.4
+			m.albedo_color = Color(0.15, 0.16, 0.18)
+			m.roughness = 0.38
+			m.metallic = 0.5
 			return m
 		"wall":
-			return _plain(Color(0.70, 0.69, 0.64), 0.92, true)
+			return _plain(Color(0.74, 0.73, 0.68), 0.88, true)
 		"bulkhead":
-			return _plain(Color(0.62, 0.63, 0.62), 0.7, true)
+			return _plain(Color(0.58, 0.59, 0.58), 0.65, true)
 		"panel_face":
-			return _metal(Color(0.285, 0.295, 0.30), 0.12, 0.64)
+			return _metal(Color(0.25, 0.26, 0.27), 0.20, 0.55)
 		"couch":
-			return _plain(Color(0.86, 0.84, 0.78), 0.9)
+			return _plain(Color(0.88, 0.86, 0.80), 0.85)
 		"dsky_case":
-			return _plain(Color(0.2, 0.21, 0.22), 0.5)
+			return _plain(Color(0.16, 0.17, 0.18), 0.45)
 		"panel_edge":
-			return _plain(Color(0.035, 0.038, 0.04), 0.76)
+			return _plain(Color(0.025, 0.028, 0.03), 0.80)
 		"fastener":
-			return _metal(Color(0.48, 0.49, 0.48), 0.72, 0.28)
+			return _metal(Color(0.52, 0.53, 0.52), 0.80, 0.22)
 		"window_frame":
-			var m := _metal(Color(0.52, 0.53, 0.51), 0.68, 0.32)
+			var m := _metal(Color(0.55, 0.56, 0.54), 0.75, 0.28)
 			m.cull_mode = BaseMaterial3D.CULL_DISABLED
 			return m
 		"window_seal":
-			return _plain(Color(0.018, 0.02, 0.021), 0.96, true)
+			return _plain(Color(0.012, 0.014, 0.015), 0.98, true)
 		"couch_frame":
-			return _metal(Color(0.34, 0.35, 0.34), 0.66, 0.36)
+			return _metal(Color(0.40, 0.41, 0.40), 0.70, 0.30)
 		"lpd":
 			var m := StandardMaterial3D.new()
 			m.albedo_color = lpd_colour()

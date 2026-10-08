@@ -301,19 +301,22 @@ static func _ring(p: Vector2, phi_deg: float) -> Vector3:
 func _build_couches() -> void:
 	var pad := CabinMaterials.get_material("couch")
 	var frame := CabinMaterials.get_material("couch_frame")
+	var fastener := CabinMaterials.get_material("fastener")
 	var names := ["CouchLeft", "CouchCentre", "CouchRight"]
 	for i in COUCH_Y.size():
 		var y: float = COUCH_Y[i]
 		var couch := Node3D.new()
 		couch.name = names[i]
 		add_child(couch)
-		# Back and headrest behind the crew member, then the seat and the
-		# raised legs (knees toward +X, feet toward +Z).
+		# Back, headrest, seat and raised leg rests with tubular side rails.
 		_slab(couch, "Back", Vector3(0.50, y, 0.31), Vector3(0.50, y, -0.55), 0.50, 0.06, pad)
 		_slab(couch, "Headrest", Vector3(0.53, y, -0.55), Vector3(0.53, y, -0.72), 0.26, 0.08, pad)
 		_slab(couch, "Seat", Vector3(0.52, y, 0.31), Vector3(0.92, y, 0.58), 0.46, 0.06, pad)
 		_slab(couch, "Legs", Vector3(0.92, y, 0.58), Vector3(0.80, y, 0.98), 0.40, 0.05, pad)
-		_slab(couch, "Frame", Vector3(0.44, y, 0.40), Vector3(0.44, y, -0.60), 0.08, 0.04, frame)
+		# Tubular frame rails along left and right sides of each couch
+		_slab(couch, "RailLeft", Vector3(0.44, y - 0.24, 0.58), Vector3(0.44, y - 0.24, -0.72), 0.03, 0.03, frame)
+		_slab(couch, "RailRight", Vector3(0.44, y + 0.24, 0.58), Vector3(0.44, y + 0.24, -0.72), 0.03, 0.03, frame)
+		_slab(couch, "Footrest", Vector3(0.80, y, 0.98), Vector3(0.75, y, 1.05), 0.38, 0.04, fastener)
 	# The commander's hand controllers: rotation on the right armrest
 	# (RHC-1, left-hand couch right armrest), translation on the left
 	# (THC, commander's left armrest) — AOH Vol 1 §3 p. 3-9; TN D-7884.
@@ -351,10 +354,9 @@ func _build_lights() -> void:
 		var l := OmniLight3D.new()
 		l.name = spot[0]
 		l.position = spot[1]
-		# [estimated] Local task lighting at the navigation station; the
-		# main console's floods do not reach its outward-facing panel.
-		l.omni_range = 0.85 if spot[0] == "FloodNavigation" else 2.2
-		l.light_energy = 0.45
-		l.light_color = Color(1.0, 0.95, 0.86)
+		# [estimated] Task lighting calibrated for realistic panel visibility.
+		l.omni_range = 1.0 if spot[0] == "FloodNavigation" else 2.5
+		l.light_energy = 0.55
+		l.light_color = Color(1.0, 0.92, 0.82)
 		l.shadow_enabled = false
 		add_child(l)
