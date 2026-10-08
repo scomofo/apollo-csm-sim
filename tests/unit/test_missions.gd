@@ -17,7 +17,9 @@
 ## Apollo 16's (slice 12c) lands at Descartes six hours late, its CSM's
 ## circularization held and the landing waved off for three revolutions:
 ## tests/scenarios/test_apollo_16.gd, test_apollo_16_return.gd and
-## test_apollo_16_entry.gd.
+## test_apollo_16_entry.gd. Apollo 17's (slice 12d) lands at Taurus-Littrow:
+## tests/scenarios/test_apollo_17.gd, test_apollo_17_return.gd and
+## test_apollo_17_entry.gd.
 extends SimTest
 
 const LB := 0.45359237
@@ -28,7 +30,7 @@ func after_all() -> void:
 	Mission.load_default()
 
 
-func test_the_missions_are_apollo_8_and_10_to_16() -> void:
+func test_the_missions_are_apollo_8_and_10_to_17() -> void:
 	var ids := Mission.ids()
 	assert_true("apollo_11" in ids, "Apollo 11")
 	assert_true("apollo_10" in ids, "Apollo 10")
@@ -38,6 +40,7 @@ func test_the_missions_are_apollo_8_and_10_to_16() -> void:
 	assert_true("apollo_14" in ids, "Apollo 14")
 	assert_true("apollo_15" in ids, "Apollo 15")
 	assert_true("apollo_16" in ids, "Apollo 16")
+	assert_true("apollo_17" in ids, "Apollo 17")
 	for id in ids:
 		var m := Mission.load_file(Mission.path_of(id))
 		assert_eq(m.id(), id, "%s's file names it" % id)
