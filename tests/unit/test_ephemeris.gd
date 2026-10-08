@@ -19,7 +19,7 @@ const CHECK := "res://tests/fixtures/ephemeris_check.json"
 ## 17:54:00 UTC on 16 April 1972.
 const OTHERS := {"apollo_8": 2440212.0354167, "apollo_10": 2440360.2006944, "apollo_12": 2440540.1819444,
 	"apollo_13": 2440688.3006944, "apollo_14": 2440983.3771065, "apollo_15": 2441159.0652778,
-	"apollo_16": 2441424.2458333}
+	"apollo_16": 2441424.2458333, "apollo_17": 2441658.73125}
 ## Apollo 11's touchdown, 102:45:40 GET, and where.
 const T_LAND := 369940.0
 const SITE_LAT := 0.674

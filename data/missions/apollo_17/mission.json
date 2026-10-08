@@ -1,0 +1,714 @@
+{
+  "id": "apollo_17",
+  "title": "Apollo 17 - CSM America, LM Challenger",
+  "data_version": 1,
+  "_comment": "Apollo 17, Taurus-Littrow: the final Apollo lunar mission, launched at night on AS-512; Challenger landed in the Taurus-Littrow valley on Luminary 210's targets, met America by a direct rendezvous, TPI in its first revolution, and TEI brought the crew home after three days on the Moon. Sources: the Apollo 17 Mission Report (MSC-07545), the Saturn V flight evaluation report for AS-512 (MPR-SAT-FE-73-1), the LGC's final erasable load (Luminary 210), the final flight plan and press kit, the Apollo Flight Journal's and the Apollo Lunar Surface Journal's transcripts, and LROC's maps of the site. Distances in km, times in GET seconds or hhh:mm:ss. GET counts from range zero, 05:33:00 UTC on 7 December 1972; the flight moved its clocks 2 h 40 min ahead at 65:00:00, and every time here after that is taken back to range zero [simplified: the simulator's clocks aren't moved].",
+  "liftoff_jd": 2441658.73125,
+  "call_signs": {
+    "mission": "Apollo 17",
+    "csm": "America",
+    "lm": "Challenger",
+    "lm_landed": "Taurus-Littrow",
+    "_comment": "The call signs CAPCOM used for the flight and its vehicles, Challenger on the surface as Taurus-Littrow (Apollo Lunar Surface Journal) [published]"
+  },
+  "start_calls": {
+    "launch": "T-minus 20 seconds and counting. 15, 14, 13, 12, 11, 10, 9, ignition sequence start.",
+    "translunar_coast": "{mission}, Houston. Good TLI. You are on a hybrid trajectory; the midcourse corrections will put you on your lunar orbit plane.",
+    "lunar_orbit": "{mission}, Houston. You are on the descent orbit, 60 by 10 miles, with {lm} docked. Undocking comes on the twelfth rev.",
+    "lunar_descent": "{lm}, Houston. You are on the descent orbit. Your state vector and Go for PDI are coming, and a Noun 69 after throttle-up.",
+    "lunar_surface": "{lm_landed}, Houston. You're Stay. {csm}'s plane change comes first; the ascent PAD at {ascent_pad}.",
+    "lunar_ascent": "{lm}, Houston. Your ascent PAD is in, for the direct rendezvous: liftoff at {liftoff}. P12 when you are ready.",
+    "tei": "{csm}, Houston. The LM is gone, the subsatellite is out, and your TEI PAD is on its way up.",
+    "transearth_coast": "Houston: TEI was good. Your midcourse PADs will come up to trim the entry corridor.",
+    "entry": "Houston: entry interface in about twenty minutes. P61, CM/SM SEP when P62 asks, ELS LOGIC and AUTO.",
+    "_comment": "CAPCOM's word as each start phase begins, the simulator's own [adapted]"
+  },
+  "moon": {
+    "ephemeris": "res://data/ephemeris/apollo_17.json",
+    "gravity": "res://data/gravity/moon.json"
+  },
+  "vehicles": {
+    "_comment": "Apollo 17's vehicles where they differ from data/spacecraft.json's, Apollo 11's: the J mission's heavier CSM and extended LM",
+    "mass": {
+      "cm_dry_kg": 5840.0,
+      "sm_dry_kg": 5360.0,
+      "lm_descent_dry_kg": 2790.0,
+      "lm_ascent_dry_kg": 2320.0,
+      "sivb_dry_kg": 16650.0,
+      "_source": "The mission report's mass properties (MSC-07545) and propellant loads [published]; the vehicle at the S-IVB's second ignition, 139,235 kg (MPR-SAT-FE-73-1, Table 16-9) [published]."
+    },
+    "sps": {
+      "propellant_kg": 18450.0,
+      "_source": "The SPS's load (MSC-07545, section 6.11.1) [published]; its engine Apollo 11's"
+    },
+    "sm_rcs": {
+      "quad_propellant_kg": 152.0,
+      "_source": "The SM RCS's load in four quads (MSC-07545) [published]"
+    },
+    "cm_rcs": {
+      "ring_propellant_kg": 46.0,
+      "_source": "The CM RCS's usable load in two systems (MSC-07545) [published]"
+    },
+    "dps": {
+      "propellant_kg": 8875.0,
+      "_source": "The DPS's load (MSC-07545) [published]; its engine Apollo 11's"
+    },
+    "aps": {
+      "propellant_kg": 2380.0,
+      "_source": "The APS's load (MSC-07545) [published]; its engine Apollo 11's"
+    },
+    "lm_rcs": {
+      "system_propellant_kg": 140.0,
+      "_source": "The LM RCS's load in two systems (MSC-07545) [published]"
+    },
+    "lm_eps": {
+      "battery_ah": 2667.0,
+      "_source": "The J mission's LM batteries, for a stay of three days: 2,667 A-h total"
+    },
+    "sivb": {
+      "thrust_n": 890000.0,
+      "isp_s": 428.0,
+      "propellant_kg": 75500.0,
+      "_source": "The J-2 in AS-512's second S-IVB burn, TLI (MPR-SAT-FE-73-1) [published]"
+    },
+    "ascent_guidance": {
+      "insertion_hdot_mps": 9.7536,
+      "insertion_apolune_alt_m": 78000.0,
+      "_source": "Insertion for the direct rendezvous, climbing at 32.0 ft/s"
+    },
+    "saturn_v": {
+      "liftoff_kg": 2923000.0,
+      "s_ic": {
+        "engines": 5,
+        "thrust_vac_n": 8100000,
+        "exit_area_m2": 13.0,
+        "isp_sl_s": 265.0,
+        "isp_vac_s": 306.0,
+        "propellant_kg": 2072000.0,
+        "_source": "AS-512's F-1s (MPR-SAT-FE-73-1) [published]"
+      },
+      "s_ii": {
+        "start_kg": 672000.0,
+        "propellant_kg": 448000.0,
+        "thrust_n": 5190000,
+        "flow_kg_s": 1236.0,
+        "low_mr_thrust_n": 3520000,
+        "low_mr_flow_kg_s": 840.0,
+        "aft_interstage_kg": 3900.0,
+        "les_kg": 4140.0,
+        "_source": "AS-512's S-II stage (MPR-SAT-FE-73-1) [published]"
+      },
+      "s_ivb": {
+        "start_kg": 171000.0,
+        "thrust_n": 905000,
+        "flow_kg_s": 216.0,
+        "_source": "AS-512's S-IVB stage (MPR-SAT-FE-73-1) [published]"
+      },
+      "_source": "AS-512, Apollo 17's Saturn V (MPR-SAT-FE-73-1) [published]"
+    },
+    "descent_guidance": {
+      "braking": {
+        "r": [
+          -950.476,
+          0.0,
+          -3578.791
+        ],
+        "v": [
+          -59.8838,
+          0.0,
+          -50.8284
+        ],
+        "a": [
+          -0.218922,
+          0.0,
+          -2.530587
+        ],
+        "jz": -0.0046097,
+        "tend_s": 62.0,
+        "tgo0_s": 660.0
+      },
+      "approach": {
+        "r": [
+          48.3108,
+          0.0,
+          -8.3379
+        ],
+        "v": [
+          -1.07739,
+          0.0,
+          0.0076
+        ],
+        "a": [
+          0.0235239,
+          0.0,
+          -0.1797183
+        ],
+        "jz": 0.0131593,
+        "tend_s": 12.0,
+        "tgo0_s": 152.0
+      },
+      "pdi_range_m": 516000.0,
+      "descent_s": 740.0,
+      "terrain_absc_m": [
+        -180746.4,
+        -59740.8,
+        -32308.8,
+        -27249.12,
+        -8900.16
+      ],
+      "terrain_slope_rad": [
+        0.020968,
+        0.0,
+        0.186747,
+        -0.214784,
+        0.0113014
+      ],
+      "_source": "Apollo 17's descent, 25 deg steep past the mountain walls of Taurus-Littrow"
+    }
+  },
+  "launch": {
+    "pad_lat_deg": 28.608389,
+    "pad_lon_deg": -80.604333,
+    "flight_azimuth_deg": 91.5,
+    "pad_azimuth_deg": 90.0,
+    "start_get_s": -20.0,
+    "grr_get_s": -16.9,
+    "ignition_get_s": -8.9,
+    "thrust_ok_get_s": -1.4,
+    "release_get_s": 0.3,
+    "t1_get_s": 0.58,
+    "yaw_deg": 1.25,
+    "yaw_t1_s": [
+      1.1,
+      9.1
+    ],
+    "tilt_t1_s": 11.6,
+    "attitude_rate_dps": 1.0,
+    "tilt_segments_s": [
+      35.0,
+      80.0,
+      115.0
+    ],
+    "tilt_poly": [
+      [
+        3.1984,
+        -0.544236,
+        0.0351605,
+        -0.00116379,
+        1.13886e-05
+      ],
+      [
+        -10.9607,
+        0.94662,
+        -0.0294206,
+        0.000207717,
+        -4.39036e-07
+      ],
+      [
+        78.7826,
+        -2.83749,
+        0.028971,
+        -0.000178363,
+        4.63029e-07
+      ],
+      [
+        69.9191,
+        -2.00749,
+        0.0105367,
+        -2.33163e-05,
+        1.36702e-08
+      ]
+    ],
+    "sic_ceco_t1_s": 135.38,
+    "tilt_arrest_t2_s": 20.82,
+    "t3_s": {
+      "separation": 1.62,
+      "s2_start": 2.32,
+      "s2_mainstage": 5.32,
+      "aft_interstage": 31.62,
+      "les": 36.32,
+      "igm": 43.02,
+      "s2_ceco": 299.98,
+      "emr_shift": 324.32
+    },
+    "t4_s": {
+      "separation": 1.04,
+      "s4_ignition": 4.14,
+      "s4_mainstage": 6.64
+    },
+    "insertion_t5_s": 9.8,
+    "parking_orbit_loss_kg": 1375.0,
+    "calls": {
+      "ignition": "15 seconds, guidance internal, 13, 12, 11, 10, 9, 8, ignition sequence start.",
+      "liftoff": "Lift-off. We have a lift-off, and it's lighting up the night sky.",
+      "tilt": "The tower is clear.",
+      "sic_ceco": "Roger. Inboard.",
+      "s2_ignition": "17, Houston. You have good thrust on the S-II. All five are good.",
+      "les_jettison": "Tower Jett.",
+      "s2_ceco": "Roger. Inboard.",
+      "s4_ignition": "17, Houston. You have good thrust on the S-IVB.",
+      "s4_cutoff": "Booster confirms the S-IVB has shutdown."
+    },
+    "_comment": "Apollo 17's night launch from Launch Complex 39A at 05:33:00 UTC on 7 December 1972, GET 0, on AS-512: flight azimuth 91.5 deg (MPR-SAT-FE-73-1) [published]."
+  },
+  "launch_aborts": {
+    "ib_get_s": 42.0,
+    "ic_get_s": 117.0,
+    "coi_get_s": 359.0,
+    "iii_get_s": 541.0,
+    "iv_get_s": 555.0,
+    "calls": [
+      [
+        42.0,
+        "Mark. One Bravo."
+      ],
+      [
+        117.0,
+        "Mark. One Charlie now."
+      ],
+      [
+        198.0,
+        "Roger. We confirm the Skirt Sep. You're Mode II."
+      ],
+      [
+        359.0,
+        "Mark. You have S-IVB to COI now."
+      ],
+      [
+        406.0,
+        "Stand by for S-IVB to orbit capability. Mark. You have it now."
+      ],
+      [
+        555.0,
+        "Mark. You have Mode IV now."
+      ]
+    ],
+    "landing_nmi": {
+      "I": [
+        0.0,
+        520.0
+      ],
+      "II": [
+        440.0,
+        3200.0
+      ],
+      "III": [
+        3000.0,
+        3350.0
+      ]
+    },
+    "mode_iii_south_nmi": 70.0,
+    "mode_iii_target_nmi": 3300.0,
+    "half_lift_bank_deg": 60.0,
+    "mode_iii_tig_s": 90.0,
+    "mode_iv_tig_s": 120.0,
+    "_comment": "Apollo 17's launch abort modes"
+  },
+  "parking_orbit": {
+    "alt_km": 167.8,
+    "insertion_get_s": 704.67,
+    "inclination_deg": 28.52,
+    "raan_deg": 8.804,
+    "arg_lat_deg": 99.58,
+    "_comment": "Apollo 17's orbit at insertion (MPR-SAT-FE-73-1)"
+  },
+  "launch_refsmmat": {
+    "x": [
+      -0.979112010,
+      0.201709243,
+      -0.025554913
+    ],
+    "y": [
+      0.118700329,
+      0.465033787,
+      -0.877299156
+    ],
+    "z": [
+      -0.165075451,
+      -0.862007516,
+      -0.479263119
+    ],
+    "_comment": "The launch pad REFSMMAT, X horizontal along 91.5 deg azimuth at LC-39A, Z down, Y = Z x X in the ICRF from tools/ephemeris/parking_orbit.py"
+  },
+  "tli": {
+    "c3_m2_per_s2": -1440000.0,
+    "eccentricity": 0.976,
+    "plane_normal": [
+      0.064741751,
+      -0.472430860,
+      0.878986683
+    ],
+    "aim_pericynthion_nmi": 139.0,
+    "aim_pericynthion_get": "78:31:21",
+    "pericynthion_alt_km": 126.5,
+    "pericynthion_get": "78:35:06",
+    "earliest_get_s": 9690.0,
+    "perigee_arc_fraction": 0.455,
+    "node_targeting": true,
+    "_comment": "TLI's conic"
+  },
+  "tde_delay_s": 4927.5,
+  "_tde": "tde_delay_s: transposition, docking and extraction.",
+  "loi": {
+    "apolune_alt_km": 314.1,
+    "perilune_alt_km": 108.2,
+    "_comment": "LOI's targets"
+  },
+  "doi": {
+    "by": "csm",
+    "tig": "82:39:48.29",
+    "pericynthion_alt_km": 15.267,
+    "_comment": "Descent orbit insertion"
+  },
+  "landing": {
+    "site": "Taurus-Littrow",
+    "lat_deg": 20.1908,
+    "lon_deg": 30.7717,
+    "get_s": 406800.0,
+    "approach_azimuth_deg": 270.0,
+    "touchdown_lat_deg": 20.1908,
+    "touchdown_lon_deg": 30.7717,
+    "dps_prop_left_kg": 520.0,
+    "yaw_deg": 0.0,
+    "_comment": "Apollo 17's landing site at Taurus-Littrow"
+  },
+  "pdi": {
+    "state_error_lvlh_m": [
+      800.0,
+      0.0,
+      0.0
+    ],
+    "state_error_lvlh_mps": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "n69_sigma_m": 60.0,
+    "site_error_m": [
+      0.0,
+      0.0
+    ],
+    "_comment": "The LM state vector error"
+  },
+  "ascent": {
+    "planned_liftoff_get": "188:00:00.00",
+    "_comment": "The direct rendezvous's liftoff"
+  },
+  "rendezvous": {
+    "direct": true,
+    "tpi_after_insertion_s": 2704.9,
+    "tpm_after_tpi_s": [
+      900.0,
+      1800.0
+    ],
+    "csm_state_error_lvlh_m": [
+      900.0,
+      60.0,
+      -150.0
+    ],
+    "csm_state_error_lvlh_mps": [
+      0.0,
+      0.0,
+      0.3
+    ],
+    "_comment": "The direct rendezvous"
+  },
+  "lunar_orbit": {
+    "start_get": "96:00:00",
+    "apolune_nmi": 59.9,
+    "perilune_nmi": 9.6,
+    "perilune_lon_deg": 30.7,
+    "loi2_apolune_nmi": 64.9,
+    "loi2_perilune_nmi": 54.3,
+    "loi2_tig": "101:38:58.19",
+    "loi2_rising": true,
+    "sps_dv_mps": 982.9,
+    "_comment": "Apollo 17's descent orbit"
+  },
+  "tei": {
+    "dv_mps": 930.0,
+    "entry_perigee_alt_km": 37.2,
+    "return_inclination_deg": 40.1,
+    "ei_get": "301:51:52",
+    "tig_near": "236:39:38.00",
+    "n81_ft_s": [
+      3052.2,
+      -500.8,
+      -260.6
+    ],
+    "tig_free": true,
+    "_comment": "TEI onto Apollo 17's return"
+  },
+  "entry": {
+    "target_lat_deg": -17.88,
+    "target_lon_deg": -166.0,
+    "_comment": "Apollo 17's entry target"
+  },
+  "lgc": {
+    "drift_meru": [
+      0.1,
+      -2.4,
+      1.4
+    ],
+    "surface_drift_meru": [
+      0.087,
+      0.006,
+      -0.029
+    ],
+    "first_p52": {
+      "get": "101:16:00",
+      "torque_deg": [
+        -0.002,
+        0.076,
+        -0.046
+      ],
+      "stars": [
+        41,
+        1
+      ],
+      "detent": 2,
+      "sad_deg": 0.01
+    },
+    "_comment": "Challenger's IMU"
+  },
+  "dispersions": {
+    "seed": 721207,
+    "_comment": "The seed for Apollo 17 dispersions"
+  },
+  "msfn": {
+    "earth": {
+      "pos_m": [
+        500.0,
+        500.0,
+        500.0
+      ],
+      "vel_mps": [
+        0.05,
+        0.05,
+        0.05
+      ]
+    },
+    "moon": {
+      "pos_m": [
+        300.0,
+        150.0,
+        300.0
+      ],
+      "vel_mps": [
+        0.1,
+        0.05,
+        0.1
+      ]
+    },
+    "_comment": "MSFN tracking error"
+  },
+  "timeline": {
+    "_comment": "Mission Control timeline",
+    "undocking_get": "100:39:16",
+    "entries": [
+      {
+        "id": "go_tli",
+        "get": "2:29:52",
+        "when": "parking_orbit",
+        "say": "You are Go for TLI."
+      },
+      {
+        "id": "mcc2_pad",
+        "get": "27:58:26",
+        "when": "translunar_coast",
+        "pad": "mcc",
+        "tig": "28:40:00.00"
+      },
+      {
+        "id": "loi_pad",
+        "get": "77:31:04",
+        "when": "translunar_coast",
+        "pad": "loi"
+      },
+      {
+        "id": "go_loi",
+        "get": "78:03:47",
+        "when": "translunar_coast",
+        "say": "17, Houston. You have a Go for LOI."
+      },
+      {
+        "id": "doi_pad",
+        "get": "81:31:14",
+        "when": "docked",
+        "pad": "doi"
+      },
+      {
+        "id": "go_doi",
+        "get": "82:08:27",
+        "when": "docked",
+        "say": "Apollo 17, Houston. You're Go for DOI."
+      },
+      {
+        "id": "sep_pad",
+        "get": "98:41:59",
+        "when": "docked",
+        "pad": "sep",
+        "name": "SEP",
+        "tig": "100:39:37",
+        "n81_ft_s": [
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      {
+        "id": "go_undocking",
+        "get": "99:29:18",
+        "when": "docked",
+        "say": "Apollo 17, Houston. You're Go for undocking."
+      },
+      {
+        "id": "circ_pad",
+        "get": "101:05:30",
+        "when": "lm_free",
+        "pad": "circ"
+      },
+      {
+        "id": "go_circ",
+        "get": "101:20:18",
+        "when": "lm_free",
+        "say": "Endeavour, America, Houston. You're Go for Circ."
+      },
+      {
+        "id": "pdi_pad",
+        "before": "pdi_tig",
+        "s": 7330.5,
+        "when": "lm_free",
+        "pad": "pdi",
+        "say": "Challenger, Houston. Your PDI PAD and state vector are coming up."
+      },
+      {
+        "id": "go_pdi",
+        "before": "pdi_tig",
+        "s": 237.5,
+        "when": "lm_free",
+        "say": "Challenger, you are Go for PDI."
+      },
+      {
+        "id": "go_landing",
+        "after": "pdi_tig",
+        "s": 623.5,
+        "when": "lm_descent",
+        "say": "Challenger, Houston. You're Go for landing."
+      },
+      {
+        "id": "stay_t1",
+        "after": "lm_landing",
+        "s": 77,
+        "when": "lm_landed",
+        "say": "Challenger, Houston. You're Stay for T-1."
+      },
+      {
+        "id": "stay_t2",
+        "after": "lm_landing",
+        "s": 369,
+        "when": "lm_landed",
+        "say": "Challenger, Houston. You're stay for T-2."
+      },
+      {
+        "id": "stay_t3",
+        "after": "lm_landing",
+        "s": 4045,
+        "when": "lm_landed",
+        "say": "Taurus-Littrow, you have a Stay."
+      },
+      {
+        "id": "lopc1_pad",
+        "get": "163:26:31",
+        "when": "lm_landed",
+        "pad": "plane",
+        "near": "165:11:31.96"
+      },
+      {
+        "id": "go_lopc1",
+        "get": "164:12:31",
+        "when": "lm_landed",
+        "say": "America, this is Houston. You're Go for plane change 1."
+      },
+      {
+        "id": "ascent_pad",
+        "get": "170:40:39",
+        "when": "lm_landed",
+        "pad": "ascent",
+        "near": "171:37:22.36"
+      },
+      {
+        "id": "go_liftoff",
+        "before": "liftoff_tig",
+        "s": 111.4,
+        "when": "lm_landed",
+        "say": "Challenger, you're Go for lift-off."
+      },
+      {
+        "id": "go_tpi",
+        "after": "lm_insertion",
+        "s": 671,
+        "when": "lm_orbit",
+        "say": "Challenger, Houston. You're Go for TPI."
+      },
+      {
+        "id": "go_jettison",
+        "after": "docking",
+        "s": 20938,
+        "when": "docked_ascent",
+        "say": "17, you're Go for Pyro Arm."
+      },
+      {
+        "id": "tei_pad",
+        "get": "222:42:54",
+        "when": "csm_orbit",
+        "pad": "tei",
+        "near": "223:48:45.05"
+      },
+      {
+        "id": "go_tei",
+        "get": "223:23:14",
+        "when": "csm_orbit",
+        "say": "America, you are Go for Trans-Earth Injection."
+      },
+      {
+        "id": "entry_pad",
+        "get": "293:55:20",
+        "when": "earth_return",
+        "pad": "entry"
+      },
+      {
+        "id": "go_pyro_arm",
+        "get": "294:06:55",
+        "when": "earth_return",
+        "say": "Roger. Your Go for Pyro Arm."
+      }
+    ]
+  },
+  "failures": [],
+  "start_phases": [
+    "launch",
+    "parking_orbit",
+    "translunar_coast",
+    "lunar_orbit",
+    "lunar_descent",
+    "lunar_surface",
+    "lunar_ascent",
+    "tei",
+    "transearth_coast",
+    "entry"
+  ],
+  "start_notes": {
+    "_comment": "The flight menu's line on each start phase",
+    "launch": "On the pad at LC-39A, 20 s before liftoff, night launch",
+    "parking_orbit": "In the 90 nmi parking orbit, TLI ahead",
+    "translunar_coast": "After TLI, docked to Challenger",
+    "lunar_orbit": "After DOI, 60 × 10 nmi, Challenger docked",
+    "lunar_descent": "Challenger on its descent orbit, 20 min before PDI",
+    "lunar_surface": "Challenger at Taurus-Littrow, 10 min after the landing",
+    "lunar_ascent": "Challenger 20 min before liftoff for the direct rendezvous",
+    "tei": "America alone, a minute before the TEI PAD",
+    "transearth_coast": "After TEI, on the way home",
+    "entry": "About 20 min before entry interface, the target in"
+  }
+}
