@@ -426,17 +426,17 @@
     "_comment": "Apollo 17's descent orbit"
   },
   "tei": {
-    "dv_mps": 928.66,
+    "dv_mps": 930.0,
     "entry_perigee_alt_km": 37.2,
     "return_inclination_deg": 40.1,
-    "ei_get": "304:00:00",
-    "tig_near": "236:00:00.00",
+    "ei_get": "301:51:52",
+    "tig_near": "236:39:38.00",
     "n81_ft_s": [
-      2945.2,
-      -761.3,
-      -171.4
+      3052.2,
+      -500.8,
+      -260.6
     ],
-    "tig_free": false,
+    "tig_free": true,
     "_comment": "TEI onto Apollo 17's return"
   },
   "entry": {

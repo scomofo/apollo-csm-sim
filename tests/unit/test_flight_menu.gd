@@ -24,7 +24,7 @@ func after_all() -> void:
 func test_the_choice_lists_every_mission_in_the_order_they_flew() -> void:
 	var c := FlightChoice.new()
 	var ids := c.missions.map(func(m: Mission) -> String: return m.id())
-	assert_eq(ids, ["apollo_8", "apollo_10", "apollo_11", "apollo_12", "apollo_13", "apollo_14", "apollo_15", "apollo_16"])
+	assert_eq(ids, ["apollo_8", "apollo_10", "apollo_11", "apollo_12", "apollo_13", "apollo_14", "apollo_15", "apollo_16", "apollo_17"])
 	assert_eq(c.mission_id(), "apollo_11", "Apollo 11 by default")
 	assert_eq(c.phase(), "launch", "its first start phase, on the pad")
 	for m: Mission in c.missions:
@@ -52,6 +52,9 @@ func test_it_steps_through_missions_and_their_start_phases() -> void:
 	c.step_mission(1)
 	assert_eq(c.mission_id(), "apollo_16")
 	assert_eq(c.phase(), "launch", "and Apollo 16")
+	c.step_mission(1)
+	assert_eq(c.mission_id(), "apollo_17")
+	assert_eq(c.phase(), "launch", "and Apollo 17")
 	c.step_mission(1)
 	assert_eq(c.mission_id(), "apollo_8", "round to the first")
 	for i in 4:

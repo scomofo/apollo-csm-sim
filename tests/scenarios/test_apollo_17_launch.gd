@@ -9,5 +9,5 @@ func test_apollo_17_launch_into_parking_orbit() -> void:
 	build("launch", "apollo_17")
 	var m := Mission.load_file(Mission.path_of("apollo_17"))
 	assert_eq(m.id(), "apollo_17")
-	assert_eq(rt.dynamics.config, "stack")
+	assert_eq(rt.dynamics.config, "saturn_v")
 	Mission.load_default()
