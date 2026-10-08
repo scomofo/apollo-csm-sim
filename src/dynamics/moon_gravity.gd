@@ -90,7 +90,7 @@ static func load_field(path: String, max_degree: int = -1) -> bool:
 		for m in range(0, n + 1):
 			var i := n * (n + 1) / 2 + m - 3
 			# Unnormalise: sqrt((2 - delta_m0) (2n + 1) (n - m)! / (n + m)!).
-			var f2 := (2.0 if m > 0 else 1.0) * (2 * n + 1)
+			var f2 := (2.0 if m > 0 else 1.0) * float(2 * n + 1)
 			for k in range(n - m + 1, n + m + 1):
 				f2 /= float(k)
 			var k_nm := sqrt(f2)
