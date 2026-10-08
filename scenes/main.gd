@@ -33,7 +33,7 @@
 ##
 ## Mission: the exported mission_id, or "--mission=<id>" after "--" on the
 ## command line, a mission under data/missions/ (apollo_11, apollo_8,
-## apollo_10, apollo_12, apollo_13, apollo_14, apollo_15, apollo_16, apollo_17), with its own
+## apollo_10, apollo_12, apollo_13, apollo_14, apollo_15, apollo_16), with its own
 ## checklists.
 ##
 ## Start phase: the exported start_phase, or "--phase=<name>" after "--" on
