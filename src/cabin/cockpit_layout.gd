@@ -42,8 +42,8 @@ const TYPES := {
 	"deda": {"scene": "res://scenes/instruments/cabin_deda.tscn", "control": false, "takes": ["group"], "half_mm": Vector2(75, 85)},
 }
 ## Printed lettering, capital height (m) [estimated].
-const CAPTION_HEIGHT := 0.0055
-const LEGEND_HEIGHT := 0.0042
+const CAPTION_HEIGHT := 0.0036
+const LEGEND_HEIGHT := 0.0026
 
 var rows: Array[Dictionary] = []
 ## channel (or pattern) -> its channels.csv row.
@@ -386,26 +386,26 @@ func _letter(panel: Node3D, node: Node3D, r: Dictionary) -> void:
 			lens.shaded = true
 			return
 		"toggle":
-			_caption(panel, r, at + Vector3(0, 38 * mm, 0.001), 60 * mm, VERTICAL_ALIGNMENT_BOTTOM)
+			_caption(panel, r, at + Vector3(0, 28 * mm, 0.001), 45 * mm, VERTICAL_ALIGNMENT_BOTTOM)
 			var labels: PackedStringArray = node.get("labels")
 			var n: int = node.get("positions")
-			_legend(panel, r, 0, labels[n - 1], at + Vector3(0, 22 * mm, 0.001))
-			_legend(panel, r, 1, labels[0], at + Vector3(0, -22 * mm, 0.001))
+			_legend(panel, r, 0, labels[n - 1], at + Vector3(0, 16 * mm, 0.001))
+			_legend(panel, r, 1, labels[0], at + Vector3(0, -16 * mm, 0.001))
 			if n == 3:
 				var mid := _legend(panel, r, 2, labels[1], at + Vector3(12 * mm, 0, 0.001))
 				mid.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		"rotary":
-			_caption(panel, r, at + Vector3(0, -30 * mm, 0.001), 70 * mm, VERTICAL_ALIGNMENT_TOP)
+			_caption(panel, r, at + Vector3(0, -25 * mm, 0.001), 50 * mm, VERTICAL_ALIGNMENT_TOP)
 			var labels: PackedStringArray = node.get("labels")
 			for i in int(node.get("positions")):
 				var a := deg_to_rad(float(node.get("start_angle_deg")) + float(node.get("detent_deg")) * i)
-				_legend(panel, r, i, labels[i], at + Vector3(sin(a), cos(a), 0.0) * 26 * mm + Vector3(0, 0, 0.001))
+				_legend(panel, r, i, labels[i], at + Vector3(sin(a), cos(a), 0.0) * 20 * mm + Vector3(0, 0, 0.001))
 		"pushbutton":
-			_caption(panel, r, at + Vector3(0, -18 * mm, 0.001), 60 * mm, VERTICAL_ALIGNMENT_TOP)
+			_caption(panel, r, at + Vector3(0, -15 * mm, 0.001), 45 * mm, VERTICAL_ALIGNMENT_TOP)
 		"fdai":
-			_caption(panel, r, at + Vector3(0, -60 * mm * node.scale.x, 0.001), 120 * mm, VERTICAL_ALIGNMENT_TOP)
+			_caption(panel, r, at + Vector3(0, -50 * mm * node.scale.x, 0.001), 100 * mm, VERTICAL_ALIGNMENT_TOP)
 		_:
-			_caption(panel, r, at + Vector3(0, -14 * mm, 0.001), 70 * mm, VERTICAL_ALIGNMENT_TOP)
+			_caption(panel, r, at + Vector3(0, -12 * mm, 0.001), 50 * mm, VERTICAL_ALIGNMENT_TOP)
 
 
 func _caption(panel: Node3D, r: Dictionary, at: Vector3, width: float, valign: VerticalAlignment) -> Label3D:
