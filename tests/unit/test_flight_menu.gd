@@ -57,7 +57,7 @@ func test_it_steps_through_missions_and_their_start_phases() -> void:
 	assert_eq(c.phase(), "launch", "and Apollo 17")
 	c.step_mission(1)
 	assert_eq(c.mission_id(), "apollo_8", "round to the first")
-	for i in 4:
+	for i in 5:
 		c.step_mission(-1)
 	c.step_phase(-1)
 	assert_eq(c.phase(), "tank_failure", "back round to the last")
