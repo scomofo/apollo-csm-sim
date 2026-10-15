@@ -16,19 +16,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  suite:
-    # The GUT suite in parts that run side by side: the unit tests, and
-    # the scenario tests, which fly whole mission segments, each dealt
-    # out over their parts by their time on the runners. A new test file
-    # joins a part by itself.
+  suite-unit:
+    # The unit half of the GUT suite, dealt over three parts by the
+    # files' time on the runners (see the Run step). It runs on every
+    # event: this is the suite a pull request gets. The scenario half
+    # is the suite-scenarios job below.
     name: test (${{ matrix.part }})
-    timeout-minutes: 20
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        part: [unit 1 of 3, unit 2 of 3, unit 3 of 3, scenarios 1 of 6, scenarios 2 of 6, scenarios 3 of 6,
-          scenarios 4 of 6, scenarios 5 of 6, scenarios 6 of 6]
+        part: [unit 1 of 3, unit 2 of 3, unit 3 of 3]
     steps:
       - uses: actions/checkout@v5
         with:
@@ -50,6 +49,14 @@ jobs:
           mv ~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 ~/godot/godot
           chmod +x ~/godot/godot
 
+      - name: Cache the imported project
+        uses: actions/cache@v4
+        with:
+          path: .godot
+          key: godot-import-${{ env.GODOT_VERSION }}-${{ hashFiles('project.godot', 'export_presets.cfg', '**/*.import') }}
+          restore-keys: |
+            godot-import-${{ env.GODOT_VERSION }}-
+
       - name: Import project
         run: timeout 300 ~/godot/godot --headless --path . --import
 
@@ -60,14 +67,125 @@ jobs:
           # "unit K of N" or "scenarios K of N": the test files in
           # tests/unit or tests/scenarios dealt out over the N parts by
           # their seconds in .github/unit_seconds.txt or
-          # .github/scenario_seconds.txt (10 or 60 for a file not
-          # listed), the longest first, each to the part with the fewest
-          # so far; every part deals alike and runs the Kth share. -gdir=
+          # .github/scenario_seconds.txt (10 or 180 for a file not
+          # listed; an unlisted scenario file is usually a whole new
+          # mission, the heaviest kind there is), the longest first,
+          # each to the part with the fewest so far; every part deals
+          # alike and runs the Kth share. -gdir=
           # drops .gutconfig.json's directories, so only the files listed
           # run.
           read -r kind k _ n <<< "$PART"
           table=.github/scenario_seconds.txt
-          unlisted=60
+          unlisted=180
+          if [ "$kind" = unit ]; then
+            table=.github/unit_seconds.txt
+            unlisted=10
+          fi
+          declare -A secs
+          while read -r name s; do
+            secs[$name]=$s
+          done < <(grep -E '^test_' "$table")
+          mapfile -t files < <(
+            find "tests/$kind" -name 'test_*.gd' | while read -r f; do
+              echo "${secs[$(basename "$f")]:-$unlisted} $f"
+            done | LC_ALL=C sort -k1,1nr -k2,2)
+          load=()
+          for (( p = 0; p < n; p++ )); do load[p]=0; done
+          list=()
+          for line in "${files[@]}"; do
+            read -r s f <<< "$line"
+            best=0
+            for (( p = 1; p < n; p++ )); do
+              if (( load[p] < load[best] )); then best=$p; fi
+            done
+            load[best]=$(( load[best] + s ))
+            if (( best == k - 1 )); then list+=("res://$f"); fi
+          done
+          echo "$PART: ${list[*]} (${load[k - 1]} s recorded)"
+          if (( ${#list[@]} == 0 )); then
+            echo "No test files for $PART"
+            exit 1
+          fi
+          args=(-gdir= "-gtest=$(IFS=,; echo "${list[*]}")")
+          # GUT can report a test as passed after a GDScript runtime
+          # error aborts it before its remaining assertions.
+          set -o pipefail
+          ~/godot/godot --headless --path . -s addons/gut/gut_cmdln.gd "${args[@]}" -gexit 2>&1 | tee gut.log
+          if grep -Fq "SCRIPT ERROR:" gut.log; then
+            echo "A GDScript runtime error aborted a test."
+            exit 1
+          fi
+
+  suite-scenarios:
+    # The scenario half of the GUT suite: the tests that fly whole
+    # mission segments, dealt over twelve parts by their time on the
+    # runners (~123 min in .github/scenario_seconds.txt, ~10 min a
+    # part at twelve parts; at six parts a part needed ~20 min and
+    # the heavy deals were killed at the job timeout before they
+    # could finish). It is the expensive half — about four fifths of
+    # a full run's billed minutes — so it runs on pushes only: a
+    # pull request is gated by the unit parts, the build, the quest
+    # export and lint, and the scenario verdict lands on main after
+    # the merge instead of on the pull request. Every scenario test
+    # still runs exactly once per push, tag pushes included.
+    if: github.event_name == 'push'
+    name: test (${{ matrix.part }})
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [scenarios 1 of 12, scenarios 2 of 12, scenarios 3 of 12, scenarios 4 of 12,
+          scenarios 5 of 12, scenarios 6 of 12, scenarios 7 of 12, scenarios 8 of 12,
+          scenarios 9 of 12, scenarios 10 of 12, scenarios 11 of 12, scenarios 12 of 12]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          lfs: false
+
+      - name: Cache Godot
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot
+          key: godot-${{ env.GODOT_VERSION }}-linux
+
+      - name: Download Godot
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot
+          curl -sSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip -d ~/godot
+          mv ~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 ~/godot/godot
+          chmod +x ~/godot/godot
+
+      - name: Cache the imported project
+        uses: actions/cache@v4
+        with:
+          path: .godot
+          key: godot-import-${{ env.GODOT_VERSION }}-${{ hashFiles('project.godot', 'export_presets.cfg', '**/*.import') }}
+          restore-keys: |
+            godot-import-${{ env.GODOT_VERSION }}-
+
+      - name: Import project
+        run: timeout 300 ~/godot/godot --headless --path . --import
+
+      - name: Run the ${{ matrix.part }} tests
+        env:
+          PART: ${{ matrix.part }}
+        run: |
+          # "scenarios K of N": the test files in tests/scenarios
+          # dealt out over the N parts by their seconds in
+          # .github/scenario_seconds.txt (180 for a file not listed;
+          # an unlisted scenario file is usually a whole new
+          # mission, the heaviest kind there is), the longest first,
+          # each to the part with the fewest so far; every part deals
+          # alike and runs the Kth share. -gdir= drops
+          # .gutconfig.json's directories, so only the files listed
+          # run.
+          read -r kind k _ n <<< "$PART"
+          table=.github/scenario_seconds.txt
+          unlisted=180
           if [ "$kind" = unit ]; then
             table=.github/unit_seconds.txt
             unlisted=10
@@ -108,15 +226,21 @@ jobs:
           fi
 
   test:
-    # The check to require on main: it passes only when every part of the
-    # suite passed, and fails when one failed or was cancelled.
+    # The check to require on main: it passes only when every part of
+    # the suite that ran passed, and fails when one failed or was
+    # cancelled. The scenario parts run on pushes only, so on a pull
+    # request their result is "skipped" — the one skip this gate
+    # accepts; the scenarios job has no other reason to skip, and on
+    # a push it always runs.
     if: always()
-    needs: suite
+    needs: [suite-unit, suite-scenarios]
     timeout-minutes: 5
     runs-on: ubuntu-latest
     steps:
       - name: Every part of the suite passed
-        run: test "${{ needs.suite.result }}" = success
+        run: |
+          test "${{ needs.suite-unit.result }}" = success
+          test "${{ needs.suite-scenarios.result }}" = success || test "${{ needs.suite-scenarios.result }}" = skipped
 
   build:
     # The PC VR presets (export_presets.cfg) exported with Godot's own
@@ -165,6 +289,14 @@ jobs:
           unzip -j -q templates.tpz templates/version.txt templates/linux_release.x86_64 \
             templates/windows_release_x86_64.exe templates/windows_release_x86_64_console.exe -d "$dir"
           rm templates.tpz
+
+      - name: Cache the imported project
+        uses: actions/cache@v4
+        with:
+          path: .godot
+          key: godot-import-${{ env.GODOT_VERSION }}-${{ hashFiles('project.godot', 'export_presets.cfg', '**/*.import') }}
+          restore-keys: |
+            godot-import-${{ env.GODOT_VERSION }}-
 
       - name: Import project
         run: timeout 300 ~/godot/godot --headless --path . --import
@@ -300,6 +432,14 @@ jobs:
 
       - name: Install a virtual display and software GL
         run: sudo apt-get update -q && sudo apt-get install -y -q xvfb libgl1-mesa-dri
+
+      - name: Cache the imported project
+        uses: actions/cache@v4
+        with:
+          path: .godot
+          key: godot-import-${{ env.GODOT_VERSION }}-${{ hashFiles('project.godot', 'export_presets.cfg', '**/*.import') }}
+          restore-keys: |
+            godot-import-${{ env.GODOT_VERSION }}-
 
       - name: Import project
         run: timeout 300 ~/godot/godot --headless --path . --import
