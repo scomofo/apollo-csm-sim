@@ -20,15 +20,19 @@ jobs:
     # The GUT suite in parts that run side by side: the unit tests, and
     # the scenario tests, which fly whole mission segments, each dealt
     # out over their parts by their time on the runners. A new test file
-    # joins a part by itself.
+    # joins a part by itself. Twelve scenario parts at the recorded
+    # times (~123 min in .github/scenario_seconds.txt) deal to ~10 min
+    # a part: at six parts a part needed ~20 min and the heavy deals
+    # were killed at the job timeout before they could finish.
     name: test (${{ matrix.part }})
-    timeout-minutes: 20
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        part: [unit 1 of 3, unit 2 of 3, unit 3 of 3, scenarios 1 of 6, scenarios 2 of 6, scenarios 3 of 6,
-          scenarios 4 of 6, scenarios 5 of 6, scenarios 6 of 6]
+        part: [unit 1 of 3, unit 2 of 3, unit 3 of 3, scenarios 1 of 12, scenarios 2 of 12, scenarios 3 of 12,
+          scenarios 4 of 12, scenarios 5 of 12, scenarios 6 of 12, scenarios 7 of 12, scenarios 8 of 12,
+          scenarios 9 of 12, scenarios 10 of 12, scenarios 11 of 12, scenarios 12 of 12]
     steps:
       - uses: actions/checkout@v5
         with:
@@ -50,6 +54,14 @@ jobs:
           mv ~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 ~/godot/godot
           chmod +x ~/godot/godot
 
+      - name: Cache the imported project
+        uses: actions/cache@v4
+        with:
+          path: .godot
+          key: godot-import-${{ env.GODOT_VERSION }}-${{ hashFiles('project.godot', 'export_presets.cfg', '**/*.import') }}
+          restore-keys: |
+            godot-import-${{ env.GODOT_VERSION }}-
+
       - name: Import project
         run: timeout 300 ~/godot/godot --headless --path . --import
 
@@ -60,14 +72,16 @@ jobs:
           # "unit K of N" or "scenarios K of N": the test files in
           # tests/unit or tests/scenarios dealt out over the N parts by
           # their seconds in .github/unit_seconds.txt or
-          # .github/scenario_seconds.txt (10 or 60 for a file not
-          # listed), the longest first, each to the part with the fewest
-          # so far; every part deals alike and runs the Kth share. -gdir=
+          # .github/scenario_seconds.txt (10 or 180 for a file not
+          # listed; an unlisted scenario file is usually a whole new
+          # mission, the heaviest kind there is), the longest first,
+          # each to the part with the fewest so far; every part deals
+          # alike and runs the Kth share. -gdir=
           # drops .gutconfig.json's directories, so only the files listed
           # run.
           read -r kind k _ n <<< "$PART"
           table=.github/scenario_seconds.txt
-          unlisted=60
+          unlisted=180
           if [ "$kind" = unit ]; then
             table=.github/unit_seconds.txt
             unlisted=10
@@ -165,6 +179,14 @@ jobs:
           unzip -j -q templates.tpz templates/version.txt templates/linux_release.x86_64 \
             templates/windows_release_x86_64.exe templates/windows_release_x86_64_console.exe -d "$dir"
           rm templates.tpz
+
+      - name: Cache the imported project
+        uses: actions/cache@v4
+        with:
+          path: .godot
+          key: godot-import-${{ env.GODOT_VERSION }}-${{ hashFiles('project.godot', 'export_presets.cfg', '**/*.import') }}
+          restore-keys: |
+            godot-import-${{ env.GODOT_VERSION }}-
 
       - name: Import project
         run: timeout 300 ~/godot/godot --headless --path . --import
@@ -300,6 +322,14 @@ jobs:
 
       - name: Install a virtual display and software GL
         run: sudo apt-get update -q && sudo apt-get install -y -q xvfb libgl1-mesa-dri
+
+      - name: Cache the imported project
+        uses: actions/cache@v4
+        with:
+          path: .godot
+          key: godot-import-${{ env.GODOT_VERSION }}-${{ hashFiles('project.godot', 'export_presets.cfg', '**/*.import') }}
+          restore-keys: |
+            godot-import-${{ env.GODOT_VERSION }}-
 
       - name: Import project
         run: timeout 300 ~/godot/godot --headless --path . --import
